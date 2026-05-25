@@ -1,0 +1,1685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Wellness Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0f0e;--bg2:#151817;--bg3:#1c201e;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);
+  --text:#e8ede9;--muted:#7a8a7d;--muted2:#4a5a4d;
+  --green:#4caf7d;--green2:#2d7a52;--green-light:#a8d5b5;
+  --amber:#c9913a;--amber-light:#e8c87a;
+  --blue:#4a90b8;--blue-light:#a0c8e0;
+  --coral:#c96b4a;--coral-light:#e0a090;
+  --purple:#8a6ab8;--purple-light:#c0a8d8;
+  --teal:#3a9090;--teal-light:#90c8c8;
+  --red:#b84a4a;--red-light:#e09090;
+  --gold:#b8963a;--gold-light:#e8d47a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;font-size:14px;line-height:1.6;min-height:100vh}
+.hdr{padding:32px 44px 0;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;background:var(--bg)}
+.htitle{font-family:"DM Serif Display",serif;font-size:26px;font-weight:400;color:var(--text);margin-bottom:18px}
+.htitle em{font-style:italic;color:var(--green-light)}
+.tabs{display:flex;overflow-x:auto}
+.tab{background:none;border:none;cursor:pointer;padding:10px 20px;font-family:"DM Sans",sans-serif;font-size:13px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:color .2s,border-color .2s}
+.tab:hover{color:var(--text)}.tab.active{color:var(--green-light);border-bottom-color:var(--green)}
+.view{display:none;padding:26px 44px 60px;max-width:1040px}.view.active{display:block}
+/* schedule */
+.dnav{display:flex;border-bottom:1px solid var(--border);margin-bottom:22px;overflow-x:auto}
+.dbtn{background:none;border:none;cursor:pointer;padding:10px 16px;font-family:"DM Sans",sans-serif;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:color .2s,border-color .2s}
+.dbtn:hover{color:var(--text)}.dbtn.active{color:var(--amber-light);border-bottom-color:var(--amber)}
+.dview{display:none}.dview.active{display:block}
+.pbanner{display:flex;align-items:center;gap:12px;padding:11px 16px;background:rgba(76,175,125,0.06);border:1px solid var(--green2);border-radius:10px;margin-bottom:20px;font-size:13px;color:var(--green-light)}
+.pbanner strong{color:var(--text)}
+.tl{display:flex;flex-direction:column}
+.phdr{font-family:"DM Mono",monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted2);padding:16px 0 4px 90px}
+.trow{display:flex;cursor:pointer}.trow:hover .tcard{border-color:var(--border2)}
+.ttime{width:76px;flex-shrink:0;padding:14px 10px 0 0;text-align:right;font-family:"DM Mono",monospace;font-size:11px;color:var(--muted)}
+.tline{width:16px;flex-shrink:0;display:flex;flex-direction:column;align-items:center}
+.tdot{width:10px;height:10px;border-radius:50%;margin-top:16px;flex-shrink:0}
+.tvl{flex:1;width:1px;min-height:12px;opacity:.2}
+.tcnt{flex:1;padding:8px 0 4px 14px}
+.tcard{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:6px;transition:border-color .2s}
+.ttr{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.ttitle{font-size:14px;font-weight:500;color:var(--text)}
+.tbadge{font-family:"DM Mono",monospace;font-size:10px;color:var(--muted);background:var(--bg3);padding:2px 7px;border-radius:6px;border:1px solid var(--border)}
+.twhy{font-size:10px;font-family:"DM Mono",monospace;padding:2px 8px;border-radius:6px;border:1px solid}
+.tdet{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.6;display:none}
+.trow.open .tdet{display:block}.trow.open .tcard{border-color:var(--border2)}
+.dbridge{margin:-2px 0 0 90px;padding:4px 10px 4px 14px;border-left:2px dashed rgba(76,175,125,0.25);border-bottom:2px dashed rgba(76,175,125,0.25);border-bottom-left-radius:6px;font-size:11px;color:var(--muted2);font-family:"DM Mono",monospace}
+/* color helpers */
+.cg{background:var(--green)}.ca{background:var(--amber)}.cc{background:var(--coral)}
+.cp{background:var(--purple)}.ct{background:var(--teal)}.cb{background:var(--blue)}
+.cgr{background:var(--muted2)}.cgo{background:var(--gold)}
+.wg{color:var(--green-light);border-color:var(--green2);background:rgba(76,175,125,0.06)}
+.wa{color:var(--amber-light);border-color:var(--amber);background:rgba(201,145,58,0.06)}
+.wp{color:var(--purple-light);border-color:var(--purple);background:rgba(138,106,184,0.06)}
+.wt{color:var(--teal-light);border-color:var(--teal);background:rgba(58,144,144,0.06)}
+.wgr{color:var(--muted);border-color:var(--muted2);background:rgba(74,90,77,0.06)}
+.wc{color:var(--coral-light);border-color:var(--coral);background:rgba(201,107,74,0.06)}
+.wgo{color:var(--gold-light);border-color:var(--gold);background:rgba(184,150,58,0.06)}
+/* workout */
+.wkview{display:none}
+/* recipes */
+.rfbtn{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:5px 13px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .2s;white-space:nowrap}
+.rfbtn.active,.rfbtn:hover{border-color:var(--amber);color:var(--amber-light);background:rgba(201,145,58,0.08)}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.rcard{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .2s}
+.rcard:hover,.rcard.open{border-color:var(--border2)}
+.rctop{padding:14px}.rctr{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.rctype{font-family:"DM Mono",monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:500}
+.rcbadge{font-family:"DM Mono",monospace;font-size:9px;padding:2px 7px;border-radius:6px;border:1px solid}
+.rcname{font-family:"DM Serif Display",serif;font-size:18px;font-weight:400;color:var(--text);line-height:1.2;margin-bottom:2px}
+.rctag{font-size:12px;color:var(--muted);margin-bottom:8px}
+.mrow{display:flex;gap:8px;flex-wrap:wrap}
+.mv{text-align:center}.mvv{font-family:"DM Mono",monospace;font-size:13px;font-weight:500;display:block}.mvl{font-size:9px;color:var(--muted2);display:block}
+.rchint{font-size:11px;color:var(--muted2);font-family:"DM Mono",monospace;text-align:center;padding:5px}
+.rcbody{display:none;padding:12px 14px;border-top:1px solid var(--border)}.rcard.open .rcbody{display:block}
+.rbtit{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 5px}.rbtit:first-child{margin-top:0}
+.inglist{list-style:none}
+.inglist li{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);padding:3px 0;border-bottom:1px solid var(--border)}.inglist li:last-child{border-bottom:none}
+.ingamt{font-family:"DM Mono",monospace;font-size:12px;color:var(--text)}
+.rstep{display:flex;gap:9px;margin-bottom:6px}
+.rnum{width:18px;height:18px;border-radius:50%;font-family:"DM Mono",monospace;font-size:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;color:#fff}
+.rtxt{font-size:13px;color:var(--muted);line-height:1.5}
+.rtip{margin-top:9px;padding:8px 10px;background:var(--bg3);border-radius:6px;border-left:2px solid var(--amber);font-size:12px;color:var(--muted);font-style:italic;line-height:1.5}
+/* grocery */
+.gcat{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.gcatlbl{font-family:"DM Mono",monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:10px}
+.gitem{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--muted);cursor:pointer;user-select:none;line-height:1.4}
+.gitem:last-child{border-bottom:none}.gitem.gchecked{color:var(--muted2);text-decoration:line-through}
+.gcheck{width:14px;height:14px;border:1px solid var(--muted2);border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:transparent;transition:all .15s}
+.gitem.gchecked .gcheck{background:var(--green);border-color:var(--green);color:#fff}
+.gdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.gbadge{margin-left:auto;font-family:"DM Mono",monospace;font-size:9px;padding:1px 6px;border-radius:5px;border:1px solid;flex-shrink:0;white-space:nowrap}
+.gbadd{color:var(--green-light);border-color:var(--green2);background:rgba(76,175,125,0.08)}
+.gbswap{color:var(--amber-light);border-color:var(--amber);background:rgba(201,145,58,0.08)}
+.gbrem{color:var(--red-light);border-color:var(--red);background:rgba(184,74,74,0.08)}
+/* tracker inputs */
+.tinput{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:8px 11px;color:var(--text);font-size:13px;font-family:"DM Sans",sans-serif;outline:none;width:100%}
+.tnum{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:7px 8px;color:var(--text);font-size:13px;font-family:"DM Mono",monospace;outline:none;width:100%}
+.tbtn{border:none;border-radius:7px;padding:9px;font-size:13px;font-family:"DM Sans",sans-serif;cursor:pointer;font-weight:500;width:100%}
+.tcard{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px}
+.tlabel{font-family:"DM Mono",monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;margin-bottom:10px}
+@media(max-width:700px){.hdr,.view{padding-left:16px;padding-right:16px}.htitle{font-size:21px}.rgrid{grid-template-columns:1fr}#trackerGrid{grid-template-columns:1fr !important}}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="htitle">My <em>Wellness Hub</em></div>
+  <div class="tabs">
+    <button class="tab active" data-v="v0">&#128197; Schedule</button>
+    <button class="tab" data-v="v1">&#128170; Workouts</button>
+    <button class="tab" data-v="v2">&#127860; Recipes</button>
+    <button class="tab" data-v="v3">&#128202; Tracker</button>
+  </div>
+</div>
+
+<div class="view active" id="v0">
+  <div class="dnav" id="dayNav"></div>
+  <div id="dayViews"></div>
+</div>
+
+<div class="view" id="v1">
+  <div style="margin-bottom:20px">
+    <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--coral);margin-bottom:5px">Fat loss &middot; Cycle-synced &middot; Home + Pilates</div>
+    <div style="font-family:'DM Serif Display',serif;font-size:26px;font-weight:400;color:var(--text);line-height:1.2;margin-bottom:7px">Her Fat Loss &amp; <em style="font-style:italic;color:var(--coral-light)">Recomposition Plan</em></div>
+    <div style="font-size:13px;color:var(--muted);max-width:580px;line-height:1.6">58 kg &middot; 35% body fat &middot; 1.56 m &middot; irregular cycle &middot; 3, 5, 10 lb dumbbells + Pilates. Target: ~1,380 kcal/day, 0.4&ndash;0.5 kg fat/week. All sessions 4:30 PM (late chronotype peak).</div>
+  </div>
+  <div id="statsStrip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:22px"></div>
+  <div style="background:var(--bg2);border:1px solid var(--purple);border-radius:12px;padding:14px 18px;margin-bottom:22px">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--purple-light);margin-bottom:7px">3-Week Rotating Cycle</div>
+    <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:10px">Restart at <strong style="color:var(--text)">Week 1</strong> whenever your period begins. The plan mirrors the four hormonal phases without requiring you to track exact days.</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px" id="phaseChips"></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap" id="weekNav"></div>
+  <div id="weekViews"></div>
+</div>
+
+<div class="view" id="v2">
+  <!-- Filter bar + action buttons -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center" id="rfilters">
+    <button class="rfbtn active" data-rf="all">All</button>
+    <button class="rfbtn" data-rf="breakfast">Breakfast</button>
+    <button class="rfbtn" data-rf="smoothie">Smoothies</button>
+    <button class="rfbtn" data-rf="lunch">Lunch</button>
+    <button class="rfbtn" data-rf="dinner">Dinner</button>
+    <button class="rfbtn" data-rf="dessert">Dessert</button>
+    <button class="rfbtn" data-rf="ferments">Ferments</button>
+    <button class="rfbtn" data-rf="custom" style="border-color:var(--purple);color:var(--purple-light)">&#11088; My Recipes</button>
+    <button class="rfbtn" data-rf="grocery" style="border-color:var(--green2);color:var(--green-light)">&#128722; Grocery</button>
+  </div>
+  <!-- Custom tag filter row (shown dynamically) -->
+  <div id="customTagRow" style="display:none;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--bg2);border:1px solid var(--purple);border-radius:9px;align-items:center">
+    <span style="font-size:11px;color:var(--purple-light);font-family:'DM Mono',monospace;margin-right:4px">Filter by tag:</span>
+    <div id="customTagBtns" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></div>
+  </div>
+  <!-- Add Recipe + Export/Import bar -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;align-items:center">
+    <button id="openRecipeModal" style="background:var(--purple);border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:'DM Sans',sans-serif;color:#fff;cursor:pointer;font-weight:500">+ Add my recipe</button>
+    <div style="margin-left:auto;display:flex;gap:7px">
+      <button id="exportDataBtn" style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:6px 13px;font-size:12px;font-family:'DM Mono',monospace;color:var(--muted);cursor:pointer">&#8595; Export data</button>
+      <label id="importLabel" style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:6px 13px;font-size:12px;font-family:'DM Mono',monospace;color:var(--muted);cursor:pointer">&#8593; Import data<input type="file" id="importFile" accept=".json" style="display:none"/></label>
+    </div>
+  </div>
+
+  <div class="rgrid" id="recipeGrid"></div>
+
+  <!-- Grocery panel -->
+  <div id="groceryPanel" style="display:none">
+    <div style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;color:var(--text);margin-bottom:4px">Your <em style="font-style:italic;color:var(--green-light)">Grocery List</em></div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Tap any item to check it off as you shop.</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:var(--muted2);display:inline-block"></span>Keep</span>
+      <span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span>Add</span>
+      <span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber);display:inline-block"></span>Swap</span>
+      <span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block"></span>Remove</span>
+      <button id="clearGrocery" style="margin-left:auto;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:4px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif">Clear all</button>
+    </div>
+    <div id="groceryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"></div>
+  </div>
+</div>
+
+<!-- ══ RECIPE CREATOR MODAL ══ -->
+<div id="recipeModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);overflow-y:auto;padding:24px 16px">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;max-width:600px;margin:0 auto;padding:28px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;color:var(--text)">Add my <em style="font-style:italic;color:var(--purple-light)">Recipe</em></div>
+      <button id="closeRecipeModal" style="background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;padding:0 4px">&times;</button>
+    </div>
+
+    <!-- Name + tagline -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:5px">Recipe name *</div>
+      <input id="rm-name" class="tinput" placeholder="e.g. Mango Chia Pudding"/>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:5px">Short description</div>
+      <input id="rm-tag" class="tinput" placeholder="e.g. Prep night before · 5 min"/>
+    </div>
+
+    <!-- Category: preset + custom -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:7px">Category (pick one or create your own)</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px" id="rm-catBtns"></div>
+      <div style="display:flex;gap:6px">
+        <input id="rm-customCat" class="tinput" placeholder="New tag (e.g. Snack, Sauce, Drink...)" style="flex:1"/>
+        <button id="rm-addCat" style="background:var(--purple);border:none;border-radius:7px;padding:7px 14px;font-size:12px;color:#fff;cursor:pointer;white-space:nowrap">Add tag</button>
+      </div>
+    </div>
+
+    <!-- Macros -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:7px">Macros per serving (optional)</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
+        <input id="rm-kcal" class="tnum" type="number" min="0" placeholder="kcal"/>
+        <input id="rm-prot" class="tnum" type="number" min="0" placeholder="prot g"/>
+        <input id="rm-carb" class="tnum" type="number" min="0" placeholder="carb g"/>
+        <input id="rm-fat"  class="tnum" type="number" min="0" placeholder="fat g"/>
+        <input id="rm-fib"  class="tnum" type="number" min="0" placeholder="fiber g"/>
+      </div>
+    </div>
+
+    <!-- Ingredients -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:7px">Ingredients</div>
+      <div id="rm-ings" style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px"></div>
+      <div style="display:flex;gap:6px">
+        <input id="rm-ingName" class="tinput" placeholder="Ingredient" style="flex:2"/>
+        <input id="rm-ingAmt"  class="tinput" placeholder="Amount" style="flex:1"/>
+        <button id="rm-addIng" style="background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:12px;color:var(--muted);cursor:pointer">+</button>
+      </div>
+    </div>
+
+    <!-- Steps -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:7px">Steps</div>
+      <div id="rm-steps" style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px"></div>
+      <div style="display:flex;gap:6px">
+        <input id="rm-stepTxt" class="tinput" placeholder="Add a step..." style="flex:1"/>
+        <button id="rm-addStep" style="background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:7px 12px;font-size:12px;color:var(--muted);cursor:pointer">+</button>
+      </div>
+    </div>
+
+    <!-- Tip -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:5px">Tip / notes (optional)</div>
+      <textarea id="rm-tip" class="tinput" rows="2" placeholder="Any notes, variations, or tips..." style="resize:vertical"></textarea>
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button id="rm-save" style="flex:1;background:var(--purple);border:none;border-radius:8px;padding:10px;font-size:14px;font-family:'DM Sans',sans-serif;color:#fff;cursor:pointer;font-weight:500">Save recipe</button>
+      <button id="closeRecipeModal2" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 18px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--muted);cursor:pointer">Cancel</button>
+    </div>
+    <div id="rm-msg" style="margin-top:10px;font-size:13px;text-align:center;color:var(--green-light)"></div>
+  </div>
+</div>
+
+<div class="view" id="v3">
+  <div style="margin-bottom:20px">
+    <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--teal);margin-bottom:5px">Food &middot; Workout &middot; Meditation</div>
+    <div style="font-family:'DM Serif Display',serif;font-size:26px;font-weight:400;color:var(--text)">My <em style="font-style:italic;color:var(--teal-light)">Daily Tracker</em></div>
+  </div>
+  <!-- date nav -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+    <button id="prevDay" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 14px;color:var(--muted);cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif">&#8249; Prev</button>
+    <div id="dateLabel" style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text);min-width:190px;text-align:center"></div>
+    <button id="nextDay" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 14px;color:var(--muted);cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif">Next &#8250;</button>
+    <button id="goToday" style="background:rgba(58,144,144,0.1);border:1px solid var(--teal);border-radius:8px;padding:6px 14px;color:var(--teal-light);cursor:pointer;font-size:12px;font-family:'DM Mono',monospace">TODAY</button>
+  </div>
+  <!-- grid -->
+  <div id="trackerGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <!-- LEFT -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- calories -->
+      <div class="tcard">
+        <div class="tlabel" style="color:var(--muted2)">Daily macro targets &middot; fat loss + recomposition</div>
+        <!-- Macro rows -->
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:4px">
+          <!-- Calories -->
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+              <span style="font-size:12px;color:var(--muted)">Calories</span>
+              <span style="font-family:'DM Mono',monospace;font-size:12px"><span id="tKcal" style="color:var(--green-light)">0</span><span style="color:var(--muted2)"> / 1,380 kcal</span></span>
+            </div>
+            <div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden">
+              <div id="tBarKcal" style="height:100%;background:var(--green);border-radius:4px;width:0%;transition:width .4s"></div>
+            </div>
+            <div style="font-size:10px;color:var(--muted2);margin-top:2px"><span id="tRemKcal" style="color:var(--teal-light)">1,380</span> kcal remaining</div>
+          </div>
+          <!-- Protein -->
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+              <span style="font-size:12px;color:var(--muted)">Protein <span style="color:var(--muted2);font-size:10px">&middot; muscle retention</span></span>
+              <span style="font-family:'DM Mono',monospace;font-size:12px"><span id="tProt" style="color:var(--blue-light)">0g</span><span style="color:var(--muted2)"> / 110g</span></span>
+            </div>
+            <div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden">
+              <div id="tBarProt" style="height:100%;background:var(--blue);border-radius:4px;width:0%;transition:width .4s"></div>
+            </div>
+          </div>
+          <!-- Carbs -->
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+              <span style="font-size:12px;color:var(--muted)">Carbs <span style="color:var(--muted2);font-size:10px">&middot; moderate-low</span></span>
+              <span style="font-family:'DM Mono',monospace;font-size:12px"><span id="tCarb" style="color:var(--amber-light)">0g</span><span style="color:var(--muted2)"> / 130g</span></span>
+            </div>
+            <div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden">
+              <div id="tBarCarb" style="height:100%;background:var(--amber);border-radius:4px;width:0%;transition:width .4s"></div>
+            </div>
+          </div>
+          <!-- Fat -->
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+              <span style="font-size:12px;color:var(--muted)">Fat <span style="color:var(--muted2);font-size:10px">&middot; hormonal health</span></span>
+              <span style="font-family:'DM Mono',monospace;font-size:12px"><span id="tFat" style="color:var(--coral-light)">0g</span><span style="color:var(--muted2)"> / 52g</span></span>
+            </div>
+            <div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden">
+              <div id="tBarFat" style="height:100%;background:var(--coral);border-radius:4px;width:0%;transition:width .4s"></div>
+            </div>
+          </div>
+          <!-- Fiber -->
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+              <span style="font-size:12px;color:var(--muted)">Fiber <span style="color:var(--muted2);font-size:10px">&middot; satiety on deficit</span></span>
+              <span style="font-family:'DM Mono',monospace;font-size:12px"><span id="tFiber" style="color:var(--teal-light)">0g</span><span style="color:var(--muted2)"> / 25g</span></span>
+            </div>
+            <div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden">
+              <div id="tBarFiber" style="height:100%;background:var(--teal);border-radius:4px;width:0%;transition:width .4s"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- food log -->
+      <div class="tcard">
+        <div class="tlabel" style="color:var(--muted2)">Meals logged</div>
+        <div id="foodList" style="margin-bottom:12px;min-height:30px"></div>
+        <div style="border-top:1px solid var(--border);padding-top:12px">
+          <input id="fName" class="tinput" placeholder="Meal name (e.g. Berry Oats)" style="margin-bottom:7px"/>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:7px">
+            <input id="fKcal" class="tnum" type="number" min="0" placeholder="kcal"/>
+            <input id="fPro"  class="tnum" type="number" min="0" placeholder="prot"/>
+            <input id="fCarb" class="tnum" type="number" min="0" placeholder="carb"/>
+            <input id="fFat"  class="tnum" type="number" min="0" placeholder="fat"/>
+            <input id="fFiber" class="tnum" type="number" min="0" placeholder="fiber"/>
+          </div>
+          <div style="font-size:11px;color:var(--muted2);margin-bottom:5px">Quick-add from your recipes:</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px" id="qabtns"></div>
+          <button id="addFoodBtn" class="tbtn" style="background:var(--teal);color:#fff">+ Log food</button>
+        </div>
+      </div>
+
+      <!-- meditation -->
+      <div class="tcard">
+        <div class="tlabel" style="color:var(--gold)">Meditation &middot; 8:45 AM</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5">Optimal post-CAR window. Even 13 minutes measurably improves focus and working memory for hours.</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Duration:</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="medDuration"></div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Style:</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="medStyle"></div>
+        <div id="medLogged" style="display:none;padding:8px 10px;background:rgba(184,150,58,0.08);border:1px solid var(--gold);border-radius:7px;font-size:12px;color:var(--gold-light);margin-bottom:8px"></div>
+        <button id="logMedBtn" class="tbtn" style="background:var(--bg3);border:1px solid var(--gold);color:var(--gold-light)">Log meditation</button>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- workout -->
+      <div class="tcard">
+        <div class="tlabel" style="color:var(--coral)">Workout log &middot; 4:30 PM</div>
+        <div id="phaseNote" style="font-size:12px;color:var(--muted);margin-bottom:12px;padding:8px 10px;background:var(--bg3);border-radius:7px;line-height:1.5">Select your cycle phase in check-in to see today&#39;s recommended session.</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:7px">Session type:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px" id="sessionBtns"></div>
+        <div id="wkLogged" style="display:none;padding:10px 12px;background:rgba(76,175,125,0.06);border:1px solid var(--green2);border-radius:8px;margin-bottom:10px">
+          <div style="font-size:13px;color:var(--green-light);font-weight:500;margin-bottom:3px">&#10003; Session logged</div>
+          <div id="wkDetail" style="font-size:12px;color:var(--muted)"></div>
+        </div>
+        <textarea id="wkNotes" class="tinput" placeholder="How did it feel? PRs? Modifications?" rows="3" style="resize:vertical;margin-bottom:8px"></textarea>
+        <button id="logWkBtn" class="tbtn" style="background:var(--coral);color:#fff">+ Log workout</button>
+      </div>
+
+      <!-- check-in -->
+      <div class="tcard">
+        <div class="tlabel" style="color:var(--purple)">Daily check-in</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Energy &#9889;</div>
+            <div style="display:flex;gap:5px" id="energyRow"></div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Mood &#128522;</div>
+            <div style="display:flex;gap:5px" id="moodRow"></div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Sleep &#127769;</div>
+            <div style="display:flex;gap:5px" id="sleepRow"></div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Cycle phase</div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap" id="phaseRow"></div>
+          </div>
+          <button id="saveCheckIn" class="tbtn" style="background:var(--purple);color:#fff">Save check-in</button>
+        </div>
+      </div>
+
+      <!-- notes -->
+      <div class="tcard">
+        <div class="tlabel" style="color:var(--muted2)">Day notes</div>
+        <textarea id="dayNotes" class="tinput" placeholder="Cravings, how the workout felt, anything worth noting..." rows="4" style="resize:vertical;margin-bottom:8px"></textarea>
+        <button id="saveNotes" class="tbtn" style="background:var(--bg3);border:1px solid var(--border2);color:var(--muted)">Save notes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- week strip -->
+  <div style="margin-top:18px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:12px">This week</div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px" id="weekStrip"></div>
+    <div style="display:flex;gap:14px;margin-top:8px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace"><span style="color:var(--green-light)">&#9679;</span> kcal</span>
+      <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace"><span style="color:var(--coral-light)">W</span> workout</span>
+      <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace"><span style="color:var(--gold-light)">M</span> meditation</span>
+    </div>
+  </div>
+  <div style="margin-top:14px;padding:12px 16px;background:rgba(58,144,144,0.06);border:1px solid var(--teal);border-radius:10px;font-size:13px;color:var(--teal-light);line-height:1.6">
+    <strong style="color:var(--text)">Calendar reminders:</strong> Import <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:12px">wellness_schedule.ics</code> into Google or Apple Calendar for daily phone notifications at each schedule block.
+  </div>
+</div>
+<script>
+// ══════════════════════════════════════════
+// SHARED DATA
+// ══════════════════════════════════════════
+
+const SCHEDULE_BLOCKS = [
+  {phase:"Wake-up",time:"8:00",title:"Wake + no-phone rule",dur:"5 min",dot:"cg",why:"wg",whyTxt:"Protects cortisol awakening response",desc:"The cortisol awakening response (CAR) is a 20-40% cortisol spike in the first 30-45 min after waking that primes your brain for the day. Grabbing your phone immediately dysregulates it. Lie still, breathe, let your body wake naturally.",bridge:null},
+  {phase:"Dog walk",time:"8:05",title:"Dog walk — light exposure",dur:"10 min",dot:"ct",why:"wt",whyTxt:"Circadian anchor + melatonin suppression",desc:"2,500+ lux natural morning light enhances the CAR by 20-40% and suppresses residual melatonin — which clears later in late chronotypes. Your dog enforces a no-phone, present-moment walk. Even an overcast outdoor morning delivers ~10,000 lux vs ~500 lux indoors.",bridge:"Return home · drop dog off"},
+  {phase:"Fuel up",time:"8:20",title:"Hydration + breakfast",dur:"25 min",dot:"ca",why:"wa",whyTxt:"Ghrelin peak + dopamine precursors",desc:"Start with 500ml water. Eat — ghrelin peaks in the morning and eating early supports a longer eating-window closure in the evening, both linked to better body composition. Protein provides tyrosine for dopamine synthesis. High fiber + fat slows gastric emptying so you stay full through the commute walk.",bridge:null},
+  {phase:"Meditation",time:"8:45",title:"Mindfulness meditation",dur:"10-15 min",dot:"cgo",why:"wgo",whyTxt:"PFC priming + cortisol regulation",desc:"Optimal window for your late chronotype: the CAR has peaked, the brain is alert but not yet task-loaded, and the nervous system is receptive to downregulation. Research shows a single 13-minute meditation session measurably improves attention, working memory, and emotional regulation hours later. Use breath focus or a body scan. No guided narrative — silence or ambient sound only.",bridge:null},
+  {phase:"Activation",time:"9:00",title:"Cold water + shower",dur:"10 min",dot:"cp",why:"wp",whyTxt:"Norepinephrine + PFC activation",desc:"End your shower with 30-90 seconds of cold water. Research shows this triggers norepinephrine release (up to 300%), dopamine, and serotonin. fMRI studies show increased neural connectivity in the prefrontal cortex and anterior cingulate — your decision-making and attention centers.",bridge:null},
+  {phase:"Commute",time:"9:15",title:"Walk to office — planning walk",dur:"30 min",dot:"ct",why:"wt",whyTxt:"BDNF + default mode network",desc:"Three things at once: BDNF-boosting movement, default mode network priming (no podcasts for the first 15 min — let your mind surface ideas), and mental rehearsal of your top 1-2 tasks. Arrive pre-loaded.",bridge:null},
+  {phase:"Ramp-up",time:"9:50",title:"Caffeine — strategic timing",dur:"—",dot:"ca",why:"wa",whyTxt:"Optimal adenosine clearance",desc:"~110 minutes after waking. Adenosine has now cleared sufficiently — caffeine amplifies alertness without the afternoon crash caused by drinking coffee during the CAR window. 1-2 cups maximum.",bridge:null},
+  {phase:null,time:"10:00",title:"Daily planning block",dur:"15 min",dot:"cp",why:"wp",whyTxt:"Reduce decision fatigue",desc:"Write your 1-3 most important tasks. No email, no Slack. You already did mental rehearsal on the walk — this is just formalizing it. Externalizing priorities now means your peak window is pure execution.",bridge:null},
+  {phase:null,time:"10:15",title:"Warm-up work — low friction",dur:"45 min",dot:"cgr",why:"wgr",whyTxt:"Synchrony effect — protect your peak",desc:"Code reviews, reading docs, async replies, writing tests. The synchrony effect shows late chronotypes perform worst on demanding tasks in the early morning. Low-friction real work here is productive without burning your peak.",bridge:null},
+  {phase:"PEAK",time:"11:00",title:"Deep work block",dur:"90-120 min",dot:"cg",why:"wg",whyTxt:"Peak alpha/beta brainwave power",desc:"Architecture decisions, complex debugging, system design — anything requiring working memory and executive function. Block calendar. Silence notifications. Use a 90-min ultradian cycle. Research on late chronotypes confirms superior processing speed and executive control in this window. Use it deliberately every day.",bridge:null},
+];
+
+const SCHEDULE_DAYS = [
+  {day:"Monday",peak:"Monday peak: 11 AM - 1 PM. Cook a double batch of quinoa tonight — powers Wed, Thu, Fri lunches."},
+  {day:"Tuesday",peak:"Tuesday peak: 11 AM - 1 PM. Use the commute walk to mentally rehearse your top priority. Arrive pre-loaded."},
+  {day:"Wednesday",peak:"Midweek peak: 11 AM - 1 PM. Leave headphones out on the commute today — ambient sound enhances creative problem-solving."},
+  {day:"Thursday",peak:"Thursday peak: 11 AM - 1 PM. Statistically high-decision-load day for engineers — protect this window especially."},
+  {day:"Friday",peak:"End-of-week peak: 11 AM - 1 PM. Great for refactoring, documentation, retrospectives. Use commute to close open loops."},
+];
+
+// ──────────────────────────────────────────
+// BUILD SCHEDULE TAB
+// ──────────────────────────────────────────
+(function(){
+  var nav = document.getElementById('dayNav');
+  var views = document.getElementById('dayViews');
+  if(!nav||!views) return;
+
+  SCHEDULE_DAYS.forEach(function(d,di){
+    var btn = document.createElement('button');
+    btn.className = 'dbtn' + (di===0?' active':'');
+    btn.textContent = d.day;
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.dbtn').forEach(function(b){b.classList.remove('active');});
+      document.querySelectorAll('.dview').forEach(function(v){v.classList.remove('active');});
+      btn.classList.add('active');
+      document.getElementById('dv'+di).classList.add('active');
+    });
+    nav.appendChild(btn);
+
+    var dv = document.createElement('div');
+    dv.className = 'dview' + (di===0?' active':'');
+    dv.id = 'dv'+di;
+
+    var pb = document.createElement('div');
+    pb.className = 'pbanner';
+    pb.innerHTML = '<span>&#9675;</span><span><strong>Cognitive peak: 11 AM - 1 PM.</strong> ' + d.peak + '</span>';
+    dv.appendChild(pb);
+
+    var tl = document.createElement('div');
+    tl.className = 'tl';
+    SCHEDULE_BLOCKS.forEach(function(b,bi){
+      if(b.phase){
+        var ph = document.createElement('div');
+        ph.className = 'phdr';
+        ph.textContent = b.phase;
+        tl.appendChild(ph);
+      }
+      var isLast = bi === SCHEDULE_BLOCKS.length-1;
+      var row = document.createElement('div');
+      row.className = 'trow';
+      row.innerHTML = '<div class="ttime">'+b.time+'</div>'
+        +'<div class="tline"><div class="tdot '+b.dot+'"></div>'+(isLast?'':'<div class="tvl '+b.dot+'"></div>')+'</div>'
+        +'<div class="tcnt"><div class="tcard"><div class="ttr">'
+        +'<span class="ttitle">'+b.title+'</span>'
+        +'<span class="tbadge">'+b.dur+'</span>'
+        +'<span class="twhy '+b.why+'">'+b.whyTxt+'</span>'
+        +'</div><div class="tdet">'+b.desc+'</div></div></div>';
+      row.addEventListener('click', function(){row.classList.toggle('open');});
+      tl.appendChild(row);
+      if(b.bridge){
+        var br = document.createElement('div');
+        br.className = 'dbridge';
+        br.textContent = b.bridge;
+        tl.appendChild(br);
+      }
+    });
+    dv.appendChild(tl);
+    views.appendChild(dv);
+  });
+})();
+
+// ──────────────────────────────────────────
+// WORKOUT PLAN DATA
+// ──────────────────────────────────────────
+var wkPlan = [
+  {week:1,label:"Week 1 - Menstrual Phase",color:"var(--purple)",
+    note:"Energy and tolerance are lowest. Pilates, gentle glute activation, Zone 2 walking. Stay consistent without overreaching.",
+    nutr:"Stick to ~1,380 kcal. Extra magnesium-rich foods (dark chocolate, walnuts, spinach) help with cramping and mood.",
+    days:[
+      {slot:"Day A",type:"Pilates",label:"Reformer / Mat Pilates",time:"60 min - weekend preferred",color:"var(--purple)",
+        solin:"Pilates aligns with Solin's activation-first philosophy - mind-muscle connection before load.",
+        exs:[
+          {t:"Footwork series",d:"4 min",i:"Reformer footwork or supine foot press against wall. Heels, arches, toes. Slow and controlled."},
+          {t:"Hundred",d:"3 sets",i:"Classic core pump. Keep lower back imprinted. Breathe 5 pumps in, 5 out. Bend knees if lower back lifts."},
+          {t:"Single leg circle",d:"5 each direction x3",i:"Pelvis stays absolutely still. Circle from the hip socket. Builds hip stability."},
+          {t:"Rolling like a ball",d:"8 reps",i:"Spinal massage, mobility, parasympathetic activation. Perfect for Day 1 of your period."},
+          {t:"Side-lying series",d:"12 reps x3 each side",i:"Leg lifts, clamshells, kick-backs. Isolate glute med and minimus."},
+          {t:"Mermaid + spine twist",d:"5 each",i:"Lateral spine mobility. Hold each, breathe into the stretch."},
+        ],
+        altLabel:"Home Alternative - Gentle Glute Activation",
+        alts:[
+          {t:"Supine hip circles",d:"10 each direction",i:"Lying on back, draw circles with knees. Hip mobilisation."},
+          {t:"Glute bridge pulses",d:"3x20 - 5 lb DB",i:"5 lb dumbbell on hips. Pulse at top. Activates glutes without heavy loading."},
+          {t:"Side-lying clamshells",d:"3x15 each",i:"Keep hips stacked. Top knee opens like a clamshell. Slow and controlled."},
+          {t:"Bird-dog",d:"3x10 each side",i:"All fours. Extend opposite arm and leg. Hold 2 sec. Core and glute stability."},
+          {t:"Child's pose + cat-cow",d:"5 min",i:"Flow between the two for full spinal mobility."},
+        ]
+      },
+      {slot:"Day B",type:"Home",label:"Glute Activation + Zone 2 Walk",time:"45 min",color:"var(--purple)",
+        solin:"From Solin's Busy Girl Guide: short targeted glute sessions on low-energy days beat skipping entirely.",
+        exs:[
+          {t:"Warm-up walk",d:"5 min",i:"Easy pace. Get blood moving without spiking cortisol."},
+          {t:"Donkey kick - 3 lb DB behind knee",d:"3x15 each",i:"On all fours. 3 lb DB tucked behind knee. Drive heel to ceiling, squeeze at top. Solin signature: isolate glute max without lower back."},
+          {t:"Fire hydrant",d:"3x15 each",i:"Same position. Lift knee laterally to hip height. Pause 1 sec. Targets glute medius."},
+          {t:"Frog pump",d:"3x20",i:"Lying on back, soles together, knees wide. Pump hips up. Short range but intense glute burn."},
+          {t:"Zone 2 walk",d:"20 min",i:"Brisk walking at conversational pace, 60-70% max HR. Fat oxidation is highest here without cortisol spike."},
+          {t:"Hip flexor + pigeon stretch",d:"5 min",i:"90 sec each side. Non-optional - desk work makes hip flexors chronically tight."},
+        ]
+      },
+      {slot:"Day C",type:"Rest",label:"Rest or Gentle Yoga / Walk",time:"Optional - 20-30 min",color:"var(--muted2)",
+        solin:"Rest is programmed. Solin explicitly builds in deload days - overtraining during menstruation raises cortisol and stalls fat loss.",
+        exs:[
+          {t:"Gentle yoga or stretching",d:"20-30 min",i:"Any yin yoga sequence. Hips, lower back, hamstrings. Or a slow walk with your dog."},
+          {t:"Box breathing",d:"5 min",i:"4 sec in / 4 hold / 4 out / 4 hold. Activates parasympathetic system. Do before bed too."},
+        ]
+      },
+      {slot:"Day D",type:"Pilates",label:"Reformer / Mat Pilates - Session 2",time:"60 min",color:"var(--purple)",
+        solin:"Second Pilates session. Focus on lower body endurance - long holds build slow-twitch glute fibres that contribute to shape.",
+        exs:[
+          {t:"Spine articulation warm-up",d:"3 min",i:"Roll down vertebra by vertebra. Roll up the same way. 6 reps."},
+          {t:"Leg press or wall sit",d:"3x45 sec",i:"Full leg press with even weight. Or wall sit with heels pressed down for glute activation."},
+          {t:"Long box pulling straps",d:"3x10",i:"Prone on reformer or floor. Arms extend overhead and pull back - back extension with lat activation."},
+          {t:"Side split / lateral lunge",d:"3x12 each",i:"Wide lateral movement. Challenges hip abductors and inner thighs."},
+          {t:"Teaser prep",d:"5 reps",i:"V-sit hold with arms parallel. Hold 3-5 sec each rep."},
+          {t:"Spine stretch cool-down",d:"5 min",i:"Full cool-down. Breath focus."},
+        ],
+        altLabel:"Home Alternative - Lower Body Endurance",
+        alts:[
+          {t:"Bodyweight sumo squat",d:"3x20",i:"Wide stance, toes out 45 deg. Slow 3-sec descent. 5 lb DB at chest if desired."},
+          {t:"Reverse lunge with knee drive",d:"3x12 each",i:"Step back, lower knee near floor, drive front knee up on return. Balance and control focus."},
+          {t:"Romanian deadlift",d:"3x12 - 10 lb DBs",i:"Hinge at hips, feel hamstring stretch, drive hips forward. 3 sec eccentric."},
+          {t:"Standing hip abduction",d:"3x15 each",i:"Stand on one leg, raise other laterally to hip height. Wall for balance. Glute med."},
+          {t:"Calf raises + ankle circles",d:"2 min",i:"Circulation and ankle mobility. Important for lower body biomechanics."},
+        ]
+      },
+    ]
+  },
+  {week:2,label:"Week 2 - Follicular Phase",color:"var(--green)",
+    note:"Your strongest week. Rising estrogen improves neuromuscular recruitment, pain tolerance, and recovery. Push heavier, add reps, attempt PRs.",
+    nutr:"Metabolism is slightly lower - you may feel less hungry. Don't undereat. Hit ~1,380 kcal with protein emphasis. Muscle synthesis efficiency is highest right now.",
+    days:[
+      {slot:"Day A",type:"Home",label:"Solin Glute Build - Heavy Lower Body",time:"55-60 min",color:"var(--green)",
+        solin:"Directly from Glute Build and Shred: compound lift first, isolation superset, metabolic burnout. 3-1-1 tempo (3 sec down, 1 pause, 1 up).",
+        exs:[
+          {t:"Warm-up: hip activation circuit",d:"8 min",i:"Glute bridge 20 > clamshell 15 each > donkey kick 10 each. Two rounds. Prime before loading."},
+          {t:"A1: Romanian Deadlift",d:"4x10 - 10 lb DBs",i:"Hinge deep, feel full hamstring stretch, squeeze glutes hard at top. 3 sec eccentric. No rounding spine. Builds the hamstring-glute tie-in that creates the under-butt shape."},
+          {t:"A2: Sumo squat hold",d:"4x30 sec - 5 lb DB",i:"Superset with RDL. Wide stance, toes out, goblet grip. Hold at bottom - isometric glute and inner thigh. Rest 60 sec between supersets."},
+          {t:"B1: Single-leg glute bridge",d:"3x12 each - 5 lb DB",i:"5 lb DB on working hip. Drive through heel, non-working leg extended. Full hip extension at top."},
+          {t:"B2: Lateral step with pause",d:"3x15 each direction",i:"Superset with bridge. Step wide, hold at wide position 1 sec, step back. Glute med."},
+          {t:"C: Reverse lunge to curtsy lunge",d:"3x10 each",i:"Metabolic finisher. Reverse lunge, return to stand, curtsy lunge same leg. Hits glute max, med, and hip abductors."},
+          {t:"Cool-down",d:"8 min",i:"Pigeon 90 sec each, lying hamstring stretch, low lunge hip flexor, figure-4 glute stretch."},
+        ]
+      },
+      {slot:"Day B",type:"Pilates",label:"Reformer / Mat Pilates - Power and Control",time:"60 min",color:"var(--green)",
+        solin:"Follicular Pilates: push into harder variations. Your nervous system is primed. Attempt progressions you normally avoid.",
+        exs:[
+          {t:"Roll-down + cat-cow warm-up",d:"3 min",i:"8 roll-downs, 10 cat-cows."},
+          {t:"Reformer footwork - heavier spring",d:"4 min",i:"Progress resistance. Heels to arches to toes to single leg if possible."},
+          {t:"Plank to pike",d:"3x8",i:"From plank, pike hips up pressing through shoulders. Deep core and shoulder stability."},
+          {t:"Kneeling side kick series",d:"3x12 each",i:"Kneeling on one knee, other leg extended. Kick forward and back. Glute med and lateral core."},
+          {t:"Swan / back extension",d:"3x8",i:"Prone back extension. Builds posterior chain, counteracts desk-posture flexion."},
+          {t:"Teaser",d:"3x5",i:"Full V-sit roll-back and up. Bent-knee version if needed."},
+          {t:"Spine stretch + mermaid cool-down",d:"5 min",i:"Deep forward fold, lateral stretch, breathing."},
+        ],
+        altLabel:"Home Alternative - Upper Body + Core",
+        alts:[
+          {t:"Push-up progression",d:"4x10",i:"Full push-ups or incline on bed edge. Follicular peak - attempt full range. 3 sec eccentric."},
+          {t:"Bent-over row",d:"3x12 - 10 lb DBs",i:"Hinge 45 deg, row elbows back and up, squeeze shoulder blades."},
+          {t:"Overhead press",d:"3x10 - 5 lb DBs",i:"Seated. Press overhead, control the descent."},
+          {t:"Tricep kickback",d:"3x12 - 3 lb DBs",i:"Hinge, upper arm parallel to floor, extend forearm back. Squeeze at full extension."},
+          {t:"Dead bug",d:"3x10 each",i:"Lower opposite arm and leg to 2 inches from floor. Lower back stays imprinted."},
+          {t:"Hollow body hold",d:"3x20 sec",i:"Arms by ears, legs low. Press lower back into floor."},
+        ]
+      },
+      {slot:"Day C",type:"Home",label:"Glute Shred Circuit - Solin Metabolic Style",time:"45 min",color:"var(--green)",
+        solin:"Directly from the Busy Girl Glute Guide: high-rep, short-rest circuits that keep heart rate elevated while targeting the glutes.",
+        exs:[
+          {t:"Warm-up: jumping jacks + hip swings",d:"5 min",i:"2 min jacks, 90 sec hip swings each side, 30 sec high knees."},
+          {t:"Circuit x4 rounds (45 sec on / 15 sec rest)",d:"60 sec rest between rounds",i:"All 5 exercises back-to-back. Rest 60 sec between full rounds. The Solin shred format."},
+          {t:"Squat pulse",d:"45 sec",i:"Bodyweight or 3 lb DBs. Sink to parallel, pulse 2 inches up-down."},
+          {t:"Glute bridge march",d:"45 sec",i:"Hips up in bridge, alternate lifting knees to chest."},
+          {t:"Lateral lunge",d:"45 sec alternating",i:"Step wide to each side, sit into the stepping leg. Inner thighs and glutes."},
+          {t:"Donkey kick",d:"45 sec each side",i:"All fours. Drive heel to ceiling. Squeeze at top."},
+          {t:"Reverse lunge",d:"45 sec alternating",i:"Step back, lower knee near floor. Drive through front heel. Add 3 lb DBs if manageable."},
+          {t:"Cool-down",d:"7 min",i:"Pigeon, hamstring stretch, low lunge, child's pose."},
+        ]
+      },
+      {slot:"Day D",type:"Rest",label:"Active Recovery + Stretching",time:"30 min",color:"var(--muted2)",
+        solin:"Active recovery is programmed - not optional. Follicular allows faster recovery but skipping accumulates fatigue that blunts Week 3.",
+        exs:[
+          {t:"Dog walk or easy walk",d:"20 min",i:"Zone 2 pace. NEAT - non-exercise activity thermogenesis - contributes meaningfully to weekly calorie burn."},
+          {t:"Full body stretch",d:"10 min",i:"Hip flexors, hamstrings, glutes, upper back, chest. Hold each 45-60 sec."},
+        ]
+      },
+    ]
+  },
+  {week:3,label:"Week 3 - Ovulatory to Luteal Phase",color:"var(--amber)",
+    note:"Bridges ovulation (high energy) into early luteal (progesterone rising, recovery slower). First half: maintain intensity. Second half: moderate load, more isolation.",
+    nutr:"Metabolic rate rises ~100-200 kcal. Allow ~1,500 kcal on the 2 highest-intensity days. Don't restrict aggressively when progesterone peaks - it raises cortisol and impairs fat metabolism.",
+    days:[
+      {slot:"Day A",type:"Home",label:"Solin Glute Build - Moderate Load High Reps",time:"55 min",color:"var(--amber)",
+        solin:"Same Solin structure as Week 2 Day A - dial weights down one step, reps up. 10 lb to 5 lb, 12 reps to 15 reps.",
+        exs:[
+          {t:"Warm-up: glute activation",d:"8 min",i:"Frog pumps 20, clamshell 15 each, fire hydrant 12 each."},
+          {t:"A1: Romanian Deadlift",d:"4x15 - 5 lb DBs",i:"Lighter than Week 2, deeper stretch, more time under tension. 3 sec eccentric, 1 sec pause at bottom, 1 sec up."},
+          {t:"A2: Hip thrust hold",d:"4x15 - 5 lb DB",i:"Upper back on sofa edge, 5 lb DB on hips. Full extension, 2 sec hold at top. Solin signature - hip thrust is the highest-EMG glute max exercise."},
+          {t:"B1: Sumo goblet squat",d:"3x15 - 5 lb DB",i:"Wide stance, DB at chest. Slow descent, drive knees out, squeeze glutes at top."},
+          {t:"B2: Seated abduction",d:"3x20",i:"Seated, push knees out against hands or 3 lb DBs on knees."},
+          {t:"C: Glute bridge to marching",d:"3x20 total",i:"Hips up, hold, march knees alternately. Low impact, high glute endurance."},
+          {t:"Cool-down",d:"8 min",i:"Extended pigeon 2 min each, lying spinal twist, child's pose with breathing."},
+        ]
+      },
+      {slot:"Day B",type:"Pilates",label:"Reformer / Mat Pilates - Restore and Strengthen",time:"60 min",color:"var(--amber)",
+        solin:"Pilates perfectly placed in luteal phase - controlled, mindful movement that maintains training stimulus without high cortisol impact.",
+        exs:[
+          {t:"Breathing + spine articulation warm-up",d:"5 min",i:"Ribcage breathing, full roll-down, cat-cow. Luteal phase benefits hugely from parasympathetic activation before exercise."},
+          {t:"Reformer footwork or wall series",d:"5 min",i:"Standard footwork. Focus on even pressure through both feet."},
+          {t:"Hundred (modified)",d:"3 sets",i:"Bent-knee version if lower back is tender. Progesterone can increase lower back sensitivity."},
+          {t:"Long stretch / plank variations",d:"3x10",i:"Hold plank, add small pike. Focus on stability over speed."},
+          {t:"Side-lying glute series",d:"3x15 each",i:"Leg lifts, circles, kick-backs. Glute med and minimus."},
+          {t:"Elephant / forward fold",d:"5 reps",i:"Deep hamstring and calf stretch."},
+          {t:"Rolling like a ball + child's pose cool-down",d:"5 min",i:"Spinal massage, breath, parasympathetic activation."},
+        ],
+        altLabel:"Home Alternative - Full Body Moderate + Core",
+        alts:[
+          {t:"Bodyweight squat to lateral raise",d:"3x12 - 3 lb DBs",i:"Squat, stand, raise arms laterally to shoulder height. Controlled tempo."},
+          {t:"Single-leg Romanian deadlift",d:"3x10 each - 5 lb DB",i:"Balance challenge. Hinge slowly, feel hamstring, return."},
+          {t:"Chest fly",d:"3x12 - 3 lb DBs",i:"Lying on floor. Arms wide, slight elbow bend, bring together overhead."},
+          {t:"Bicycle crunch",d:"3x20",i:"Slow controlled rotation. Elbow to opposite knee."},
+          {t:"Glute bridge with 5 lb DB",d:"3x15",i:"Maintain glute stimulus even during the lower-intensity week."},
+        ]
+      },
+      {slot:"Day C",type:"Home",label:"Dumbbell Full Body + Glute Isolation Burnout",time:"50 min",color:"var(--amber)",
+        solin:"Solin's programme keeps glute isolation in every session - even 10 min of targeted work preserves hypertrophy stimulus.",
+        exs:[
+          {t:"Warm-up",d:"5 min",i:"March in place 1 min, arm circles, leg swings, bodyweight squats 10 reps."},
+          {t:"Dumbbell deadlift",d:"3x12 - 10 lb DBs",i:"Both DBs, conventional stance. Full hinge, neutral spine."},
+          {t:"Bent-over row",d:"3x12 - 5 lb DBs",i:"Hinge 45 deg, elbows drive back and up. Targets lats and rhomboids."},
+          {t:"Overhead press",d:"3x10 - 5 lb DBs",i:"Seated. Press overhead. Control the descent."},
+          {t:"Bicep to hammer curl",d:"3x10 each - 3 lb DBs",i:"Standard curl then hammer curl. Light weights, high quality reps."},
+          {t:"GLUTE BURNOUT (Solin-style) - 3 rounds",d:"90 sec rest between rounds",i:"These 4 exercises back-to-back, no rest within the round."},
+          {t:">> Frog pump",d:"30 reps",i:"Soles together, hips pump up. Glute max from a shortened position."},
+          {t:">> Donkey kick",d:"15 each - 3 lb DB",i:"Heel to ceiling, hard squeeze."},
+          {t:">> Fire hydrant",d:"15 each",i:"Knee out to hip height. Slow and controlled."},
+          {t:">> Glute bridge march",d:"20 total",i:"Hips up, alternate knees to chest. 10 each side."},
+          {t:"Cool-down",d:"8 min",i:"Pigeon, child's pose, supine spinal twist, box breathing."},
+        ]
+      },
+      {slot:"Day D",type:"Rest",label:"Rest Day + Self-Care",time:"Optional walk only",color:"var(--muted2)",
+        solin:"Solin's guides are explicit: rest in late luteal is not weakness - it's programming. Cortisol + progesterone make overtraining especially harmful here.",
+        exs:[
+          {t:"Gentle dog walk",d:"20 min",i:"Low intensity. NEAT contribution - don't skip, but don't push."},
+          {t:"Yin yoga or stretching",d:"Optional 20 min",i:"Hips, lower back, chest. Search 'yin yoga for PMS' on YouTube."},
+          {t:"Sleep priority",d:"Tonight",i:"Progesterone disrupts sleep in the luteal phase. Protect your 8 hours. No screens after 10 PM this week."},
+        ]
+      },
+    ]
+  },
+];
+
+var PLAN_NOTES = [
+  {icon:"📊",title:"Calorie & Nutrition",color:"var(--amber)",text:"Recipes tab targets ~1,380 kcal/day. On luteal phase days with higher hunger, increase to ~1,500 kcal by adding one extra protein serving. Never go below 1,200 kcal - this suppresses thyroid and slows metabolism."},
+  {icon:"💊",title:"Supplement Timing",color:"var(--green)",text:"Creatine (3-5g/day): take consistently, even on rest days - particularly effective for women, improving muscle retention in a caloric deficit. Whey protein: hit 105-115g protein/day from food first. Fish oil (2g/day): reduces DOMS and supports hormonal health."},
+  {icon:"😴",title:"Sleep & Chronotype",color:"var(--purple)",text:"Training at 4:30 PM leverages your physical performance peak as a late chronotype. 7.5-8 hours sleep is non-negotiable: sleep deprivation raises ghrelin by 24% and reduces leptin by 18%, directly undermining your deficit."},
+  {icon:"📏",title:"Measuring Progress",color:"var(--teal)",text:"Weight fluctuates 1-2 kg across your cycle. Track: waist + hip measurements every 2 weeks, progress photos monthly in same lighting, strength benchmarks, energy quality. Scale in Week 3 often reads heavier from water retention - not fat gain."},
+  {icon:"🎯",title:"Realistic Timeline",color:"var(--coral)",text:"At 0.4-0.5 kg/week fat loss: from 35% body fat, reaching ~28-30% takes approximately 12-16 weeks of consistent execution. Lean mass will be more visible, glutes will have grown, and energy should improve significantly."},
+];
+
+// ──────────────────────────────────────────
+// BUILD WORKOUTS TAB
+// ──────────────────────────────────────────
+(function(){
+  // Stats strip
+  var statsEl = document.getElementById('statsStrip');
+  if(statsEl){
+    var stats = [
+      {l:"Weight",v:"58 kg",c:"var(--text)"},
+      {l:"Body fat",v:"35%",c:"var(--coral-light)"},
+      {l:"Fat mass",v:"~20.3 kg",c:"var(--coral)"},
+      {l:"Lean mass",v:"~37.7 kg",c:"var(--green-light)"},
+      {l:"Height",v:"1.56 m",c:"var(--text)"},
+      {l:"TDEE",v:"~1,680 kcal",c:"var(--amber-light)"},
+      {l:"Daily target",v:"~1,380 kcal",c:"var(--green)"},
+      {l:"Protein target",v:"105-115g/day",c:"var(--blue-light)"},
+      {l:"Fat loss goal",v:"0.4-0.5 kg/wk",c:"var(--green-light)"},
+    ];
+    stats.forEach(function(s){
+      var d = document.createElement('div');
+      d.style.cssText = 'background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:11px 13px';
+      d.innerHTML = '<div style="font-family:monospace,monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);margin-bottom:4px">'+s.l+'</div><div style="font-family:monospace,monospace;font-size:15px;font-weight:500;color:'+s.c+'">'+s.v+'</div>';
+      statsEl.appendChild(d);
+    });
+  }
+
+  // Phase chips
+  var pc = document.getElementById('phaseChips');
+  if(pc){
+    var phases = [
+      {n:"Week 1 - Menstrual",s:"Low intensity, Pilates focus",c:"var(--purple)"},
+      {n:"Week 2 - Follicular",s:"Build strength, peak energy",c:"var(--green)"},
+      {n:"Week 3 - Luteal",s:"Moderate load, glute shred",c:"var(--amber)"},
+      {n:"Restart Week 1",s:"When next period begins",c:"var(--coral)"},
+    ];
+    phases.forEach(function(p){
+      var d = document.createElement('div');
+      d.style.cssText = 'padding:9px 12px;border-radius:8px;border:1px solid '+p.c+';background:'+p.c.replace(')',',0.08)').replace('var(--','rgba(').replace(/rgba\([^)]+\)/,'rgba(0,0,0,0.08)');
+      d.style.background = 'rgba(0,0,0,0.0)';
+      d.style.borderColor = p.c;
+      d.innerHTML = '<div style="font-size:12px;font-weight:500;color:'+p.c+';margin-bottom:2px">'+p.n+'</div><div style="font-size:11px;color:var(--muted);line-height:1.4">'+p.s+'</div>';
+      pc.appendChild(d);
+    });
+  }
+
+  // Week nav + views
+  var wNav = document.getElementById('weekNav');
+  var wViews = document.getElementById('weekViews');
+  if(!wNav||!wViews) return;
+
+  wkPlan.forEach(function(wk,wi){
+    var btn = document.createElement('button');
+    btn.style.cssText = 'background:var(--bg2);border:1px solid '+(wi===0?wk.color:'var(--border)')+';border-radius:8px;padding:7px 18px;font-family:sans-serif,sans-serif;font-size:13px;color:'+(wi===0?wk.color:'var(--muted)')+';cursor:pointer;transition:all .2s;white-space:nowrap';
+    btn.textContent = 'Week '+wk.week;
+    btn.dataset.wi = wi;
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('[data-wi]').forEach(function(b){b.style.borderColor='var(--border)';b.style.color='var(--muted)';});
+      document.querySelectorAll('.wkview').forEach(function(v){v.style.display='none';});
+      btn.style.borderColor=wk.color; btn.style.color=wk.color;
+      document.getElementById('wkv'+wi).style.display='block';
+    });
+    wNav.appendChild(btn);
+
+    var wv = document.createElement('div');
+    wv.className='wkview'; wv.id='wkv'+wi;
+    wv.style.display=wi===0?'block':'none';
+
+    var ph = document.createElement('div');
+    ph.style.cssText='background:var(--bg2);border:1px solid '+wk.color+';border-radius:12px;padding:14px 18px;margin-bottom:18px';
+    ph.innerHTML='<div style="font-family:serif,serif;font-size:19px;font-weight:400;color:var(--text);margin-bottom:7px">'+wk.label+'</div><div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:9px">'+wk.note+'</div><div style="padding:9px 13px;background:rgba(201,145,58,0.06);border-left:2px solid var(--amber);border-radius:0 6px 6px 0;font-size:12px;color:var(--amber-light);line-height:1.6"><strong style="color:var(--text)">Nutrition this week:</strong> '+wk.nutr+'</div>';
+    wv.appendChild(ph);
+
+    var dg = document.createElement('div');
+    dg.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px';
+    wk.days.forEach(function(day,di){
+      var card=document.createElement('div');
+      card.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden';
+      var typeIcon={Home:'🏠',Pilates:'🧘',Rest:'😴'}[day.type]||'💪';
+      var exHTML=day.exs.map(function(ex,ei){
+        return '<div onclick="var d=this.querySelector(\'.exd\');d.style.display=d.style.display===\'none\'?\'block\':\'none\'" style="display:flex;gap:9px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer;align-items:flex-start">'
+          +'<div style="width:19px;height:19px;border-radius:50%;background:'+day.color+';color:#fff;font-family:monospace,monospace;font-size:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">'+(ei+1)+'</div>'
+          +'<div style="flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:13px;font-weight:500;color:var(--text)">'+ex.t+'</span><span style="font-family:monospace,monospace;font-size:9px;color:var(--muted);background:var(--bg3);padding:1px 7px;border-radius:5px;border:1px solid var(--border)">'+ex.d+'</span></div>'
+          +'<div class="exd" style="display:none;font-size:12px;color:var(--muted);margin-top:5px;line-height:1.6">'+ex.i+'</div></div></div>';
+      }).join('');
+      var altHTML='';
+      if(day.alts){
+        var altExHTML=day.alts.map(function(ex,ei){
+          return '<div onclick="var d=this.querySelector(\'.exd2\');d.style.display=d.style.display===\'none\'?\'block\':\'none\'" style="display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;align-items:flex-start">'
+            +'<div style="width:17px;height:17px;border-radius:50%;background:var(--muted2);color:#fff;font-family:monospace,monospace;font-size:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">'+(ei+1)+'</div>'
+            +'<div style="flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:12px;font-weight:500;color:var(--text)">'+ex.t+'</span><span style="font-family:monospace,monospace;font-size:9px;color:var(--muted);background:var(--bg3);padding:1px 7px;border-radius:5px;border:1px solid var(--border)">'+ex.d+'</span></div>'
+            +'<div class="exd2" style="display:none;font-size:12px;color:var(--muted);margin-top:5px;line-height:1.6">'+ex.i+'</div></div></div>';
+        }).join('');
+        altHTML='<div style="margin-top:12px;padding:11px 13px;background:var(--bg3);border-radius:8px;border:1px dashed var(--border2)">'
+          +'<div style="font-family:monospace,monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);margin-bottom:4px">If no Pilates available</div>'
+          +'<div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:9px">'+day.altLabel+'</div>'
+          +altExHTML+'</div>';
+      }
+      card.innerHTML='<div style="padding:13px 15px 10px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,var(--bg2),var(--bg3))">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+        +'<div style="font-family:monospace,monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:'+day.color+'">'+day.slot+'</div>'
+        +'<div style="font-size:11px;color:var(--muted)">'+typeIcon+' '+day.type+'</div></div>'
+        +'<div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:2px">'+day.label+'</div>'
+        +'<div style="font-family:monospace,monospace;font-size:10px;color:var(--muted);margin-bottom:7px">'+day.time+'</div>'
+        +'<div style="font-size:12px;color:'+day.color+';padding:6px 9px;border-radius:6px;border:1px solid '+day.color+'22;line-height:1.5;font-style:italic">'+day.solin+'</div></div>'
+        +'<div style="padding:5px 15px 13px">'+exHTML
+        +'<div style="font-size:11px;color:var(--muted2);font-family:monospace,monospace;text-align:center;margin-top:7px">tap any exercise to expand</div>'
+        +altHTML+'</div>';
+      dg.appendChild(card);
+    });
+    wv.appendChild(dg);
+
+    if(wi===0){
+      var ng = document.createElement('div');
+      ng.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:11px;margin-top:24px';
+      var nlbl=document.createElement('div');
+      nlbl.style.cssText='font-family:monospace,monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted2);margin-bottom:10px;grid-column:1/-1';
+      nlbl.textContent='Plan guidance & integration';
+      ng.appendChild(nlbl);
+      PLAN_NOTES.forEach(function(n){
+        var nc=document.createElement('div');
+        nc.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px';
+        nc.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><span style="font-size:17px">'+n.icon+'</span><span style="font-size:13px;font-weight:500;color:'+n.color+'">'+n.title+'</span></div><div style="font-size:13px;color:var(--muted);line-height:1.6">'+n.text+'</div>';
+        ng.appendChild(nc);
+      });
+      wv.appendChild(ng);
+    }
+    wViews.appendChild(wv);
+  });
+})();
+
+// ──────────────────────────────────────────
+// RECIPE DATA
+// ──────────────────────────────────────────
+var ALL_RECIPES = [
+  {cat:"breakfast",type:"Breakfast",color:"var(--amber)",sc:"ca",name:"Berry Walnut Power Oats",tag:"Prep night before - 5 min",prepL:"Prep ahead",prepC:"var(--teal)",hk:350,hp:"18g",hc:"42g",hf:"12g",mk:420,mp:"22g",mc:"50g",mf:"14g",
+    ings:[["Rolled oats","35g / 45g"],["Greek yogurt 0%","75g / 100g"],["Almond milk","110ml / 140ml"],["Chia seeds","1 tbsp each"],["Mixed frozen berries","75g each"],["Walnuts, chopped","12g / 18g"],["Cinnamon","1/2 tsp"],["Vanilla extract","1/4 tsp"]],
+    steps:["Combine oats, chia, almond milk, cinnamon, vanilla in jar. Stir well.","Spoon Greek yogurt on top - do not stir. Seal and refrigerate overnight.","Morning: top with berries (straight from frozen) and walnuts."],
+    tip:"Make Mon-Wed jars on Sunday night. Three days of breakfasts in 12 minutes."},
+  {cat:"breakfast",type:"Breakfast",color:"var(--amber)",sc:"ca",name:"Chipotle Egg and Black Bean Scramble",tag:"12 min - high protein",prepL:"Quick",prepC:"var(--green)",hk:340,hp:"30g",hc:"18g",hf:"16g",mk:430,mp:"38g",mc:"22g",mf:"19g",
+    ings:[["Whole eggs","2 each"],["Egg whites","2 (her) / 4 (him)"],["Canned black beans, rinsed","1/4 cup / 1/3 cup"],["Baby spinach","1 cup each"],["Cherry tomatoes, halved","1/2 cup each"],["Chipotle chili powder","1/4 tsp each"],["Cumin","1/4 tsp"],["Avocado oil","1 tsp each"],["Feta crumbles","1 tbsp each"]],
+    steps:["Heat oil. Add tomatoes and beans with cumin. Cook 2 min.","Add spinach, wilt. Whisk eggs + whites with chipotle. Pour in and scramble low and slow.","Top with feta. Serve with 1/2 low-carb tortilla if desired."],
+    tip:"Chipotle + cumin is the pairing that makes this feel like restaurant-level breakfast."},
+  {cat:"breakfast",type:"Breakfast",color:"var(--amber)",sc:"ca",name:"Matcha Overnight Oats",tag:"Prep night before - 5 min",prepL:"Prep ahead",prepC:"var(--teal)",hk:355,hp:"20g",hc:"44g",hf:"11g",mk:435,mp:"25g",mc:"53g",mf:"13g",
+    ings:[["Rolled oats","35g / 45g"],["Greek yogurt 0%","75g / 100g"],["Almond milk","110ml / 140ml"],["Chia seeds","1 tbsp each"],["Matcha powder","1 tsp each"],["Honey","1/2 tsp each"],["Vanilla extract","1/4 tsp"],["Strawberries, sliced","80g each"],["Pistachios, chopped","10g / 15g"]],
+    steps:["Whisk matcha with 2 tbsp warm water until smooth - no clumps.","Combine oats, chia, almond milk, vanilla, and matcha in jar. Stir well.","Add yogurt on top. Seal and refrigerate overnight.","Morning: top with strawberries and pistachios."],
+    tip:"Matcha provides caffeine + L-theanine - calmer sustained alertness without the cortisol spike."},
+  {cat:"breakfast",type:"Breakfast",color:"var(--amber)",sc:"ca",name:"Greek Yogurt Power Bowl",tag:"5 min - no cook",prepL:"Quick",prepC:"var(--green)",hk:320,hp:"28g",hc:"32g",hf:"8g",mk:400,mp:"34g",mc:"40g",mf:"10g",
+    ings:[["Greek yogurt 0%","200g / 250g"],["Blueberries or strawberries","80g each"],["Banana, sliced","1/4 / 1/2"],["Walnuts, chopped","10g / 15g"],["Chia seeds","1 tsp each"],["PB2 powder","1 tbsp each"],["Cinnamon","pinch"],["Honey optional","1/2 tsp / 1 tsp"]],
+    steps:["Spoon Greek yogurt into a bowl.","Layer fruit on top. Sprinkle PB2 and chia seeds.","Add walnuts and cinnamon. Drizzle honey if using."],
+    tip:"PB2 adds peanut butter flavor and protein at a fraction of the calories. Three minutes, done."},
+  {cat:"smoothie",type:"Smoothie",color:"var(--blue)",sc:"cb",name:"Green Protein Powerhouse",tag:"5 min - blender",prepL:"Quick",prepC:"var(--green)",hk:390,hp:"35g",hc:"56g",hf:"9g",mk:480,mp:"43g",mc:"66g",mf:"10g",
+    ings:[["Baby spinach","1 large handful each"],["Frozen banana","1/2 / 1"],["Frozen blueberries","1/2 cup each"],["Almond milk","240ml / 300ml"],["Whey protein vanilla","1 scoop each"],["Chia seeds","1 tbsp each"],["Rolled oats","1/4 cup each"],["Creatine monohydrate","3-5g (1 tsp) each"],["Medjool dates, pitted","1-2 each (soaked 10 min in warm water)"],["Ginger powder","1/4 tsp"],["Cinnamon","1/4 tsp"],["Ice cubes","4-5 each"]],
+    steps:["Soak dates in warm water 10 min, drain. This is key - dry dates will leave chunks no matter how long you blend.","Blend oats, almond milk, and soaked dates first for 30 seconds until completely smooth.","Add remaining ingredients including creatine. Blend on high 45-60 seconds until completely smooth.","Drink immediately or refrigerate up to 8 hrs (chia thickens it as it sits)."],
+    tip:"1 Medjool date adds ~66 kcal and a natural caramel sweetness that deepens the blueberry flavor considerably. Dates also bring potassium, magnesium, and fiber alongside the sweetness - a meaningful upgrade over honey. The soaking step is non-negotiable for silky texture. Use 1 date for subtle sweetness, 2 if you prefer it more pronounced. Creatine is flavorless and completely undetectable."},
+  {cat:"smoothie",type:"Smoothie",color:"var(--blue)",sc:"cb",name:"Tropical Turmeric Recovery",tag:"5 min - anti-inflammatory - post-workout",prepL:"Quick",prepC:"var(--green)",hk:415,hp:"31g",hc:"58g",hf:"7g",mk:510,mp:"39g",mc:"70g",mf:"8g",
+    ings:[["Frozen mango or pineapple","1/2 cup each"],["Frozen banana","1/2 each"],["Fat-free milk or almond milk","240ml / 300ml"],["Whey protein vanilla","1 scoop each"],["Chia seeds","1 tbsp each"],["Creatine monohydrate","3-5g (1 tsp) each"],["Medjool dates, pitted","1 each (soaked 10 min in warm water)"],["Turmeric","1/2 tsp"],["Ginger powder","1/4 tsp"],["Black pepper","tiny pinch - activates turmeric absorption"],["Ice","4 cubes"]],
+    steps:["Soak date in warm water 10 min, drain.","Combine all ingredients including creatine and date in blender.","Blend 45 seconds until smooth and creamy.","Black pepper is non-negotiable - it increases curcumin bioavailability by 2,000%."],
+    tip:"Dates replace honey here entirely - they add the same sweetness with fiber and minerals instead of raw sugar. The caramel note from dates complements mango and turmeric remarkably well. Best smoothie for post-workout creatine timing - the carbs from fruit and date drive an insulin response that shuttles creatine into muscle cells. Oats excluded intentionally so the fast-absorbing carbs can do their job."},
+  {cat:"smoothie",type:"Smoothie",color:"var(--blue)",sc:"cb",name:"Strawberry Matcha Energizer",tag:"5 min - caffeine + L-theanine",prepL:"Quick",prepC:"var(--green)",hk:395,hp:"29g",hc:"60g",hf:"6g",mk:490,mp:"36g",mc:"72g",mf:"7g",
+    ings:[["Frozen strawberries","3/4 cup each"],["Frozen banana","1/2 each"],["Almond milk","240ml / 300ml"],["Whey protein vanilla","1 scoop each"],["Chia seeds","1 tbsp each"],["Rolled oats","1/4 cup each"],["Creatine monohydrate","3-5g (1 tsp) each"],["Medjool dates, pitted","1 each (soaked 10 min in warm water)"],["Matcha powder","1 tsp each"],["PB2 powder","1 tbsp each"],["Vanilla extract","1/4 tsp"],["Ice","4 cubes"]],
+    steps:["Soak date in warm water 10 min, drain.","Blend oats, almond milk, and soaked date first for 30 seconds until completely smooth.","Whisk matcha with 2 tbsp warm water until fully dissolved, then add to blender with creatine and remaining ingredients.","Blend 45 seconds. Pour immediately - matcha oxidizes over time."],
+    tip:"The date balances matcha's bitterness more naturally than any other sweetener - the caramel depth and the grassy matcha note are a genuinely good pairing. Blending the date with oats and milk first ensures perfect smoothness. Creatine + caffeine combination is fine - earlier concerns about this interaction have not held up in current research. Substantial enough to fully replace breakfast."},
+  {cat:"smoothie",type:"Smoothie",color:"var(--blue)",sc:"cb",name:"Jamaica Hibiscus and Berry Refresh",tag:"Hydration + probiotic focus",prepL:"Prep ahead",prepC:"var(--teal)",hk:250,hp:"11g",hc:"44g",hf:"4g",mk:310,mp:"13g",mc:"54g",mf:"5g",
+    ings:[["Fermented agua de jamaica or strong brew cooled","180ml each"],["Frozen mixed berries","3/4 cup each"],["Frozen banana","1/2 each"],["Greek yogurt 0%","60g / 80g"],["Chia seeds","1 tbsp each"],["Creatine monohydrate","3-5g (1 tsp) each"],["Lime juice","1 tbsp each"],["Honey","1/2 tsp each"],["Ice","4 cubes"]],
+    steps:["Brew jamaica: simmer 1/2 cup dried hibiscus in 2 cups water 10 min. Cool completely (or use fermented version).","Add creatine and all remaining ingredients. Blend 45 seconds.","Serve immediately over ice with a lime wedge."],
+    tip:"Creatine dissolves completely and is completely tasteless - the tart hibiscus and berry flavors dominate entirely. Oats intentionally excluded to preserve the light, bright, hydration-forward character. The chia gels slightly into the hibiscus base and actually improves the texture. Using fermented jamaica makes this probiotic-rich and antioxidant-forward."},
+  {cat:"lunch",type:"Lunch",color:"var(--green)",sc:"cg",name:"Zaatar Chicken and Arugula Bowl",tag:"15 min with pre-cooked chicken",prepL:"Quick",prepC:"var(--green)",hk:390,hp:"38g",hc:"22g",hf:"16g",mk:480,mp:"46g",mc:"28g",mf:"18g",
+    ings:[["Chicken breast or thigh, cooked","4 oz / 6 oz"],["Arugula or mixed greens","2 cups each"],["Cherry tomatoes","1/2 cup each"],["Cucumber, sliced","1/4 cup each"],["Kalamata olives","5 each"],["Feta crumbles","1.5 tbsp each"],["Zaatar","1 tsp"],["Olive oil","1 tsp each"],["Lemon juice","1.5 tbsp each"]],
+    steps:["Slice cooked chicken. Toss with za'atar and a few drops of olive oil.","Build bowl: arugula, tomatoes, cucumber, olives.","Top with chicken and feta. Dress with lemon juice and remaining oil."],
+    tip:"Za'atar turns a simple chicken salad into something entirely intentional. Make double chicken on Sunday."},
+  {cat:"lunch",type:"Lunch",color:"var(--green)",sc:"cg",name:"Guajillo Lentil Soup",tag:"Batch cook Sunday - reheats perfectly",prepL:"Prep ahead",prepC:"var(--teal)",hk:330,hp:"20g",hc:"48g",hf:"8g",mk:400,mp:"24g",mc:"58g",mf:"9g",
+    ings:[["Green or brown lentils, rinsed","1 cup (makes 4 servings)"],["Yellow onion, diced","1"],["Garlic cloves, minced","4"],["Canned diced tomatoes","1 x 14 oz"],["Low-sodium chicken broth","4 cups"],["Guajillo chile powder","1.5 tsp"],["Cumin","1 tsp"],["Smoked paprika","1 tsp"],["Turmeric","1/2 tsp"],["Olive oil","1 tbsp"],["Lemon juice","2 tbsp"],["Fresh parsley","1/4 cup"]],
+    steps:["Saute onion 5 min, add garlic 2 min.","Add guajillo, cumin, paprika, turmeric - stir 1 min. Add lentils, tomatoes, broth. Simmer 25-30 min.","Finish with lemon juice and parsley."],
+    tip:"18g protein + 16g fiber per cup. The guajillo gives deep smoky complexity. Makes 4 lunches from one cook."},
+  {cat:"lunch",type:"Lunch",color:"var(--green)",sc:"cg",name:"Chipotle Chickpea Lettuce Wraps",tag:"10 min - no cook needed",prepL:"Quick",prepC:"var(--green)",hk:345,hp:"16g",hc:"38g",hf:"14g",mk:420,mp:"20g",mc:"46g",mf:"16g",
+    ings:[["Canned chickpeas, rinsed","1/2 cup / 3/4 cup"],["Avocado","1/2 each"],["Cherry tomatoes, halved","1/2 cup each"],["Red onion, diced","2 tbsp each"],["Chipotle chili powder","1/2 tsp each"],["Lime juice","1 tbsp each"],["Lettuce leaves","4-5 each"],["Greek yogurt","2 tbsp each"]],
+    steps:["Mash avocado with lime juice, cumin, salt, chipotle powder.","Combine chickpeas, tomatoes, onion with lime.","Spoon into lettuce cups. Top with chickpea mix and Greek yogurt."],
+    tip:"Lettuce instead of tortillas saves ~150 kcal. The crunch is actually better."},
+  {cat:"dinner",type:"Dinner",color:"var(--coral)",sc:"cc",name:"Guajillo and Herb Chicken Thighs",tag:"Marinate AM - bake 35 min",prepL:"35 min",prepC:"var(--amber)",hk:410,hp:"42g",hc:"12g",hf:"20g",mk:510,mp:"52g",mc:"14g",mf:"24g",
+    ings:[["Bone-in chicken thighs","2 each"],["Guajillo chile powder","2 tsp"],["Smoked paprika","1 tsp"],["Cumin","1 tsp"],["Garlic powder","1 tsp"],["Oregano dry","1 tsp"],["Avocado oil","1.5 tbsp"],["Lime juice","2 tbsp"],["Cherry tomatoes","1 cup"],["Fresh parsley","2 tbsp"]],
+    steps:["Morning: combine spices, oil, lime juice into a paste. Rub all over chicken. Refrigerate all day.","Preheat 425F. Roast chicken skin-up on rack 35-38 min until charred and 175F internal.","Rest 5 min. Remove skin if reducing fat. Plate with roasted tomatoes and parsley."],
+    tip:"Guajillo has a rich, berry-like heat - deeper than cayenne. This is the dinner that makes weight loss feel like a lifestyle."},
+  {cat:"dinner",type:"Dinner",color:"var(--coral)",sc:"cc",name:"Salmon with Zaatar and Crispy Chickpeas",tag:"30 min - sheet pan",prepL:"30 min",prepC:"var(--amber)",hk:440,hp:"42g",hc:"24g",hf:"20g",mk:540,mp:"52g",mc:"30g",mf:"23g",
+    ings:[["Salmon fillets skin-on","5 oz / 7 oz"],["Canned chickpeas very dry","1 x 15 oz can"],["Zaatar","3 tsp total"],["Olive oil","2 tbsp"],["Lemon, zested and juiced","1"],["Baby spinach","2 cups"],["White sesame seeds","1 tsp"],["Flaky salt","to finish"]],
+    steps:["Preheat 425F. Pat chickpeas completely dry. Toss with 1 tbsp oil, za'atar, garlic powder. Roast 20 min.","Push chickpeas aside. Place salmon skin-down. Rub with oil, za'atar, lemon zest, salt.","Roast salmon 10-12 min until flakes. Wilt spinach separately.","Plate salmon over spinach, top with chickpeas, sesame, lemon juice, flaky salt."],
+    tip:"Za'atar on salmon sounds unusual and tastes extraordinary. Crispy chickpeas replace a carb side while being more interesting."},
+  {cat:"dinner",type:"Dinner",color:"var(--coral)",sc:"cc",name:"Soy-Ginger Salmon with Roasted Broccoli",tag:"Marinate AM - cook 12 min",prepL:"25 min",prepC:"var(--amber)",hk:430,hp:"40g",hc:"18g",hf:"22g",mk:530,mp:"50g",mc:"22g",mf:"26g",
+    ings:[["Salmon fillets skin-on","5 oz / 7 oz"],["Broccoli florets","3 cups"],["Low-sodium soy sauce / tamari","3 tbsp"],["Sesame oil","1 tbsp"],["Fresh ginger, grated","1 tsp"],["Garlic, minced","2 cloves"],["Honey","1 tsp"],["Lime juice","1 tbsp"],["White sesame seeds","1 tsp each"],["Lime wedges","to serve"]],
+    steps:["Morning: whisk soy sauce, sesame oil, ginger, garlic, honey, lime juice. Pour over salmon in zip-lock. Refrigerate all day.","Evening: preheat 425F. Roast broccoli with olive oil 20 min.","Heat oven-safe skillet medium-high. Sear salmon skin-down 3-4 min. Flip, pour marinade over, oven 5-6 min.","Serve with broccoli, sesame seeds, lime."],
+    tip:"The morning marinade does all the flavor work. Most impressive dinner of the week."},
+  {cat:"dinner",type:"Dinner",color:"var(--coral)",sc:"cc",name:"Chipotle Black Bean and Chicken Sausage Skillet",tag:"One pan - 25 min",prepL:"25 min",prepC:"var(--amber)",hk:400,hp:"32g",hc:"36g",hf:"15g",mk:490,mp:"40g",mc:"44g",mf:"17g",
+    ings:[["Chicken sausage links, sliced","2 / 3 links"],["Canned black beans, rinsed","1/2 cup / 3/4 cup"],["Bell peppers, sliced","1"],["Yellow onion, sliced","1/2"],["Cherry tomatoes","1 cup"],["Garlic","3 cloves"],["Chipotle chili powder","1 tsp"],["Cumin","1/2 tsp"],["Avocado oil","1 tbsp"],["Lime juice","1.5 tbsp"],["Light sour cream","2 tbsp each"]],
+    steps:["Brown sausage slices 3-4 min. Remove.","Saute onion + peppers 4 min. Add garlic 1 min. Add spices 30 sec.","Add tomatoes + beans 4 min. Return sausage. Squeeze lime.","Serve in bowls, tortillas, or over cauliflower rice with sour cream."],
+    tip:"Three serving options from one pan - that's why you'll actually make this regularly."},
+  {cat:"dinner",type:"Dinner",color:"var(--coral)",sc:"cc",name:"Tuscan White Bean Chicken Skillet",tag:"One pan - 30 min",prepL:"30 min",prepC:"var(--amber)",hk:440,hp:"42g",hc:"28g",hf:"16g",mk:540,mp:"52g",mc:"34g",mf:"18g",
+    ings:[["Chicken breasts pounded thin","5 oz / 7 oz"],["Canned chickpeas, rinsed","1/2 cup / 3/4 cup"],["Canned diced tomatoes","1 x 14 oz"],["Baby spinach","2 cups"],["Sun-dried tomatoes","2 tbsp"],["Garlic","3 cloves"],["Chicken broth","1/2 cup"],["Italian seasoning","1 tsp"],["Parmesan, grated","1 tbsp each"],["Fresh basil","handful"]],
+    steps:["Sear chicken 4 min per side. Remove.","Saute garlic 1 min. Add sun-dried tomatoes, canned tomatoes, broth. Simmer 5 min.","Add chickpeas + spinach. Return chicken. Simmer 5 min.","Finish with basil and Parmesan."],
+    tip:"The chickpeas add fiber that makes satiety last well into the next morning. Best Friday dinner."},
+  {cat:"dessert",type:"Dessert",color:"var(--purple)",sc:"cp",name:"Strawberry Banana Nice Cream",tag:"5 min - 2 ingredients - no sugar added",prepL:"Prep ahead",prepC:"var(--teal)",hk:140,hp:"2g",hc:"34g",hf:"1g",mk:180,mp:"3g",mc:"44g",mf:"1g",
+    ings:[["Frozen bananas","1 / 1.5"],["Frozen strawberries","1/2 cup / 3/4 cup"],["Vanilla extract","1/4 tsp"],["Flaky salt","pinch"],["Walnuts topping optional","1 tbsp / 1.5 tbsp"]],
+    steps:["Slice ripe bananas and freeze overnight - fully frozen, not just cold.","Blend frozen banana + strawberries + vanilla until smooth (~90 sec). Scrape sides as needed.","Serve immediately for soft-serve, or freeze 30 min for scoopable. Top with walnuts and flaky salt."],
+    tip:"The flaky salt is non-negotiable - it makes the sweetness pop. No added sugar, no dairy."},
+  {cat:"dessert",type:"Dessert",color:"var(--purple)",sc:"cp",name:"Dark Chocolate and Date Energy Bites",tag:"No bake - freezer-friendly - makes 12",prepL:"Prep ahead",prepC:"var(--teal)",hk:160,hp:"5g",hc:"22g",hf:"7g",mk:160,mp:"5g",mc:"22g",mf:"7g",
+    ings:[["Medjool dates, pitted","8 (makes 12 bites)"],["Rolled oats","1/2 cup"],["PB2 powder","3 tbsp"],["Cocoa powder, unsweetened","2 tbsp"],["Chia seeds","1 tbsp"],["Vanilla extract","1/2 tsp"],["Cinnamon","1/4 tsp"],["Dark chocolate 70%, chopped","1 oz"],["Flaky salt","pinch on top"]],
+    steps:["Soak dates in warm water 5 min if not soft. Drain.","Blend dates until a sticky paste forms.","Add oats, PB2, cocoa, chia, vanilla, cinnamon. Pulse until combined.","Fold in chocolate pieces. Roll into 12 balls. Top each with flaky salt.","Refrigerate 30 min. Store fridge 1 week or freezer 1 month."],
+    tip:"Two bites = ~320 kcal, 10g protein. Replaces Kind bars completely."},
+  {cat:"dessert",type:"Dessert",color:"var(--purple)",sc:"cp",name:"Greek Yogurt Bark",tag:"Freeze 2 hrs - 5 min prep",prepL:"Prep ahead",prepC:"var(--teal)",hk:175,hp:"14g",hc:"16g",hf:"6g",mk:220,mp:"17g",mc:"20g",mf:"8g",
+    ings:[["Greek yogurt 0%","200g / 250g"],["Honey","1 tsp / 1.5 tsp"],["Vanilla extract","1/4 tsp"],["Strawberries, sliced","1/2 cup each"],["Pistachios, chopped","15g / 20g"],["Chia seeds","1 tsp each"],["Dark chocolate, shaved","10g total"],["Flaky salt","pinch"]],
+    steps:["Line a small sheet with parchment. Mix yogurt with honey and vanilla. Spread 1/4-inch thick.","Scatter strawberries, pistachios, chia, and dark chocolate on top. Pinch of flaky salt.","Freeze at least 2 hours until solid.","Break into pieces. Serve immediately - it melts fast. Store airtight in freezer."],
+    tip:"Tastes like frozen cheesecake. High protein at under 220 kcal."},
+  {cat:"dessert",type:"Dessert",color:"var(--purple)",sc:"cp",name:"Spiced Baked Apples with Walnuts",tag:"20 min - warm - no added sugar",prepL:"20 min",prepC:"var(--amber)",hk:180,hp:"4g",hc:"28g",hf:"8g",mk:210,mp:"5g",mc:"32g",mf:"9g",
+    ings:[["Apples Honeycrisp or Gala","1 each"],["Walnuts, chopped","15g / 20g"],["Raisins","1 tbsp each"],["Cinnamon","1/2 tsp each"],["Nutmeg","pinch"],["Ginger powder","pinch"],["Maple syrup","1 tsp / 1.5 tsp"],["Greek yogurt","3 tbsp / 4 tbsp to serve"]],
+    steps:["Preheat 375F. Core apples leaving bottom intact.","Mix walnuts, raisins, cinnamon, nutmeg, ginger, maple syrup. Stuff into wells.","Bake in dish with 1/4 cup water at bottom 20-25 min until caramelized.","Serve warm with cold Greek yogurt - the temperature contrast is the whole point."],
+    tip:"~1 tsp maple syrup is the only added sugar. Natural sugars in apple and raisins do the rest."},
+  {cat:"ferments",type:"Ferment",color:"var(--teal)",sc:"ct",name:"Curtido",tag:"5 min prep - ready in 24-48 hrs - Mexican lacto-ferment",prepL:"Prep ahead",prepC:"var(--teal)",hk:25,hp:"1g",hc:"5g",hf:"0g",mk:25,mp:"1g",mc:"5g",mf:"0g",
+    ings:[["Green cabbage, shredded","1/2 head (~4 cups)"],["Carrot, grated","1 medium"],["Red onion, thinly sliced","1/2"],["Jalapeno, sliced optional","1"],["Dried oregano","1 tsp"],["Red pepper flakes","1/4 tsp"],["Pink salt non-iodized","1.5 tsp"],["Lime juice","2 tbsp"],["Apple cider vinegar raw with mother","2 tbsp"],["Filtered water","enough to submerge"]],
+    steps:["Combine cabbage, carrot, onion, jalapeno in bowl. Add salt and massage firmly 3-4 min until vegetables release liquid and soften.","Add oregano, pepper flakes, lime juice, and ACV. Toss well.","Pack tightly into mason jar, pressing so liquid rises above vegetables. Add filtered water if needed to submerge.","Weight vegetables down. Cover loosely with cloth. Leave at room temp 24-48 hrs.","Taste at 24 hrs - should be bright and pleasantly sour. Refrigerate. Keeps 2-3 weeks."],
+    tip:"Use pink Himalayan salt only - iodized salt kills beneficial bacteria. Raw ACV with the mother jump-starts fermentation. Serve as a probiotic side at any meal."},
+  {cat:"ferments",type:"Ferment",color:"var(--teal)",sc:"ct",name:"Agua de Jamaica Fermentada",tag:"5 min prep - ferments 48 hrs - zero new ingredients",prepL:"Prep ahead",prepC:"var(--teal)",hk:30,hp:"0g",hc:"8g",hf:"0g",mk:30,mp:"0g",mc:"8g",mf:"0g",
+    ings:[["Dried jamaica hibiscus flowers","1/2 cup"],["Filtered water","4 cups + 4 cups"],["Raw honey","1-2 tbsp"],["Cinnamon stick","1"],["Star anise optional","1"],["Fresh ginger sliced optional","3 coins"],["Lime juice","2 tbsp - add after fermentation"]],
+    steps:["Simmer jamaica, cinnamon, star anise, ginger in 4 cups water 10 min. Strain. Stir in honey while warm.","Cool COMPLETELY to room temperature - heat kills bacteria.","Add 4 cups filtered water. Pour into clean jar. Cover with cloth secured with rubber band. Leave at room temp 48 hrs.","Small bubbles = active fermentation. Taste at 48 hrs - tart and slightly effervescent.","Add lime juice, stir, seal, refrigerate. Keeps 1 week."],
+    tip:"Honey is consumed during fermentation - final drink has much less sugar. Drink 4-6 oz daily with a meal. Don't use tap water - chlorine inhibits fermentation."},
+];
+
+var GROCERY_DATA = {
+  "Produce - Vegetables":[
+    {n:"Baby spinach"},{n:"Cherry tomatoes"},{n:"Cucumber"},{n:"Bell peppers"},
+    {n:"Broccoli"},{n:"Avocados"},{n:"Garlic"},{n:"Yellow onion"},{n:"Red onion"},
+    {n:"Lettuce"},{n:"Potatoes"},
+    {n:"Arugula or mixed greens",t:"add"},{n:"Cauliflower rice frozen",t:"add"},{n:"Frozen edamame",t:"add"},
+  ],
+  "Produce - Fruit":[
+    {n:"Blueberries"},{n:"Strawberries"},{n:"Bananas"},{n:"Lemons"},{n:"Limes"},
+    {n:"Apples"},{n:"Oranges"},{n:"Dates"},{n:"Raisins"},
+  ],
+  "Protein - Animal":[
+    {n:"Eggs, large 18-count"},{n:"Chicken breasts"},{n:"Chicken thighs"},
+    {n:"Salmon fillets"},{n:"Chicken sausages"},
+    {n:"Canned tuna in water",t:"add"},{n:"Canned sardines or mackerel",t:"add"},
+  ],
+  "Protein - Plant":[
+    {n:"Canned chickpeas"},{n:"Canned black beans"},
+    {n:"Canned or dry green lentils",t:"add"},
+  ],
+  "Dairy and Refrigerated":[
+    {n:"Greek yogurt plain 0%"},{n:"Feta cheese"},{n:"Almond milk unsweetened"},
+    {n:"Fat-free milk"},{n:"Light sour cream"},
+    {n:"Cream cheese - buy Neufchatel reduced-fat",t:"swap"},
+    {n:"Cheddar small amount only",t:"swap"},
+    {n:"Heavy cream",t:"remove"},
+    {n:"Kefir plain low-fat",t:"add"},{n:"Cottage cheese low-fat",t:"add"},
+  ],
+  "Grains and Bread":[
+    {n:"Rolled oats or steel-cut oats"},{n:"Whole wheat rice"},
+    {n:"Low-carb flour tortillas - check for seed oils",t:"swap"},
+    {n:"Pasta - swap for chickpea or lentil pasta Banza",t:"swap"},
+    {n:"Whole wheat flour"},{n:"Bread flour"},{n:"All-purpose flour"},{n:"Cornstarch"},
+  ],
+  "Nuts, Seeds and Fat":[
+    {n:"Walnuts"},{n:"Chia seeds"},{n:"Pistachios"},{n:"Macadamia nuts"},
+    {n:"White sesame seeds"},{n:"PB2 powdered peanut butter"},
+    {n:"Tahini",t:"add"},
+  ],
+  "Oils and Condiments":[
+    {n:"Olive oil extra virgin"},{n:"Avocado oil"},{n:"Sesame oil"},
+    {n:"Low-sodium soy sauce or tamari"},{n:"Dijon mustard"},{n:"Yellow mustard"},
+    {n:"Apple cider vinegar"},{n:"Rice vinegar"},{n:"Red wine vinegar"},
+    {n:"Honey"},{n:"Maple syrup"},{n:"Capers"},{n:"Kalamata olives"},
+    {n:"Sambal"},{n:"Jamaica dried hibiscus - already in pantry"},
+    {n:"Pasta sauce 0g added sugar e.g. Rao's",t:"swap"},
+    {n:"Mayo - avocado oil mayo Primal Kitchen",t:"swap"},
+    {n:"Cajeta",t:"remove"},{n:"Lard",t:"remove"},
+  ],
+  "Spices and Seasonings":[
+    {n:"Pink salt"},{n:"Flaky salt"},{n:"Black pepper"},{n:"Everyday seasoning"},
+    {n:"Cinnamon"},{n:"Nutmeg"},{n:"Ginger powder"},{n:"Star anise"},
+    {n:"Vanilla extract"},{n:"Madagascar vanilla paste"},
+    {n:"Cumin"},{n:"Turmeric"},{n:"Smoked paprika"},{n:"Oregano dry"},
+    {n:"Thyme dry"},{n:"Rosemary dry"},{n:"Basil dry"},{n:"Dill dry"},
+    {n:"Red pepper flakes"},{n:"Guajillo chile powder"},{n:"Chipotle chili powder"},
+    {n:"Cayenne"},{n:"Onion powder"},{n:"Garlic powder"},{n:"Old Bay"},
+    {n:"Everything Bagel seasoning"},{n:"Sandwich sprinkle"},
+    {n:"Zaatar"},{n:"Herbs de Provence"},{n:"Curry powder"},
+    {n:"Ground cloves"},{n:"Bay leaves"},
+  ],
+  "Baking":[
+    {n:"Baking powder"},{n:"Baking soda"},{n:"Cocoa powder unsweetened"},
+    {n:"Dark chocolate 70% bar small"},
+    {n:"Chocolate chips",t:"remove"},
+    {n:"Powdered sugar",t:"remove"},
+    {n:"White sugar - small jar only",t:"swap"},
+  ],
+  "Supplements and Extras":[
+    {n:"Fish oil omega-3"},{n:"Creatine"},{n:"Whey protein vanilla"},
+    {n:"Fresh parsley"},{n:"Matcha unsweetened"},
+    {n:"Nutritional yeast",t:"add"},
+    {n:"Curtido - make at home",t:"add"},
+    {n:"Fermented agua de jamaica - make at home",t:"add"},
+    {n:"Kind bars",t:"remove"},
+  ],
+};
+
+// ──────────────────────────────────────────
+// BUILD RECIPES TAB
+// ──────────────────────────────────────────
+function renderCustomCards(customs, grid){
+  if(!customs.length){
+    grid.innerHTML='<div style="padding:32px;text-align:center;color:var(--muted2);font-size:13px;font-style:italic">No custom recipes yet. Tap <strong style="color:var(--purple-light)">+ Add my recipe</strong> to create your first one.</div>';
+    return;
+  }
+  customs.forEach(function(r){
+    var ings=(r.ings||[]).map(function(x){ return '<li><span>'+(Array.isArray(x)?x[0]:x)+'</span><span class="ingamt">'+(Array.isArray(x)?x[1]:'')+'</span></li>'; }).join('');
+    var steps=(r.steps||[]).map(function(s,i){ return '<div class="rstep"><div class="rnum cp">'+(i+1)+'</div><div class="rtxt">'+s+'</div></div>'; }).join('');
+    var hasMacros=r.hk>0;
+    var card=document.createElement('div');
+    card.className='rcard';
+    card.innerHTML='<div class="rctop">'
+      +'<div class="rctr"><span class="rctype" style="color:var(--purple-light)">'+r.type+' &middot; My recipe</span>'
+      +'<span class="rcbadge" style="color:var(--purple-light);border-color:var(--purple)">Custom</span></div>'
+      +'<div class="rcname">'+r.name+'</div>'
+      +'<div class="rctag">'+r.tag+'</div>'
+      +(hasMacros?'<div class="mrow">'
+        +'<div class="mv"><span class="mvv" style="color:var(--green-light)">'+r.hk+'</span><span class="mvl">kcal</span></div>'
+        +'<div class="mv"><span class="mvv" style="color:var(--blue-light)">'+r.hp+'</span><span class="mvl">prot</span></div>'
+        +'<div class="mv"><span class="mvv" style="color:var(--amber-light)">'+r.hc+'</span><span class="mvl">carb</span></div>'
+        +'<div class="mv"><span class="mvv" style="color:var(--coral-light)">'+r.hf+'</span><span class="mvl">fat</span></div>'
+        +(r.hfi&&r.hfi!=='0g'?'<div class="mv"><span class="mvv" style="color:var(--teal-light)">'+r.hfi+'</span><span class="mvl">fiber</span></div>':'')
+        +'</div>':'')
+      +'</div>'
+      +'<div class="rchint">tap to see recipe</div>'
+      +'<div class="rcbody">'
+      +(ings?'<div class="rbtit">Ingredients</div><ul class="inglist">'+ings+'</ul>':'')
+      +(steps?'<div class="rbtit">Method</div>'+steps:'')
+      +(r.tip?'<div class="rtip">'+r.tip+'</div>':'')
+      +'<button data-rid="'+r.id+'" class="del-custom" style="margin-top:12px;width:100%;background:none;border:1px solid var(--red);border-radius:7px;padding:6px;font-size:12px;color:var(--red-light);cursor:pointer;font-family:sans-serif          ">Delete recipe</button>'
+      +'</div>';
+    card.querySelector('.rchint').style.cursor='pointer';
+    card.addEventListener('click',function(e){ if(e.target.classList.contains('del-custom')) return; card.classList.toggle('open'); card.querySelector('.rchint').textContent=card.classList.contains('open')?'tap to collapse':'tap to see recipe'; });
+    card.querySelector('.del-custom').addEventListener('click',function(e){ e.stopPropagation(); deleteCustomRecipe(r.id); });
+    grid.appendChild(card);
+  });
+}
+
+function buildRecipes(filter){
+  var grid = document.getElementById('recipeGrid');
+  var gPanel = document.getElementById('groceryPanel');
+  var customTagRow = document.getElementById('customTagRow');
+  if(!grid) return;
+  if(filter==='grocery'){
+    grid.style.display='none';
+    if(gPanel) gPanel.style.display='block';
+    if(customTagRow) customTagRow.style.display='none';
+    return;
+  }
+  grid.style.display=''; if(gPanel) gPanel.style.display='none';
+  if(filter==='custom'){
+    if(customTagRow) refreshCustomTagFilters();
+    grid.innerHTML=''; renderCustomCards(getCustomRecipes(), grid);
+    return;
+  }
+  if(customTagRow) customTagRow.style.display='none';
+  grid.innerHTML='';
+  var list = filter==='all' ? ALL_RECIPES : ALL_RECIPES.filter(function(r){return r.cat===filter;});
+  list.forEach(function(r){
+    var isFerment = r.cat==='ferments';
+    var ings = r.ings.map(function(x){ return '<li><span>'+x[0]+'</span><span class="ingamt">'+x[1]+'</span></li>'; }).join('');
+    var steps = r.steps.map(function(s,i){ return '<div class="rstep"><div class="rnum '+r.sc+'">'+(i+1)+'</div><div class="rtxt">'+s+'</div></div>'; }).join('');
+    var card = document.createElement('div'); card.className='rcard';
+    card.innerHTML='<div class="rctop">'
+      +'<div class="rctr"><span class="rctype" style="color:'+r.color+'">'+r.type+'</span>'
+      +'<span class="rcbadge" style="color:'+r.prepC+';border-color:'+r.prepC+'">'+r.prepL+'</span></div>'
+      +'<div class="rcname">'+r.name+'</div><div class="rctag">'+r.tag+'</div>'
+      +'<div class="mrow">'
+      +'<div class="mv"><span class="mvv" style="color:var(--green-light)">'+r.hk+'</span><span class="mvl">her kcal</span></div>'
+      +'<div class="mv"><span class="mvv" style="color:var(--blue-light)">'+r.hp+'</span><span class="mvl">protein</span></div>'
+      +'<div class="mv"><span class="mvv" style="color:var(--amber-light)">'+r.hc+'</span><span class="mvl">carbs</span></div>'
+      +'<div class="mv"><span class="mvv" style="color:var(--coral-light)">'+r.hf+'</span><span class="mvl">fat</span></div>'
+      +(isFerment?'':'<div class="mv" style="border-left:1px solid var(--border);padding-left:8px"><span class="mvv" style="color:var(--green-light)">'+r.mk+'</span><span class="mvl">him kcal</span></div>')
+      +'</div>'
+      +(isFerment?'<div style="font-size:11px;color:var(--muted);margin-top:5px;font-style:italic">Per serving. Probiotic benefit is the primary value.</div>':'')
+      +'</div><div class="rchint">tap to see recipe</div>'
+      +'<div class="rcbody"><div class="rbtit">Ingredients (serves 2)</div><ul class="inglist">'+ings+'</ul>'
+      +'<div class="rbtit">Method</div>'+steps+'<div class="rtip">'+r.tip+'</div></div>';
+    card.addEventListener('click',function(){ card.classList.toggle('open'); card.querySelector('.rchint').textContent=card.classList.contains('open')?'tap to collapse':'tap to see recipe'; });
+    grid.appendChild(card);
+  });
+}
+
+buildRecipes('all');
+refreshCustomTagFilters();
+
+document.querySelectorAll('.rfbtn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.rfbtn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    buildRecipes(btn.dataset.rf);
+  });
+});
+
+// Grocery list
+(function(){
+  var gg = document.getElementById('groceryGrid');
+  if(!gg) return;
+  var dotColors = {add:'var(--green)',swap:'var(--amber)',remove:'var(--red)'};
+  var badgeCls  = {add:'gbadd',swap:'gbswap',remove:'gbrem'};
+  Object.entries(GROCERY_DATA).forEach(function(entry){
+    var cat=entry[0], items=entry[1];
+    var div=document.createElement('div');
+    div.className='gcat';
+    var lbl=document.createElement('div');
+    lbl.className='gcatlbl'; lbl.textContent=cat;
+    div.appendChild(lbl);
+    items.forEach(function(item){
+      var li=document.createElement('div'); li.className='gitem';
+      var dc=item.t?dotColors[item.t]:'var(--muted2)';
+      var badge=item.t?('<span class="gbadge '+badgeCls[item.t]+'">'+item.t+'</span>'):'';
+      li.innerHTML='<div class="gcheck">&#10003;</div><div class="gdot" style="background:'+dc+'"></div><span style="flex:1">'+item.n+'</span>'+badge;
+      li.addEventListener('click',function(){li.classList.toggle('gchecked');});
+      div.appendChild(li);
+    });
+    gg.appendChild(div);
+  });
+  var clrBtn=document.getElementById('clearGrocery');
+  if(clrBtn) clrBtn.addEventListener('click',function(){document.querySelectorAll('.gitem').forEach(function(i){i.classList.remove('gchecked');});});
+})();
+
+// ──────────────────────────────────────────
+// TRACKER
+// ──────────────────────────────────────────
+var STORE_KEY = 'whub_tracker_v3';
+var trackerDate = new Date(); trackerDate.setHours(0,0,0,0);
+var selSession=null, selEnergy=0, selMood=0, selSleep=0, selPhase='', selMedMin=0, selMedStyle='';
+var KCAL_TARGET=1380, PROT_TARGET=110, CARB_TARGET=130, FAT_TARGET=52, FIBER_TARGET=25;
+
+function dkey(d){return d.toISOString().split('T')[0];}
+function lsGet(){try{return JSON.parse(localStorage.getItem(STORE_KEY)||'{}');}catch(e){return {};}}
+function lsSet(o){try{localStorage.setItem(STORE_KEY,JSON.stringify(o));}catch(e){}}
+function getDay(k){var a=lsGet();return a[k]||{foods:[],workout:null,wkNotes:'',energy:0,mood:0,sleep:0,phase:'',notes:'',medMin:0,medStyle:''};}
+function setDay(k,v){var a=lsGet();a[k]=v;lsSet(a);}
+
+var QUICK_FOODS=[
+  {n:'Berry Oats',k:350,p:18,c:42,f:12,fi:9},
+  {n:'Matcha Oats',k:355,p:20,c:44,f:11,fi:9},
+  {n:'Egg Scramble',k:310,p:26,c:8,f:18,fi:2},
+  {n:'Yogurt Bowl',k:320,p:28,c:32,f:8,fi:4},
+  {n:'Green Smoothie',k:390,p:35,c:56,f:9,fi:8},
+  {n:'Tropical Smoothie',k:415,p:31,c:58,f:7,fi:7},
+  {n:'Matcha Smoothie',k:395,p:29,c:60,f:6,fi:7},
+  {n:'Jamaica Smoothie',k:250,p:11,c:44,f:4,fi:6},
+  {n:'Chickpea Wraps',k:345,p:16,c:38,f:14,fi:9},
+  {n:'Lentil Soup',k:330,p:20,c:48,f:8,fi:12},
+  {n:"Za'atar Bowl",k:390,p:38,c:22,f:16,fi:4},
+  {n:'Quinoa Bowl',k:400,p:38,c:32,f:12,fi:6},
+  {n:'Guajillo Chicken',k:410,p:42,c:12,f:20,fi:2},
+  {n:"Za'atar Salmon",k:440,p:42,c:24,f:20,fi:5},
+  {n:'Soy-Ginger Salmon',k:430,p:40,c:18,f:22,fi:4},
+  {n:'Shakshuka',k:380,p:24,c:30,f:17,fi:5},
+  {n:'Shrimp + Rice',k:390,p:34,c:35,f:12,fi:3},
+  {n:'Tuscan Chicken',k:440,p:42,c:28,f:16,fi:6},
+];
+
+var SESSION_OPTS=[
+  {id:'pilates',label:'Pilates',color:'var(--purple)'},
+  {id:'glute-build',label:'Glute Build',color:'var(--green)'},
+  {id:'glute-shred',label:'Glute Shred',color:'var(--coral)'},
+  {id:'full-body',label:'Full Body',color:'var(--amber)'},
+  {id:'zone2',label:'Zone 2 Walk',color:'var(--teal)'},
+  {id:'rest',label:'Rest Day',color:'var(--muted2)'},
+  {id:'dog-walk',label:'Dog Walk',color:'var(--green2)'},
+];
+var MED_MINS=[5,10,13,15,20];
+var MED_STYLES=['Breath focus','Body scan','Visualization','Guided','Silent'];
+
+function updateSummary(day){
+  var k=day.foods.reduce(function(s,f){return s+f.k;},0);
+  var p=day.foods.reduce(function(s,f){return s+(f.p||0);},0);
+  var c=day.foods.reduce(function(s,f){return s+(f.c||0);},0);
+  var fa=day.foods.reduce(function(s,f){return s+(f.f||0);},0);
+  var fi=day.foods.reduce(function(s,f){return s+(f.fi||0);},0);
+  var rem=Math.max(0,KCAL_TARGET-k);
+
+  function setBar(barId,val,target){
+    var el=document.getElementById(barId);
+    if(!el) return;
+    var pct=Math.min(100,Math.round(val/target*100));
+    el.style.width=pct+'%';
+    if(barId==='tBarKcal') el.style.background=pct>105?'var(--red)':pct>95?'var(--amber)':'var(--green)';
+  }
+
+  document.getElementById('tKcal').textContent=k.toLocaleString();
+  document.getElementById('tRemKcal').textContent=rem.toLocaleString();
+  document.getElementById('tProt').textContent=p+'g';
+  document.getElementById('tCarb').textContent=c+'g';
+  document.getElementById('tFat').textContent=fa+'g';
+  document.getElementById('tFiber').textContent=fi+'g';
+
+  setBar('tBarKcal',k,KCAL_TARGET);
+  setBar('tBarProt',p,PROT_TARGET);
+  setBar('tBarCarb',c,CARB_TARGET);
+  setBar('tBarFat',fa,FAT_TARGET);
+  setBar('tBarFiber',fi,FIBER_TARGET);
+}
+
+function renderFoods(day){
+  var el=document.getElementById('foodList');
+  if(!el) return;
+  if(!day.foods.length){el.innerHTML='<div style="font-size:13px;color:var(--muted2);font-style:italic;padding:3px 0">No meals logged yet.</div>';return;}
+  el.innerHTML=day.foods.map(function(f,i){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">'
+      +'<div style="flex:1"><div style="font-size:13px;color:var(--text)">'+f.n+'</div>'
+      +'<div style="font-family:monospace,monospace;font-size:10px;color:var(--muted)">'+f.k+' kcal &middot; '+f.p+'g P &middot; '+f.c+'g C &middot; '+f.f+'g F'+(f.fi?' &middot; '+f.fi+'g fiber':'')+'</div></div>'
+      +'<button data-i="'+i+'" class="rmfood" style="background:none;border:none;color:var(--muted2);cursor:pointer;font-size:19px;padding:0 4px;line-height:1">&times;</button>'
+      +'</div>';
+  }).join('');
+  el.querySelectorAll('.rmfood').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var k2=dkey(trackerDate);var d=getDay(k2);d.foods.splice(parseInt(btn.dataset.i),1);setDay(k2,d);renderFoods(d);updateSummary(d);renderWeekStrip();
+    });
+  });
+}
+
+function addFood(){
+  var nm=document.getElementById('fName').value.trim();
+  var kc=parseInt(document.getElementById('fKcal').value)||0;
+  var pr=parseInt(document.getElementById('fPro').value)||0;
+  var ca=parseInt(document.getElementById('fCarb').value)||0;
+  var fa=parseInt(document.getElementById('fFat').value)||0;
+  var fi=parseInt(document.getElementById('fFiber').value)||0;
+  if(!nm||!kc){alert('Enter a name and calories.');return;}
+  var k=dkey(trackerDate); var d=getDay(k);
+  d.foods.push({n:nm,k:kc,p:pr,c:ca,f:fa,fi:fi});setDay(k,d);
+  document.getElementById('fName').value='';
+  ['fKcal','fPro','fCarb','fFat','fFiber'].forEach(function(id){document.getElementById(id).value='';});
+  renderFoods(d);updateSummary(d);renderWeekStrip();
+}
+
+function buildQA(){
+  var el=document.getElementById('qabtns');
+  if(!el||el.children.length) return;
+  QUICK_FOODS.forEach(function(f){
+    var btn=document.createElement('button');
+    btn.style.cssText='font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--bg3);color:var(--muted);cursor:pointer;font-family:monospace,monospace;white-space:nowrap';
+    btn.textContent=f.n+' ('+f.k+')';
+    btn.addEventListener('click',function(){
+      var k=dkey(trackerDate);var d=getDay(k);d.foods.push({n:f.n,k:f.k,p:f.p,c:f.c,f:f.f,fi:f.fi||0});setDay(k,d);renderFoods(d);updateSummary(d);renderWeekStrip();
+    });
+    el.appendChild(btn);
+  });
+}
+
+function renderSessions(day){
+  var el=document.getElementById('sessionBtns');
+  if(!el) return; el.innerHTML='';
+  SESSION_OPTS.forEach(function(s){
+    var active=selSession===s.id;
+    var btn=document.createElement('button');
+    btn.style.cssText='font-size:12px;padding:5px 11px;border-radius:7px;border:1px solid '+(active?s.color:'var(--border)')+';background:'+(active?s.color+'20':'var(--bg3)')+';color:'+(active?s.color:'var(--muted)')+';cursor:pointer;font-family:sans-serif,sans-serif;transition:all .15s';
+    btn.textContent=s.label;
+    btn.addEventListener('click',function(){selSession=active?null:s.id;renderSessions(day);});
+    el.appendChild(btn);
+  });
+}
+
+function logWorkout(){
+  if(!selSession){alert('Select a session type first.');return;}
+  var k=dkey(trackerDate);var d=getDay(k);
+  d.workout=selSession; d.wkNotes=document.getElementById('wkNotes').value;
+  setDay(k,d);
+  var st=SESSION_OPTS.find(function(s){return s.id===selSession;});
+  document.getElementById('wkLogged').style.display='block';
+  document.getElementById('wkDetail').textContent=(st?st.label:selSession)+(d.wkNotes?' - '+d.wkNotes.substring(0,70):'');
+  renderWeekStrip();
+}
+
+function renderMed(day){
+  var durEl=document.getElementById('medDuration');
+  if(durEl){durEl.innerHTML='';MED_MINS.forEach(function(m){
+    var active=selMedMin===m;var btn=document.createElement('button');
+    btn.style.cssText='font-size:12px;padding:5px 12px;border-radius:7px;border:1px solid '+(active?'var(--gold)':'var(--border)')+';background:'+(active?'rgba(184,150,58,0.15)':'var(--bg3)')+';color:'+(active?'var(--gold-light)':'var(--muted)')+';cursor:pointer;font-family:monospace,monospace;transition:all .15s';
+    btn.textContent=m+' min';
+    btn.addEventListener('click',function(){selMedMin=active?0:m;renderMed(day);});
+    durEl.appendChild(btn);
+  });}
+  var styEl=document.getElementById('medStyle');
+  if(styEl){styEl.innerHTML='';MED_STYLES.forEach(function(ms){
+    var active=selMedStyle===ms;var btn=document.createElement('button');
+    btn.style.cssText='font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid '+(active?'var(--gold)':'var(--border)')+';background:'+(active?'rgba(184,150,58,0.1)':'var(--bg3)')+';color:'+(active?'var(--gold-light)':'var(--muted)')+';cursor:pointer;font-family:sans-serif,sans-serif;transition:all .15s';
+    btn.textContent=ms;
+    btn.addEventListener('click',function(){selMedStyle=active?'':ms;renderMed(day);});
+    styEl.appendChild(btn);
+  });}
+  var ml=document.getElementById('medLogged');
+  if(ml){if(day.medMin){ml.style.display='block';ml.textContent='Done: '+day.medMin+' min'+(day.medStyle?' - '+day.medStyle:'');}else{ml.style.display='none';}}
+}
+
+function logMed(){
+  if(!selMedMin){alert('Select a duration first.');return;}
+  var k=dkey(trackerDate);var d=getDay(k);
+  d.medMin=selMedMin;d.medStyle=selMedStyle;setDay(k,d);renderMed(d);renderWeekStrip();
+  var btn=document.getElementById('logMedBtn');
+  if(btn){btn.textContent='Saved!';btn.style.background='rgba(184,150,58,0.2)';setTimeout(function(){btn.textContent='Log meditation';btn.style.background='var(--bg3)';},1600);}
+}
+
+function buildStars(elId, cur, setter, emoji){
+  var el=document.getElementById(elId);if(!el) return;el.innerHTML='';
+  for(var i=1;i<=5;i++){
+    (function(val){
+      var btn=document.createElement('button');
+      var active=val<=cur;
+      btn.style.cssText='width:30px;height:30px;border-radius:6px;border:1px solid '+(active?'var(--purple)':'var(--border)')+';background:'+(active?'rgba(138,106,184,0.18)':'var(--bg3)')+';cursor:pointer;font-size:15px;transition:all .15s';
+      btn.textContent=active?emoji:'\u00b7';
+      btn.addEventListener('click',function(){setter(val===cur?0:val);});
+      el.appendChild(btn);
+    })(i);
+  }
+}
+
+function renderStars(){
+  buildStars('energyRow',selEnergy,function(v){selEnergy=v;renderStars();},'E');
+  buildStars('moodRow',selMood,function(v){selMood=v;renderStars();},'M');
+  buildStars('sleepRow',selSleep,function(v){selSleep=v;renderStars();},'Z');
+}
+
+function buildPhaseRow(){
+  var el=document.getElementById('phaseRow');if(!el) return;el.innerHTML='';
+  var phases=['Menstrual','Follicular','Ovulatory','Luteal','Unsure'];
+  var colors=['var(--purple)','var(--green)','var(--teal)','var(--amber)','var(--muted2)'];
+  phases.forEach(function(p,i){
+    var active=selPhase===p;var btn=document.createElement('button');
+    btn.style.cssText='font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid '+(active?colors[i]:'var(--border)')+';background:'+(active?colors[i]+'20':'var(--bg3)')+';color:'+(active?colors[i]:'var(--muted)')+';cursor:pointer;font-family:sans-serif,sans-serif;transition:all .15s';
+    btn.textContent=p;
+    btn.addEventListener('click',function(){selPhase=active?'':p;buildPhaseRow();updatePhaseNote();});
+    el.appendChild(btn);
+  });
+}
+
+function updatePhaseNote(){
+  var notes={'Menstrual':'Week 1: Low intensity. Pilates + gentle activation. Be kind to yourself.','Follicular':'Week 2: Strongest phase. Push heavier in Solin glute build sessions.','Ovulatory':'Early Week 3: Still strong. Great for PRs.','Luteal':'Late Week 3: Moderate load. Allow ~1,500 kcal on workout days.','Unsure':'Cycle unknown - follow 3-week rotating plan from last period start.','':'Select your cycle phase above to see recommended workout intensity.'};
+  var el=document.getElementById('phaseNote');if(el) el.textContent=notes[selPhase]||notes[''];
+}
+
+function saveCheckIn(){
+  var k=dkey(trackerDate);var d=getDay(k);
+  d.energy=selEnergy;d.mood=selMood;d.sleep=selSleep;d.phase=selPhase;setDay(k,d);
+  var btn=document.getElementById('saveCheckIn');
+  if(btn){btn.textContent='Saved!';btn.style.background='var(--green)';setTimeout(function(){btn.textContent='Save check-in';btn.style.background='var(--purple)';},1600);}
+}
+
+function saveNotes(){
+  var k=dkey(trackerDate);var d=getDay(k);
+  d.notes=document.getElementById('dayNotes').value;setDay(k,d);
+  var btn=document.getElementById('saveNotes');
+  if(btn){btn.textContent='Saved!';btn.style.color='var(--green-light)';setTimeout(function(){btn.textContent='Save notes';btn.style.color='var(--muted)';},1600);}
+}
+
+function renderWeekStrip(){
+  var el=document.getElementById('weekStrip');if(!el) return;el.innerHTML='';
+  var today=new Date();today.setHours(0,0,0,0);
+  var dow=(today.getDay()+6)%7;
+  var startW=new Date(today);startW.setDate(today.getDate()-dow);
+  var DL=['M','T','W','T','F','S','S'];
+  for(var i=0;i<7;i++){
+    var d=new Date(startW);d.setDate(startW.getDate()+i);
+    var k=dkey(d);var data=getDay(k);
+    var kcal=data.foods.reduce(function(s,f){return s+f.k;},0);
+    var hasW=!!data.workout, hasM=!!data.medMin;
+    var isToday=d.getTime()===today.getTime();
+    var isCur=d.getTime()===trackerDate.getTime();
+    var cell=document.createElement('div');
+    cell.style.cssText='background:var(--bg3);border:1px solid '+(isCur?'var(--teal)':isToday?'var(--border2)':'var(--border)')+';border-radius:9px;padding:8px 3px;text-align:center;cursor:pointer;transition:all .2s';
+    cell.innerHTML='<div style="font-family:monospace,monospace;font-size:10px;color:'+(isToday?'var(--teal-light)':'var(--muted2)')+';margin-bottom:2px">'+DL[i]+'</div>'
+      +'<div style="font-size:10px;color:var(--muted2);margin-bottom:3px">'+d.getDate()+'</div>'
+      +'<div style="font-size:10px;font-family:monospace,monospace;color:'+(kcal>0?'var(--green-light)':'var(--muted2)')+'">'+( kcal>0?kcal:'-')+'</div>'
+      +'<div style="font-size:11px;margin-top:2px">'+(hasW?'<span style="color:var(--coral-light)">W</span>':'')+(hasM?'<span style="color:var(--gold-light)">M</span>':'')+'</div>';
+    (function(dd){cell.addEventListener('click',function(){trackerDate=dd;renderTracker();});})(new Date(d));
+    el.appendChild(cell);
+  }
+}
+
+function renderTracker(){
+  var k=dkey(trackerDate);var day=getDay(k);
+  document.getElementById('dateLabel').textContent=trackerDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  buildQA();renderFoods(day);updateSummary(day);
+  selSession=day.workout||null;renderSessions(day);
+  document.getElementById('wkNotes').value=day.wkNotes||'';
+  var wkL=document.getElementById('wkLogged');
+  if(day.workout){wkL.style.display='block';var st=SESSION_OPTS.find(function(s){return s.id===day.workout;});document.getElementById('wkDetail').textContent=(st?st.label:day.workout)+(day.wkNotes?' - '+day.wkNotes.substring(0,70):'');}else{wkL.style.display='none';}
+  selMedMin=day.medMin||0;selMedStyle=day.medStyle||'';renderMed(day);
+  selEnergy=day.energy||0;selMood=day.mood||0;selSleep=day.sleep||0;selPhase=day.phase||'';
+  renderStars();buildPhaseRow();updatePhaseNote();
+  document.getElementById('dayNotes').value=day.notes||'';
+  renderWeekStrip();
+}
+
+// Responsive
+function fixGrid(){var g=document.getElementById('trackerGrid');if(g)g.style.gridTemplateColumns=window.innerWidth<680?'1fr':'1fr 1fr';}
+window.addEventListener('resize',fixGrid);fixGrid();
+
+// Wire up buttons
+document.getElementById('prevDay').addEventListener('click',function(){trackerDate.setDate(trackerDate.getDate()-1);renderTracker();});
+document.getElementById('nextDay').addEventListener('click',function(){trackerDate.setDate(trackerDate.getDate()+1);renderTracker();});
+document.getElementById('goToday').addEventListener('click',function(){trackerDate=new Date();trackerDate.setHours(0,0,0,0);renderTracker();});
+document.getElementById('addFoodBtn').addEventListener('click',addFood);
+document.getElementById('logWkBtn').addEventListener('click',logWorkout);
+document.getElementById('logMedBtn').addEventListener('click',logMed);
+document.getElementById('saveCheckIn').addEventListener('click',saveCheckIn);
+document.getElementById('saveNotes').addEventListener('click',saveNotes);
+
+// ──────────────────────────────────────────
+// CUSTOM RECIPES — stored in localStorage
+// ──────────────────────────────────────────
+var CUSTOM_KEY = 'whub_custom_recipes_v1';
+var CUSTOM_TAGS_KEY = 'whub_custom_tags_v1';
+
+var PRESET_CATS = ['breakfast','smoothie','lunch','dinner','dessert','ferments','snack','sauce','drink','side'];
+
+function getCustomRecipes(){ try{ return JSON.parse(localStorage.getItem(CUSTOM_KEY)||'[]'); }catch(e){ return []; } }
+function saveCustomRecipes(arr){ try{ localStorage.setItem(CUSTOM_KEY, JSON.stringify(arr)); }catch(e){} }
+function getCustomTags(){ try{ return JSON.parse(localStorage.getItem(CUSTOM_TAGS_KEY)||'[]'); }catch(e){ return []; } }
+function saveCustomTags(arr){ try{ localStorage.setItem(CUSTOM_TAGS_KEY, JSON.stringify(arr)); }catch(e){} }
+
+// Merge preset + custom tags (deduplicated)
+function allTags(){
+  var t = PRESET_CATS.slice();
+  getCustomTags().forEach(function(ct){ if(t.indexOf(ct)<0) t.push(ct); });
+  return t;
+}
+
+// ── Modal state ──
+var rmSelectedCat = 'dinner';
+var rmIngs = [];
+var rmSteps = [];
+
+function openModal(){
+  rmSelectedCat='dinner'; rmIngs=[]; rmSteps=[];
+  ['rm-name','rm-tag','rm-ingName','rm-ingAmt','rm-stepTxt','rm-tip'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='';
+  });
+  ['rm-kcal','rm-prot','rm-carb','rm-fat','rm-fib'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('rm-ings').innerHTML='';
+  document.getElementById('rm-steps').innerHTML='';
+  document.getElementById('rm-msg').textContent='';
+  renderModalCatBtns();
+  document.getElementById('recipeModal').style.display='block';
+  document.body.style.overflow='hidden';
+}
+function closeModal(){
+  document.getElementById('recipeModal').style.display='none';
+  document.body.style.overflow='';
+}
+
+function renderModalCatBtns(){
+  var el=document.getElementById('rm-catBtns'); if(!el) return;
+  el.innerHTML='';
+  allTags().forEach(function(tag){
+    var active=rmSelectedCat===tag;
+    var btn=document.createElement('button');
+    btn.style.cssText='font-size:12px;padding:4px 11px;border-radius:7px;border:1px solid '+(active?'var(--purple)':'var(--border)')+';background:'+(active?'rgba(138,106,184,0.15)':'var(--bg3)')+';color:'+(active?'var(--purple-light)':'var(--muted)')+';cursor:pointer;font-family:sans-serif,sans-serif;transition:all .15s';
+    btn.textContent=tag.charAt(0).toUpperCase()+tag.slice(1);
+    btn.addEventListener('click',function(){ rmSelectedCat=tag; renderModalCatBtns(); });
+    el.appendChild(btn);
+  });
+}
+
+function renderModalIngs(){
+  var el=document.getElementById('rm-ings'); if(!el) return;
+  el.innerHTML='';
+  rmIngs.forEach(function(ing,i){
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--bg3);border-radius:6px';
+    row.innerHTML='<span style="flex:2;font-size:13px;color:var(--text)">'+ing[0]+'</span>'
+      +'<span style="flex:1;font-size:12px;color:var(--muted);font-family:monospace,monospace">'+ing[1]+'</span>'
+      +'<button data-i="'+i+'" class="rmi" style="background:none;border:none;color:var(--muted2);cursor:pointer;font-size:16px;padding:0">&times;</button>';
+    el.appendChild(row);
+  });
+  el.querySelectorAll('.rmi').forEach(function(b){
+    b.addEventListener('click',function(){ rmIngs.splice(parseInt(b.dataset.i),1); renderModalIngs(); });
+  });
+}
+
+function renderModalSteps(){
+  var el=document.getElementById('rm-steps'); if(!el) return;
+  el.innerHTML='';
+  rmSteps.forEach(function(s,i){
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:flex-start;gap:8px;padding:5px 8px;background:var(--bg3);border-radius:6px';
+    row.innerHTML='<div style="width:18px;height:18px;border-radius:50%;background:var(--purple);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">'+(i+1)+'</div>'
+      +'<span style="flex:1;font-size:13px;color:var(--text);line-height:1.4">'+s+'</span>'
+      +'<button data-i="'+i+'" class="rms" style="background:none;border:none;color:var(--muted2);cursor:pointer;font-size:16px;padding:0">&times;</button>';
+    el.appendChild(row);
+  });
+  el.querySelectorAll('.rms').forEach(function(b){
+    b.addEventListener('click',function(){ rmSteps.splice(parseInt(b.dataset.i),1); renderModalSteps(); });
+  });
+}
+
+function saveCustomRecipe(){
+  var name=document.getElementById('rm-name').value.trim();
+  if(!name){ document.getElementById('rm-msg').textContent='Please enter a recipe name.'; document.getElementById('rm-msg').style.color='var(--coral-light)'; return; }
+  var recipe={
+    id: Date.now(),
+    custom: true,
+    cat: rmSelectedCat,
+    type: rmSelectedCat.charAt(0).toUpperCase()+rmSelectedCat.slice(1),
+    color:'var(--purple)', sc:'cp',
+    name: name,
+    tag: document.getElementById('rm-tag').value.trim()||'My recipe',
+    prepL:'Custom', prepC:'var(--purple)',
+    hk: parseInt(document.getElementById('rm-kcal').value)||0,
+    hp: (parseInt(document.getElementById('rm-prot').value)||0)+'g',
+    hc: (parseInt(document.getElementById('rm-carb').value)||0)+'g',
+    hf: (parseInt(document.getElementById('rm-fat').value)||0)+'g',
+    hfi:(parseInt(document.getElementById('rm-fib').value)||0)+'g',
+    mk:0,mp:'0g',mc:'0g',mf:'0g',
+    ings: rmIngs.slice(),
+    steps: rmSteps.slice(),
+    tip: document.getElementById('rm-tip').value.trim(),
+  };
+  var arr=getCustomRecipes(); arr.push(recipe); saveCustomRecipes(arr);
+  document.getElementById('rm-msg').textContent='Recipe saved!';
+  document.getElementById('rm-msg').style.color='var(--green-light)';
+  refreshCustomTagFilters();
+  setTimeout(closeModal, 900);
+}
+
+function deleteCustomRecipe(id){
+  if(!confirm('Delete this recipe?')) return;
+  var arr=getCustomRecipes().filter(function(r){return r.id!==id;});
+  saveCustomRecipes(arr);
+  // re-render current filter
+  var active=document.querySelector('.rfbtn.active');
+  buildRecipes(active?active.dataset.rf:'custom');
+}
+
+// Wire modal buttons
+document.getElementById('openRecipeModal').addEventListener('click', openModal);
+document.getElementById('closeRecipeModal').addEventListener('click', closeModal);
+document.getElementById('closeRecipeModal2').addEventListener('click', closeModal);
+document.getElementById('recipeModal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+
+document.getElementById('rm-addCat').addEventListener('click',function(){
+  var val=document.getElementById('rm-customCat').value.trim().toLowerCase();
+  if(!val) return;
+  var tags=getCustomTags(); if(tags.indexOf(val)<0){ tags.push(val); saveCustomTags(tags); }
+  rmSelectedCat=val;
+  document.getElementById('rm-customCat').value='';
+  renderModalCatBtns();
+  refreshCustomTagFilters();
+});
+
+document.getElementById('rm-addIng').addEventListener('click',function(){
+  var n=document.getElementById('rm-ingName').value.trim();
+  var a=document.getElementById('rm-ingAmt').value.trim();
+  if(!n) return;
+  rmIngs.push([n,a||'—']);
+  document.getElementById('rm-ingName').value='';
+  document.getElementById('rm-ingAmt').value='';
+  renderModalIngs();
+});
+document.getElementById('rm-ingName').addEventListener('keydown',function(e){ if(e.key==='Enter') document.getElementById('rm-addIng').click(); });
+
+document.getElementById('rm-addStep').addEventListener('click',function(){
+  var s=document.getElementById('rm-stepTxt').value.trim();
+  if(!s) return;
+  rmSteps.push(s);
+  document.getElementById('rm-stepTxt').value='';
+  renderModalSteps();
+});
+document.getElementById('rm-stepTxt').addEventListener('keydown',function(e){ if(e.key==='Enter') document.getElementById('rm-addStep').click(); });
+
+document.getElementById('rm-save').addEventListener('click', saveCustomRecipe);
+
+// Custom tag filter row
+function refreshCustomTagFilters(){
+  var customRecipes=getCustomRecipes();
+  var tagsInUse=[]; customRecipes.forEach(function(r){ if(tagsInUse.indexOf(r.cat)<0) tagsInUse.push(r.cat); });
+  var row=document.getElementById('customTagRow');
+  var btns=document.getElementById('customTagBtns');
+  if(!row||!btns) return;
+  if(tagsInUse.length===0){ row.style.display='none'; return; }
+  row.style.display='flex';
+  btns.innerHTML='';
+  var all=document.createElement('button');
+  all.style.cssText='font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--purple);background:rgba(138,106,184,0.12);color:var(--purple-light);cursor:pointer;font-family:sans-serif,sans-serif';
+  all.textContent='All my recipes';
+  all.addEventListener('click',function(){ buildRecipes('custom'); });
+  btns.appendChild(all);
+  tagsInUse.forEach(function(tag){
+    var btn=document.createElement('button');
+    btn.style.cssText='font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--muted);cursor:pointer;font-family:sans-serif,sans-serif';
+    btn.textContent=tag.charAt(0).toUpperCase()+tag.slice(1);
+    btn.addEventListener('click',function(){ buildRecipesCustomByTag(tag); });
+    btns.appendChild(btn);
+  });
+}
+
+function buildRecipesCustomByTag(tag){
+  var grid=document.getElementById('recipeGrid');
+  var gPanel=document.getElementById('groceryPanel');
+  if(!grid) return;
+  grid.style.display=''; if(gPanel) gPanel.style.display='none';
+  document.getElementById('customTagRow').style.display='flex';
+  var customs=getCustomRecipes().filter(function(r){return r.cat===tag;});
+  grid.innerHTML='';
+  renderCustomCards(customs, grid);
+}
+
+// ── EXPORT / IMPORT ──
+function getAllData(){
+  return {
+    tracker: JSON.parse(localStorage.getItem(STORE_KEY)||'{}'),
+    customRecipes: getCustomRecipes(),
+    customTags: getCustomTags(),
+    groceryChecked: JSON.parse(localStorage.getItem('whub_grocery_v1')||'[]'),
+    exportedAt: new Date().toISOString(),
+    version: 'whub_v1',
+  };
+}
+
+document.getElementById('exportDataBtn').addEventListener('click',function(){
+  var data=JSON.stringify(getAllData(), null, 2);
+  var blob=new Blob([data],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download='wellness_hub_backup_'+new Date().toISOString().split('T')[0]+'.json';
+  a.click(); URL.revokeObjectURL(url);
+});
+
+document.getElementById('importFile').addEventListener('change',function(e){
+  var file=e.target.files[0]; if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var data=JSON.parse(ev.target.result);
+      if(data.version!=='whub_v1') throw new Error('Unrecognised file format');
+      if(data.tracker) localStorage.setItem(STORE_KEY, JSON.stringify(data.tracker));
+      if(data.customRecipes) localStorage.setItem(CUSTOM_KEY, JSON.stringify(data.customRecipes));
+      if(data.customTags) localStorage.setItem(CUSTOM_TAGS_KEY, JSON.stringify(data.customTags));
+      if(data.groceryChecked) localStorage.setItem('whub_grocery_v1', JSON.stringify(data.groceryChecked));
+      alert('Data imported successfully! Reloading...');
+      location.reload();
+    }catch(err){
+      alert('Import failed: '+err.message+'\nMake sure you are using a backup file exported from this Hub.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value='';
+});
+
+// ──────────────────────────────────────────
+// MAIN TAB SWITCHING
+// ──────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('active');});
+    document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
+    btn.classList.add('active');
+    var target = document.getElementById(btn.dataset.v);
+    if(target){target.classList.add('active');}
+    if(btn.dataset.v==='v3') renderTracker();
+  });
+});
+</script>
+</body>
+</html>
