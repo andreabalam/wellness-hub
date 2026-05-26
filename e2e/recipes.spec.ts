@@ -1,0 +1,143 @@
+import { test, expect } from '@playwright/test'
+
+test.describe('Recipes tab', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/')
+    await page.evaluate(() => localStorage.clear())
+    await page.getByRole('button', { name: /Recipes/i }).click()
+  })
+
+  test('shows all built-in recipes by default', async ({ page }) => {
+    await expect(page.locator('.rcard').first()).toBeVisible()
+    // At least 20 built-in recipes
+    await expect(page.locator('.rcard')).toHaveCount(await page.locator('.rcard').count())
+    expect(await page.locator('.rcard').count()).toBeGreaterThan(15)
+  })
+
+  test('filter by Breakfast shows only breakfast recipes', async ({ page }) => {
+    await page.getByRole('button', { name: 'Breakfast' }).click()
+    const cards = page.locator('.rcard')
+    const count = await cards.count()
+    expect(count).toBeGreaterThan(0)
+    // All visible cards show "Breakfast" type
+    for (let i = 0; i < count; i++) {
+      await expect(cards.nth(i).locator('.rctype')).toContainText('Breakfast')
+    }
+  })
+
+  test('filter by Smoothies shows only smoothies', async ({ page }) => {
+    await page.getByRole('button', { name: 'Smoothies' }).click()
+    const cards = page.locator('.rcard')
+    const count = await cards.count()
+    expect(count).toBeGreaterThan(0)
+    for (let i = 0; i < count; i++) {
+      await expect(cards.nth(i).locator('.rctype')).toContainText('Smoothie')
+    }
+  })
+
+  test('clicking a recipe card expands it', async ({ page }) => {
+    const card = page.locator('.rcard').first()
+    await expect(card.locator('.rcbody')).not.toBeVisible()
+    await card.click()
+    await expect(card.locator('.rcbody')).toBeVisible()
+    await expect(card.locator('.rchint')).toContainText('tap to collapse')
+  })
+
+  test('clicking an open card collapses it', async ({ page }) => {
+    const card = page.locator('.rcard').first()
+    await card.click()
+    await expect(card.locator('.rcbody')).toBeVisible()
+    await card.click()
+    await expect(card.locator('.rcbody')).not.toBeVisible()
+  })
+
+  test('Grocery filter shows the grocery panel', async ({ page }) => {
+    await page.getByRole('button', { name: '🛒 Grocery' }).click()
+    await expect(page.getByText('Your Grocery List')).toBeVisible()
+    await expect(page.locator('.gcat').first()).toBeVisible()
+  })
+
+  test('grocery items can be checked and unchecked', async ({ page }) => {
+    await page.getByRole('button', { name: '🛒 Grocery' }).click()
+    const item = page.locator('.gitem').first()
+    await expect(item).not.toHaveClass(/gchecked/)
+    await item.click()
+    await expect(item).toHaveClass(/gchecked/)
+    await item.click()
+    await expect(item).not.toHaveClass(/gchecked/)
+  })
+
+  test('grocery checked state persists across page reloads', async ({ page }) => {
+    await page.getByRole('button', { name: '🛒 Grocery' }).click()
+    const item = page.locator('.gitem').first()
+    // The item name is in the first <span> (flex:1); second span is the optional badge
+    const itemText = await item.locator('span').first().textContent()
+    await item.click()
+    await expect(item).toHaveClass(/gchecked/)
+
+    await page.reload()
+    await page.getByRole('button', { name: /Recipes/i }).click()
+    await page.getByRole('button', { name: '🛒 Grocery' }).click()
+
+    const reloadedItem = page.locator('.gitem').filter({ hasText: itemText! }).first()
+    await expect(reloadedItem).toHaveClass(/gchecked/)
+  })
+
+  test('Clear all removes all checks', async ({ page }) => {
+    await page.getByRole('button', { name: '🛒 Grocery' }).click()
+    // Check a couple of items
+    await page.locator('.gitem').nth(0).click()
+    await page.locator('.gitem').nth(1).click()
+    await page.getByRole('button', { name: 'Clear all' }).click()
+    const checkedCount = await page.locator('.gitem.gchecked').count()
+    expect(checkedCount).toBe(0)
+  })
+
+  test('can add a custom recipe and it appears under My Recipes', async ({ page }) => {
+    await page.getByRole('button', { name: '+ Add my recipe' }).click()
+    // Modal is open when the recipe name input is visible
+    await expect(page.getByPlaceholder('e.g. Mango Chia Pudding')).toBeVisible()
+
+    await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('My Test Recipe')
+    await page.getByPlaceholder('e.g. Prep night before · 5 min').fill('Quick · 5 min')
+    await page.getByRole('button', { name: 'Save recipe' }).click()
+
+    // Modal closes, recipe appears in My Recipes
+    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    await expect(page.getByText('My Test Recipe')).toBeVisible()
+  })
+
+  test('custom recipe is retained after page reload', async ({ page }) => {
+    await page.getByRole('button', { name: '+ Add my recipe' }).click()
+    await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Persistent Recipe')
+    await page.getByRole('button', { name: 'Save recipe' }).click()
+
+    await page.reload()
+    await page.getByRole('button', { name: /Recipes/i }).click()
+    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    await expect(page.getByText('Persistent Recipe')).toBeVisible()
+  })
+
+  test('custom recipe can be deleted', async ({ page }) => {
+    // Add
+    await page.getByRole('button', { name: '+ Add my recipe' }).click()
+    await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Delete Me')
+    await page.getByRole('button', { name: 'Save recipe' }).click()
+
+    // Open My Recipes, expand card, delete
+    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    await page.getByText('Delete Me').click()
+    page.once('dialog', d => d.accept())
+    await page.getByRole('button', { name: 'Delete recipe' }).click()
+
+    await expect(page.getByText('Delete Me')).not.toBeVisible()
+  })
+
+  test('export data button triggers a download', async ({ page }) => {
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: '↓ Export data' }).click(),
+    ])
+    expect(download.suggestedFilename()).toMatch(/wellness_hub_backup_.+\.json/)
+  })
+})

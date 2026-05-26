@@ -1,12 +1,13 @@
-import { useCallback } from 'react'
 import type { DayData } from '../data/tracker'
 import { EMPTY_DAY } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
+import { supabase } from '../lib/supabase'
+import * as sync from '../lib/sync'
 
-const TRACKER_KEY  = 'whub_tracker_v3'
-const RECIPES_KEY  = 'whub_custom_recipes_v1'
-const TAGS_KEY     = 'whub_custom_tags_v1'
-const GROCERY_KEY  = 'whub_grocery_v1'
+const TRACKER_KEY = 'whub_tracker_v3'
+const RECIPES_KEY = 'whub_custom_recipes_v1'
+const TAGS_KEY    = 'whub_custom_tags_v1'
+const GROCERY_KEY = 'whub_grocery_v1'
 
 // ── raw helpers ──────────────────────────────────────────────────
 function load<T>(key: string, fallback: T): T {
@@ -17,66 +18,100 @@ function save<T>(key: string, value: T) {
   try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* quota */ }
 }
 
-// ── Tracker ──────────────────────────────────────────────────────
-export function useTrackerStore() {
-  const getAll = useCallback(() => load<Record<string, DayData>>(TRACKER_KEY, {}), [])
+/**
+ * Fire-and-forget push to Supabase — only runs when a user is signed in.
+ * Errors are swallowed; local store is always the source of truth.
+ */
+async function tryPush(fn: (userId: string) => Promise<void>) {
+  if (!supabase) return // not configured (tests / dev without .env.local)
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) fn(user.id).catch(() => { /* offline — next sync will catch up */ })
+  } catch { /* ignore */ }
+}
 
-  const getDay = useCallback((dateKey: string): DayData => {
+// ── Tracker ── plain functions, safe to call anywhere ────────────
+export const trackerStore = {
+  getAll: () => load<Record<string, DayData>>(TRACKER_KEY, {}),
+
+  getDay: (dateKey: string): DayData => {
     const all = load<Record<string, DayData>>(TRACKER_KEY, {})
     return all[dateKey] ?? { ...EMPTY_DAY, foods: [] }
-  }, [])
+  },
 
-  const setDay = useCallback((dateKey: string, data: DayData) => {
+  setDay: (dateKey: string, data: DayData) => {
     const all = load<Record<string, DayData>>(TRACKER_KEY, {})
     all[dateKey] = data
     save(TRACKER_KEY, all)
-  }, [])
-
-  return { getAll, getDay, setDay }
+    tryPush(uid => sync.pushDay(uid, dateKey, data))
+  },
 }
 
-// ── Custom Recipes ────────────────────────────────────────────────
-export function useRecipeStore() {
-  const getRecipes  = () => load<Recipe[]>(RECIPES_KEY, [])
-  const saveRecipes = (arr: Recipe[]) => save(RECIPES_KEY, arr)
+// ── Recipes ── plain functions ───────────────────────────────────
+export const recipeStore = {
+  getRecipes:  () => load<Recipe[]>(RECIPES_KEY, []),
+  saveRecipes: (arr: Recipe[]) => {
+    save(RECIPES_KEY, arr)
+    tryPush(uid => sync.pushRecipes(uid, arr))
+  },
+  addRecipe:   (r: Recipe) => recipeStore.saveRecipes([...recipeStore.getRecipes(), r]),
+  deleteRecipe:(id: number) => recipeStore.saveRecipes(recipeStore.getRecipes().filter(r => r.id !== id)),
 
-  const addRecipe = (r: Recipe) => saveRecipes([...getRecipes(), r])
-  const deleteRecipe = (id: number) => saveRecipes(getRecipes().filter(r => r.id !== id))
-
-  const getTags  = () => load<string[]>(TAGS_KEY, [])
-  const saveTags = (arr: string[]) => save(TAGS_KEY, arr)
-  const addTag   = (tag: string) => {
-    const tags = getTags()
-    if (!tags.includes(tag)) saveTags([...tags, tag])
-  }
-
-  return { getRecipes, addRecipe, deleteRecipe, getTags, addTag }
+  getTags:  () => load<string[]>(TAGS_KEY, []),
+  saveTags: (arr: string[]) => {
+    save(TAGS_KEY, arr)
+    tryPush(uid => sync.pushTags(uid, arr))
+  },
+  addTag:   (tag: string) => {
+    const tags = recipeStore.getTags()
+    if (!tags.includes(tag)) recipeStore.saveTags([...tags, tag])
+  },
 }
 
-// ── Grocery ───────────────────────────────────────────────────────
-export function useGroceryStore() {
-  const getChecked  = () => load<string[]>(GROCERY_KEY, [])
-  const saveChecked = (arr: string[]) => save(GROCERY_KEY, arr)
+// ── Grocery ── plain functions ───────────────────────────────────
+export const groceryStore = {
+  getChecked:  () => load<string[]>(GROCERY_KEY, []),
+  saveChecked: (arr: string[]) => {
+    save(GROCERY_KEY, arr)
+    tryPush(uid => sync.pushGrocery(uid, arr))
+  },
 
-  const toggle = (name: string) => {
-    const checked = getChecked()
-    if (checked.includes(name)) saveChecked(checked.filter(n => n !== name))
-    else saveChecked([...checked, name])
-  }
-  const clearAll = () => saveChecked([])
-
-  return { getChecked, toggle, clearAll }
+  toggle: (name: string) => {
+    const checked = groceryStore.getChecked()
+    groceryStore.saveChecked(
+      checked.includes(name) ? checked.filter(n => n !== name) : [...checked, name]
+    )
+  },
+  clearAll: () => groceryStore.saveChecked([]),
 }
 
-// ── Full export / import ──────────────────────────────────────────
+// ── React hook wrappers (same object, named for clarity in components) ──
+export function useTrackerStore() { return trackerStore }
+export function useRecipeStore()  { return recipeStore }
+export function useGroceryStore() { return groceryStore }
+
+// ── Merge remote data into localStorage without triggering another push ──
+export function importRemoteData(remote: {
+  tracker?: Record<string, DayData>
+  recipes?: Recipe[]
+  tags?: string[]
+  grocery?: string[]
+}) {
+  if (remote.tracker !== undefined) save(TRACKER_KEY, remote.tracker)
+  if (remote.recipes !== undefined) save(RECIPES_KEY, remote.recipes)
+  if (remote.tags    !== undefined) save(TAGS_KEY,    remote.tags)
+  if (remote.grocery !== undefined) save(GROCERY_KEY, remote.grocery)
+}
+
+// ── Full export / import (JSON backup) ───────────────────────────
 export function exportAllData() {
   return {
-    tracker:       load(TRACKER_KEY, {}),
-    customRecipes: load<Recipe[]>(RECIPES_KEY, []),
-    customTags:    load<string[]>(TAGS_KEY, []),
-    groceryChecked:load<string[]>(GROCERY_KEY, []),
-    exportedAt:    new Date().toISOString(),
-    version:       'whub_v1',
+    tracker:        load(TRACKER_KEY, {}),
+    customRecipes:  load<Recipe[]>(RECIPES_KEY, []),
+    customTags:     load<string[]>(TAGS_KEY, []),
+    groceryChecked: load<string[]>(GROCERY_KEY, []),
+    exportedAt:     new Date().toISOString(),
+    version:        'whub_v1',
   }
 }
 

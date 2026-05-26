@@ -30,12 +30,20 @@ body {
   position: sticky; top: 0; z-index: 100;
   background: var(--bg);
 }
+.hdr-top {
+  display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: 18px;
+}
 .htitle {
   font-family: "DM Serif Display", serif;
   font-size: 26px; font-weight: 400;
-  color: var(--text); margin-bottom: 18px;
+  color: var(--text);
 }
 .htitle em { font-style: italic; color: var(--green-light); }
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.85); }
+}
 .tabs { display: flex; overflow-x: auto; }
 .tab {
   background: none; border: none; cursor: pointer;
