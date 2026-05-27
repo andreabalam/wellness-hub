@@ -1,13 +1,14 @@
-import type { DayData } from '../data/tracker'
+import type { DayData, QuickFood } from '../data/tracker'
 import { EMPTY_DAY } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
 import { supabase } from '../lib/supabase'
 import * as sync from '../lib/sync'
 
-const TRACKER_KEY = 'whub_tracker_v3'
-const RECIPES_KEY = 'whub_custom_recipes_v1'
-const TAGS_KEY    = 'whub_custom_tags_v1'
-const GROCERY_KEY = 'whub_grocery_v1'
+const TRACKER_KEY      = 'whub_tracker_v3'
+const RECIPES_KEY      = 'whub_custom_recipes_v1'
+const TAGS_KEY         = 'whub_custom_tags_v1'
+const GROCERY_KEY      = 'whub_grocery_v1'
+const FOOD_LIBRARY_KEY = 'whub_food_library_v1'
 
 // ── raw helpers ──────────────────────────────────────────────────
 function load<T>(key: string, fallback: T): T {
@@ -85,10 +86,26 @@ export const groceryStore = {
   clearAll: () => groceryStore.saveChecked([]),
 }
 
+// ── Food library ── remembers per-serving macros for previously logged foods ─
+export const foodLibraryStore = {
+  getAll: (): QuickFood[] => load<QuickFood[]>(FOOD_LIBRARY_KEY, []),
+
+  upsert: (entry: QuickFood): QuickFood[] => {
+    const lib = foodLibraryStore.getAll()
+    const idx = lib.findIndex(f => f.n.toLowerCase() === entry.n.toLowerCase())
+    if (idx >= 0) lib[idx] = entry
+    else lib.push(entry)
+    save(FOOD_LIBRARY_KEY, lib)
+    tryPush(uid => sync.pushFoodLibrary(uid, lib))
+    return lib
+  },
+}
+
 // ── React hook wrappers (same object, named for clarity in components) ──
-export function useTrackerStore() { return trackerStore }
-export function useRecipeStore()  { return recipeStore }
-export function useGroceryStore() { return groceryStore }
+export function useTrackerStore()     { return trackerStore }
+export function useRecipeStore()      { return recipeStore }
+export function useGroceryStore()     { return groceryStore }
+export function useFoodLibraryStore() { return foodLibraryStore }
 
 // ── Merge remote data into localStorage without triggering another push ──
 export function importRemoteData(remote: {
@@ -96,11 +113,13 @@ export function importRemoteData(remote: {
   recipes?: Recipe[]
   tags?: string[]
   grocery?: string[]
+  foodLibrary?: QuickFood[]
 }) {
-  if (remote.tracker !== undefined) save(TRACKER_KEY, remote.tracker)
-  if (remote.recipes !== undefined) save(RECIPES_KEY, remote.recipes)
-  if (remote.tags    !== undefined) save(TAGS_KEY,    remote.tags)
-  if (remote.grocery !== undefined) save(GROCERY_KEY, remote.grocery)
+  if (remote.tracker     !== undefined) save(TRACKER_KEY,      remote.tracker)
+  if (remote.recipes     !== undefined) save(RECIPES_KEY,      remote.recipes)
+  if (remote.tags        !== undefined) save(TAGS_KEY,         remote.tags)
+  if (remote.grocery     !== undefined) save(GROCERY_KEY,      remote.grocery)
+  if (remote.foodLibrary !== undefined) save(FOOD_LIBRARY_KEY, remote.foodLibrary)
 }
 
 // ── Full export / import (JSON backup) ───────────────────────────
@@ -110,6 +129,7 @@ export function exportAllData() {
     customRecipes:  load<Recipe[]>(RECIPES_KEY, []),
     customTags:     load<string[]>(TAGS_KEY, []),
     groceryChecked: load<string[]>(GROCERY_KEY, []),
+    foodLibrary:    load<QuickFood[]>(FOOD_LIBRARY_KEY, []),
     exportedAt:     new Date().toISOString(),
     version:        'whub_v1',
   }
@@ -119,10 +139,11 @@ export function importAllData(json: string): boolean {
   try {
     const data = JSON.parse(json)
     if (data.version !== 'whub_v1') throw new Error('bad version')
-    if (data.tracker)        save(TRACKER_KEY, data.tracker)
-    if (data.customRecipes)  save(RECIPES_KEY, data.customRecipes)
-    if (data.customTags)     save(TAGS_KEY, data.customTags)
-    if (data.groceryChecked) save(GROCERY_KEY, data.groceryChecked)
+    if (data.tracker)        save(TRACKER_KEY,      data.tracker)
+    if (data.customRecipes)  save(RECIPES_KEY,      data.customRecipes)
+    if (data.customTags)     save(TAGS_KEY,         data.customTags)
+    if (data.groceryChecked) save(GROCERY_KEY,      data.groceryChecked)
+    if (data.foodLibrary)    save(FOOD_LIBRARY_KEY, data.foodLibrary)
     return true
   } catch { return false }
 }

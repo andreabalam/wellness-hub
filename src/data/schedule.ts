@@ -27,11 +27,3 @@ export const SCHEDULE_BLOCKS: ScheduleBlock[] = [
   { phase: null, time: '10:15', title: 'Warm-up work — low friction', dur: '45 min', dot: 'cgr', why: 'wgr', whyTxt: 'Synchrony effect — protect your peak', desc: 'Code reviews, reading docs, async replies, writing tests. The synchrony effect shows late chronotypes perform worst on demanding tasks in the early morning. Low-friction real work here is productive without burning your peak.', bridge: null },
   { phase: 'PEAK', time: '11:00', title: 'Deep work block', dur: '90-120 min', dot: 'cg', why: 'wg', whyTxt: 'Peak alpha/beta brainwave power', desc: 'Architecture decisions, complex debugging, system design — anything requiring working memory and executive function. Block calendar. Silence notifications. Use a 90-min ultradian cycle. Research on late chronotypes confirms superior processing speed and executive control in this window. Use it deliberately every day.', bridge: null },
 ]
-
-export const SCHEDULE_DAYS: ScheduleDay[] = [
-  { day: 'Monday', peak: 'Monday peak: 11 AM - 1 PM. Cook a double batch of quinoa tonight — powers Wed, Thu, Fri lunches.' },
-  { day: 'Tuesday', peak: 'Tuesday peak: 11 AM - 1 PM. Use the commute walk to mentally rehearse your top priority. Arrive pre-loaded.' },
-  { day: 'Wednesday', peak: 'Midweek peak: 11 AM - 1 PM. Leave headphones out on the commute today — ambient sound enhances creative problem-solving.' },
-  { day: 'Thursday', peak: 'Thursday peak: 11 AM - 1 PM. Statistically high-decision-load day for engineers — protect this window especially.' },
-  { day: 'Friday', peak: 'End-of-week peak: 11 AM - 1 PM. Great for refactoring, documentation, retrospectives. Use commute to close open loops.' },
-]

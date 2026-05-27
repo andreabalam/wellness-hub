@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SCHEDULE_BLOCKS, SCHEDULE_DAYS } from '../data/schedule'
+import { SCHEDULE_BLOCKS } from '../data/schedule'
 
 describe('SCHEDULE_BLOCKS', () => {
   it('has 10 blocks', () => {
@@ -41,19 +41,3 @@ describe('SCHEDULE_BLOCKS', () => {
   })
 })
 
-describe('SCHEDULE_DAYS', () => {
-  it('has 5 weekdays', () => {
-    expect(SCHEDULE_DAYS).toHaveLength(5)
-  })
-
-  it('days are Mon–Fri in order', () => {
-    const names = SCHEDULE_DAYS.map(d => d.day)
-    expect(names).toEqual(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
-  })
-
-  it('every day has a non-empty peak string', () => {
-    SCHEDULE_DAYS.forEach(d => {
-      expect(d.peak.length).toBeGreaterThan(10)
-    })
-  })
-})

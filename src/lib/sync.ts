@@ -3,7 +3,7 @@
  * Call sites are responsible for reading from / writing to the stores.
  */
 import { supabase } from './supabase'
-import type { DayData } from '../data/tracker'
+import type { DayData, QuickFood } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
 
 // ── Tracker days ─────────────────────────────────────────────────
@@ -82,4 +82,21 @@ export async function pullGrocery(userId: string): Promise<string[]> {
     .eq('user_id', userId)
     .single()
   return (data?.checked as string[]) ?? []
+}
+
+// ── Food library ──────────────────────────────────────────────────
+
+export async function pushFoodLibrary(userId: string, library: QuickFood[]) {
+  await supabase!
+    .from('food_library')
+    .upsert({ user_id: userId, library, updated_at: new Date().toISOString() })
+}
+
+export async function pullFoodLibrary(userId: string): Promise<QuickFood[]> {
+  const { data } = await supabase!
+    .from('food_library')
+    .select('library')
+    .eq('user_id', userId)
+    .single()
+  return (data?.library as QuickFood[]) ?? []
 }

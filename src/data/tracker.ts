@@ -57,6 +57,7 @@ export const PHASE_NOTES: Record<string, string> = {
 
 export interface FoodEntry {
   n: string; k: number; p: number; c: number; f: number; fi: number
+  s?: number  // servings logged (stored so edit can reverse-calculate per-serving values)
 }
 
 export interface DayData {

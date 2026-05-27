@@ -8,19 +8,19 @@ import UpdatePrompt from './components/UpdatePrompt'
 import AuthButton from './components/AuthButton'
 import { supabase } from './lib/supabase'
 import * as sync from './lib/sync'
-import { trackerStore, recipeStore, groceryStore, importRemoteData } from './hooks/useStore'
+import { trackerStore, recipeStore, groceryStore, foodLibraryStore, importRemoteData } from './hooks/useStore'
 
-type Tab = 'schedule' | 'workouts' | 'recipes' | 'tracker'
+type Tab = 'tracker' | 'recipes' | 'workouts' | 'schedule'
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'schedule', label: '📅 Schedule' },
-  { id: 'workouts', label: '💪 Workouts' },
-  { id: 'recipes',  label: '🍽 Recipes' },
   { id: 'tracker',  label: '📊 Tracker' },
+  { id: 'recipes',  label: '🍽 Recipes' },
+  { id: 'workouts', label: '💪 Workouts' },
+  { id: 'schedule', label: '📅 Schedule' },
 ]
 
 export default function App() {
-  const [active, setActive]       = useState<Tab>('schedule')
+  const [active, setActive]       = useState<Tab>('tracker')
   const [swUpdate, setSwUpdate]   = useState<(() => void) | null>(null)
   const [user, setUser]           = useState<User | null>(null)
   const [syncing, setSyncing]     = useState(false)
@@ -32,15 +32,16 @@ export default function App() {
     setSyncing(true)
     try {
       // Pull remote data
-      const [remoteDays, remoteRecipes, remoteTags, remoteGrocery] = await Promise.all([
+      const [remoteDays, remoteRecipes, remoteTags, remoteGrocery, remoteFoodLib] = await Promise.all([
         sync.pullAllDays(userId),
         sync.pullRecipes(userId),
         sync.pullTags(userId),
         sync.pullGrocery(userId),
+        sync.pullFoodLibrary(userId),
       ])
 
       // Merge: remote wins for tracker day conflicts (another device is authoritative);
-      // recipes, tags, grocery are unioned so local-only items are never lost.
+      // recipes, tags, grocery, food library are unioned so local-only items are never lost.
       const localDays = trackerStore.getAll()
       const mergedDays = { ...localDays, ...remoteDays }
 
@@ -54,12 +55,21 @@ export default function App() {
       const mergedTags    = [...new Set([...recipeStore.getTags(), ...remoteTags])]
       const mergedGrocery = [...new Set([...groceryStore.getChecked(), ...remoteGrocery])]
 
+      // Food library: remote wins per name (most recently upserted value)
+      const localLib = foodLibraryStore.getAll()
+      const remoteLibNames = new Set(remoteFoodLib.map(f => f.n.toLowerCase()))
+      const mergedFoodLib = [
+        ...remoteFoodLib,
+        ...localLib.filter(f => !remoteLibNames.has(f.n.toLowerCase())),
+      ]
+
       // Write merged data to localStorage (bypasses push to avoid a loop)
       importRemoteData({
-        tracker: mergedDays,
-        recipes: mergedRecipes,
-        tags:    mergedTags,
-        grocery: mergedGrocery,
+        tracker:     mergedDays,
+        recipes:     mergedRecipes,
+        tags:        mergedTags,
+        grocery:     mergedGrocery,
+        foodLibrary: mergedFoodLib,
       })
 
       // Push merged data back so any local-only items reach Supabase
@@ -70,6 +80,7 @@ export default function App() {
         sync.pushRecipes(userId, mergedRecipes),
         sync.pushTags(userId, mergedTags),
         sync.pushGrocery(userId, mergedGrocery),
+        sync.pushFoodLibrary(userId, mergedFoodLib),
       ])
 
       setLastSynced(new Date())
