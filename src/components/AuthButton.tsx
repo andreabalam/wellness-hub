@@ -49,7 +49,7 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced }: Prop
       email: email.trim(),
       options: {
         // Keep redirect for desktop / browser users who click the link;
-        // PWA / home-screen users will use the 6-digit code instead.
+        // PWA / home-screen users will use the 8-digit code instead.
         emailRedirectTo: window.location.origin + import.meta.env.BASE_URL,
         shouldCreateUser: true,
       },
@@ -59,8 +59,8 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced }: Prop
   }
 
   const verifyCode = async () => {
-    const token = code.replace(/\D/g, '').slice(0, 6)
-    if (token.length < 6) { setError('Enter the full 6-digit code.'); return }
+    const token = code.replace(/\D/g, '').slice(0, 8)
+    if (token.length < 8) { setError('Enter the full 8-digit code.'); return }
     setError('')
     setPanelState('verifying')
     const { error: err } = await supabase!.auth.verifyOtp({
@@ -143,7 +143,7 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced }: Prop
                     Sync across devices
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
-                    Enter your email — we'll send a 6-digit code.
+                    Enter your email — we'll send an 8-digit code.
                   </div>
                   <input
                     type="email"
@@ -176,22 +176,22 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced }: Prop
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
                     Check <strong style={{ color: 'var(--teal-light)' }}>{email}</strong> for a
-                    6-digit code and enter it below.
+                    8-digit code and enter it below.
                   </div>
                   <input
                     ref={codeRef}
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    maxLength={6}
+                    maxLength={8}
                     value={code}
                     onChange={e => {
-                      const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+                      const v = e.target.value.replace(/\D/g, '').slice(0, 8)
                       setCode(v)
                       setError('')
                     }}
                     onKeyDown={e => e.key === 'Enter' && verifyCode()}
-                    placeholder="123456"
+                    placeholder="12345678"
                     autoComplete="one-time-code"
                     style={{
                       ...inputStyle,
@@ -204,10 +204,10 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced }: Prop
                   {error && <div style={errorStyle}>{error}</div>}
                   <button
                     onClick={verifyCode}
-                    disabled={panelState === 'verifying' || code.length < 6}
+                    disabled={panelState === 'verifying' || code.length < 8}
                     style={{
                       ...primaryBtn,
-                      opacity: panelState === 'verifying' || code.length < 6 ? 0.6 : 1,
+                      opacity: panelState === 'verifying' || code.length < 8 ? 0.6 : 1,
                       marginBottom: 8,
                     }}
                   >
