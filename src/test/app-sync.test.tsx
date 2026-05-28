@@ -39,7 +39,7 @@ import App from '../App'
 import { supabase } from '../lib/supabase'
 import * as sync from '../lib/sync'
 
-const mockAuth = supabase!.auth as {
+const mockAuth = supabase!.auth as unknown as {
   getSession: ReturnType<typeof vi.fn>
   onAuthStateChange: ReturnType<typeof vi.fn>
 }

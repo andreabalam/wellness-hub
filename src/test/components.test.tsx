@@ -69,7 +69,7 @@ const CUSTOM_RECIPE: Recipe = {
 function spyCreateLink(click: ReturnType<typeof vi.fn>) {
   const orig = document.createElement.bind(document)
   const link = orig('a')
-  link.click = click
+  link.click = click as unknown as () => void
   vi.spyOn(document, 'createElement').mockImplementation((tag: string) =>
     tag === 'a' ? link : orig(tag)
   )
@@ -1045,7 +1045,7 @@ describe('RecipesTab', () => {
 
     // Simulate FileReader.onload firing
     if (onloadHandler) {
-      onloadHandler({ target: { result: payload } })
+      (onloadHandler as (ev: any) => void)({ target: { result: payload } })
     }
 
     expect(mockReadAsText).toHaveBeenCalled()

@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { GROCERY_DATA } from '../data/grocery'
-import type { NutriInfo } from '../data/grocery'
 
 const ALL_ITEMS = Object.values(GROCERY_DATA).flat()
 
