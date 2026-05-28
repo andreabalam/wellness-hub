@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { GROCERY_DATA } from '../../data/grocery'
+import type { GroceryItem } from '../../data/grocery'
 import { useGroceryStore } from '../../hooks/useStore'
+import { isConfigured } from '../../lib/supabase'
+import { pullGroceryCatalog } from '../../lib/sync'
 
 const DOT_COLORS = { add: 'var(--green)', swap: 'var(--amber)', remove: 'var(--red)' } as const
 const BADGE_CLS  = { add: 'gbadd', swap: 'gbswap', remove: 'gbrem' } as const
@@ -8,6 +11,17 @@ const BADGE_CLS  = { add: 'gbadd', swap: 'gbswap', remove: 'gbrem' } as const
 export default function GroceryPanel() {
   const store = useGroceryStore()
   const [checked, setChecked] = useState<string[]>(() => store.getChecked())
+  // Catalog: start with the static fallback, upgrade to the remote version if available
+  const [catalog, setCatalog] = useState<Record<string, GroceryItem[]>>(GROCERY_DATA)
+
+  useEffect(() => {
+    if (!isConfigured) return
+    let active = true
+    pullGroceryCatalog()
+      .then(remote => { if (active && remote) setCatalog(remote) })
+      .catch(() => { /* network unavailable or table not yet created — use static fallback */ })
+    return () => { active = false }
+  }, [])
 
   const toggle = (name: string) => {
     store.toggle(name)
@@ -42,7 +56,7 @@ export default function GroceryPanel() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 12 }}>
-        {Object.entries(GROCERY_DATA).map(([cat, items]) => (
+        {Object.entries(catalog).map(([cat, items]) => (
           <div key={cat} className="gcat">
             <div className="gcatlbl">{cat}</div>
             {items.map(item => {
@@ -56,7 +70,21 @@ export default function GroceryPanel() {
                 >
                   <div className="gcheck">✓</div>
                   <div className="gdot" style={{ background: dotColor }} />
-                  <span style={{ flex: 1 }}>{item.n}</span>
+                  <span style={{ flex: 1 }}>
+                    {item.n}
+                    {item.nutri && (
+                      <span style={{
+                        display: 'block',
+                        fontSize: 10,
+                        fontFamily: '"DM Mono", monospace',
+                        color: 'var(--muted2)',
+                        marginTop: 1,
+                        lineHeight: 1.4,
+                      }}>
+                        {item.nutri.srv} · {item.nutri.cal} kcal · {item.nutri.p}g P · {item.nutri.c}g C · {item.nutri.f}g F{item.nutri.fi != null ? ` · ${item.nutri.fi}g fi` : ''}
+                      </span>
+                    )}
+                  </span>
                   {item.t && (
                     <span className={`gbadge ${BADGE_CLS[item.t]}`}>{item.t}</span>
                   )}

@@ -1,14 +1,25 @@
 import { test, expect } from '@playwright/test'
 
+// Helper: target only the top-level tab bar buttons (avoids matching
+// in-page buttons like "✎ Edit schedule" that also contain "Schedule")
+const tabBar = (page: Parameters<typeof expect>[0]) =>
+  (page as import('@playwright/test').Page).locator('nav.tabs')
+
 test.describe('Tab navigation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
   })
 
-  test('loads with Schedule tab active', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /Schedule/i })).toHaveClass(/active/)
-    // Day nav is visible
-    await expect(page.getByRole('button', { name: 'Monday' })).toBeVisible()
+  test('loads with Tracker tab active by default', async ({ page }) => {
+    await expect(tabBar(page).getByRole('button', { name: /Tracker/i })).toHaveClass(/active/)
+    await expect(page.getByText('My Daily Tracker')).toBeVisible()
+  })
+
+  test('switches to Schedule tab', async ({ page }) => {
+    await tabBar(page).getByRole('button', { name: /Schedule/i }).click()
+    await expect(tabBar(page).getByRole('button', { name: /Schedule/i })).toHaveClass(/active/)
+    // Cognitive peak banner is the schedule's landmark element
+    await expect(page.locator('.pbanner').first()).toBeVisible()
   })
 
   test('switches to Workouts tab', async ({ page }) => {
@@ -24,7 +35,9 @@ test.describe('Tab navigation', () => {
   })
 
   test('switches to Tracker tab', async ({ page }) => {
-    await page.getByRole('button', { name: /Tracker/i }).click()
+    // Navigate away first, then switch back
+    await tabBar(page).getByRole('button', { name: /Schedule/i }).click()
+    await tabBar(page).getByRole('button', { name: /Tracker/i }).click()
     await expect(page.getByText('My Daily Tracker')).toBeVisible()
     await expect(page.getByRole('button', { name: 'TODAY' })).toBeVisible()
   })
@@ -36,7 +49,7 @@ test.describe('Tab navigation', () => {
     await expect(page.getByText('Follicular Phase')).toBeVisible()
 
     // Switch away and back
-    await page.getByRole('button', { name: /Schedule/i }).click()
+    await tabBar(page).getByRole('button', { name: /Schedule/i }).click()
     await page.getByRole('button', { name: /Workouts/i }).click()
     // Week 2 content still showing (React state preserved)
     await expect(page.getByText('Follicular Phase')).toBeVisible()

@@ -1,6 +1,7 @@
 import type { DayData, QuickFood } from '../data/tracker'
 import { EMPTY_DAY } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
+import type { CustomBlock } from '../data/schedule'
 import { supabase } from '../lib/supabase'
 import * as sync from '../lib/sync'
 
@@ -9,6 +10,7 @@ const RECIPES_KEY      = 'whub_custom_recipes_v1'
 const TAGS_KEY         = 'whub_custom_tags_v1'
 const GROCERY_KEY      = 'whub_grocery_v1'
 const FOOD_LIBRARY_KEY = 'whub_food_library_v1'
+const SCHEDULE_KEY     = 'whub_schedule_v1'
 
 // ── raw helpers ──────────────────────────────────────────────────
 function load<T>(key: string, fallback: T): T {
@@ -101,6 +103,19 @@ export const foodLibraryStore = {
   },
 }
 
+// ── Schedule ── custom blocks (null = use built-in defaults) ────────
+export const scheduleStore = {
+  getBlocks: (): CustomBlock[] | null =>
+    load<CustomBlock[] | null>(SCHEDULE_KEY, null),
+
+  saveBlocks: (blocks: CustomBlock[]) =>
+    save(SCHEDULE_KEY, blocks),
+
+  reset: () => {
+    try { localStorage.removeItem(SCHEDULE_KEY) } catch { /* quota */ }
+  },
+}
+
 // ── React hook wrappers (same object, named for clarity in components) ──
 export function useTrackerStore()     { return trackerStore }
 export function useRecipeStore()      { return recipeStore }
@@ -114,12 +129,14 @@ export function importRemoteData(remote: {
   tags?: string[]
   grocery?: string[]
   foodLibrary?: QuickFood[]
+  schedule?: CustomBlock[]
 }) {
   if (remote.tracker     !== undefined) save(TRACKER_KEY,      remote.tracker)
   if (remote.recipes     !== undefined) save(RECIPES_KEY,      remote.recipes)
   if (remote.tags        !== undefined) save(TAGS_KEY,         remote.tags)
   if (remote.grocery     !== undefined) save(GROCERY_KEY,      remote.grocery)
   if (remote.foodLibrary !== undefined) save(FOOD_LIBRARY_KEY, remote.foodLibrary)
+  if (remote.schedule    !== undefined) save(SCHEDULE_KEY,     remote.schedule)
 }
 
 // ── Full export / import (JSON backup) ───────────────────────────

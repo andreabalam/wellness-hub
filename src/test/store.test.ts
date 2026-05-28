@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { trackerStore, recipeStore, groceryStore, exportAllData, importAllData } from '../hooks/useStore'
+import {
+  trackerStore, recipeStore, groceryStore, scheduleStore,
+  foodLibraryStore, importRemoteData,
+  useTrackerStore, useRecipeStore, useGroceryStore, useFoodLibraryStore,
+  exportAllData, importAllData,
+} from '../hooks/useStore'
+import { EMPTY_DAY } from '../data/tracker'
+import type { CustomBlock } from '../data/schedule'
 
 // ── localStorage mock ────────────────────────────────────────────
 const store: Record<string, string> = {}
@@ -179,5 +186,157 @@ describe('export / import round-trip', () => {
     const data = exportAllData()
     expect(() => new Date(data.exportedAt)).not.toThrow()
     expect(new Date(data.exportedAt).getFullYear()).toBeGreaterThan(2020)
+  })
+})
+
+// ── scheduleStore ────────────────────────────────────────────────
+describe('scheduleStore', () => {
+  const sampleBlock: CustomBlock = {
+    id: 'b1', time: '09:00', title: 'Test Block',
+    dur: '30 min', color: 'green', whyTxt: '', desc: '', phase: '',
+  }
+
+  it('getBlocks returns null when nothing is saved', () => {
+    expect(scheduleStore.getBlocks()).toBeNull()
+  })
+
+  it('saveBlocks persists blocks', () => {
+    scheduleStore.saveBlocks([sampleBlock])
+    const result = scheduleStore.getBlocks()
+    expect(result).toHaveLength(1)
+    expect(result![0].title).toBe('Test Block')
+  })
+
+  it('saveBlocks overwrites previous blocks', () => {
+    scheduleStore.saveBlocks([sampleBlock])
+    scheduleStore.saveBlocks([{ ...sampleBlock, id: 'b2', title: 'Replaced' }])
+    const result = scheduleStore.getBlocks()
+    expect(result).toHaveLength(1)
+    expect(result![0].title).toBe('Replaced')
+  })
+
+  it('saveBlocks persists multiple blocks', () => {
+    const blocks = [
+      sampleBlock,
+      { ...sampleBlock, id: 'b2', title: 'Second Block', color: 'teal' },
+    ]
+    scheduleStore.saveBlocks(blocks)
+    expect(scheduleStore.getBlocks()).toHaveLength(2)
+  })
+
+  it('reset removes saved blocks so getBlocks returns null', () => {
+    scheduleStore.saveBlocks([sampleBlock])
+    scheduleStore.reset()
+    expect(scheduleStore.getBlocks()).toBeNull()
+  })
+})
+
+// ── foodLibraryStore ─────────────────────────────────────────────
+describe('foodLibraryStore', () => {
+  const oats = { n: 'Oats', k: 150, p: 5, c: 27, f: 2, fi: 4 }
+  const eggs = { n: 'Eggs', k: 72, p: 6, c: 0, f: 5, fi: 0 }
+
+  it('getAll returns [] initially', () => {
+    expect(foodLibraryStore.getAll()).toEqual([])
+  })
+
+  it('upsert adds a new food entry', () => {
+    foodLibraryStore.upsert(oats)
+    const lib = foodLibraryStore.getAll()
+    expect(lib).toHaveLength(1)
+    expect(lib[0].n).toBe('Oats')
+    expect(lib[0].k).toBe(150)
+  })
+
+  it('upsert updates existing entry matched case-insensitively', () => {
+    foodLibraryStore.upsert(oats)
+    foodLibraryStore.upsert({ ...oats, n: 'oats', k: 200 })
+    const lib = foodLibraryStore.getAll()
+    expect(lib).toHaveLength(1)
+    expect(lib[0].k).toBe(200)
+  })
+
+  it('upsert adds distinct entries for different names', () => {
+    foodLibraryStore.upsert(oats)
+    foodLibraryStore.upsert(eggs)
+    expect(foodLibraryStore.getAll()).toHaveLength(2)
+  })
+
+  it('upsert returns the updated library', () => {
+    const result = foodLibraryStore.upsert(oats)
+    expect(Array.isArray(result)).toBe(true)
+    expect(result[0].n).toBe('Oats')
+  })
+})
+
+// ── importRemoteData ─────────────────────────────────────────────
+describe('importRemoteData', () => {
+  const baseDay = { ...EMPTY_DAY, foods: [] }
+  const recipeBase = {
+    cat: 'dinner', type: 'Dinner', color: '', sc: '', tag: '', prepL: '', prepC: '',
+    hk: 0, hp: '0g', hc: '0g', hf: '0g', mk: 0, mp: '0g', mc: '0g', mf: '0g',
+    ings: [] as [string, string][], steps: [] as string[], tip: '', custom: true,
+  }
+
+  it('writes tracker days to localStorage', () => {
+    importRemoteData({ tracker: { '2026-03-01': { ...baseDay, energy: 5 } } })
+    expect(trackerStore.getDay('2026-03-01').energy).toBe(5)
+  })
+
+  it('writes recipes to localStorage', () => {
+    importRemoteData({ recipes: [{ ...recipeBase, id: 77, name: 'Remote Dish' }] })
+    expect(recipeStore.getRecipes().find(r => r.name === 'Remote Dish')).toBeDefined()
+  })
+
+  it('writes tags to localStorage', () => {
+    importRemoteData({ tags: ['keto', 'vegan'] })
+    expect(recipeStore.getTags()).toContain('keto')
+  })
+
+  it('writes grocery checked list to localStorage', () => {
+    importRemoteData({ grocery: ['Spinach', 'Salmon'] })
+    expect(groceryStore.getChecked()).toContain('Spinach')
+    expect(groceryStore.getChecked()).toContain('Salmon')
+  })
+
+  it('writes food library to localStorage', () => {
+    importRemoteData({ foodLibrary: [{ n: 'Chicken', k: 130, p: 26, c: 0, f: 3, fi: 0 }] })
+    expect(foodLibraryStore.getAll().find(f => f.n === 'Chicken')).toBeDefined()
+  })
+
+  it('ignores undefined fields (no-ops)', () => {
+    importRemoteData({})
+    expect(trackerStore.getAll()).toEqual({})
+  })
+})
+
+// ── hook wrappers ────────────────────────────────────────────────
+describe('store hook wrappers', () => {
+  it('useTrackerStore returns the same trackerStore', () => {
+    expect(useTrackerStore()).toBe(trackerStore)
+  })
+
+  it('useRecipeStore returns the same recipeStore', () => {
+    expect(useRecipeStore()).toBe(recipeStore)
+  })
+
+  it('useGroceryStore returns the same groceryStore', () => {
+    expect(useGroceryStore()).toBe(groceryStore)
+  })
+
+  it('useFoodLibraryStore returns the same foodLibraryStore', () => {
+    expect(useFoodLibraryStore()).toBe(foodLibraryStore)
+  })
+})
+
+// ── load catch branch (useStore line 18) ─────────────────────────
+describe('load() error handling', () => {
+  it('returns the fallback when localStorage contains invalid JSON', () => {
+    // Write corrupt data directly so getItem returns non-parseable JSON
+    store['whub_tracker_v3'] = 'not valid json {{{'
+    // trackerStore.getAll() calls load(...) which catches the parse error
+    const result = trackerStore.getAll()
+    // Should return the fallback ({}) instead of throwing
+    expect(result).toEqual({})
   })
 })

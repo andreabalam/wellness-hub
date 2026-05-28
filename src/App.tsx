@@ -8,7 +8,7 @@ import UpdatePrompt from './components/UpdatePrompt'
 import AuthButton from './components/AuthButton'
 import { supabase } from './lib/supabase'
 import * as sync from './lib/sync'
-import { trackerStore, recipeStore, groceryStore, foodLibraryStore, importRemoteData } from './hooks/useStore'
+import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStore, importRemoteData } from './hooks/useStore'
 
 type Tab = 'tracker' | 'recipes' | 'workouts' | 'schedule'
 
@@ -32,12 +32,13 @@ export default function App() {
     setSyncing(true)
     try {
       // Pull remote data
-      const [remoteDays, remoteRecipes, remoteTags, remoteGrocery, remoteFoodLib] = await Promise.all([
+      const [remoteDays, remoteRecipes, remoteTags, remoteGrocery, remoteFoodLib, remoteSchedule] = await Promise.all([
         sync.pullAllDays(userId),
         sync.pullRecipes(userId),
         sync.pullTags(userId),
         sync.pullGrocery(userId),
         sync.pullFoodLibrary(userId),
+        sync.pullSchedule(userId),
       ])
 
       // Merge: remote wins for tracker day conflicts (another device is authoritative);
@@ -63,6 +64,10 @@ export default function App() {
         ...localLib.filter(f => !remoteLibNames.has(f.n.toLowerCase())),
       ]
 
+      // Schedule: remote wins; fall back to local if no remote copy exists yet
+      const localSchedule = scheduleStore.getBlocks()
+      const mergedSchedule = remoteSchedule ?? localSchedule
+
       // Write merged data to localStorage (bypasses push to avoid a loop)
       importRemoteData({
         tracker:     mergedDays,
@@ -70,6 +75,7 @@ export default function App() {
         tags:        mergedTags,
         grocery:     mergedGrocery,
         foodLibrary: mergedFoodLib,
+        ...(mergedSchedule ? { schedule: mergedSchedule } : {}),
       })
 
       // Push merged data back so any local-only items reach Supabase
@@ -81,6 +87,7 @@ export default function App() {
         sync.pushTags(userId, mergedTags),
         sync.pushGrocery(userId, mergedGrocery),
         sync.pushFoodLibrary(userId, mergedFoodLib),
+        ...(mergedSchedule ? [sync.pushSchedule(userId, mergedSchedule)] : []),
       ])
 
       setLastSynced(new Date())

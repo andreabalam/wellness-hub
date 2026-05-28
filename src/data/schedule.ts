@@ -1,10 +1,11 @@
 export interface ScheduleBlock {
+  id?: string
   phase: string | null
-  time: string
+  time: string       // display string, e.g. "8:00" or "11:00"
   title: string
-  dur: string
-  dot: string
-  why: string
+  dur: string        // display string, e.g. "30 min", "1 hr 30 min"
+  dot: string        // CSS class, e.g. "cg", "ct"
+  why: string        // CSS class, e.g. "wg", "wt"
   whyTxt: string
   desc: string
   bridge: string | null
@@ -13,6 +14,70 @@ export interface ScheduleBlock {
 export interface ScheduleDay {
   day: string
   peak: string
+}
+
+// ── Editable block (stored in localStorage) ──────────────────────
+
+export interface CustomBlock {
+  id: string
+  time: string       // "HH:MM" 24-hour, e.g. "08:00", "11:00"
+  title: string
+  dur: string        // free text, e.g. "30 min"
+  color: string      // key from BLOCK_COLORS
+  whyTxt: string     // badge label
+  desc: string
+  phase: string      // section header; empty string = none
+}
+
+export const BLOCK_COLORS = [
+  { key: 'green',  label: 'Green',  dot: 'cg',  why: 'wg',  hex: '#4caf7d' },
+  { key: 'teal',   label: 'Teal',   dot: 'ct',  why: 'wt',  hex: '#3a9090' },
+  { key: 'amber',  label: 'Amber',  dot: 'ca',  why: 'wa',  hex: '#c9913a' },
+  { key: 'gold',   label: 'Gold',   dot: 'cgo', why: 'wgo', hex: '#b8963a' },
+  { key: 'purple', label: 'Purple', dot: 'cp',  why: 'wp',  hex: '#8a6ab8' },
+  { key: 'gray',   label: 'Gray',   dot: 'cgr', why: 'wgr', hex: '#4a5a4d' },
+] as const
+
+export function colorDef(key: string) {
+  return BLOCK_COLORS.find(c => c.key === key) ?? BLOCK_COLORS[0]
+}
+
+/** Convert a stored CustomBlock to a ScheduleBlock for rendering */
+export function customToScheduleBlock(b: CustomBlock): ScheduleBlock {
+  const c = colorDef(b.color)
+  return {
+    id:      b.id,
+    phase:   b.phase || null,
+    time:    b.time,
+    title:   b.title,
+    dur:     b.dur || '—',
+    dot:     c.dot,
+    why:     c.why,
+    whyTxt:  b.whyTxt,
+    desc:    b.desc,
+    bridge:  null,
+  }
+}
+
+/** Convert a default ScheduleBlock to CustomBlock (for seeding the editor) */
+function dotToColorKey(dot: string): string {
+  const map: Record<string, string> = {
+    cg: 'green', ct: 'teal', ca: 'amber', cgo: 'gold', cp: 'purple', cgr: 'gray',
+  }
+  return map[dot] ?? 'green'
+}
+
+export function defaultToCustomBlock(b: ScheduleBlock, idx: number): CustomBlock {
+  return {
+    id:      b.id ?? `default-${idx}`,
+    time:    b.time.includes(':') ? b.time.padStart(5, '0') : '09:00',
+    title:   b.title,
+    dur:     b.dur === '—' ? '' : b.dur,
+    color:   dotToColorKey(b.dot),
+    whyTxt:  b.whyTxt,
+    desc:    b.desc,
+    phase:   b.phase ?? '',
+  }
 }
 
 export const SCHEDULE_BLOCKS: ScheduleBlock[] = [

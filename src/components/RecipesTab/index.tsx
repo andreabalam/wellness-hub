@@ -25,6 +25,7 @@ export default function RecipesTab() {
   const [showModal, setShowModal]   = useState(false)
   const [customRecipes, setCustomRecipes] = useState<Recipe[]>(() => store.getRecipes())
   const [customTags, setCustomTags] = useState<string[]>(() => store.getTags())
+  const [query, setQuery]           = useState('')
 
   const refreshCustom = useCallback(() => {
     setCustomRecipes(store.getRecipes())
@@ -49,6 +50,19 @@ export default function RecipesTab() {
 
   // Displayed recipes
   const visibleRecipes: Recipe[] = (() => {
+    const q = query.trim().toLowerCase()
+
+    // When searching, scan everything (built-in + custom) regardless of filter
+    if (q) {
+      const all = [...ALL_RECIPES, ...customRecipes]
+      return all.filter(r =>
+        r.name.toLowerCase().includes(q) ||
+        (r.tag  ?? '').toLowerCase().includes(q) ||
+        (r.type ?? '').toLowerCase().includes(q) ||
+        r.ings.some(([ing]) => ing.toLowerCase().includes(q))
+      )
+    }
+
     if (filter === 'custom') {
       return customTag ? customRecipes.filter(r => r.cat === customTag) : customRecipes
     }
@@ -135,6 +149,47 @@ export default function RecipesTab() {
         </div>
       )}
 
+      {/* Search */}
+      {filter !== 'grocery' && (
+        <div style={{ position: 'relative', marginBottom: 14 }}>
+          <svg
+            width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+            style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted2)', pointerEvents: 'none' }}
+          >
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="search"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search recipes, ingredients…"
+            style={{
+              width: '100%',
+              background: 'var(--bg2)', border: '1px solid var(--border2)',
+              borderRadius: 9, padding: '9px 36px 9px 34px',
+              color: 'var(--text)', fontSize: 13,
+              fontFamily: '"DM Sans", sans-serif', outline: 'none',
+              transition: 'border-color .2s',
+            }}
+            onFocus={e => (e.target.style.borderColor = 'var(--green)')}
+            onBlur={e  => (e.target.style.borderColor = 'var(--border2)')}
+          />
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              style={{
+                position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', color: 'var(--muted2)',
+                cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 2px',
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Action bar */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18, alignItems: 'center' }}>
         <button
@@ -160,9 +215,12 @@ export default function RecipesTab() {
       {/* Recipe grid */}
       {filter !== 'grocery' && (
         <div className="rgrid">
-          {visibleRecipes.length === 0 && filter === 'custom' ? (
+          {visibleRecipes.length === 0 ? (
             <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted2)', fontSize: 13, fontStyle: 'italic', gridColumn: '1/-1' }}>
-              No custom recipes yet. Tap <strong style={{ color: 'var(--purple-light)' }}>+ Add my recipe</strong> to create your first one.
+              {query.trim()
+                ? <>No recipes found for <strong style={{ color: 'var(--text)' }}>"{query.trim()}"</strong>.</>
+                : <>No custom recipes yet. Tap <strong style={{ color: 'var(--purple-light)' }}>+ Add my recipe</strong> to create your first one.</>
+              }
             </div>
           ) : (
             visibleRecipes.map((r, i) => (

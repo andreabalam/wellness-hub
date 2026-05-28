@@ -3,18 +3,19 @@ import { test, expect } from '@playwright/test'
 test.describe('Schedule tab', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
+    // Use the tab bar to avoid matching the in-page "✎ Edit schedule" button
+    await page.locator('nav.tabs').getByRole('button', { name: /Schedule/i }).click()
   })
 
-  test('shows Monday by default', async ({ page }) => {
-    await expect(page.getByRole('button', { name: 'Monday' })).toHaveClass(/active/)
-    // Multiple day panels exist in the DOM; check the first visible one
+  test('shows the cognitive peak banner', async ({ page }) => {
     await expect(page.locator('.pbanner').first()).toBeVisible()
     await expect(page.locator('.pbanner').first()).toContainText('Cognitive peak: 11 AM - 1 PM')
   })
 
-  test('switching days updates the peak banner', async ({ page }) => {
-    await page.getByRole('button', { name: 'Wednesday' }).click()
-    await expect(page.getByText(/Leave headphones out/)).toBeVisible()
+  test('timeline is populated with schedule blocks', async ({ page }) => {
+    await expect(page.locator('.trow').first()).toBeVisible()
+    // There should be multiple blocks
+    await expect(page.locator('.trow')).toHaveCount(10)
   })
 
   test('clicking a schedule block expands its description', async ({ page }) => {
@@ -32,8 +33,12 @@ test.describe('Schedule tab', () => {
     await expect(row.locator('.tdet')).not.toBeVisible()
   })
 
-  test('PEAK block is visible in timeline', async ({ page }) => {
-    // All day panels share the same blocks in DOM; check at least one is visible
+  test('Deep work block is visible in timeline', async ({ page }) => {
     await expect(page.getByText('Deep work block').first()).toBeVisible()
+  })
+
+  test('Export .ics button reveals date range inputs', async ({ page }) => {
+    await page.getByRole('button', { name: /Export .ics/i }).click()
+    await expect(page.getByRole('button', { name: 'Download .ics' })).toBeVisible()
   })
 })

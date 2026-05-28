@@ -59,13 +59,18 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/test/**/*.test.ts'],
+    include: ['src/test/**/*.test.{ts,tsx}'],
     exclude: ['e2e/**', 'node_modules/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
       include: ['src/**/*.ts', 'src/**/*.tsx'],
-      exclude: ['src/main.tsx', 'src/test/**'],
+      exclude: [
+        'src/main.tsx',
+        'src/test/**',
+        'src/lib/sync.ts',           // Supabase network layer — covered by E2E
+        'src/components/AuthButton.tsx', // Supabase auth flow — covered by E2E
+      ],
     },
   },
 })

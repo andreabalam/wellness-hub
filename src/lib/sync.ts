@@ -5,6 +5,8 @@
 import { supabase } from './supabase'
 import type { DayData, QuickFood } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
+import type { CustomBlock } from '../data/schedule'
+import type { GroceryItem } from '../data/grocery'
 
 // ── Tracker days ─────────────────────────────────────────────────
 
@@ -99,4 +101,35 @@ export async function pullFoodLibrary(userId: string): Promise<QuickFood[]> {
     .eq('user_id', userId)
     .single()
   return (data?.library as QuickFood[]) ?? []
+}
+
+// ── Schedule blocks (per user) ────────────────────────────────────
+
+export async function pushSchedule(userId: string, blocks: CustomBlock[]) {
+  await supabase!
+    .from('schedule_blocks')
+    .upsert({ user_id: userId, blocks, updated_at: new Date().toISOString() })
+}
+
+export async function pullSchedule(userId: string): Promise<CustomBlock[] | null> {
+  const { data } = await supabase!
+    .from('schedule_blocks')
+    .select('blocks')
+    .eq('user_id', userId)
+    .single()
+  return data ? (data.blocks as CustomBlock[]) : null
+}
+
+// ── Grocery catalog (shared, public read) ─────────────────────────
+// Returns the full item catalog ordered by sort_order, or null if unavailable.
+
+export async function pullGroceryCatalog(): Promise<Record<string, GroceryItem[]> | null> {
+  const { data, error } = await supabase!
+    .from('grocery_catalog')
+    .select('category, items')
+    .order('sort_order')
+  if (error || !data?.length) return null
+  return Object.fromEntries(
+    data.map(r => [r.category as string, r.items as GroceryItem[]])
+  )
 }
