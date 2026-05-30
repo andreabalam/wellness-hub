@@ -71,6 +71,12 @@ export default defineConfig({
         'src/lib/sync.ts',           // Supabase network layer — covered by E2E
         'src/components/AuthButton.tsx', // Supabase auth flow — covered by E2E
       ],
+      thresholds: {
+        lines:      85,
+        statements: 85,
+        functions:  85,
+        branches:   85,
+      },
     },
   },
 })

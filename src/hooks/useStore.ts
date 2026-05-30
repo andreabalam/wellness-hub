@@ -5,6 +5,7 @@ import type { CustomBlock } from '../data/schedule'
 import type { MedGuide } from '../lib/sync'
 import { supabase } from '../lib/supabase'
 import * as sync from '../lib/sync'
+import { safeGet, safeSet } from '../lib/storage'
 
 const TRACKER_KEY      = 'whub_tracker_v3'
 const RECIPES_KEY      = 'whub_custom_recipes_v1'
@@ -13,15 +14,6 @@ const GROCERY_KEY      = 'whub_grocery_v1'
 const FOOD_LIBRARY_KEY = 'whub_food_library_v1'
 const SCHEDULE_KEY     = 'whub_schedule_v1'
 export const MED_GUIDES_KEY = 'whub_med_guides_v1'
-
-// ── raw helpers ──────────────────────────────────────────────────
-function load<T>(key: string, fallback: T): T {
-  try { return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback }
-  catch { return fallback }
-}
-function save<T>(key: string, value: T) {
-  try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* quota */ }
-}
 
 /**
  * Fire-and-forget push to Supabase — only runs when a user is signed in.
@@ -37,34 +29,33 @@ async function tryPush(fn: (userId: string) => Promise<void>) {
 
 // ── Tracker ── plain functions, safe to call anywhere ────────────
 export const trackerStore = {
-  getAll: () => load<Record<string, DayData>>(TRACKER_KEY, {}),
+  getAll: () => safeGet<Record<string, DayData>>(TRACKER_KEY, {}),
 
   getDay: (dateKey: string): DayData => {
-    const all = load<Record<string, DayData>>(TRACKER_KEY, {})
+    const all = safeGet<Record<string, DayData>>(TRACKER_KEY, {})
     return all[dateKey] ?? { ...EMPTY_DAY, foods: [] }
   },
 
   setDay: (dateKey: string, data: DayData) => {
-    const all = load<Record<string, DayData>>(TRACKER_KEY, {})
+    const all = safeGet<Record<string, DayData>>(TRACKER_KEY, {})
     all[dateKey] = data
-    save(TRACKER_KEY, all)
+    safeSet(TRACKER_KEY, all)
     tryPush(uid => sync.pushDay(uid, dateKey, data))
   },
 }
 
 // ── Recipes ── plain functions ───────────────────────────────────
+// Note: recipe sync to Supabase is handled explicitly in RecipesTab
+// via upsertUserRecipe / deleteUserRecipe — not through tryPush here.
 export const recipeStore = {
-  getRecipes:  () => load<Recipe[]>(RECIPES_KEY, []),
-  saveRecipes: (arr: Recipe[]) => {
-    save(RECIPES_KEY, arr)
-    tryPush(uid => sync.pushRecipes(uid, arr))
-  },
+  getRecipes:  () => safeGet<Recipe[]>(RECIPES_KEY, []),
+  saveRecipes: (arr: Recipe[]) => safeSet(RECIPES_KEY, arr),
   addRecipe:   (r: Recipe) => recipeStore.saveRecipes([...recipeStore.getRecipes(), r]),
   deleteRecipe:(id: number) => recipeStore.saveRecipes(recipeStore.getRecipes().filter(r => r.id !== id)),
 
-  getTags:  () => load<string[]>(TAGS_KEY, []),
+  getTags:  () => safeGet<string[]>(TAGS_KEY, []),
   saveTags: (arr: string[]) => {
-    save(TAGS_KEY, arr)
+    safeSet(TAGS_KEY, arr)
     tryPush(uid => sync.pushTags(uid, arr))
   },
   addTag:   (tag: string) => {
@@ -75,9 +66,9 @@ export const recipeStore = {
 
 // ── Grocery ── plain functions ───────────────────────────────────
 export const groceryStore = {
-  getChecked:  () => load<string[]>(GROCERY_KEY, []),
+  getChecked:  () => safeGet<string[]>(GROCERY_KEY, []),
   saveChecked: (arr: string[]) => {
-    save(GROCERY_KEY, arr)
+    safeSet(GROCERY_KEY, arr)
     tryPush(uid => sync.pushGrocery(uid, arr))
   },
 
@@ -92,14 +83,14 @@ export const groceryStore = {
 
 // ── Food library ── remembers per-serving macros for previously logged foods ─
 export const foodLibraryStore = {
-  getAll: (): QuickFood[] => load<QuickFood[]>(FOOD_LIBRARY_KEY, []),
+  getAll: (): QuickFood[] => safeGet<QuickFood[]>(FOOD_LIBRARY_KEY, []),
 
   upsert: (entry: QuickFood): QuickFood[] => {
     const lib = foodLibraryStore.getAll()
     const idx = lib.findIndex(f => f.n.toLowerCase() === entry.n.toLowerCase())
     if (idx >= 0) lib[idx] = entry
     else lib.push(entry)
-    save(FOOD_LIBRARY_KEY, lib)
+    safeSet(FOOD_LIBRARY_KEY, lib)
     tryPush(uid => sync.pushFoodLibrary(uid, lib))
     return lib
   },
@@ -108,10 +99,10 @@ export const foodLibraryStore = {
 // ── Schedule ── custom blocks (null = use built-in defaults) ────────
 export const scheduleStore = {
   getBlocks: (): CustomBlock[] | null =>
-    load<CustomBlock[] | null>(SCHEDULE_KEY, null),
+    safeGet<CustomBlock[] | null>(SCHEDULE_KEY, null),
 
   saveBlocks: (blocks: CustomBlock[]) =>
-    save(SCHEDULE_KEY, blocks),
+    safeSet(SCHEDULE_KEY, blocks),
 
   reset: () => {
     try { localStorage.removeItem(SCHEDULE_KEY) } catch { /* quota */ }
@@ -134,23 +125,23 @@ export function importRemoteData(remote: {
   schedule?: CustomBlock[]
   medGuides?: MedGuide[]
 }) {
-  if (remote.tracker     !== undefined) save(TRACKER_KEY,      remote.tracker)
-  if (remote.recipes     !== undefined) save(RECIPES_KEY,      remote.recipes)
-  if (remote.tags        !== undefined) save(TAGS_KEY,         remote.tags)
-  if (remote.grocery     !== undefined) save(GROCERY_KEY,      remote.grocery)
-  if (remote.foodLibrary !== undefined) save(FOOD_LIBRARY_KEY, remote.foodLibrary)
-  if (remote.schedule    !== undefined) save(SCHEDULE_KEY,     remote.schedule)
-  if (remote.medGuides   !== undefined) save(MED_GUIDES_KEY,   remote.medGuides)
+  if (remote.tracker     !== undefined) safeSet(TRACKER_KEY,      remote.tracker)
+  if (remote.recipes     !== undefined) safeSet(RECIPES_KEY,      remote.recipes)
+  if (remote.tags        !== undefined) safeSet(TAGS_KEY,         remote.tags)
+  if (remote.grocery     !== undefined) safeSet(GROCERY_KEY,      remote.grocery)
+  if (remote.foodLibrary !== undefined) safeSet(FOOD_LIBRARY_KEY, remote.foodLibrary)
+  if (remote.schedule    !== undefined) safeSet(SCHEDULE_KEY,     remote.schedule)
+  if (remote.medGuides   !== undefined) safeSet(MED_GUIDES_KEY,   remote.medGuides)
 }
 
 // ── Full export / import (JSON backup) ───────────────────────────
 export function exportAllData() {
   return {
-    tracker:        load(TRACKER_KEY, {}),
-    customRecipes:  load<Recipe[]>(RECIPES_KEY, []),
-    customTags:     load<string[]>(TAGS_KEY, []),
-    groceryChecked: load<string[]>(GROCERY_KEY, []),
-    foodLibrary:    load<QuickFood[]>(FOOD_LIBRARY_KEY, []),
+    tracker:        safeGet(TRACKER_KEY, {}),
+    customRecipes:  safeGet<Recipe[]>(RECIPES_KEY, []),
+    customTags:     safeGet<string[]>(TAGS_KEY, []),
+    groceryChecked: safeGet<string[]>(GROCERY_KEY, []),
+    foodLibrary:    safeGet<QuickFood[]>(FOOD_LIBRARY_KEY, []),
     exportedAt:     new Date().toISOString(),
     version:        'whub_v1',
   }
@@ -160,11 +151,11 @@ export function importAllData(json: string): boolean {
   try {
     const data = JSON.parse(json)
     if (data.version !== 'whub_v1') throw new Error('bad version')
-    if (data.tracker)        save(TRACKER_KEY,      data.tracker)
-    if (data.customRecipes)  save(RECIPES_KEY,      data.customRecipes)
-    if (data.customTags)     save(TAGS_KEY,         data.customTags)
-    if (data.groceryChecked) save(GROCERY_KEY,      data.groceryChecked)
-    if (data.foodLibrary)    save(FOOD_LIBRARY_KEY, data.foodLibrary)
+    if (data.tracker)        safeSet(TRACKER_KEY,      data.tracker)
+    if (data.customRecipes)  safeSet(RECIPES_KEY,      data.customRecipes)
+    if (data.customTags)     safeSet(TAGS_KEY,         data.customTags)
+    if (data.groceryChecked) safeSet(GROCERY_KEY,      data.groceryChecked)
+    if (data.foodLibrary)    safeSet(FOOD_LIBRARY_KEY, data.foodLibrary)
     return true
   } catch { return false }
 }

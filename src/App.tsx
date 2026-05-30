@@ -6,9 +6,12 @@ import RecipesTab from './components/RecipesTab'
 import TrackerTab from './components/TrackerTab'
 import UpdatePrompt from './components/UpdatePrompt'
 import AuthButton from './components/AuthButton'
+import ErrorBoundary from './components/ErrorBoundary'
 import { supabase } from './lib/supabase'
 import * as sync from './lib/sync'
-import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStore, importRemoteData } from './hooks/useStore'
+import type { MedGuide } from './lib/sync'
+import { safeGet } from './lib/storage'
+import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStore, importRemoteData, MED_GUIDES_KEY } from './hooks/useStore'
 
 type Tab = 'tracker' | 'recipes' | 'workouts' | 'schedule'
 
@@ -32,9 +35,8 @@ export default function App() {
     setSyncing(true)
     try {
       // Pull remote data
-      const [remoteDays, remoteRecipes, remoteTags, remoteGrocery, remoteFoodLib, remoteSchedule, remoteMedGuides] = await Promise.all([
+      const [remoteDays, remoteTags, remoteGrocery, remoteFoodLib, remoteSchedule, remoteMedGuides] = await Promise.all([
         sync.pullAllDays(userId),
-        sync.pullRecipes(userId),
         sync.pullTags(userId),
         sync.pullGrocery(userId),
         sync.pullFoodLibrary(userId),
@@ -43,16 +45,9 @@ export default function App() {
       ])
 
       // Merge: remote wins for tracker day conflicts (another device is authoritative);
-      // recipes, tags, grocery, food library are unioned so local-only items are never lost.
+      // tags, grocery, and food library are unioned so local-only items are never lost.
       const localDays = trackerStore.getAll()
       const mergedDays = { ...localDays, ...remoteDays }
-
-      const localRecipes = recipeStore.getRecipes()
-      const remoteIds    = new Set(remoteRecipes.map(r => r.id))
-      const mergedRecipes = [
-        ...remoteRecipes,
-        ...localRecipes.filter(r => !remoteIds.has(r.id)),
-      ]
 
       const mergedTags    = [...new Set([...recipeStore.getTags(), ...remoteTags])]
       const mergedGrocery = [...new Set([...groceryStore.getChecked(), ...remoteGrocery])]
@@ -70,16 +65,12 @@ export default function App() {
       const mergedSchedule = remoteSchedule ?? localSchedule
 
       // Med guides: remote wins; fall back to local if no remote copy exists yet
-      const localMedGuides = (() => {
-        try { return JSON.parse(localStorage.getItem('whub_med_guides_v1') ?? 'null') ?? null }
-        catch { return null }
-      })()
+      const localMedGuides = safeGet<MedGuide[] | null>(MED_GUIDES_KEY, null)
       const mergedMedGuides = remoteMedGuides ?? localMedGuides
 
       // Write merged data to localStorage (bypasses push to avoid a loop)
       importRemoteData({
         tracker:     mergedDays,
-        recipes:     mergedRecipes,
         tags:        mergedTags,
         grocery:     mergedGrocery,
         foodLibrary: mergedFoodLib,
@@ -92,12 +83,11 @@ export default function App() {
         ...Object.entries(mergedDays).map(([date, data]) =>
           sync.pushDay(userId, date, data)
         ),
-        sync.pushRecipes(userId, mergedRecipes),
         sync.pushTags(userId, mergedTags),
         sync.pushGrocery(userId, mergedGrocery),
         sync.pushFoodLibrary(userId, mergedFoodLib),
-        ...(mergedSchedule  ? [sync.pushSchedule(userId, mergedSchedule)]       : []),
-        ...(mergedMedGuides ? [sync.pushMedGuides(userId, mergedMedGuides)]      : []),
+        ...(mergedSchedule  ? [sync.pushSchedule(userId, mergedSchedule)]  : []),
+        ...(mergedMedGuides ? [sync.pushMedGuides(userId, mergedMedGuides)] : []),
       ])
 
       setLastSynced(new Date())
@@ -163,18 +153,36 @@ export default function App() {
         </nav>
       </header>
 
-      <div className={`view${active === 'schedule' ? ' active' : ''}`}>
-        <ScheduleTab />
-      </div>
-      <div className={`view${active === 'workouts' ? ' active' : ''}`}>
-        <WorkoutsTab />
-      </div>
-      <div className={`view${active === 'recipes' ? ' active' : ''}`}>
-        <RecipesTab />
-      </div>
-      <div className={`view${active === 'tracker' ? ' active' : ''}`}>
-        {active === 'tracker' && <TrackerTab />}
-      </div>
+      <ErrorBoundary name="Schedule">
+        <div className={`view${active === 'schedule' ? ' active' : ''}`}>
+          <ScheduleTab />
+        </div>
+      </ErrorBoundary>
+      <ErrorBoundary name="Workouts">
+        <div className={`view${active === 'workouts' ? ' active' : ''}`}>
+          <WorkoutsTab />
+        </div>
+      </ErrorBoundary>
+      <ErrorBoundary name="Recipes">
+        <div className={`view${active === 'recipes' ? ' active' : ''}`}>
+          <RecipesTab user={user} />
+        </div>
+      </ErrorBoundary>
+      <ErrorBoundary name="Tracker">
+        <div className={`view${active === 'tracker' ? ' active' : ''}`}>
+          {active === 'tracker' && (
+            user
+              ? <TrackerTab user={user} />
+              : (
+                <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--muted2)' }}>
+                  <div style={{ fontSize: 36, marginBottom: 16 }}>📊</div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Sign in to access your Tracker</div>
+                  <div style={{ fontSize: 13 }}>Log food, track workouts, and monitor your health metrics — all synced across devices.</div>
+                </div>
+              )
+          )}
+        </div>
+      </ErrorBoundary>
 
       <UpdatePrompt onUpdate={swUpdate} />
     </>

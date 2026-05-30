@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react'
+import type { User } from '@supabase/supabase-js'
 import { useTrackerStore, useFoodLibraryStore, MED_GUIDES_KEY, exportAllData, importAllData } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
@@ -39,7 +40,7 @@ async function saveGuides(g: MedGuide[]) {
 }
 
 // ── Macro bar ────────────────────────────────────────────────────
-function MacroBar({ label, sub, val, target, color, valColor }: {
+const MacroBar = memo(function MacroBar({ label, sub, val, target, color, valColor }: {
   label: string; sub?: string; val: number; target: number
   color: string; valColor: string
 }) {
@@ -66,10 +67,10 @@ function MacroBar({ label, sub, val, target, color, valColor }: {
       )}
     </div>
   )
-}
+})
 
 // ── Star picker ──────────────────────────────────────────────────
-function StarRow({ value, onChange, emoji }: { value: number; onChange: (v: number) => void; emoji: string }) {
+const StarRow = memo(function StarRow({ value, onChange, emoji }: { value: number; onChange: (v: number) => void; emoji: string }) {
   return (
     <div style={{ display: 'flex', gap: 5 }}>
       {[1, 2, 3, 4, 5].map(i => (
@@ -88,10 +89,10 @@ function StarRow({ value, onChange, emoji }: { value: number; onChange: (v: numb
       ))}
     </div>
   )
-}
+})
 
 // ── Week strip ───────────────────────────────────────────────────
-function WeekStrip({ currentDate, onSelect, getDay }: {
+const WeekStrip = memo(function WeekStrip({ currentDate, onSelect, getDay }: {
   currentDate: Date
   onSelect: (d: Date) => void
   getDay: (key: string) => DayData
@@ -143,10 +144,10 @@ function WeekStrip({ currentDate, onSelect, getDay }: {
       </div>
     </div>
   )
-}
+})
 
 // ── Main component ───────────────────────────────────────────────
-export default function TrackerTab() {
+export default function TrackerTab({ user }: { user?: User | null }) {
   const store    = useTrackerStore()
   const libStore = useFoodLibraryStore()
   const todayBase = new Date(); todayBase.setHours(0, 0, 0, 0)
@@ -292,7 +293,7 @@ export default function TrackerTab() {
     setPhotoStatus('idle'); setPhotoNotes(''); setPhotoConfidence(null)
   }
 
-  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
@@ -318,7 +319,7 @@ export default function TrackerTab() {
       setPhotoStatus('error')
       setPhotoNotes('Could not identify — fill in manually.')
     }
-  }
+  }, [])
 
   const addFood = () => {
     const nm = fName.trim()
@@ -1045,7 +1046,7 @@ export default function TrackerTab() {
       </div>
 
       {/* Oura Ring settings — only shown when Supabase is configured */}
-      {supabase && (
+      {user && (
         <div className="tcard" style={{ marginTop: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
