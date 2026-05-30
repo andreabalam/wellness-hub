@@ -95,8 +95,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   // Default: invoke resolves to empty (fire-and-forget calls won't throw)
   mockInvoke.mockResolvedValue({ data: null, error: null } as never)
-  global.URL.createObjectURL = vi.fn(() => 'blob:mock')
-  global.URL.revokeObjectURL = vi.fn()
+  globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock')
+  globalThis.URL.revokeObjectURL = vi.fn()
 
   // Stub canvas so resizeImage returns a minimal data URL
   const mockCanvas = {
