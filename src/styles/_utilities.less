@@ -1,0 +1,66 @@
+// ── Utility classes ───────────────────────────────────────────────
+// Layout
+.flex            { display: flex; }
+.flex-col        { flex-direction: column; }
+.items-center    { align-items: center; }
+.items-baseline  { align-items: baseline; }
+.justify-between { justify-content: space-between; }
+.justify-center  { justify-content: center; }
+.flex-wrap       { flex-wrap: wrap; }
+.w-full          { width: 100%; }
+
+// Spacing (generated for common values)
+each(4 6 8 10 12 14 16 18 20 24, {
+  .gap-@{value}  { gap: ~"@{value}px"; }
+  .mb-@{value}   { margin-bottom: ~"@{value}px"; }
+  .mt-@{value}   { margin-top: ~"@{value}px"; }
+  .p-@{value}    { padding: ~"@{value}px"; }
+})
+
+// Typography
+.text-xs    { font-size: 11px; }
+.text-sm    { font-size: 12px; }
+.text-base  { font-size: 13px; }
+.text-md    { font-size: 14px; }
+.text-lg    { font-size: 16px; }
+.text-xl    { font-size: 18px; }
+
+.font-mono  { font-family: "DM Mono", monospace; }
+.font-serif { font-family: "DM Serif Display", serif; }
+.font-sans  { font-family: "DM Sans", sans-serif; }
+.font-500   { font-weight: 500; }
+.font-600   { font-weight: 600; }
+
+.text-center { text-align: center; }
+.uppercase   { text-transform: uppercase; }
+.italic      { font-style: italic; }
+.tracking-wide { letter-spacing: .12em; }
+.tracking-wider { letter-spacing: .15em; }
+
+// Colour utilities (text)
+.text-default { color: var(--text); }
+.text-muted   { color: var(--muted); }
+.text-muted2  { color: var(--muted2); }
+.text-green   { color: var(--green-light); }
+.text-amber   { color: var(--amber-light); }
+.text-coral   { color: var(--coral-light); }
+.text-purple  { color: var(--purple-light); }
+.text-teal    { color: var(--teal-light); }
+.text-gold    { color: var(--gold-light); }
+.text-blue    { color: var(--blue-light); }
+
+// State helpers
+.input-warn { border-color: var(--amber) !important; }
+
+// Surfaces
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.card-sm {
+  .card();
+  border-radius: 8px;
+  padding: 10px 12px;
+}

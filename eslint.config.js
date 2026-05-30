@@ -1,0 +1,30 @@
+import js from '@eslint/js'
+import tseslint from 'typescript-eslint'
+import reactHooks from 'eslint-plugin-react-hooks'
+
+export default tseslint.config(
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      // These rules catch real bugs but have intentional false-positives in this codebase
+      // (e.g. setState in load effects, Date.now in helper fns called from JSX).
+      // Downgrade to warn so CI flags regressions without blocking valid patterns.
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/purity': 'warn',
+    },
+  },
+  // Relax type-checking rules in test files
+  {
+    files: ['src/test/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': 'warn',
+    },
+  },
+  { ignores: ['dist/', 'coverage/', 'scripts/'] },
+)

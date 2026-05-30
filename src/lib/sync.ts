@@ -111,31 +111,6 @@ export async function deleteUserRecipe(recipeId: number): Promise<void> {
   await supabase!.from('recipes').delete().eq('id', recipeId)
 }
 
-// ── Legacy custom_recipes table (kept for backward compat) ────────
-
-export async function pushRecipes(userId: string, recipes: Recipe[]) {
-  await supabase!.from('custom_recipes').delete().eq('user_id', userId)
-  if (recipes.length > 0) {
-    await supabase!.from('custom_recipes').insert(
-      recipes.map(r => ({
-        user_id: userId,
-        recipe_id: r.id!,
-        data: r,
-        updated_at: new Date().toISOString(),
-      }))
-    )
-  }
-}
-
-export async function pullRecipes(userId: string): Promise<Recipe[]> {
-  const { data, error } = await supabase!
-    .from('custom_recipes')
-    .select('data')
-    .eq('user_id', userId)
-    .order('recipe_id')
-  if (error || !data) return []
-  return data.map(r => r.data as Recipe)
-}
 
 // ── Custom tags ───────────────────────────────────────────────────
 

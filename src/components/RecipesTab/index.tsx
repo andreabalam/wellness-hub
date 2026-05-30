@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import type { User } from '@supabase/supabase-js'
 import type { Recipe } from '../../data/recipes'
 import { useRecipeStore, useTrackerStore } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
@@ -21,7 +22,7 @@ const FILTER_BTNS: { id: Filter; label: string }[] = [
   { id: 'ferments', label: 'Ferments' },
 ]
 
-export default function RecipesTab() {
+export default function RecipesTab({ user }: { user?: User | null }) {
   const store        = useRecipeStore()
   const trackerStore = useTrackerStore()
 
@@ -82,6 +83,11 @@ export default function RecipesTab() {
     return () => { cancelled = true }
   }, [])
 
+  // Reset to 'all' if user logs out while on a gated filter
+  useEffect(() => {
+    if (!user && (filter === 'custom' || filter === 'grocery')) setFilter('all')
+  }, [user, filter])
+
   const refreshCustom = useCallback(() => {
     setCustomRecipes(store.getRecipes())
     setCustomTags(store.getTags())
@@ -126,7 +132,7 @@ export default function RecipesTab() {
   }
 
   // Displayed recipes
-  const visibleRecipes: Recipe[] = (() => {
+  const visibleRecipes = useMemo<Recipe[]>(() => {
     const q = query.trim().toLowerCase()
 
     // When searching, scan everything (built-in + custom) regardless of filter
@@ -145,9 +151,9 @@ export default function RecipesTab() {
     }
     if (filter === 'all') return builtinRecipes
     return builtinRecipes.filter(r => r.cat === filter)
-  })()
+  }, [query, filter, customTag, builtinRecipes, customRecipes])
 
-  const tagsInUse = [...new Set(customRecipes.map(r => r.cat))]
+  const tagsInUse = useMemo(() => [...new Set(customRecipes.map(r => r.cat))], [customRecipes])
 
   return (
     <>
@@ -162,20 +168,24 @@ export default function RecipesTab() {
             {btn.label}
           </button>
         ))}
-        <button
-          className={`rfbtn${filter === 'custom' ? ' active' : ''}`}
-          style={{ borderColor: filter === 'custom' ? undefined : 'var(--purple)', color: filter === 'custom' ? undefined : 'var(--purple-light)' }}
-          onClick={() => { setFilter('custom'); setCustomTag(null) }}
-        >
-          ⭐ My Recipes
-        </button>
-        <button
-          className={`rfbtn${filter === 'grocery' ? ' active' : ''}`}
-          style={{ borderColor: filter === 'grocery' ? undefined : 'var(--green2)', color: filter === 'grocery' ? undefined : 'var(--green-light)' }}
-          onClick={() => setFilter('grocery')}
-        >
-          🛒 Grocery
-        </button>
+        {user && (
+          <button
+            className={`rfbtn${filter === 'custom' ? ' active' : ''}`}
+            style={{ borderColor: filter === 'custom' ? undefined : 'var(--purple)', color: filter === 'custom' ? undefined : 'var(--purple-light)' }}
+            onClick={() => { setFilter('custom'); setCustomTag(null) }}
+          >
+            ⭐ My Recipes
+          </button>
+        )}
+        {user && (
+          <button
+            className={`rfbtn${filter === 'grocery' ? ' active' : ''}`}
+            style={{ borderColor: filter === 'grocery' ? undefined : 'var(--green2)', color: filter === 'grocery' ? undefined : 'var(--green-light)' }}
+            onClick={() => setFilter('grocery')}
+          >
+            🛒 Grocery
+          </button>
+        )}
       </div>
 
       {/* Custom tag sub-filter */}
@@ -242,14 +252,16 @@ export default function RecipesTab() {
       )}
 
       {/* Action bar */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18, alignItems: 'center' }}>
-        <button
-          onClick={() => setShowModal(true)}
-          style={{ background: 'var(--purple)', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontFamily: 'sans-serif', color: '#fff', cursor: 'pointer', fontWeight: 500 }}
-        >
-          + Add my recipe
-        </button>
-      </div>
+      {user && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18, alignItems: 'center' }}>
+          <button
+            onClick={() => setShowModal(true)}
+            style={{ background: 'var(--purple)', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontFamily: 'sans-serif', color: '#fff', cursor: 'pointer', fontWeight: 500 }}
+          >
+            + Add my recipe
+          </button>
+        </div>
+      )}
 
       {/* Grocery panel */}
       {filter === 'grocery' && <GroceryPanel />}

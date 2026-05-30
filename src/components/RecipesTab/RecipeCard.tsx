@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import type { Recipe } from '../../data/recipes'
 
 interface Props {
@@ -31,7 +31,7 @@ function autoBadge(r: Recipe): { label: string; color: string } | null {
   return null
 }
 
-export default function RecipeCard({ recipe: r, cookCount = 0, onDelete }: Props) {
+export default memo(function RecipeCard({ recipe: r, cookCount = 0, onDelete }: Props) {
   const [open, setOpen] = useState(false)
   const isFerment = r.cat === 'ferments'
 
@@ -198,4 +198,4 @@ export default function RecipeCard({ recipe: r, cookCount = 0, onDelete }: Props
       </div>
     </div>
   )
-}
+})

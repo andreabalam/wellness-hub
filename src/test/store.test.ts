@@ -182,6 +182,19 @@ describe('export / import round-trip', () => {
     expect(importAllData('not json at all')).toBe(false)
   })
 
+  it('importAllData skips falsy optional fields without error', () => {
+    // version is valid but all optional fields are absent → should still return true
+    expect(importAllData(JSON.stringify({ version: 'whub_v1' }))).toBe(true)
+  })
+
+  it('importAllData only saves fields that are present and truthy', () => {
+    // Pass only customTags, omit tracker and others
+    const json = JSON.stringify({ version: 'whub_v1', customTags: ['keto'] })
+    expect(importAllData(json)).toBe(true)
+    expect(recipeStore.getTags()).toContain('keto')
+    expect(trackerStore.getAll()).toEqual({})  // tracker not in payload — untouched
+  })
+
   it('exportedAt is a valid ISO date string', () => {
     const data = exportAllData()
     expect(() => new Date(data.exportedAt)).not.toThrow()
@@ -302,6 +315,19 @@ describe('importRemoteData', () => {
   it('writes food library to localStorage', () => {
     importRemoteData({ foodLibrary: [{ n: 'Chicken', k: 130, p: 26, c: 0, f: 3, fi: 0 }] })
     expect(foodLibraryStore.getAll().find(f => f.n === 'Chicken')).toBeDefined()
+  })
+
+  it('writes schedule blocks to localStorage', () => {
+    const block = { id: 's1', time: '08:00', title: 'Remote Block', dur: '30 min', color: 'teal', whyTxt: '', desc: '', phase: '' }
+    importRemoteData({ schedule: [block] })
+    expect(scheduleStore.getBlocks()).toHaveLength(1)
+    expect(scheduleStore.getBlocks()![0].title).toBe('Remote Block')
+  })
+
+  it('writes medGuides to localStorage', () => {
+    importRemoteData({ medGuides: [{ title: 'Remote Guide', url: 'https://example.com' }] })
+    const stored = JSON.parse(store['whub_med_guides_v1'] ?? '[]')
+    expect(stored[0].title).toBe('Remote Guide')
   })
 
   it('ignores undefined fields (no-ops)', () => {

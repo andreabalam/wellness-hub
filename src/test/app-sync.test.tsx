@@ -24,7 +24,6 @@ vi.mock('../lib/sync', () => ({
   upsertUserRecipe:    vi.fn(),
   deleteUserRecipe:    vi.fn(),
   pullAllDays:        vi.fn(),
-  pullRecipes:        vi.fn(),
   pullTags:           vi.fn(),
   pullGrocery:        vi.fn(),
   pullFoodLibrary:    vi.fn(),
@@ -32,7 +31,6 @@ vi.mock('../lib/sync', () => ({
   pullMedGuides:      vi.fn(),
   pullGroceryCatalog: vi.fn(),
   pushDay:            vi.fn(),
-  pushRecipes:        vi.fn(),
   pushTags:           vi.fn(),
   pushGrocery:        vi.fn(),
   pushFoodLibrary:    vi.fn(),
@@ -78,7 +76,6 @@ beforeEach(() => {
 
   // All pull/push mocks resolve immediately with empty data
   mockSync['pullAllDays'].mockResolvedValue({})
-  mockSync['pullRecipes'].mockResolvedValue([])
   mockSync['pullTags'].mockResolvedValue([])
   mockSync['pullGrocery'].mockResolvedValue([])
   mockSync['pullFoodLibrary'].mockResolvedValue([])
@@ -86,7 +83,6 @@ beforeEach(() => {
   mockSync['pullMedGuides'].mockResolvedValue(null)
   mockSync['pullGroceryCatalog'].mockResolvedValue(null)
   mockSync['pushDay'].mockResolvedValue(undefined)
-  mockSync['pushRecipes'].mockResolvedValue(undefined)
   mockSync['pushTags'].mockResolvedValue(undefined)
   mockSync['pushGrocery'].mockResolvedValue(undefined)
   mockSync['pushFoodLibrary'].mockResolvedValue(undefined)
@@ -131,7 +127,7 @@ describe('App (with mocked Supabase)', () => {
     })
     render(<App />)
     await waitFor(() => {
-      expect(mockSync['pullRecipes']).toHaveBeenCalledWith(MOCK_USER.id)
+      expect(mockSync['pullAllDays']).toHaveBeenCalledWith(MOCK_USER.id)
     }, { timeout: 3000 })
     expect(mockSync['pullTags']).toHaveBeenCalledWith(MOCK_USER.id)
     expect(mockSync['pullGrocery']).toHaveBeenCalledWith(MOCK_USER.id)
@@ -145,9 +141,8 @@ describe('App (with mocked Supabase)', () => {
     })
     render(<App />)
     await waitFor(() => {
-      expect(mockSync['pushRecipes']).toHaveBeenCalled()
+      expect(mockSync['pushTags']).toHaveBeenCalled()
     }, { timeout: 3000 })
-    expect(mockSync['pushTags']).toHaveBeenCalled()
     expect(mockSync['pushGrocery']).toHaveBeenCalled()
     expect(mockSync['pushFoodLibrary']).toHaveBeenCalled()
   })
@@ -164,7 +159,6 @@ describe('App (with mocked Supabase)', () => {
 
     vi.clearAllMocks()
     mockSync['pullAllDays'].mockResolvedValue({})
-    mockSync['pullRecipes'].mockResolvedValue([])
     mockSync['pullTags'].mockResolvedValue([])
     mockSync['pullGrocery'].mockResolvedValue([])
     mockSync['pullFoodLibrary'].mockResolvedValue([])
@@ -172,7 +166,6 @@ describe('App (with mocked Supabase)', () => {
     mockSync['pullMedGuides'].mockResolvedValue(null)
     mockSync['pullGroceryCatalog'].mockResolvedValue(null)
     mockSync['pushDay'].mockResolvedValue(undefined)
-    mockSync['pushRecipes'].mockResolvedValue(undefined)
     mockSync['pushTags'].mockResolvedValue(undefined)
     mockSync['pushGrocery'].mockResolvedValue(undefined)
     mockSync['pushFoodLibrary'].mockResolvedValue(undefined)
@@ -222,26 +215,19 @@ describe('App (with mocked Supabase)', () => {
     expect(unsubscribe).toHaveBeenCalledOnce()
   })
 
-  it('local-only recipes are included in the merged push (line 52)', async () => {
-    const localRecipe = {
-      id: 99, name: 'Local Only Dish', cat: 'breakfast', type: 'Breakfast', color: '', sc: '', tag: '',
-      prepL: '', prepC: '', hk: 0, hp: '0g', hc: '0g', hf: '0g', hfi: '0g',
-      mk: 0, mp: '0g', mc: '0g', mf: '0g',
-      ings: [] as [string, string][], steps: [] as string[], tip: '', custom: true,
-    }
-    ls['whub_custom_recipes_v1'] = JSON.stringify([localRecipe])
-
-    const remoteRecipe = { ...localRecipe, id: 5, name: 'Remote Dish' }
+  it('local-only tags survive the merge (union with remote)', async () => {
+    ls['whub_custom_tags_v1'] = JSON.stringify(['keto'])
     mockAuth.getSession.mockResolvedValue({ data: { session: { user: MOCK_USER } }, error: null })
-    mockSync['pullRecipes'].mockResolvedValue([remoteRecipe])
+    mockSync['pullTags'].mockResolvedValue(['vegan'])
 
     render(<App />)
     await waitFor(() => {
-      expect(mockSync['pushRecipes']).toHaveBeenCalled()
+      expect(mockSync['pushTags']).toHaveBeenCalled()
     }, { timeout: 3000 })
-    const pushed = mockSync['pushRecipes'].mock.calls[0]?.[1]
-    // Local-only recipe (id=99) should survive the filter on line 52
-    expect(pushed?.find((r: any) => r.id === 99)).toBeDefined()
+    const pushed = mockSync['pushTags'].mock.calls[0]?.[1]
+    // Both local and remote tags should be present in the merged push
+    expect(pushed).toContain('keto')
+    expect(pushed).toContain('vegan')
   })
 
   it('local-only food library entries survive the merge filter (line 63)', async () => {

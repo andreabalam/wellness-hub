@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type Dispatch, type SetStateAction } from 'react'
 import type { CustomBlock } from '../../data/schedule'
 import { BLOCK_COLORS, SCHEDULE_BLOCKS, defaultToCustomBlock } from '../../data/schedule'
 import { scheduleStore } from '../../hooks/useStore'
@@ -14,71 +14,16 @@ const EMPTY_FORM: Omit<CustomBlock, 'id'> = {
   whyTxt: '', desc: '', phase: '',
 }
 
-export default function ScheduleEditor({ blocks, onChange, onClose }: Props) {
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [addingNew, setAddingNew] = useState(false)
-  const [form, setForm]           = useState<Omit<CustomBlock, 'id'>>(EMPTY_FORM)
+// ── BlockForm — defined at module level to avoid re-creation on every render ─
+interface BlockFormProps {
+  form: Omit<CustomBlock, 'id'>
+  setForm: Dispatch<SetStateAction<Omit<CustomBlock, 'id'>>>
+  onSave: () => void
+  onCancel: () => void
+}
 
-  // ── helpers ──────────────────────────────────────────────────────
-
-  const save = (updated: CustomBlock[]) => {
-    scheduleStore.saveBlocks(updated)
-    onChange(updated)
-  }
-
-  const startEdit = (b: CustomBlock) => {
-    setAddingNew(false)
-    setEditingId(b.id)
-    setForm({ time: b.time, title: b.title, dur: b.dur, color: b.color, whyTxt: b.whyTxt, desc: b.desc, phase: b.phase })
-  }
-
-  const startAdd = () => {
-    setEditingId(null)
-    setAddingNew(true)
-    setForm(EMPTY_FORM)
-  }
-
-  const cancelForm = () => { setEditingId(null); setAddingNew(false) }
-
-  const commitEdit = () => {
-    if (!form.title.trim()) return
-    const updated = blocks.map(b => b.id === editingId ? { ...b, ...form } : b)
-    save(updated)
-    setEditingId(null)
-  }
-
-  const commitAdd = () => {
-    if (!form.title.trim()) return
-    const newBlock: CustomBlock = { id: `custom-${Date.now()}`, ...form }
-    save([...blocks, newBlock])
-    setAddingNew(false)
-    setForm(EMPTY_FORM)
-  }
-
-  const del = (id: string) => {
-    if (!window.confirm('Delete this block?')) return
-    save(blocks.filter(b => b.id !== id))
-    if (editingId === id) setEditingId(null)
-  }
-
-  const move = (idx: number, dir: -1 | 1) => {
-    const next = [...blocks]
-    const swap = idx + dir
-    if (swap < 0 || swap >= next.length) return
-    ;[next[idx], next[swap]] = [next[swap], next[idx]]
-    save(next)
-  }
-
-  const resetToDefault = () => {
-    if (!window.confirm('Reset to the built-in schedule? All your changes will be removed.')) return
-    scheduleStore.reset()
-    onChange(SCHEDULE_BLOCKS.map(defaultToCustomBlock))
-    onClose()
-  }
-
-  // ── block form ───────────────────────────────────────────────────
-
-  const BlockForm = ({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) => (
+function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
+  return (
     <div style={{ background: 'var(--bg)', border: '1px solid var(--teal)', borderRadius: 10, padding: 14, marginTop: 6 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
         <label style={labelStyle}>
@@ -175,6 +120,69 @@ export default function ScheduleEditor({ blocks, onChange, onClose }: Props) {
       </div>
     </div>
   )
+}
+
+export default function ScheduleEditor({ blocks, onChange, onClose }: Props) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [addingNew, setAddingNew] = useState(false)
+  const [form, setForm]           = useState<Omit<CustomBlock, 'id'>>(EMPTY_FORM)
+
+  // ── helpers ──────────────────────────────────────────────────────
+
+  const save = (updated: CustomBlock[]) => {
+    scheduleStore.saveBlocks(updated)
+    onChange(updated)
+  }
+
+  const startEdit = (b: CustomBlock) => {
+    setAddingNew(false)
+    setEditingId(b.id)
+    setForm({ time: b.time, title: b.title, dur: b.dur, color: b.color, whyTxt: b.whyTxt, desc: b.desc, phase: b.phase })
+  }
+
+  const startAdd = () => {
+    setEditingId(null)
+    setAddingNew(true)
+    setForm(EMPTY_FORM)
+  }
+
+  const cancelForm = () => { setEditingId(null); setAddingNew(false) }
+
+  const commitEdit = () => {
+    if (!form.title.trim()) return
+    const updated = blocks.map(b => b.id === editingId ? { ...b, ...form } : b)
+    save(updated)
+    setEditingId(null)
+  }
+
+  const commitAdd = () => {
+    if (!form.title.trim()) return
+    const newBlock: CustomBlock = { id: `custom-${Date.now()}`, ...form }
+    save([...blocks, newBlock])
+    setAddingNew(false)
+    setForm(EMPTY_FORM)
+  }
+
+  const del = (id: string) => {
+    if (!window.confirm('Delete this block?')) return
+    save(blocks.filter(b => b.id !== id))
+    if (editingId === id) setEditingId(null)
+  }
+
+  const move = (idx: number, dir: -1 | 1) => {
+    const next = [...blocks]
+    const swap = idx + dir
+    if (swap < 0 || swap >= next.length) return
+    ;[next[idx], next[swap]] = [next[swap], next[idx]]
+    save(next)
+  }
+
+  const resetToDefault = () => {
+    if (!window.confirm('Reset to the built-in schedule? All your changes will be removed.')) return
+    scheduleStore.reset()
+    onChange(SCHEDULE_BLOCKS.map(defaultToCustomBlock))
+    onClose()
+  }
 
   // ── render ───────────────────────────────────────────────────────
 
@@ -234,7 +242,7 @@ export default function ScheduleEditor({ blocks, onChange, onClose }: Props) {
               </div>
 
               {/* Inline edit form */}
-              {isEditing && <BlockForm onSave={commitEdit} onCancel={cancelForm} />}
+              {isEditing && <BlockForm form={form} setForm={setForm} onSave={commitEdit} onCancel={cancelForm} />}
             </div>
           )
         })}
@@ -242,7 +250,7 @@ export default function ScheduleEditor({ blocks, onChange, onClose }: Props) {
         {/* Add new block form */}
         {addingNew && (
           <div style={{ marginTop: 8 }}>
-            <BlockForm onSave={commitAdd} onCancel={cancelForm} />
+            <BlockForm form={form} setForm={setForm} onSave={commitAdd} onCancel={cancelForm} />
           </div>
         )}
 
