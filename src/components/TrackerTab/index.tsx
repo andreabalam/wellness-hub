@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useTrackerStore, useFoodLibraryStore, MED_GUIDES_KEY, exportAllData, importAllData } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
@@ -8,6 +8,15 @@ import {
   QUICK_FOODS, SESSION_OPTS, MED_MINS, MED_STYLES, PHASE_NOTES,
 } from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
+import {
+  getOuraPat, saveOuraPat, clearOuraPat, testOuraConnection,
+  fetchOuraWorkouts, fetchOuraReadiness, fetchOuraSessions, fetchOuraSleep,
+  OURA_ACTIVITY_MAP, OURA_SESSION_MAP, roundToMedMin,
+  readinessColor, readinessLabel, sleepScoreToStars,
+} from '../../lib/oura'
+import type { OuraReadiness } from '../../lib/oura'
+import { analyzeImage } from '../../lib/analyzeFood'
+import type { PhotoAnalysisResult } from '../../lib/analyzeFood'
 
 function dkey(d: Date) { return d.toISOString().split('T')[0] }
 
@@ -154,6 +163,11 @@ export default function TrackerTab() {
   const [editIndex, setEditIndex] = useState<number | null>(null)
   const [showSugg, setShowSugg]   = useState(false)
   const [foodLib, setFoodLib]     = useState<QuickFood[]>(() => libStore.getAll())
+  const [photoStatus, setPhotoStatus] = useState<'idle' | 'detecting' | 'reading' | 'identifying' | 'error'>('idle')
+  const [photoNotes, setPhotoNotes]   = useState<string>('')
+  const [photoConfidence, setPhotoConfidence] = useState<PhotoAnalysisResult['confidence'] | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [selSession, setSess]     = useState<string | null>(null)
   const [wkNotes, setWkNotes]   = useState('')
   const [wkSaved, setWkSaved]   = useState(false)
@@ -219,6 +233,7 @@ export default function TrackerTab() {
     setFName(''); setFKcal(''); setFPro(''); setFCarb(''); setFat(''); setFFiber('')
     setFServings('1')
     setShowSugg(false)
+    setPhotoStatus('idle'); setPhotoNotes(''); setPhotoConfidence(null)
   }, [store])
 
   useEffect(() => { loadDate(date) }, [date, loadDate])
@@ -274,6 +289,35 @@ export default function TrackerTab() {
     setEditIndex(null)
     setFName(''); setFKcal(''); setFPro(''); setFCarb(''); setFat(''); setFFiber('')
     setFServings('1')
+    setPhotoStatus('idle'); setPhotoNotes(''); setPhotoConfidence(null)
+  }
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setPhotoStatus('detecting')
+    setPhotoNotes(''); setPhotoConfidence(null)
+    try {
+      const result = await analyzeImage(file, msg => {
+        if (msg === 'Detecting…')       setPhotoStatus('detecting')
+        else if (msg === 'Reading label…') setPhotoStatus('reading')
+        else                            setPhotoStatus('identifying')
+      })
+      setFName(result.name)
+      setFKcal(String(result.kcal))
+      setFPro(String(result.protein))
+      setFCarb(String(result.carbs))
+      setFat(String(result.fat))
+      setFFiber(String(result.fiber))
+      setFServings(String(result.servings))
+      setPhotoNotes(result.notes)
+      setPhotoConfidence(result.confidence)
+      setPhotoStatus('idle')
+    } catch {
+      setPhotoStatus('error')
+      setPhotoNotes('Could not identify — fill in manually.')
+    }
   }
 
   const addFood = () => {
@@ -388,6 +432,116 @@ export default function TrackerTab() {
 
   const phaseNote = PHASE_NOTES[phase] ?? PHASE_NOTES['']
 
+  // ── Oura state ──────────────────────────────────────────────────
+  const [ouraConnected, setOuraConnected]     = useState(false)
+  const [ouraShowSettings, setOuraShowSettings] = useState(false)
+  const [ouraPatInput, setOuraPatInput]       = useState('')
+  const [ouraShowPat, setOuraShowPat]         = useState(false)
+  const [ouraTesting, setOuraTesting]         = useState(false)
+  const [ouraPatSaved, setOuraPatSaved]       = useState(false)
+  const [ouraError, setOuraError]             = useState<string | null>(null)
+  const [readiness, setReadiness]             = useState<OuraReadiness | null>(null)
+  const [wkSyncing, setWkSyncing]             = useState(false)
+  const [medSyncing, setMedSyncing]           = useState(false)
+  const [ouraHRV, setOuraHRV]               = useState<number | null>(null)
+  const [ouraHR, setOuraHR]                 = useState<number | null>(null)
+  const [ouraMood, setOuraMood]             = useState<string | null>(null)
+  const [ouraActualMin, setOuraActualMin]   = useState<number | null>(null)
+
+  // Check connection status on mount
+  useEffect(() => {
+    getOuraPat().then(pat => setOuraConnected(!!pat)).catch(() => {})
+  }, [])
+
+  // Clear Oura per-day data when date changes
+  useEffect(() => {
+    setReadiness(null)
+    setOuraHRV(null); setOuraHR(null); setOuraMood(null); setOuraActualMin(null)
+  }, [date])
+
+  const saveAndTestPat = async () => {
+    const pat = ouraPatInput.trim()
+    if (!pat) { setOuraError('Paste your Personal Access Token first.'); return }
+    setOuraTesting(true); setOuraError(null)
+    try {
+      await saveOuraPat(pat)
+      const ok = await testOuraConnection()
+      if (ok) {
+        setOuraConnected(true)
+        setOuraPatSaved(true)
+        setTimeout(() => { setOuraPatSaved(false); setOuraShowSettings(false) }, 1800)
+      } else {
+        setOuraError('Connection test failed — double-check your token.')
+        setOuraConnected(false)
+      }
+    } catch (err: unknown) {
+      setOuraError(err instanceof Error ? err.message : 'Save failed')
+    } finally {
+      setOuraTesting(false)
+    }
+  }
+
+  const disconnectOura = async () => {
+    await clearOuraPat()
+    setOuraConnected(false); setOuraPatInput(''); setReadiness(null)
+    setOuraHRV(null); setOuraHR(null); setOuraMood(null); setOuraActualMin(null)
+  }
+
+  const syncWorkoutFromOura = async () => {
+    setWkSyncing(true)
+    try {
+      const dateStr = dkey(date)
+      const [workouts, readinessData] = await Promise.all([
+        fetchOuraWorkouts(dateStr),
+        fetchOuraReadiness(dateStr),
+      ])
+      if (readinessData) setReadiness(readinessData)
+      if (workouts.length === 0) {
+        if (!readinessData) alert('No Oura data found for this date.')
+        return
+      }
+      const w = workouts[0]
+      const mapped = OURA_ACTIVITY_MAP[w.activity] ?? null
+      if (mapped) setSess(mapped)
+      const dMin = Math.round(
+        (new Date(w.end_datetime).getTime() - new Date(w.start_datetime).getTime()) / 60000
+      )
+      const hrNote = w.average_heart_rate ? ` · avg HR ${w.average_heart_rate} bpm` : ''
+      setWkNotes(`Oura: ${w.activity.replace(/_/g, ' ')} · ${dMin} min${hrNote}`)
+    } catch (err: unknown) {
+      alert(`Oura sync failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setWkSyncing(false)
+    }
+  }
+
+  const syncMedFromOura = async () => {
+    setMedSyncing(true)
+    try {
+      const sessions = await fetchOuraSessions(dkey(date))
+      const med = sessions.find(s => s.type !== 'nap')
+      if (!med) { alert('No meditation session found for this date in Oura.'); return }
+      const dSec = (new Date(med.end_datetime).getTime() - new Date(med.start_datetime).getTime()) / 1000
+      setMedMin(roundToMedMin(dSec))
+      if (OURA_SESSION_MAP[med.type]) setMedStyle(OURA_SESSION_MAP[med.type])
+      setOuraHRV(med.average_hrv); setOuraHR(med.average_heart_rate)
+      setOuraMood(med.mood); setOuraActualMin(Math.round(dSec / 60))
+    } catch (err: unknown) {
+      alert(`Oura sync failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setMedSyncing(false)
+    }
+  }
+
+  // Auto-populate sleep stars from Oura when switching to check-in view
+  const syncSleepFromOura = useCallback(async () => {
+    if (!ouraConnected || sleep > 0) return   // don't overwrite manually-set value
+    try {
+      const data = await fetchOuraSleep(dkey(date))
+      if (data) setSleep(sleepScoreToStars(data.score))
+    } catch { /* silent — sleep sync is best-effort */ }
+  }, [ouraConnected, sleep, date])
+
   const [wide, setWide] = useState(window.innerWidth >= 680)
   useEffect(() => {
     const handler = () => setWide(window.innerWidth >= 680)
@@ -485,6 +639,36 @@ export default function TrackerTab() {
               ))}
             </div>
             <div style={{ paddingTop: 12 }}>
+              {/* Hidden file input for photo capture */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: 'none' }}
+                onChange={handlePhotoSelect}
+              />
+
+              {/* Photo status banner */}
+              {(photoStatus !== 'idle' || photoNotes) && (
+                <div style={{
+                  fontSize: 11, marginBottom: 8, padding: '5px 9px', borderRadius: 6,
+                  background: photoStatus === 'error' || photoConfidence === 'low'
+                    ? 'rgba(184,150,58,0.08)' : 'var(--bg3)',
+                  border: `1px solid ${photoStatus === 'error' || photoConfidence === 'low'
+                    ? 'var(--amber)' : 'var(--border)'}`,
+                  color: photoStatus === 'error' || photoConfidence === 'low'
+                    ? 'var(--amber-light)' : 'var(--muted2)',
+                  fontFamily: '"DM Mono",monospace',
+                }}>
+                  {photoStatus === 'detecting'   && '● Detecting…'}
+                  {photoStatus === 'reading'     && '● Reading label…'}
+                  {photoStatus === 'identifying' && '● Identifying food…'}
+                  {photoStatus === 'error'       && photoNotes}
+                  {photoStatus === 'idle'        && photoNotes}
+                </div>
+              )}
+
               {editIndex !== null && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', background: 'rgba(184,150,58,0.1)', border: '1px solid var(--amber)', borderRadius: 7, marginBottom: 8, fontSize: 11 }}>
                   <span style={{ color: 'var(--amber-light)', fontFamily: '"DM Mono",monospace' }}>Editing: {day.foods[editIndex]?.n}</span>
@@ -492,6 +676,21 @@ export default function TrackerTab() {
                 </div>
               )}
               <div style={{ display: 'flex', gap: 6, marginBottom: 7, alignItems: 'center' }}>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={photoStatus !== 'idle'}
+                  title="Analyze food photo or nutrition label"
+                  style={{
+                    flexShrink: 0, width: 32, height: 32, borderRadius: 7,
+                    border: '1px solid var(--border)', background: 'var(--bg3)',
+                    color: photoStatus !== 'idle' ? 'var(--muted2)' : 'var(--teal-light)',
+                    cursor: photoStatus !== 'idle' ? 'default' : 'pointer',
+                    fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all .15s',
+                  }}
+                >
+                  {photoStatus !== 'idle' ? '⏳' : '📷'}
+                </button>
                 <div style={{ position: 'relative', flex: 1 }}>
                   <input
                     className="tinput"
@@ -524,7 +723,12 @@ export default function TrackerTab() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 5, marginBottom: 3 }}>
                 {([['kcal', fKcal, setFKcal], ['prot', fPro, setFPro], ['carb', fCarb, setFCarb], ['fat', fFat, setFat], ['fiber', fFiber, setFFiber]] as [string, string, (v: string) => void][]).map(([ph, val, set]) => (
-                  <input key={ph} className="tnum" type="number" min="0" placeholder={ph} value={val} onChange={e => set(e.target.value)} />
+                  <input
+                    key={ph} className="tnum" type="number" min="0"
+                    placeholder={ph} value={val} onChange={e => set(e.target.value)}
+                    style={photoConfidence === 'low' || photoConfidence === 'medium'
+                      ? { borderColor: 'var(--amber)' } : undefined}
+                  />
                 ))}
               </div>
               <div style={{ fontSize: 9, color: 'var(--muted2)', fontFamily: '"DM Mono",monospace', marginBottom: 8 }}>per serving</div>
@@ -549,7 +753,51 @@ export default function TrackerTab() {
       {/* ── Workout ── */}
       {innerTab === 'workout' && (
         <div className="tcard">
-          <div className="tlabel" style={{ color: 'var(--coral)' }}>Workout log · 4:30 PM</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <div className="tlabel" style={{ color: 'var(--coral)', marginBottom: 0 }}>Workout log · 4:30 PM</div>
+            {ouraConnected && (
+              <button
+                onClick={syncWorkoutFromOura}
+                disabled={wkSyncing}
+                style={{
+                  fontSize: 11, padding: '4px 10px', borderRadius: 6,
+                  border: '1px solid var(--teal)', background: 'rgba(58,144,144,0.08)',
+                  color: 'var(--teal-light)', cursor: wkSyncing ? 'default' : 'pointer',
+                  fontFamily: '"DM Mono",monospace', opacity: wkSyncing ? 0.6 : 1,
+                  transition: 'opacity .2s',
+                }}
+              >
+                {wkSyncing ? 'Syncing…' : '⟳ Sync Oura'}
+              </button>
+            )}
+          </div>
+
+          {/* Readiness badge */}
+          {readiness && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10,
+              padding: '8px 11px', background: 'var(--bg3)', borderRadius: 8,
+              border: `1px solid ${readinessColor(readiness.score)}40`,
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                background: `${readinessColor(readiness.score)}20`,
+                border: `2px solid ${readinessColor(readiness.score)}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: '"DM Mono",monospace', fontSize: 12, fontWeight: 700,
+                color: readinessColor(readiness.score),
+              }}>{readiness.score}</div>
+              <div>
+                <div style={{ fontSize: 12, color: readinessColor(readiness.score), fontWeight: 600 }}>
+                  {readinessLabel(readiness.score)}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--muted2)', fontFamily: '"DM Mono",monospace' }}>
+                  HRV balance {readiness.hrv_balance_score} · Recovery {readiness.recovery_index_score}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12, padding: '8px 10px', background: 'var(--bg3)', borderRadius: 7, lineHeight: 1.5 }}>
             {phaseNote}
           </div>
@@ -589,7 +837,51 @@ export default function TrackerTab() {
 
           {/* Meditation */}
           <div className="tcard">
-            <div className="tlabel" style={{ color: 'var(--gold)' }}>Meditation · 8:45 AM</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div className="tlabel" style={{ color: 'var(--gold)', marginBottom: 0 }}>Meditation · 8:45 AM</div>
+              {ouraConnected && (
+                <button
+                  onClick={syncMedFromOura}
+                  disabled={medSyncing}
+                  style={{
+                    fontSize: 11, padding: '4px 10px', borderRadius: 6,
+                    border: '1px solid var(--gold)', background: 'rgba(184,150,58,0.08)',
+                    color: 'var(--gold-light)', cursor: medSyncing ? 'default' : 'pointer',
+                    fontFamily: '"DM Mono",monospace', opacity: medSyncing ? 0.6 : 1,
+                    transition: 'opacity .2s',
+                  }}
+                >
+                  {medSyncing ? 'Syncing…' : '⟳ Sync Oura'}
+                </button>
+              )}
+            </div>
+
+            {/* Oura meditation data badges */}
+            {ouraHRV !== null && (
+              <div style={{
+                display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10,
+              }}>
+                <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'rgba(58,144,144,0.1)', border: '1px solid var(--teal)', color: 'var(--teal-light)', fontFamily: '"DM Mono",monospace' }}>
+                  HRV {ouraHRV}
+                </span>
+                {ouraHR !== null && (
+                  <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'rgba(76,175,125,0.1)', border: '1px solid var(--green2)', color: 'var(--green-light)', fontFamily: '"DM Mono",monospace' }}>
+                    HR {ouraHR} bpm
+                  </span>
+                )}
+                {ouraActualMin !== null && ouraActualMin !== medMin && (
+                  <span title={`Actual: ${ouraActualMin} min — rounded to nearest option`} style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--muted2)', fontFamily: '"DM Mono",monospace', cursor: 'help' }}>
+                    actual {ouraActualMin} min
+                  </span>
+                )}
+                {ouraMood && (
+                  <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'rgba(138,106,184,0.1)', border: '1px solid var(--purple)', color: 'var(--purple)', fontFamily: 'sans-serif' }}>
+                    feeling: {ouraMood}
+                  </span>
+                )}
+              </div>
+            )}
+
             <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.5 }}>Optimal post-CAR window. Even 13 minutes measurably improves focus and working memory for hours.</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Duration:</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -687,7 +979,7 @@ export default function TrackerTab() {
           </div>
 
           {/* Daily check-in */}
-          <div className="tcard">
+          <div className="tcard" onFocus={syncSleepFromOura} onMouseEnter={syncSleepFromOura}>
             <div className="tlabel" style={{ color: 'var(--purple)' }}>Daily check-in</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
@@ -751,6 +1043,91 @@ export default function TrackerTab() {
           <input type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
         </label>
       </div>
+
+      {/* Oura Ring settings — only shown when Supabase is configured */}
+      {supabase && (
+        <div className="tcard" style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, fontFamily: '"DM Mono",monospace', color: ouraConnected ? 'var(--teal-light)' : 'var(--muted)' }}>
+                Oura Ring
+              </span>
+              {ouraConnected && (
+                <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 5, background: 'rgba(58,144,144,0.12)', border: '1px solid var(--teal)', color: 'var(--teal-light)', fontFamily: '"DM Mono",monospace' }}>
+                  ✓ connected
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => { setOuraShowSettings(v => !v); setOuraError(null) }}
+              style={{ fontSize: 11, background: 'none', border: 'none', color: ouraShowSettings ? 'var(--muted2)' : 'var(--teal-light)', cursor: 'pointer', fontFamily: 'sans-serif', padding: 0 }}
+            >
+              {ouraShowSettings ? 'Done' : ouraConnected ? 'Manage' : 'Connect'}
+            </button>
+          </div>
+
+          {ouraShowSettings && (
+            <div style={{ marginTop: 12 }}>
+              <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, marginTop: 0, marginBottom: 10 }}>
+                Generate a Personal Access Token at{' '}
+                <a href="https://cloud.ouraring.com/personal-access-tokens" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--teal-light)' }}>
+                  cloud.ouraring.com
+                </a>
+                {' '}→ Personal Access Tokens, then paste it below.
+              </p>
+
+              <div style={{ position: 'relative', marginBottom: 8 }}>
+                <input
+                  className="tinput"
+                  type={ouraShowPat ? 'text' : 'password'}
+                  value={ouraPatInput}
+                  onChange={e => setOuraPatInput(e.target.value)}
+                  placeholder="Paste your Oura PAT here…"
+                  style={{ marginBottom: 0, paddingRight: 42, fontFamily: '"DM Mono",monospace', fontSize: 12 }}
+                  onKeyDown={e => e.key === 'Enter' && saveAndTestPat()}
+                />
+                <button
+                  onClick={() => setOuraShowPat(v => !v)}
+                  title={ouraShowPat ? 'Hide token' : 'Show token'}
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--muted2)', cursor: 'pointer', fontSize: 14, padding: 0 }}
+                >
+                  {ouraShowPat ? '🙈' : '👁'}
+                </button>
+              </div>
+
+              {ouraError && (
+                <div style={{ fontSize: 11, color: 'var(--coral-light)', marginBottom: 8, padding: '5px 9px', background: 'rgba(255,107,91,0.08)', border: '1px solid var(--coral)', borderRadius: 6 }}>
+                  {ouraError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  onClick={saveAndTestPat}
+                  disabled={ouraTesting}
+                  className="tbtn"
+                  style={{ background: ouraPatSaved ? 'var(--green)' : 'var(--teal)', color: '#fff', opacity: ouraTesting ? 0.7 : 1 }}
+                >
+                  {ouraTesting ? 'Testing…' : ouraPatSaved ? '✓ Connected!' : 'Save & test connection'}
+                </button>
+                {ouraConnected && (
+                  <button
+                    onClick={disconnectOura}
+                    style={{ fontSize: 12, padding: '7px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--muted)', cursor: 'pointer' }}
+                  >
+                    Disconnect
+                  </button>
+                )}
+              </div>
+
+              <p style={{ fontSize: 10, color: 'var(--muted2)', marginTop: 10, marginBottom: 0, lineHeight: 1.6 }}>
+                Your token is stored encrypted in Supabase — never in your browser's local storage.
+                Syncs happen on demand when you tap "Sync Oura" in the Workout or Meditation tabs.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </>
   )
 }

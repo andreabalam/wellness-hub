@@ -15,4 +15,5 @@ supabase/
 .vscode/settings.json
 *.swp
 
-OURA_INTEGRATION_PLAN.md
+#other
+plan/
