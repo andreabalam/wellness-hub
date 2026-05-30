@@ -15,6 +15,8 @@ test.describe('Recipes tab', () => {
   })
 
   test('filter by Breakfast shows only breakfast recipes', async ({ page }) => {
+    // Wait for async DB load to finish before filtering
+    await expect(page.locator('.rcard').first()).toBeVisible({ timeout: 15000 })
     await page.getByRole('button', { name: 'Breakfast' }).click()
     const cards = page.locator('.rcard')
     const count = await cards.count()
@@ -26,6 +28,8 @@ test.describe('Recipes tab', () => {
   })
 
   test('filter by Smoothies shows only smoothies', async ({ page }) => {
+    // Wait for async DB load to finish before filtering
+    await expect(page.locator('.rcard').first()).toBeVisible({ timeout: 15000 })
     await page.getByRole('button', { name: 'Smoothies' }).click()
     const cards = page.locator('.rcard')
     const count = await cards.count()
@@ -99,7 +103,7 @@ test.describe('Recipes tab', () => {
     await expect(page.getByPlaceholder('e.g. Mango Chia Pudding')).toBeVisible()
 
     await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('My Test Recipe')
-    await page.getByPlaceholder('e.g. Prep night before · 5 min').fill('Quick · 5 min')
+    await page.getByPlaceholder('e.g. High protein · gluten free').fill('Quick · 5 min')
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
     // Modal closes, recipe appears in My Recipes
@@ -134,9 +138,11 @@ test.describe('Recipes tab', () => {
   })
 
   test('export data button triggers a download', async ({ page }) => {
+    // Export lives in TrackerTab, not RecipesTab
+    await page.getByRole('button', { name: /Tracker/i }).click()
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: '↓ Export data' }).click(),
+      page.getByRole('button', { name: '↓ Export' }).click(),
     ])
     expect(download.suggestedFilename()).toMatch(/wellness_hub_backup_.+\.json/)
   })

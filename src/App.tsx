@@ -32,13 +32,14 @@ export default function App() {
     setSyncing(true)
     try {
       // Pull remote data
-      const [remoteDays, remoteRecipes, remoteTags, remoteGrocery, remoteFoodLib, remoteSchedule] = await Promise.all([
+      const [remoteDays, remoteRecipes, remoteTags, remoteGrocery, remoteFoodLib, remoteSchedule, remoteMedGuides] = await Promise.all([
         sync.pullAllDays(userId),
         sync.pullRecipes(userId),
         sync.pullTags(userId),
         sync.pullGrocery(userId),
         sync.pullFoodLibrary(userId),
         sync.pullSchedule(userId),
+        sync.pullMedGuides(userId),
       ])
 
       // Merge: remote wins for tracker day conflicts (another device is authoritative);
@@ -68,6 +69,13 @@ export default function App() {
       const localSchedule = scheduleStore.getBlocks()
       const mergedSchedule = remoteSchedule ?? localSchedule
 
+      // Med guides: remote wins; fall back to local if no remote copy exists yet
+      const localMedGuides = (() => {
+        try { return JSON.parse(localStorage.getItem('whub_med_guides_v1') ?? 'null') ?? null }
+        catch { return null }
+      })()
+      const mergedMedGuides = remoteMedGuides ?? localMedGuides
+
       // Write merged data to localStorage (bypasses push to avoid a loop)
       importRemoteData({
         tracker:     mergedDays,
@@ -75,7 +83,8 @@ export default function App() {
         tags:        mergedTags,
         grocery:     mergedGrocery,
         foodLibrary: mergedFoodLib,
-        ...(mergedSchedule ? { schedule: mergedSchedule } : {}),
+        ...(mergedSchedule   ? { schedule:   mergedSchedule   } : {}),
+        ...(mergedMedGuides  ? { medGuides:  mergedMedGuides  } : {}),
       })
 
       // Push merged data back so any local-only items reach Supabase
@@ -87,7 +96,8 @@ export default function App() {
         sync.pushTags(userId, mergedTags),
         sync.pushGrocery(userId, mergedGrocery),
         sync.pushFoodLibrary(userId, mergedFoodLib),
-        ...(mergedSchedule ? [sync.pushSchedule(userId, mergedSchedule)] : []),
+        ...(mergedSchedule  ? [sync.pushSchedule(userId, mergedSchedule)]       : []),
+        ...(mergedMedGuides ? [sync.pushMedGuides(userId, mergedMedGuides)]      : []),
       ])
 
       setLastSynced(new Date())

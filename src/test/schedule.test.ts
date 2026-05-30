@@ -8,13 +8,13 @@ import type { CustomBlock } from '../data/schedule'
 // ── SCHEDULE_BLOCKS ──────────────────────────────────────────────
 
 describe('SCHEDULE_BLOCKS', () => {
-  it('has 10 blocks', () => {
-    expect(SCHEDULE_BLOCKS).toHaveLength(10)
+  it('has 15 blocks', () => {
+    expect(SCHEDULE_BLOCKS).toHaveLength(15)
   })
 
   it('every block has a time, title, dur, dot, why, desc', () => {
     SCHEDULE_BLOCKS.forEach(b => {
-      expect(b.time).toMatch(/^\d{1,2}:\d{2}$/)
+      expect(b.time).toMatch(/^\d{1,2}:\d{2}( [AP]M)?$/)
       expect(b.title).toBeTruthy()
       expect(b.dur).toBeTruthy()
       expect(b.dot).toBeTruthy()

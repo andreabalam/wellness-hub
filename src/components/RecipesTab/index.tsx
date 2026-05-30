@@ -1,12 +1,13 @@
-import { useState, useCallback } from 'react'
-import { ALL_RECIPES } from '../../data/recipes'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { Recipe } from '../../data/recipes'
-import { useRecipeStore, exportAllData, importAllData } from '../../hooks/useStore'
+import { useRecipeStore, useTrackerStore } from '../../hooks/useStore'
+import { supabase } from '../../lib/supabase'
+import * as sync from '../../lib/sync'
 import RecipeCard from './RecipeCard'
 import RecipeModal from './RecipeModal'
 import GroceryPanel from './GroceryPanel'
 
-type Filter = 'all' | 'breakfast' | 'smoothie' | 'lunch' | 'dinner' | 'dessert' | 'ferments' | 'custom' | 'grocery'
+type Filter = 'all' | 'breakfast' | 'smoothie' | 'lunch' | 'dinner' | 'dessert' | 'snack' | 'ferments' | 'drinks' | 'custom' | 'grocery'
 
 const FILTER_BTNS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -15,32 +16,108 @@ const FILTER_BTNS: { id: Filter; label: string }[] = [
   { id: 'lunch', label: 'Lunch' },
   { id: 'dinner', label: 'Dinner' },
   { id: 'dessert', label: 'Dessert' },
+  { id: 'snack', label: 'Snacks' },
+  { id: 'drinks', label: 'Drinks' },
   { id: 'ferments', label: 'Ferments' },
 ]
 
 export default function RecipesTab() {
-  const store = useRecipeStore()
+  const store        = useRecipeStore()
+  const trackerStore = useTrackerStore()
+
+  /** Map of recipe name (lowercase) → number of times logged in the tracker */
+  const cookCounts = useMemo<Record<string, number>>(() => {
+    const all = trackerStore.getAll()
+    const counts: Record<string, number> = {}
+    for (const day of Object.values(all)) {
+      for (const entry of day.foods ?? []) {
+        const key = entry.n.toLowerCase()
+        counts[key] = (counts[key] ?? 0) + 1
+      }
+    }
+    return counts
+  }, [trackerStore])
+
   const [filter, setFilter]         = useState<Filter>('all')
   const [customTag, setCustomTag]   = useState<string | null>(null)
   const [showModal, setShowModal]   = useState(false)
   const [customRecipes, setCustomRecipes] = useState<Recipe[]>(() => store.getRecipes())
   const [customTags, setCustomTags] = useState<string[]>(() => store.getTags())
   const [query, setQuery]           = useState('')
+  const [builtinRecipes, setBuiltinRecipes] = useState<Recipe[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [loadError, setLoadError]   = useState(false)
+
+  // Fetch built-in + user recipes from Supabase on mount
+  useEffect(() => {
+    if (!supabase) {
+      setLoading(false)
+      setLoadError(true)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const [remote, user] = await Promise.all([
+        sync.fetchBuiltinRecipes().catch(() => null),
+        (async () => {
+          try {
+            const { data: { user: u } } = await supabase!.auth.getUser()
+            return u ? sync.fetchUserRecipes(u.id).catch(() => []) : []
+          } catch { return [] as Recipe[] }
+        })(),
+      ])
+      if (cancelled) return
+      if (remote) {
+        setBuiltinRecipes(remote)
+        setLoadError(false)
+      } else {
+        setLoadError(true)
+      }
+      if (user.length) {
+        // Merge: DB custom recipes take priority over localStorage
+        setCustomRecipes(user)
+      }
+      setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   const refreshCustom = useCallback(() => {
     setCustomRecipes(store.getRecipes())
     setCustomTags(store.getTags())
   }, [store])
 
-  const handleSave = (r: Recipe) => {
+  const handleSave = async (r: Recipe) => {
+    // Always save to localStorage immediately
     store.addRecipe(r)
     refreshCustom()
+    // Also save to Supabase when logged in
+    if (supabase) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const dbId = await sync.upsertUserRecipe(user.id, r)
+          if (dbId) {
+            // Update the recipe's id to the DB-assigned one and refresh
+            store.deleteRecipe(r.id!)
+            store.addRecipe({ ...r, id: dbId })
+            refreshCustom()
+          }
+        }
+      } catch { /* offline — localStorage copy is sufficient */ }
+    }
   }
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (!window.confirm('Delete this recipe?')) return
     store.deleteRecipe(id)
     refreshCustom()
+    if (supabase) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) await sync.deleteUserRecipe(id)
+      } catch { /* offline */ }
+    }
   }
 
   const handleAddTag = (tag: string) => {
@@ -54,7 +131,7 @@ export default function RecipesTab() {
 
     // When searching, scan everything (built-in + custom) regardless of filter
     if (q) {
-      const all = [...ALL_RECIPES, ...customRecipes]
+      const all = [...builtinRecipes, ...customRecipes]
       return all.filter(r =>
         r.name.toLowerCase().includes(q) ||
         (r.tag  ?? '').toLowerCase().includes(q) ||
@@ -66,37 +143,11 @@ export default function RecipesTab() {
     if (filter === 'custom') {
       return customTag ? customRecipes.filter(r => r.cat === customTag) : customRecipes
     }
-    if (filter === 'all') return ALL_RECIPES
-    return ALL_RECIPES.filter(r => r.cat === filter)
+    if (filter === 'all') return builtinRecipes
+    return builtinRecipes.filter(r => r.cat === filter)
   })()
 
   const tagsInUse = [...new Set(customRecipes.map(r => r.cat))]
-
-  // Export
-  const handleExport = () => {
-    const data = JSON.stringify(exportAllData(), null, 2)
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `wellness_hub_backup_${new Date().toISOString().split('T')[0]}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  // Import
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => {
-      const ok = importAllData(ev.target?.result as string)
-      if (ok) { alert('Data imported! Reloading...'); location.reload() }
-      else alert('Import failed. Make sure you are using a backup file exported from this Hub.')
-    }
-    reader.readAsText(file)
-    e.target.value = ''
-  }
 
   return (
     <>
@@ -198,15 +249,6 @@ export default function RecipesTab() {
         >
           + Add my recipe
         </button>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 7 }}>
-          <button onClick={handleExport} style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 8, padding: '6px 13px', fontSize: 12, fontFamily: '"DM Mono",monospace', color: 'var(--muted)', cursor: 'pointer' }}>
-            ↓ Export data
-          </button>
-          <label style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 8, padding: '6px 13px', fontSize: 12, fontFamily: '"DM Mono",monospace', color: 'var(--muted)', cursor: 'pointer' }}>
-            ↑ Import data
-            <input type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
-          </label>
-        </div>
       </div>
 
       {/* Grocery panel */}
@@ -215,7 +257,15 @@ export default function RecipesTab() {
       {/* Recipe grid */}
       {filter !== 'grocery' && (
         <div className="rgrid">
-          {visibleRecipes.length === 0 ? (
+          {loading ? (
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted2)', fontSize: 13, gridColumn: '1/-1' }}>
+              Loading recipes…
+            </div>
+          ) : loadError && filter !== 'custom' && !query.trim() ? (
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted2)', fontSize: 13, fontStyle: 'italic', gridColumn: '1/-1' }}>
+              Could not load recipes — check your connection and refresh.
+            </div>
+          ) : visibleRecipes.length === 0 ? (
             <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted2)', fontSize: 13, fontStyle: 'italic', gridColumn: '1/-1' }}>
               {query.trim()
                 ? <>No recipes found for <strong style={{ color: 'var(--text)' }}>"{query.trim()}"</strong>.</>
@@ -227,6 +277,7 @@ export default function RecipesTab() {
               <RecipeCard
                 key={r.custom ? r.id : i}
                 recipe={r}
+                cookCount={cookCounts[r.name.toLowerCase()] ?? 0}
                 onDelete={r.custom ? handleDelete : undefined}
               />
             ))

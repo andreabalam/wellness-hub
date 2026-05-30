@@ -9,24 +9,30 @@ interface Props {
   onClose: () => void
 }
 
+const PREP_TIME_PRESETS = ['5 min', '10 min', '15 min', '20 min', '30 min', '45 min', '1 hr+', 'Prep ahead', 'Meal prep']
+
 export default function RecipeModal({ customTags, onSave, onAddTag, onClose }: Props) {
-  const [name, setName]       = useState('')
-  const [tagLine, setTagLine] = useState('')
-  const [cat, setCat]         = useState('dinner')
-  const [newTag, setNewTag]   = useState('')
-  const [kcal, setKcal]       = useState('')
-  const [prot, setProt]       = useState('')
-  const [carb, setCarb]       = useState('')
-  const [fat, setFat]         = useState('')
-  const [fib, setFib]         = useState('')
-  const [ings, setIngs]       = useState<[string, string][]>([])
-  const [ingName, setIngName] = useState('')
-  const [ingAmt, setIngAmt]   = useState('')
-  const [steps, setSteps]     = useState<string[]>([])
-  const [stepTxt, setStepTxt] = useState('')
-  const [tip, setTip]         = useState('')
-  const [msg, setMsg]         = useState('')
-  const [msgOk, setMsgOk]     = useState(true)
+  const [name, setName]           = useState('')
+  const [tagLine, setTagLine]     = useState('')
+  const [cat, setCat]             = useState('dinner')
+  const [newTag, setNewTag]       = useState('')
+  const [prepTime, setPrepTime]   = useState('')
+  const [healthTag, setHealthTag] = useState<'healthy' | 'indulgent' | ''>('')
+  const [link, setLink]           = useState('')
+  const [image, setImage]         = useState('')
+  const [kcal, setKcal]           = useState('')
+  const [prot, setProt]           = useState('')
+  const [carb, setCarb]           = useState('')
+  const [fat, setFat]             = useState('')
+  const [fib, setFib]             = useState('')
+  const [ings, setIngs]           = useState<[string, string][]>([])
+  const [ingName, setIngName]     = useState('')
+  const [ingAmt, setIngAmt]       = useState('')
+  const [steps, setSteps]         = useState<string[]>([])
+  const [stepTxt, setStepTxt]     = useState('')
+  const [tip, setTip]             = useState('')
+  const [msg, setMsg]             = useState('')
+  const [msgOk, setMsgOk]         = useState(true)
 
   const allTags = [...new Set([...PRESET_CATS, ...customTags])]
 
@@ -58,12 +64,17 @@ export default function RecipeModal({ customTags, onSave, onAddTag, onClose }: P
       color: 'var(--purple)', sc: 'cp',
       name: name.trim(),
       tag: tagLine.trim() || 'My recipe',
-      prepL: 'Custom', prepC: 'var(--purple)',
+      prepL: prepTime || 'Custom',
+      prepC: 'var(--purple)',
+      prepTime: prepTime || undefined,
+      healthTag: (healthTag as 'healthy' | 'indulgent') || undefined,
+      link: link.trim() || undefined,
+      image: image.trim() || undefined,
       hk: parseInt(kcal) || 0,
       hp: `${parseInt(prot) || 0}g`,
       hc: `${parseInt(carb) || 0}g`,
       hf: `${parseInt(fat) || 0}g`,
-      hfi: `${parseInt(fib) || 0}g`,
+      hfi: fib ? `${parseInt(fib) || 0}g` : undefined,
       mk: 0, mp: '0g', mc: '0g', mf: '0g',
       ings, steps, tip: tip.trim(),
     }
@@ -72,6 +83,14 @@ export default function RecipeModal({ customTags, onSave, onAddTag, onClose }: P
     setMsgOk(true)
     setTimeout(onClose, 900)
   }
+
+  const chipStyle = (active: boolean, color: string) => ({
+    fontSize: 12, padding: '4px 12px', borderRadius: 7,
+    border: `1px solid ${active ? color : 'var(--border)'}`,
+    background: active ? `${color}22` : 'var(--bg3)',
+    color: active ? color : 'var(--muted)',
+    cursor: 'pointer', fontFamily: 'sans-serif', transition: 'all .15s',
+  })
 
   return (
     <div
@@ -93,31 +112,49 @@ export default function RecipeModal({ customTags, onSave, onAddTag, onClose }: P
 
         {/* Tagline */}
         <FieldRow label="Short description">
-          <input className="tinput" value={tagLine} onChange={e => setTagLine(e.target.value)} placeholder="e.g. Prep night before · 5 min" />
+          <input className="tinput" value={tagLine} onChange={e => setTagLine(e.target.value)} placeholder="e.g. High protein · gluten free" />
         </FieldRow>
 
         {/* Category */}
         <FieldRow label="Category (pick one or create your own)">
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
             {allTags.map(tag => (
-              <button
-                key={tag}
-                onClick={() => setCat(tag)}
-                style={{
-                  fontSize: 12, padding: '4px 11px', borderRadius: 7,
-                  border: `1px solid ${cat === tag ? 'var(--purple)' : 'var(--border)'}`,
-                  background: cat === tag ? 'rgba(138,106,184,0.15)' : 'var(--bg3)',
-                  color: cat === tag ? 'var(--purple-light)' : 'var(--muted)',
-                  cursor: 'pointer', fontFamily: 'sans-serif', transition: 'all .15s',
-                }}
-              >
+              <button key={tag} onClick={() => setCat(tag)} style={chipStyle(cat === tag, 'var(--purple)')}>
                 {tag.charAt(0).toUpperCase() + tag.slice(1)}
               </button>
             ))}
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <input className="tinput" value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="New tag (e.g. Snack, Sauce...)" style={{ flex: 1 }} />
+            <input className="tinput" value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="New tag (e.g. Sauce, Side...)" style={{ flex: 1 }} />
             <button onClick={addTag} style={{ background: 'var(--purple)', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>Add tag</button>
+          </div>
+        </FieldRow>
+
+        {/* Prep time */}
+        <FieldRow label="Prep time">
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+            {PREP_TIME_PRESETS.map(t => (
+              <button key={t} onClick={() => setPrepTime(prepTime === t ? '' : t)} style={chipStyle(prepTime === t, 'var(--teal)')}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <input
+            className="tinput" value={prepTime} onChange={e => setPrepTime(e.target.value)}
+            placeholder="Or type custom time, e.g. 25 min"
+            style={{ marginTop: 2 }}
+          />
+        </FieldRow>
+
+        {/* Health tag */}
+        <FieldRow label="Health tag">
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setHealthTag(healthTag === 'healthy' ? '' : 'healthy')} style={chipStyle(healthTag === 'healthy', 'var(--green)')}>
+              ✦ Healthy
+            </button>
+            <button onClick={() => setHealthTag(healthTag === 'indulgent' ? '' : 'indulgent')} style={chipStyle(healthTag === 'indulgent', 'var(--purple)')}>
+              ✧ Indulgent
+            </button>
           </div>
         </FieldRow>
 
@@ -167,6 +204,24 @@ export default function RecipeModal({ customTags, onSave, onAddTag, onClose }: P
         {/* Tip */}
         <FieldRow label="Tip / notes (optional)">
           <textarea className="tinput" rows={2} value={tip} onChange={e => setTip(e.target.value)} placeholder="Any notes, variations, or tips..." style={{ resize: 'vertical' }} />
+        </FieldRow>
+
+        {/* Link */}
+        <FieldRow label="Reference link (optional) — shown when recipe is opened">
+          <input className="tinput" value={link} onChange={e => setLink(e.target.value)} placeholder="https://..." />
+        </FieldRow>
+
+        {/* Image */}
+        <FieldRow label="Image URL (optional) — shown when recipe is opened">
+          <input className="tinput" value={image} onChange={e => setImage(e.target.value)} placeholder="https://... (direct image link)" />
+          {image.trim() && (
+            <img
+              src={image.trim()} alt="preview"
+              style={{ marginTop: 8, width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border2)' }}
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+              onLoad={e => { (e.target as HTMLImageElement).style.display = 'block' }}
+            />
+          )}
         </FieldRow>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>

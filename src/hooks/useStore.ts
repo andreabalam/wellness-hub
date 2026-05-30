@@ -2,6 +2,7 @@ import type { DayData, QuickFood } from '../data/tracker'
 import { EMPTY_DAY } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
 import type { CustomBlock } from '../data/schedule'
+import type { MedGuide } from '../lib/sync'
 import { supabase } from '../lib/supabase'
 import * as sync from '../lib/sync'
 
@@ -11,6 +12,7 @@ const TAGS_KEY         = 'whub_custom_tags_v1'
 const GROCERY_KEY      = 'whub_grocery_v1'
 const FOOD_LIBRARY_KEY = 'whub_food_library_v1'
 const SCHEDULE_KEY     = 'whub_schedule_v1'
+export const MED_GUIDES_KEY = 'whub_med_guides_v1'
 
 // ── raw helpers ──────────────────────────────────────────────────
 function load<T>(key: string, fallback: T): T {
@@ -130,6 +132,7 @@ export function importRemoteData(remote: {
   grocery?: string[]
   foodLibrary?: QuickFood[]
   schedule?: CustomBlock[]
+  medGuides?: MedGuide[]
 }) {
   if (remote.tracker     !== undefined) save(TRACKER_KEY,      remote.tracker)
   if (remote.recipes     !== undefined) save(RECIPES_KEY,      remote.recipes)
@@ -137,6 +140,7 @@ export function importRemoteData(remote: {
   if (remote.grocery     !== undefined) save(GROCERY_KEY,      remote.grocery)
   if (remote.foodLibrary !== undefined) save(FOOD_LIBRARY_KEY, remote.foodLibrary)
   if (remote.schedule    !== undefined) save(SCHEDULE_KEY,     remote.schedule)
+  if (remote.medGuides   !== undefined) save(MED_GUIDES_KEY,   remote.medGuides)
 }
 
 // ── Full export / import (JSON backup) ───────────────────────────

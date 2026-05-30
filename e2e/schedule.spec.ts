@@ -15,7 +15,7 @@ test.describe('Schedule tab', () => {
   test('timeline is populated with schedule blocks', async ({ page }) => {
     await expect(page.locator('.trow').first()).toBeVisible()
     // There should be multiple blocks
-    await expect(page.locator('.trow')).toHaveCount(10)
+    await expect(page.locator('.trow')).toHaveCount(15)
   })
 
   test('clicking a schedule block expands its description', async ({ page }) => {

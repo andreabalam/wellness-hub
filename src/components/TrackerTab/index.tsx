@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useTrackerStore, useFoodLibraryStore } from '../../hooks/useStore'
+import { useTrackerStore, useFoodLibraryStore, MED_GUIDES_KEY, exportAllData, importAllData } from '../../hooks/useStore'
+import { supabase } from '../../lib/supabase'
+import * as sync from '../../lib/sync'
+import type { MedGuide } from '../../lib/sync'
 import {
   KCAL_TARGET, PROT_TARGET, CARB_TARGET, FAT_TARGET, FIBER_TARGET,
   QUICK_FOODS, SESSION_OPTS, MED_MINS, MED_STYLES, PHASE_NOTES,
@@ -7,6 +10,24 @@ import {
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
 
 function dkey(d: Date) { return d.toISOString().split('T')[0] }
+
+// ── Meditation guides ────────────────────────────────────────────
+const DEFAULT_GUIDES: MedGuide[] = [
+  { title: 'Guided Meditation · Session 1', url: 'https://www.youtube.com/watch?v=_nfMuLIpRus&list=PLSGCbLKMPkC1I1jnlSKIqCllxhRu2fNTN&index=1' },
+  { title: 'Guided Meditation · Session 2', url: 'https://www.youtube.com/watch?v=UFFx_b-rpOE&list=PLSGCbLKMPkC1I1jnlSKIqCllxhRu2fNTN&index=2' },
+]
+function loadGuides(): MedGuide[] {
+  try { return JSON.parse(localStorage.getItem(MED_GUIDES_KEY) ?? 'null') ?? DEFAULT_GUIDES }
+  catch { return DEFAULT_GUIDES }
+}
+async function saveGuides(g: MedGuide[]) {
+  localStorage.setItem(MED_GUIDES_KEY, JSON.stringify(g))
+  if (!supabase) return
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) sync.pushMedGuides(user.id, g).catch(() => { /* offline */ })
+  } catch { /* ignore */ }
+}
 
 // ── Macro bar ────────────────────────────────────────────────────
 function MacroBar({ label, sub, val, target, color, valColor }: {
@@ -148,6 +169,36 @@ export default function TrackerTab() {
   const [checkInSaved, setCheckInSaved] = useState(false)
   const [stripKey, setStripKey] = useState(0)
   const [innerTab, setInnerTab] = useState<'food' | 'workout' | 'meditation'>('food')
+
+  // Data export / import
+  const handleExport = () => {
+    const data = JSON.stringify(exportAllData(), null, 2)
+    const blob = new Blob([data], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `wellness_hub_backup_${new Date().toISOString().split('T')[0]}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const ok = importAllData(ev.target?.result as string)
+      if (ok) { alert('Data imported! Reloading...'); location.reload() }
+      else alert('Import failed. Make sure you are using a backup file exported from this Hub.')
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  // Meditation guides
+  const [guides, setGuides]             = useState<MedGuide[]>(loadGuides)
+  const [newGuideTitle, setNewGuideTitle] = useState('')
+  const [newGuideUrl, setNewGuideUrl]     = useState('')
+  const [showAddGuide, setShowAddGuide]   = useState(false)
 
   const loadDate = useCallback((d: Date) => {
     const k = dkey(d)
@@ -308,6 +359,20 @@ export default function TrackerTab() {
     save({ notes: dayNotes })
     setNotesSaved(true)
     setTimeout(() => setNotesSaved(false), 1600)
+  }
+
+  const addGuide = () => {
+    const url = newGuideUrl.trim()
+    if (!url) return
+    const title = newGuideTitle.trim() || url
+    const updated = [...guides, { title, url }]
+    setGuides(updated); saveGuides(updated)
+    setNewGuideTitle(''); setNewGuideUrl(''); setShowAddGuide(false)
+  }
+
+  const removeGuide = (i: number) => {
+    const updated = guides.filter((_, j) => j !== i)
+    setGuides(updated); saveGuides(updated)
   }
 
   const goDate = (delta: number) => {
@@ -560,6 +625,67 @@ export default function TrackerTab() {
             </button>
           </div>
 
+          {/* Favorite guides */}
+          <div className="tcard">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div className="tlabel" style={{ color: 'var(--gold)', marginBottom: 0 }}>Favorite Guides</div>
+              <button
+                onClick={() => setShowAddGuide(v => !v)}
+                style={{ fontSize: 11, background: 'none', border: 'none', color: showAddGuide ? 'var(--muted2)' : 'var(--teal-light)', cursor: 'pointer', fontFamily: 'sans-serif', padding: 0 }}
+              >
+                {showAddGuide ? 'Cancel' : '+ Add'}
+              </button>
+            </div>
+
+            {guides.length === 0 && !showAddGuide && (
+              <div style={{ fontSize: 12, color: 'var(--muted2)', fontStyle: 'italic', marginBottom: 6 }}>No guides saved yet.</div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: showAddGuide ? 10 : 0 }}>
+              {guides.map((g, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 9 }}>
+                  <span style={{ fontSize: 13, color: 'var(--gold)' }}>▶</span>
+                  <a
+                    href={g.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ flex: 1, fontSize: 13, color: 'var(--teal-light)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  >
+                    {g.title}
+                  </a>
+                  <button
+                    onClick={() => removeGuide(i)}
+                    title="Remove"
+                    style={{ background: 'none', border: 'none', color: 'var(--muted2)', cursor: 'pointer', fontSize: 18, padding: '0 3px', lineHeight: 1, flexShrink: 0 }}
+                  >×</button>
+                </div>
+              ))}
+            </div>
+
+            {showAddGuide && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <input
+                  className="tinput"
+                  value={newGuideTitle}
+                  onChange={e => setNewGuideTitle(e.target.value)}
+                  placeholder="Title (e.g. Morning Calm · 13 min)"
+                  style={{ marginBottom: 0 }}
+                />
+                <input
+                  className="tinput"
+                  value={newGuideUrl}
+                  onChange={e => setNewGuideUrl(e.target.value)}
+                  placeholder="URL"
+                  style={{ marginBottom: 0 }}
+                  onKeyDown={e => e.key === 'Enter' && addGuide()}
+                />
+                <button onClick={addGuide} className="tbtn" style={{ background: 'rgba(184,150,58,0.15)', border: '1px solid var(--gold)', color: 'var(--gold-light)' }}>
+                  Add guide
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Daily check-in */}
           <div className="tcard">
             <div className="tlabel" style={{ color: 'var(--purple)' }}>Daily check-in</div>
@@ -610,6 +736,21 @@ export default function TrackerTab() {
           </div>
         </div>
       )}
+
+      {/* Data backup */}
+      <div className="tcard" style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: '"DM Mono",monospace', marginRight: 4 }}>Data backup</span>
+        <button
+          onClick={handleExport}
+          style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontFamily: '"DM Mono",monospace', color: 'var(--muted)', cursor: 'pointer' }}
+        >
+          ↓ Export
+        </button>
+        <label style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontFamily: '"DM Mono",monospace', color: 'var(--muted)', cursor: 'pointer' }}>
+          ↑ Import
+          <input type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+        </label>
+      </div>
     </>
   )
 }

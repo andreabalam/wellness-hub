@@ -19,12 +19,17 @@ vi.mock('../lib/supabase', () => ({
 }))
 
 vi.mock('../lib/sync', () => ({
+  fetchBuiltinRecipes: vi.fn(),
+  fetchUserRecipes:    vi.fn(),
+  upsertUserRecipe:    vi.fn(),
+  deleteUserRecipe:    vi.fn(),
   pullAllDays:        vi.fn(),
   pullRecipes:        vi.fn(),
   pullTags:           vi.fn(),
   pullGrocery:        vi.fn(),
   pullFoodLibrary:    vi.fn(),
   pullSchedule:       vi.fn(),
+  pullMedGuides:      vi.fn(),
   pullGroceryCatalog: vi.fn(),
   pushDay:            vi.fn(),
   pushRecipes:        vi.fn(),
@@ -32,6 +37,7 @@ vi.mock('../lib/sync', () => ({
   pushGrocery:        vi.fn(),
   pushFoodLibrary:    vi.fn(),
   pushSchedule:       vi.fn(),
+  pushMedGuides:      vi.fn(),
 }))
 
 // ── Imports (after mocks) ─────────────────────────────────────────
@@ -66,6 +72,10 @@ beforeEach(() => {
   mockAuth.getSession.mockResolvedValue({ data: { session: null }, error: null })
   mockAuth.onAuthStateChange.mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } })
 
+  // RecipesTab fetch mocks
+  mockSync['fetchBuiltinRecipes'].mockResolvedValue([])
+  mockSync['fetchUserRecipes'].mockResolvedValue([])
+
   // All pull/push mocks resolve immediately with empty data
   mockSync['pullAllDays'].mockResolvedValue({})
   mockSync['pullRecipes'].mockResolvedValue([])
@@ -73,6 +83,7 @@ beforeEach(() => {
   mockSync['pullGrocery'].mockResolvedValue([])
   mockSync['pullFoodLibrary'].mockResolvedValue([])
   mockSync['pullSchedule'].mockResolvedValue(null)
+  mockSync['pullMedGuides'].mockResolvedValue(null)
   mockSync['pullGroceryCatalog'].mockResolvedValue(null)
   mockSync['pushDay'].mockResolvedValue(undefined)
   mockSync['pushRecipes'].mockResolvedValue(undefined)
@@ -80,6 +91,7 @@ beforeEach(() => {
   mockSync['pushGrocery'].mockResolvedValue(undefined)
   mockSync['pushFoodLibrary'].mockResolvedValue(undefined)
   mockSync['pushSchedule'].mockResolvedValue(undefined)
+  mockSync['pushMedGuides'].mockResolvedValue(undefined)
 })
 
 afterEach(() => {
@@ -157,6 +169,7 @@ describe('App (with mocked Supabase)', () => {
     mockSync['pullGrocery'].mockResolvedValue([])
     mockSync['pullFoodLibrary'].mockResolvedValue([])
     mockSync['pullSchedule'].mockResolvedValue(null)
+    mockSync['pullMedGuides'].mockResolvedValue(null)
     mockSync['pullGroceryCatalog'].mockResolvedValue(null)
     mockSync['pushDay'].mockResolvedValue(undefined)
     mockSync['pushRecipes'].mockResolvedValue(undefined)
@@ -164,6 +177,7 @@ describe('App (with mocked Supabase)', () => {
     mockSync['pushGrocery'].mockResolvedValue(undefined)
     mockSync['pushFoodLibrary'].mockResolvedValue(undefined)
     mockSync['pushSchedule'].mockResolvedValue(undefined)
+    mockSync['pushMedGuides'].mockResolvedValue(undefined)
 
     authCb!('SIGNED_IN', { user: MOCK_USER })
 

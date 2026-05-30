@@ -3,7 +3,8 @@
  * AuthButton and sync.ts are excluded from coverage (require live Supabase).
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+
 
 // ── localStorage mock ─────────────────────────────────────────────
 const ls: Record<string, string> = {}
@@ -43,7 +44,6 @@ import App            from '../App'
 import { SCHEDULE_BLOCKS, defaultToCustomBlock } from '../data/schedule'
 import type { CustomBlock } from '../data/schedule'
 import type { Recipe } from '../data/recipes'
-import { ALL_RECIPES } from '../data/recipes'
 
 // ── Recipe fixtures ───────────────────────────────────────────────
 const BASE_RECIPE: Recipe = {
@@ -248,14 +248,15 @@ describe('RecipeCard', () => {
     expect(screen.getByText(/My recipe/)).toBeInTheDocument()
   })
 
-  it('shows him kcal for non-custom, non-ferment recipes', () => {
+  it('shows kcal label for all recipe cards', () => {
     render(<RecipeCard recipe={BASE_RECIPE} />)
-    expect(screen.getByText('him kcal')).toBeInTheDocument()
+    expect(screen.getByText('kcal')).toBeInTheDocument()
   })
 
-  it('hides him kcal for custom recipes', () => {
-    render(<RecipeCard recipe={CUSTOM_RECIPE} />)
+  it('never shows him kcal label (removed feature)', () => {
+    render(<RecipeCard recipe={BASE_RECIPE} />)
     expect(screen.queryByText('him kcal')).not.toBeInTheDocument()
+    expect(screen.queryByText('her kcal')).not.toBeInTheDocument()
   })
 
   it('shows ferment note for ferment cat recipes', () => {
@@ -387,7 +388,7 @@ describe('RecipeModal', () => {
     const onSave  = vi.fn()
     render(<RecipeModal {...baseProps} onSave={onSave} />)
     fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), { target: { value: 'Berry Bowl' } })
-    fireEvent.change(screen.getByPlaceholderText('e.g. Prep night before · 5 min'), { target: { value: 'Easy breakfast' } })
+    fireEvent.change(screen.getByPlaceholderText('e.g. High protein · gluten free'), { target: { value: 'Easy breakfast' } })
     fireEvent.click(screen.getByText('Save recipe'))
     expect(onSave).toHaveBeenCalledOnce()
     const saved = onSave.mock.calls[0][0]
@@ -425,7 +426,7 @@ describe('RecipeModal', () => {
   it('can create and select a new custom tag', () => {
     const onAddTag = vi.fn()
     render(<RecipeModal {...baseProps} onAddTag={onAddTag} />)
-    fireEvent.change(screen.getByPlaceholderText('New tag (e.g. Snack, Sauce...)'), { target: { value: 'bowl' } })
+    fireEvent.change(screen.getByPlaceholderText('New tag (e.g. Sauce, Side...)'), { target: { value: 'bowl' } })
     fireEvent.click(screen.getByText('Add tag'))
     expect(onAddTag).toHaveBeenCalledWith('bowl')
   })
@@ -866,9 +867,12 @@ describe('RecipesTab', () => {
     expect(screen.getByRole('button', { name: '🛒 Grocery' })).toBeInTheDocument()
   })
 
-  it('renders built-in recipe cards in All view', () => {
+  it('shows connection error message when DB is unavailable', async () => {
     render(<RecipesTab />)
-    expect(screen.getByText('Berry Walnut Power Oats')).toBeInTheDocument()
+    // supabase is null in unit tests → error shown after effect runs
+    await waitFor(() => {
+      expect(screen.getByText(/Could not load recipes/)).toBeInTheDocument()
+    })
   })
 
   it('renders the search bar in non-grocery views', () => {
@@ -876,16 +880,19 @@ describe('RecipesTab', () => {
     expect(screen.getByPlaceholderText('Search recipes, ingredients…')).toBeInTheDocument()
   })
 
-  it('search filters recipes by name', () => {
+  it('search filters custom recipes by name', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.change(screen.getByPlaceholderText('Search recipes, ingredients…'), {
-      target: { value: 'Berry Walnut' },
+      target: { value: 'My Smoothie' },
     })
-    expect(screen.getByText('Berry Walnut Power Oats')).toBeInTheDocument()
+    expect(screen.getByText('My Smoothie')).toBeInTheDocument()
   })
 
-  it('search with no match shows empty state', () => {
+  it('search with no match shows empty state', async () => {
     render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.change(screen.getByPlaceholderText('Search recipes, ingredients…'), {
       target: { value: 'xyznotarecipe' },
     })
@@ -900,12 +907,11 @@ describe('RecipesTab', () => {
     expect((searchInput as HTMLInputElement).value).toBe('')
   })
 
-  it('clicking Breakfast filter shows only breakfast recipes', () => {
+  it('clicking Breakfast filter activates that filter button', () => {
     render(<RecipesTab />)
-    fireEvent.click(screen.getByRole('button', { name: 'Breakfast' }))
-    const allBreakfast = ALL_RECIPES.filter(r => r.cat === 'breakfast')
-    expect(allBreakfast.length).toBeGreaterThan(0)
-    expect(screen.getByText(allBreakfast[0].name)).toBeInTheDocument()
+    const btn = screen.getByRole('button', { name: 'Breakfast' })
+    fireEvent.click(btn)
+    expect(btn.className).toContain('active')
   })
 
   it('clicking Grocery shows GroceryPanel', () => {
@@ -915,24 +921,27 @@ describe('RecipesTab', () => {
     expect(screen.queryByPlaceholderText('Search recipes, ingredients…')).not.toBeInTheDocument()
   })
 
-  it('⭐ My Recipes shows empty state when no custom recipes', () => {
+  it('⭐ My Recipes shows empty state when no custom recipes', async () => {
     render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('⭐ My Recipes'))
     expect(screen.getByText(/No custom recipes yet/)).toBeInTheDocument()
   })
 
-  it('custom recipes show tag sub-filter when tags exist', () => {
+  it('custom recipes show tag sub-filter when tags exist', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     ls['whub_custom_tags_v1']    = JSON.stringify(['smoothie'])
     render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('⭐ My Recipes'))
     expect(screen.getByText('Filter by tag:')).toBeInTheDocument()
   })
 
-  it('clicking "All my recipes" sub-filter clears tag filter', () => {
+  it('clicking "All my recipes" sub-filter clears tag filter', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     ls['whub_custom_tags_v1']    = JSON.stringify(['smoothie'])
     render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('⭐ My Recipes'))
     fireEvent.click(screen.getByText('Smoothie'))  // filter to smoothie tag
     fireEvent.click(screen.getByText('All my recipes'))
@@ -945,28 +954,22 @@ describe('RecipesTab', () => {
     expect(screen.getByText('Recipe')).toBeInTheDocument()
   })
 
-  it('Export data button triggers download', () => {
-    const click = vi.fn()
-    spyCreateLink(click)
-    render(<RecipesTab />)
-    fireEvent.click(screen.getByText('↓ Export data'))
-    expect(click).toHaveBeenCalled()
-  })
-
-  it('deleting a custom recipe removes it from the list', () => {
+  it('deleting a custom recipe removes it from the list', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     vi.mocked(window.confirm).mockReturnValue(true)
     render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('⭐ My Recipes'))
     fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
     fireEvent.click(screen.getByText('Delete recipe'))
     expect(screen.queryByText('My Smoothie')).not.toBeInTheDocument()
   })
 
-  it('cancelling delete keeps the recipe', () => {
+  it('cancelling delete keeps the recipe', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     vi.mocked(window.confirm).mockReturnValue(false)
     render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('⭐ My Recipes'))
     fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
     fireEvent.click(screen.getByText('Delete recipe'))
@@ -991,8 +994,9 @@ describe('RecipesTab', () => {
     expect(screen.queryByText('Recipe')).not.toBeInTheDocument()
   })
 
-  it('saving a recipe through the modal calls handleSave and shows it in My Recipes', () => {
+  it('saving a recipe through the modal calls handleSave and shows it in My Recipes', async () => {
     render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('+ Add my recipe'))
     // Fill in recipe name — placeholder is "e.g. Mango Chia Pudding"
     fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), { target: { value: 'My Test Recipe' } })
@@ -1006,52 +1010,11 @@ describe('RecipesTab', () => {
   it('adding a tag through the modal calls handleAddTag', () => {
     render(<RecipesTab />)
     fireEvent.click(screen.getByText('+ Add my recipe'))
-    fireEvent.change(screen.getByPlaceholderText('New tag (e.g. Snack, Sauce...)'), {
+    fireEvent.change(screen.getByPlaceholderText('New tag (e.g. Sauce, Side...)'), {
       target: { value: 'keto' },
     })
     fireEvent.click(screen.getByText('Add tag'))
     // Tag is now in the category selector — no crash = handleAddTag was called
-  })
-
-  it('handleImport triggers file reader when a valid JSON file is chosen', async () => {
-    // Mock FileReader
-    const originalFileReader = window.FileReader
-    const mockReadAsText = vi.fn()
-    let onloadHandler: ((ev: any) => void) | null = null
-    class MockFileReader {
-      onload: ((ev: any) => void) | null = null
-      readAsText() {
-        onloadHandler = this.onload
-        mockReadAsText()
-      }
-    }
-    vi.stubGlobal('FileReader', MockFileReader)
-
-    // Build a valid export payload
-    const payload = JSON.stringify({
-      version: 'whub_v1',
-      tracker: {},
-      customRecipes: [],
-      customTags: [],
-      groceryChecked: [],
-      exportedAt: new Date().toISOString(),
-    })
-    const file = new File([payload], 'backup.json', { type: 'application/json' })
-
-    render(<RecipesTab />)
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
-    Object.defineProperty(fileInput, 'files', { value: [file], configurable: true })
-    fireEvent.change(fileInput)
-
-    // Simulate FileReader.onload firing
-    if (onloadHandler) {
-      (onloadHandler as (ev: any) => void)({ target: { result: payload } })
-    }
-
-    expect(mockReadAsText).toHaveBeenCalled()
-
-    vi.unstubAllGlobals()
-    window.FileReader = originalFileReader
   })
 })
 
