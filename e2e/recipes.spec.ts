@@ -292,6 +292,82 @@ test.describe('Recipes tab', () => {
     await expect(page.getByText('Before Edit')).not.toBeVisible()
   })
 
+  // ── Phase 6: GroceryIngredientModal ─────────────────────────────
+
+  test('Grocery button on a recipe with ingredients opens the ingredient picker modal', async ({ page }) => {
+    // Create a custom recipe with an ingredient
+    await page.getByRole('button', { name: '+ Add my recipe' }).click()
+    await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Grocery Test Recipe')
+    await page.getByRole('textbox', { name: 'Ingredient' }).fill('Spinach')
+    await page.getByPlaceholder('Amount').fill('2 cups')
+    await page.getByRole('button', { name: '+', exact: true }).first().click()
+    await page.getByRole('button', { name: 'Save recipe' }).click()
+
+    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    await page.getByText('Grocery Test Recipe').click()
+    await page.getByRole('button', { name: /add ingredients to grocery/i }).click()
+
+    // Modal opens: "Deselect all" and checkboxes are unique to the modal
+    await expect(page.getByRole('button', { name: 'Deselect all' })).toBeVisible()
+    await expect(page.getByRole('checkbox')).toHaveCount(1)
+  })
+
+  test('ingredient picker adds items to grocery list', async ({ page }) => {
+    // Create recipe with two ingredients
+    await page.getByRole('button', { name: '+ Add my recipe' }).click()
+    await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Two Ing Recipe')
+    const plusBtns = page.getByRole('button', { name: '+', exact: true })
+    await page.getByRole('textbox', { name: 'Ingredient' }).fill('Oats')
+    await page.getByPlaceholder('Amount').fill('1 cup')
+    await plusBtns.first().click()
+    await page.getByRole('textbox', { name: 'Ingredient' }).fill('Banana')
+    await page.getByPlaceholder('Amount').fill('1 medium')
+    await plusBtns.first().click()
+    await page.getByRole('button', { name: 'Save recipe' }).click()
+
+    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    await page.getByText('Two Ing Recipe').click()
+    await page.getByRole('button', { name: /add ingredients to grocery/i }).click()
+
+    // Add all ingredients
+    await page.getByRole('button', { name: /Add 2 items to grocery/i }).click()
+    await expect(page.getByText(/2 items added to grocery list/i)).toBeVisible()
+
+    // Navigate to grocery and confirm items appear
+    await page.getByRole('button', { name: '🛒 Grocery' }).click()
+    await expect(page.getByText('Oats', { exact: true })).toBeVisible()
+    await expect(page.getByText('Banana', { exact: true })).toBeVisible()
+  })
+
+  test('can deselect individual ingredients before adding', async ({ page }) => {
+    await page.getByRole('button', { name: '+ Add my recipe' }).click()
+    await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Partial Add Recipe')
+    const plusBtns = page.getByRole('button', { name: '+', exact: true })
+    await page.getByRole('textbox', { name: 'Ingredient' }).fill('Keep This')
+    await page.getByPlaceholder('Amount').fill('100g')
+    await plusBtns.first().click()
+    await page.getByRole('textbox', { name: 'Ingredient' }).fill('Skip This')
+    await page.getByPlaceholder('Amount').fill('50g')
+    await plusBtns.first().click()
+    await page.getByRole('button', { name: 'Save recipe' }).click()
+
+    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    await page.getByText('Partial Add Recipe').click()
+    await page.getByRole('button', { name: /add ingredients to grocery/i }).click()
+
+    // Uncheck "Skip This"
+    const skipCheckbox = page.locator('label').filter({ hasText: 'Skip This' }).locator('input[type=checkbox]')
+    await skipCheckbox.uncheck()
+    await expect(page.getByRole('button', { name: /Add 1 item to grocery/i })).toBeVisible()
+
+    await page.getByRole('button', { name: /Add 1 item to grocery/i }).click()
+
+    // Go to grocery — only Keep This should appear
+    await page.getByRole('button', { name: '🛒 Grocery' }).click()
+    await expect(page.getByText('Keep This')).toBeVisible()
+    await expect(page.getByText('Skip This')).not.toBeVisible()
+  })
+
   test('custom recipe does not show a Hide button', async ({ page }) => {
     await page.getByRole('button', { name: '+ Add my recipe' }).click()
     await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('No Hide Here')

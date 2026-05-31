@@ -35,8 +35,9 @@ import UpdatePrompt   from '../components/UpdatePrompt'
 import GroceryPanel   from '../components/RecipesTab/GroceryPanel'
 import RecipeCard     from '../components/RecipesTab/RecipeCard'
 import RecipeModal    from '../components/RecipesTab/RecipeModal'
-import CookingMode    from '../components/RecipesTab/CookingMode'
-import RecipesTab     from '../components/RecipesTab'
+import CookingMode              from '../components/RecipesTab/CookingMode'
+import GroceryIngredientModal   from '../components/RecipesTab/GroceryIngredientModal'
+import RecipesTab               from '../components/RecipesTab'
 import WorkoutsTab    from '../components/WorkoutsTab'
 import ScheduleTab    from '../components/ScheduleTab'
 import ScheduleEditor from '../components/ScheduleTab/ScheduleEditor'
@@ -1011,6 +1012,113 @@ describe('RecipesTab Phase 4 — fork / hide / restore', () => {
     )
     fireEvent.click(screen.getByText('Builtin Dinner'))
     expect(screen.queryByRole('button', { name: /hide this suggestion/i })).toBeNull()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
+// Phase 6 — GroceryIngredientModal
+// ═════════════════════════════════════════════════════════════════
+describe('GroceryIngredientModal', () => {
+  const RECIPE_WITH_INGS: Recipe = {
+    ...BASE_RECIPE,
+    id: 7001,
+    name: 'Test Stir Fry',
+    ings: [['Chicken breast', '200g'], ['Broccoli', '1 cup'], ['Soy sauce', '2 tbsp']],
+  }
+
+  const baseProps = {
+    recipe: RECIPE_WITH_INGS,
+    onAdd:  vi.fn(),
+    onClose: vi.fn(),
+  }
+
+  it('renders the recipe name as subtitle', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    expect(screen.getByText('Test Stir Fry')).toBeInTheDocument()
+  })
+
+  it('renders all ingredients as checked checkboxes by default', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    const checkboxes = screen.getAllByRole('checkbox')
+    expect(checkboxes).toHaveLength(3)
+    checkboxes.forEach(cb => expect(cb).toBeChecked())
+  })
+
+  it('shows ingredient names and amounts', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    expect(screen.getByText('Chicken breast')).toBeInTheDocument()
+    expect(screen.getByText('Broccoli')).toBeInTheDocument()
+    expect(screen.getByText('200g')).toBeInTheDocument()
+    expect(screen.getByText('1 cup')).toBeInTheDocument()
+  })
+
+  it('Add button shows correct item count', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    expect(screen.getByRole('button', { name: /Add 3 items to grocery/i })).toBeInTheDocument()
+  })
+
+  it('unchecking an ingredient decrements the count', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    fireEvent.click(screen.getAllByRole('checkbox')[0])
+    expect(screen.getByRole('button', { name: /Add 2 items to grocery/i })).toBeInTheDocument()
+  })
+
+  it('"Deselect all" unchecks everything and disables the Add button', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Deselect all' }))
+    screen.getAllByRole('checkbox').forEach(cb => expect(cb).not.toBeChecked())
+    expect(screen.getByRole('button', { name: /Add items to grocery/i })).toBeDisabled()
+  })
+
+  it('"Select all" re-checks all after deselecting', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Deselect all' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Select all' }))
+    screen.getAllByRole('checkbox').forEach(cb => expect(cb).toBeChecked())
+  })
+
+  it('clicking Add calls onAdd with the right item names', () => {
+    const onAdd = vi.fn()
+    render(<GroceryIngredientModal {...baseProps} onAdd={onAdd} />)
+    // Deselect Broccoli (index 1)
+    fireEvent.click(screen.getAllByRole('checkbox')[1])
+    fireEvent.click(screen.getByRole('button', { name: /Add 2 items/i }))
+    expect(onAdd).toHaveBeenCalledOnce()
+    const items = onAdd.mock.calls[0][0]
+    expect(items).toHaveLength(2)
+    expect(items.map((i: { n: string }) => i.n)).toEqual(['Chicken breast', 'Soy sauce'])
+  })
+
+  it('items get the selected category', () => {
+    const onAdd = vi.fn()
+    render(<GroceryIngredientModal {...baseProps} onAdd={onAdd} />)
+    // Change category to Produce - Fruit
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Produce - Fruit' } })
+    fireEvent.click(screen.getByRole('button', { name: /Add 3 items/i }))
+    const items = onAdd.mock.calls[0][0]
+    items.forEach((item: { cat: string }) => expect(item.cat).toBe('Produce - Fruit'))
+  })
+
+  it('shows success message after adding', () => {
+    vi.useFakeTimers()
+    render(<GroceryIngredientModal {...baseProps} />)
+    fireEvent.click(screen.getByRole('button', { name: /Add 3 items/i }))
+    expect(screen.getByText(/3 items added to grocery list/i)).toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
+  it('Cancel button calls onClose', () => {
+    const onClose = vi.fn()
+    render(<GroceryIngredientModal {...baseProps} onClose={onClose} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('clicking backdrop calls onClose', () => {
+    const onClose = vi.fn()
+    const { container } = render(<GroceryIngredientModal {...baseProps} onClose={onClose} />)
+    fireEvent.click(container.firstChild as HTMLElement)
+    expect(onClose).toHaveBeenCalledOnce()
   })
 })
 

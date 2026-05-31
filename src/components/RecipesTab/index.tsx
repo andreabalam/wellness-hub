@@ -1,12 +1,13 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { Recipe } from '../../data/recipes'
-import { useRecipeStore, useTrackerStore, useHiddenRecipeStore } from '../../hooks/useStore'
+import { useRecipeStore, useTrackerStore, useHiddenRecipeStore, useGroceryCatalogStore } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
 import RecipeCard from './RecipeCard'
 import RecipeModal from './RecipeModal'
 import GroceryPanel from './GroceryPanel'
 import CookingMode from './CookingMode'
+import GroceryIngredientModal from './GroceryIngredientModal'
 
 type Filter = 'all' | 'breakfast' | 'smoothie' | 'lunch' | 'dinner' | 'dessert' | 'snack' | 'ferments' | 'drinks' | 'custom' | 'grocery'
 
@@ -26,6 +27,7 @@ export default function RecipesTab() {
   const store        = useRecipeStore()
   const trackerStore = useTrackerStore()
   const hiddenStore  = useHiddenRecipeStore()
+  const catalogStore = useGroceryCatalogStore()
 
   /** Map of recipe name (lowercase) → number of times logged in the tracker */
   const cookCounts = useMemo<Record<string, number>>(() => {
@@ -43,7 +45,8 @@ export default function RecipesTab() {
   const [filter, setFilter]         = useState<Filter>('all')
   const [customTag, setCustomTag]   = useState<string | null>(null)
   const [showModal, setShowModal]   = useState(false)
-  const [cookingRecipe, setCookingRecipe] = useState<Recipe | null>(null)
+  const [cookingRecipe, setCookingRecipe]   = useState<Recipe | null>(null)
+  const [groceryRecipe, setGroceryRecipe]   = useState<Recipe | null>(null)
   const [editRecipe, setEditRecipe] = useState<Recipe | null>(null)
   const [customRecipes, setCustomRecipes] = useState<Recipe[]>(() => store.getRecipes())
   const [customTags, setCustomTags] = useState<string[]>(() => store.getTags())
@@ -184,9 +187,8 @@ export default function RecipesTab() {
     setHiddenIds([])
   }, [hiddenStore])
 
-  // Placeholder — Phase 6 will open GroceryIngredientModal
-  const handleGrocery = useCallback((_recipe: Recipe) => {
-    // TODO Phase 6: open ingredient picker
+  const handleGrocery = useCallback((recipe: Recipe) => {
+    setGroceryRecipe(recipe)
   }, [])
 
   // Built-in recipes excluding the ones the user has hidden
@@ -401,6 +403,17 @@ export default function RecipesTab() {
         <CookingMode
           recipe={cookingRecipe}
           onClose={() => setCookingRecipe(null)}
+        />
+      )}
+
+      {/* Grocery ingredient picker */}
+      {groceryRecipe && (
+        <GroceryIngredientModal
+          recipe={groceryRecipe}
+          onAdd={items => {
+            items.forEach(item => catalogStore.add(item))
+          }}
+          onClose={() => setGroceryRecipe(null)}
         />
       )}
     </>
