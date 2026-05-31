@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { Recipe } from '../../data/recipes'
-import { useRecipeStore, useTrackerStore } from '../../hooks/useStore'
+import { useRecipeStore, useTrackerStore, useHiddenRecipeStore } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
 import RecipeCard from './RecipeCard'
@@ -25,6 +25,7 @@ const FILTER_BTNS: { id: Filter; label: string }[] = [
 export default function RecipesTab() {
   const store        = useRecipeStore()
   const trackerStore = useTrackerStore()
+  const hiddenStore  = useHiddenRecipeStore()
 
   /** Map of recipe name (lowercase) → number of times logged in the tracker */
   const cookCounts = useMemo<Record<string, number>>(() => {
@@ -48,6 +49,7 @@ export default function RecipesTab() {
   const [customTags, setCustomTags] = useState<string[]>(() => store.getTags())
   const [query, setQuery]           = useState('')
   const [builtinRecipes, setBuiltinRecipes] = useState<Recipe[]>([])
+  const [hiddenIds, setHiddenIds]   = useState<number[]>(() => hiddenStore.getAll())
   // When supabase isn't configured there's nothing to load — start in error state
   const [loading, setLoading]       = useState(!supabase ? false : true)
   const [loadError, setLoadError]   = useState(!supabase)
@@ -90,17 +92,25 @@ export default function RecipesTab() {
   }, [store])
 
   const handleSave = async (r: Recipe) => {
-    // Always save to localStorage immediately
-    store.addRecipe(r)
+    const existing = store.getRecipes()
+    const isUpdate = r.id != null && existing.some(x => x.id === r.id)
+
+    if (isUpdate) {
+      // Replace the existing recipe in-place
+      store.saveRecipes(existing.map(x => x.id === r.id ? r : x))
+    } else {
+      store.addRecipe(r)
+    }
     refreshCustom()
-    // Also save to Supabase when logged in
+
+    // Sync to Supabase when logged in
     if (supabase) {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
           const dbId = await sync.upsertUserRecipe(user.id, r)
-          if (dbId) {
-            // Update the recipe's id to the DB-assigned one and refresh
+          if (dbId && !isUpdate) {
+            // For new recipes: update the id to the DB-assigned one
             store.deleteRecipe(r.id!)
             store.addRecipe({ ...r, id: dbId })
             refreshCustom()
@@ -127,19 +137,63 @@ export default function RecipesTab() {
     refreshCustom()
   }
 
+  /**
+   * Edit handler — forks built-in recipes before opening the modal.
+   * A fork is a custom copy with `defaultId` pointing to the original.
+   * If the user already has a fork for this built-in, open that instead.
+   */
   const handleEdit = useCallback((recipe: Recipe) => {
-    setEditRecipe(recipe)
+    if (!recipe.custom && recipe.id != null) {
+      // Check if a fork already exists in customRecipes
+      const existingFork = store.getRecipes().find(r => r.defaultId === recipe.id)
+      if (existingFork) {
+        setEditRecipe(existingFork)
+      } else {
+        // Create an in-memory fork — it will be saved by handleSave
+        const fork: Recipe = {
+          ...recipe,
+          id:        Date.now(),
+          defaultId: recipe.id,
+          source:    'user',
+          custom:    true,
+          color:     'var(--purple)',
+          sc:        'cp',
+          tag:       recipe.tag ?? 'My recipe',
+          prepL:     recipe.prepTime ?? recipe.prepL ?? 'Custom',
+          prepC:     'var(--purple)',
+        }
+        setEditRecipe(fork)
+      }
+    } else {
+      setEditRecipe(recipe)
+    }
     setShowModal(true)
-  }, [])
+  }, [store])
 
   const handleCook = useCallback((recipe: Recipe) => {
     setCookingRecipe(recipe)
   }, [])
 
+  const handleHide = useCallback((id: number) => {
+    hiddenStore.hide(id)
+    setHiddenIds(hiddenStore.getAll())
+  }, [hiddenStore])
+
+  const handleRestoreAll = useCallback(() => {
+    hiddenStore.restoreAll()
+    setHiddenIds([])
+  }, [hiddenStore])
+
   // Placeholder — Phase 6 will open GroceryIngredientModal
   const handleGrocery = useCallback((_recipe: Recipe) => {
     // TODO Phase 6: open ingredient picker
   }, [])
+
+  // Built-in recipes excluding the ones the user has hidden
+  const visibleBuiltins = useMemo(
+    () => builtinRecipes.filter(r => r.id == null || !hiddenIds.includes(r.id)),
+    [builtinRecipes, hiddenIds]
+  )
 
   // Displayed recipes
   const visibleRecipes = useMemo<Recipe[]>(() => {
@@ -147,7 +201,7 @@ export default function RecipesTab() {
 
     // When searching, scan everything (built-in + custom) regardless of filter
     if (q) {
-      const all = [...builtinRecipes, ...customRecipes]
+      const all = [...visibleBuiltins, ...customRecipes]
       return all.filter(r =>
         r.name.toLowerCase().includes(q) ||
         (r.tag  ?? '').toLowerCase().includes(q) ||
@@ -159,9 +213,9 @@ export default function RecipesTab() {
     if (activeFilter === 'custom') {
       return customTag ? customRecipes.filter(r => r.cat === customTag) : customRecipes
     }
-    if (activeFilter === 'all') return builtinRecipes
-    return builtinRecipes.filter(r => r.cat === activeFilter)
-  }, [query, activeFilter, customTag, builtinRecipes, customRecipes])
+    if (activeFilter === 'all') return visibleBuiltins
+    return visibleBuiltins.filter(r => r.cat === activeFilter)
+  }, [query, activeFilter, customTag, visibleBuiltins, customRecipes])
 
   const tagsInUse = useMemo(() => [...new Set(customRecipes.map(r => r.cat))], [customRecipes])
 
@@ -270,6 +324,32 @@ export default function RecipesTab() {
       {/* Grocery panel */}
       {activeFilter === 'grocery' && <GroceryPanel />}
 
+      {/* Restore hidden banner — shown when the user has hidden built-in recipes */}
+      {hiddenIds.length > 0 && activeFilter !== 'grocery' && (
+        <div
+          role="status"
+          aria-label="restore hidden recipes"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '9px 14px', marginBottom: 14,
+            background: 'rgba(138,106,184,0.08)', border: '1px solid var(--purple)',
+            borderRadius: 9, fontSize: 12, color: 'var(--purple-light)',
+          }}
+        >
+          <span>{hiddenIds.length} suggestion{hiddenIds.length !== 1 ? 's' : ''} hidden</span>
+          <button
+            onClick={handleRestoreAll}
+            style={{
+              background: 'none', border: '1px solid var(--purple)', borderRadius: 6,
+              padding: '3px 10px', fontSize: 11, color: 'var(--purple-light)',
+              cursor: 'pointer', fontFamily: 'sans-serif',
+            }}
+          >
+            Restore all
+          </button>
+        </div>
+      )}
+
       {/* Recipe grid */}
       {activeFilter !== 'grocery' && (
         <div className="rgrid">
@@ -296,6 +376,7 @@ export default function RecipesTab() {
                 cookCount={cookCounts[r.name.toLowerCase()] ?? 0}
                 onEdit={handleEdit}
                 onDelete={r.custom ? handleDelete : undefined}
+                onHide={!r.custom && r.id != null ? handleHide : undefined}
                 onCook={r.steps.length > 0 ? handleCook : undefined}
                 onGrocery={r.ings.length > 0 ? handleGrocery : undefined}
               />

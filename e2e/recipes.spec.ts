@@ -209,4 +209,54 @@ test.describe('Recipes tab', () => {
     // Back on the recipes view
     await expect(page.getByRole('button', { name: '⭐ My Recipes' })).toBeVisible()
   })
+
+  // ── Phase 3 & 4: edit mode + fork / hide ────────────────────────
+
+  test('editing a custom recipe pre-fills fields and shows "Edit my Recipe"', async ({ page }) => {
+    // Create recipe first
+    await page.getByRole('button', { name: '+ Add my recipe' }).click()
+    await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Original Name')
+    await page.getByRole('button', { name: 'Save recipe' }).click()
+
+    // Open My Recipes and expand
+    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    await page.getByText('Original Name').click()
+
+    // Click Edit — modal should say "Edit my Recipe" with name pre-filled
+    await page.getByRole('button', { name: /edit recipe/i }).click()
+    await expect(page.getByText(/Edit my/)).toBeVisible()
+    await expect(page.getByPlaceholder('e.g. Mango Chia Pudding')).toHaveValue('Original Name')
+  })
+
+  test('editing a custom recipe and saving updates the recipe name', async ({ page }) => {
+    await page.getByRole('button', { name: '+ Add my recipe' }).click()
+    await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Before Edit')
+    await page.getByRole('button', { name: 'Save recipe' }).click()
+
+    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    await page.getByText('Before Edit').click()
+    await page.getByRole('button', { name: /edit recipe/i }).click()
+
+    // Clear and type new name
+    const nameField = page.getByPlaceholder('e.g. Mango Chia Pudding')
+    await nameField.clear()
+    await nameField.fill('After Edit')
+    await page.getByRole('button', { name: 'Save changes' }).click()
+
+    // Modal closes; updated name appears
+    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    await expect(page.getByText('After Edit')).toBeVisible()
+    await expect(page.getByText('Before Edit')).not.toBeVisible()
+  })
+
+  test('custom recipe does not show a Hide button', async ({ page }) => {
+    await page.getByRole('button', { name: '+ Add my recipe' }).click()
+    await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('No Hide Here')
+    await page.getByRole('button', { name: 'Save recipe' }).click()
+
+    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    await page.getByText('No Hide Here').click()
+
+    await expect(page.getByRole('button', { name: /hide this suggestion/i })).not.toBeVisible()
+  })
 })

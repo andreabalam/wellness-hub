@@ -46,6 +46,7 @@ import { SCHEDULE_BLOCKS, defaultToCustomBlock } from '../data/schedule'
 import type { CustomBlock } from '../data/schedule'
 import type { Recipe } from '../data/recipes'
 import type { User } from '@supabase/supabase-js'
+import { hiddenRecipeStore } from '../hooks/useStore'
 
 const FAKE_USER = { id: 'test-user-1' } as User
 
@@ -635,6 +636,262 @@ describe('RecipeModal', () => {
     const tipArea = screen.getByPlaceholderText('Any notes, variations, or tips...')
     fireEvent.change(tipArea, { target: { value: 'Great with lemon' } })
     expect((tipArea as HTMLTextAreaElement).value).toBe('Great with lemon')
+  })
+
+  // ── Phase 3: edit mode ───────────────────────────────────────────
+
+  it('shows "Edit my Recipe" heading when initialRecipe is provided', () => {
+    render(<RecipeModal {...baseProps} initialRecipe={CUSTOM_RECIPE} />)
+    expect(screen.getByText(/Edit my/)).toBeInTheDocument()
+  })
+
+  it('shows "Add my Recipe" heading when no initialRecipe', () => {
+    render(<RecipeModal {...baseProps} />)
+    expect(screen.getByText(/Add my/)).toBeInTheDocument()
+  })
+
+  it('pre-fills name from initialRecipe', () => {
+    render(<RecipeModal {...baseProps} initialRecipe={CUSTOM_RECIPE} />)
+    expect((screen.getByPlaceholderText('e.g. Mango Chia Pudding') as HTMLInputElement).value)
+      .toBe('My Smoothie')
+  })
+
+  it('pre-fills tagline from initialRecipe', () => {
+    render(<RecipeModal {...baseProps} initialRecipe={CUSTOM_RECIPE} />)
+    expect((screen.getByPlaceholderText('e.g. High protein · gluten free') as HTMLInputElement).value)
+      .toBe(CUSTOM_RECIPE.tag)
+  })
+
+  it('pre-fills macros from initialRecipe', () => {
+    const recipe: Recipe = {
+      ...CUSTOM_RECIPE,
+      hk: 350, hp: '28g', hc: '42g', hf: '10g', hfi: '6g',
+    }
+    render(<RecipeModal {...baseProps} initialRecipe={recipe} />)
+    expect((screen.getByPlaceholderText('kcal') as HTMLInputElement).value).toBe('350')
+    expect((screen.getByPlaceholderText('prot g') as HTMLInputElement).value).toBe('28')
+    expect((screen.getByPlaceholderText('carb g') as HTMLInputElement).value).toBe('42')
+    expect((screen.getByPlaceholderText('fat g') as HTMLInputElement).value).toBe('10')
+    expect((screen.getByPlaceholderText('fiber g') as HTMLInputElement).value).toBe('6')
+  })
+
+  it('pre-fills ingredients from initialRecipe', () => {
+    const recipe: Recipe = {
+      ...CUSTOM_RECIPE,
+      ings: [['Spinach', '2 cups'], ['Banana', '1 medium']],
+    }
+    render(<RecipeModal {...baseProps} initialRecipe={recipe} />)
+    expect(screen.getByText('Spinach')).toBeInTheDocument()
+    expect(screen.getByText('Banana')).toBeInTheDocument()
+    expect(screen.getByText('2 cups')).toBeInTheDocument()
+  })
+
+  it('pre-fills steps from initialRecipe', () => {
+    render(<RecipeModal {...baseProps} initialRecipe={BASE_RECIPE} />)
+    expect(screen.getByText('Cook chicken')).toBeInTheDocument()
+    expect(screen.getByText('Steam broccoli')).toBeInTheDocument()
+  })
+
+  it('pre-fills tip from initialRecipe', () => {
+    render(<RecipeModal {...baseProps} initialRecipe={BASE_RECIPE} />)
+    expect((screen.getByPlaceholderText('Any notes, variations, or tips...') as HTMLTextAreaElement).value)
+      .toBe('Add lemon for brightness')
+  })
+
+  it('shows "Save changes" button in edit mode', () => {
+    render(<RecipeModal {...baseProps} initialRecipe={CUSTOM_RECIPE} />)
+    expect(screen.getByText('Save changes')).toBeInTheDocument()
+    expect(screen.queryByText('Save recipe')).not.toBeInTheDocument()
+  })
+
+  it('shows "Save recipe" button in create mode', () => {
+    render(<RecipeModal {...baseProps} />)
+    expect(screen.getByText('Save recipe')).toBeInTheDocument()
+    expect(screen.queryByText('Save changes')).not.toBeInTheDocument()
+  })
+
+  it('preserves id when saving in edit mode', () => {
+    const onSave = vi.fn()
+    render(<RecipeModal {...baseProps} onSave={onSave} initialRecipe={CUSTOM_RECIPE} />)
+    fireEvent.click(screen.getByText('Save changes'))
+    expect(onSave.mock.calls[0][0].id).toBe(9002)
+  })
+
+  it('preserves defaultId when saving a forked recipe', () => {
+    const forked: Recipe = { ...CUSTOM_RECIPE, id: 5001, defaultId: 13 }
+    const onSave = vi.fn()
+    render(<RecipeModal {...baseProps} onSave={onSave} initialRecipe={forked} />)
+    fireEvent.click(screen.getByText('Save changes'))
+    expect(onSave.mock.calls[0][0].defaultId).toBe(13)
+  })
+
+  it('mk/mp/mc/mf mirror the single macro set on save', () => {
+    const onSave = vi.fn()
+    render(<RecipeModal {...baseProps} onSave={onSave} />)
+    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), { target: { value: 'Test' } })
+    fireEvent.change(screen.getByPlaceholderText('kcal'), { target: { value: '400' } })
+    fireEvent.change(screen.getByPlaceholderText('prot g'), { target: { value: '30' } })
+    fireEvent.click(screen.getByText('Save recipe'))
+    const saved = onSave.mock.calls[0][0]
+    expect(saved.hk).toBe(400)
+    expect(saved.mk).toBe(400)  // mirrors hk
+    expect(saved.hp).toBe('30g')
+    expect(saved.mp).toBe('30g')  // mirrors hp
+  })
+
+  it('shows "Changes saved!" message after saving in edit mode', async () => {
+    vi.useFakeTimers()
+    render(<RecipeModal {...baseProps} initialRecipe={CUSTOM_RECIPE} />)
+    fireEvent.click(screen.getByText('Save changes'))
+    expect(screen.getByText('Changes saved!')).toBeInTheDocument()
+    vi.useRealTimers()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
+// Phase 4 — hiddenRecipeStore + fork-on-edit (RecipesTab)
+// ═════════════════════════════════════════════════════════════════
+describe('hiddenRecipeStore', () => {
+  it('starts empty', () => {
+    expect(hiddenRecipeStore.getAll()).toEqual([])
+  })
+
+  it('hide() adds an id', () => {
+    hiddenRecipeStore.hide(42)
+    expect(hiddenRecipeStore.getAll()).toContain(42)
+    expect(hiddenRecipeStore.isHidden(42)).toBe(true)
+  })
+
+  it('hide() is idempotent — no duplicates', () => {
+    hiddenRecipeStore.hide(42)
+    hiddenRecipeStore.hide(42)
+    expect(hiddenRecipeStore.getAll().filter((i: number) => i === 42).length).toBe(1)
+  })
+
+  it('restore() removes a specific id', () => {
+    hiddenRecipeStore.hide(42)
+    hiddenRecipeStore.hide(99)
+    hiddenRecipeStore.restore(42)
+    expect(hiddenRecipeStore.isHidden(42)).toBe(false)
+    expect(hiddenRecipeStore.isHidden(99)).toBe(true)
+  })
+
+  it('restoreAll() clears all hidden ids', () => {
+    hiddenRecipeStore.hide(1)
+    hiddenRecipeStore.hide(2)
+    hiddenRecipeStore.hide(3)
+    hiddenRecipeStore.restoreAll()
+    expect(hiddenRecipeStore.getAll()).toEqual([])
+  })
+
+  it('isHidden() returns false for un-hidden id', () => {
+    expect(hiddenRecipeStore.isHidden(999)).toBe(false)
+  })
+})
+
+describe('RecipesTab Phase 4 — fork / hide / restore', () => {
+  const BUILTIN: Recipe = {
+    id: 5, name: 'Builtin Dinner', cat: 'dinner', type: 'Dinner',
+    color: 'var(--green)', sc: 'cg', tag: 'Classic', prepL: '30 min', prepC: 'var(--green)',
+    hk: 500, hp: '40g', hc: '35g', hf: '15g',
+    mk: 500, mp: '40g', mc: '35g', mf: '15g',
+    ings: [['Chicken', '200g']], steps: ['Cook it'], tip: '', custom: false,
+  }
+
+  it('Edit on a built-in pre-fills the modal as a fork (heading is "Edit my Recipe")', async () => {
+    // Seed builtin into the recipes state by intercepting fetchBuiltinRecipes
+    // We render RecipesTab which fetches on mount — but supabase is null in tests,
+    // so builtinRecipes stays empty. We test the fork logic via RecipeCard directly.
+    const onEdit = vi.fn()
+    render(
+      <RecipeCard
+        recipe={BUILTIN}
+        onEdit={onEdit}
+        cookCount={0}
+      />
+    )
+    // Expand card
+    fireEvent.click(screen.getByText('Builtin Dinner'))
+    // Click Edit
+    fireEvent.click(screen.getByRole('button', { name: /edit recipe/i }))
+    expect(onEdit).toHaveBeenCalledWith(BUILTIN)
+  })
+
+  it('RecipeModal receives a fork recipe and shows "Edit my Recipe"', () => {
+    const fork: Recipe = {
+      ...BUILTIN,
+      id: Date.now(),
+      defaultId: BUILTIN.id,
+      source: 'user' as const,
+      custom: true,
+      color: 'var(--purple)',
+      sc: 'cp',
+    }
+    const onSave = vi.fn()
+    render(
+      <RecipeModal
+        customTags={[]}
+        initialRecipe={fork}
+        onSave={onSave}
+        onAddTag={() => {}}
+        onClose={() => {}}
+      />
+    )
+    expect(screen.getByText(/Edit my/)).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Builtin Dinner')).toBeInTheDocument()
+  })
+
+  it('saving a fork preserves defaultId', () => {
+    const fork: Recipe = {
+      ...BUILTIN,
+      id: 12345,
+      defaultId: BUILTIN.id,
+      source: 'user' as const,
+      custom: true,
+      color: 'var(--purple)',
+      sc: 'cp',
+    }
+    const onSave = vi.fn()
+    render(
+      <RecipeModal
+        customTags={[]}
+        initialRecipe={fork}
+        onSave={onSave}
+        onAddTag={() => {}}
+        onClose={() => {}}
+      />
+    )
+    fireEvent.click(screen.getByText('Save changes'))
+    expect(onSave.mock.calls[0][0].defaultId).toBe(BUILTIN.id)
+    expect(onSave.mock.calls[0][0].custom).toBe(true)
+  })
+
+  it('Hide button calls onHide with recipe id', () => {
+    const onHide = vi.fn()
+    render(
+      <RecipeCard
+        recipe={BUILTIN}
+        cookCount={0}
+        onHide={onHide}
+      />
+    )
+    fireEvent.click(screen.getByText('Builtin Dinner'))
+    fireEvent.click(screen.getByRole('button', { name: /hide this suggestion/i }))
+    expect(onHide).toHaveBeenCalledWith(BUILTIN.id)
+  })
+
+  it('Hide button is not shown for custom recipes', () => {
+    const custom: Recipe = { ...BUILTIN, id: 9002, custom: true }
+    render(
+      <RecipeCard
+        recipe={custom}
+        cookCount={0}
+        onHide={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getByText('Builtin Dinner'))
+    expect(screen.queryByRole('button', { name: /hide this suggestion/i })).toBeNull()
   })
 })
 

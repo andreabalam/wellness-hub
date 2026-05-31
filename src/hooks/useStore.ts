@@ -9,15 +9,16 @@ import { supabase } from '../lib/supabase'
 import * as sync from '../lib/sync'
 import { safeGet, safeSet } from '../lib/storage'
 
-const TRACKER_KEY           = 'whub_tracker_v3'
-const RECIPES_KEY           = 'whub_custom_recipes_v1'
-const TAGS_KEY              = 'whub_custom_tags_v1'
-const GROCERY_KEY           = 'whub_grocery_v1'
-const GROCERY_CATALOG_KEY   = 'whub_grocery_catalog_v1'
-const FOOD_LIBRARY_KEY      = 'whub_food_library_v1'
-const SCHEDULE_KEY          = 'whub_schedule_v1'
-export const MED_GUIDES_KEY = 'whub_med_guides_v1'
-const REMINDERS_KEY         = 'whub_reminders_v1'
+const TRACKER_KEY             = 'whub_tracker_v3'
+const RECIPES_KEY             = 'whub_custom_recipes_v1'
+const TAGS_KEY                = 'whub_custom_tags_v1'
+const GROCERY_KEY             = 'whub_grocery_v1'
+const GROCERY_CATALOG_KEY     = 'whub_grocery_catalog_v1'
+const FOOD_LIBRARY_KEY        = 'whub_food_library_v1'
+const SCHEDULE_KEY            = 'whub_schedule_v1'
+export const MED_GUIDES_KEY   = 'whub_med_guides_v1'
+const REMINDERS_KEY           = 'whub_reminders_v1'
+const HIDDEN_RECIPES_KEY      = 'whub_hidden_recipes_v1'
 
 /**
  * Fire-and-forget push to Supabase — only runs when a user is signed in.
@@ -144,6 +145,23 @@ export const groceryCatalogStore = {
   },
 }
 
+// ── Hidden built-in recipes ── set of recipe IDs the user has hidden ─
+export const hiddenRecipeStore = {
+  getAll: (): number[] => safeGet<number[]>(HIDDEN_RECIPES_KEY, []),
+
+  hide: (id: number) => {
+    const current = hiddenRecipeStore.getAll()
+    if (!current.includes(id)) safeSet(HIDDEN_RECIPES_KEY, [...current, id])
+  },
+
+  restore: (id: number) =>
+    safeSet(HIDDEN_RECIPES_KEY, hiddenRecipeStore.getAll().filter(i => i !== id)),
+
+  restoreAll: () => safeSet(HIDDEN_RECIPES_KEY, []),
+
+  isHidden: (id: number): boolean => hiddenRecipeStore.getAll().includes(id),
+}
+
 // ── Reminders ── persistent cross-day checklist ───────────────────
 export const remindersStore = {
   getAll: (): Reminder[] => safeGet<Reminder[]>(REMINDERS_KEY, []),
@@ -168,6 +186,7 @@ export function useGroceryStore()     { return groceryStore }
 export function useFoodLibraryStore() { return foodLibraryStore }
 export function useRemindersStore()      { return remindersStore }
 export function useGroceryCatalogStore() { return groceryCatalogStore }
+export function useHiddenRecipeStore()   { return hiddenRecipeStore }
 
 // ── Merge remote data into localStorage without triggering another push ──
 export function importRemoteData(remote: {
@@ -199,6 +218,7 @@ export function exportAllData() {
     groceryChecked: safeGet<string[]>(GROCERY_KEY, []),
     foodLibrary:    safeGet<QuickFood[]>(FOOD_LIBRARY_KEY, []),
     groceryCatalog: safeGet<GroceryCatalogItem[]>(GROCERY_CATALOG_KEY, []),
+    hiddenRecipes:  safeGet<number[]>(HIDDEN_RECIPES_KEY, []),
     exportedAt:     new Date().toISOString(),
     version:        'whub_v1',
   }
@@ -214,6 +234,7 @@ export function importAllData(json: string): boolean {
     if (data.groceryChecked) safeSet(GROCERY_KEY,         data.groceryChecked)
     if (data.foodLibrary)    safeSet(FOOD_LIBRARY_KEY,    data.foodLibrary)
     if (data.groceryCatalog) safeSet(GROCERY_CATALOG_KEY, data.groceryCatalog)
+    if (data.hiddenRecipes)  safeSet(HIDDEN_RECIPES_KEY,  data.hiddenRecipes)
     return true
   } catch { return false }
 }
