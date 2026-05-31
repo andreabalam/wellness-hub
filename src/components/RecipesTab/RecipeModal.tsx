@@ -4,6 +4,8 @@ import type { Recipe } from '../../data/recipes'
 
 interface Props {
   customTags: string[]
+  /** When set, the modal pre-populates fields for editing an existing recipe */
+  initialRecipe?: Recipe
   onSave: (r: Recipe) => void
   onAddTag: (tag: string) => void
   onClose: () => void
@@ -11,26 +13,37 @@ interface Props {
 
 const PREP_TIME_PRESETS = ['5 min', '10 min', '15 min', '20 min', '30 min', '45 min', '1 hr+', 'Prep ahead', 'Meal prep']
 
-export default function RecipeModal({ customTags, onSave, onAddTag, onClose }: Props) {
-  const [name, setName]           = useState('')
-  const [tagLine, setTagLine]     = useState('')
-  const [cat, setCat]             = useState('dinner')
+/** Strip the trailing "g" from macro strings like "35g" → "35" */
+function stripG(s: string | undefined): string {
+  if (!s) return ''
+  const n = parseInt(s)
+  return isNaN(n) || n === 0 ? '' : String(n)
+}
+
+export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTag, onClose }: Props) {
+  const isEdit = Boolean(initialRecipe)
+
+  // Lazy initialisers: pre-fill from initialRecipe when editing
+  const [name, setName]           = useState(() => initialRecipe?.name ?? '')
+  const [tagLine, setTagLine]     = useState(() => initialRecipe?.tag ?? '')
+  const [cat, setCat]             = useState(() => initialRecipe?.cat ?? 'dinner')
   const [newTag, setNewTag]       = useState('')
-  const [prepTime, setPrepTime]   = useState('')
-  const [healthTag, setHealthTag] = useState<'healthy' | 'indulgent' | ''>('')
-  const [link, setLink]           = useState('')
-  const [image, setImage]         = useState('')
-  const [kcal, setKcal]           = useState('')
-  const [prot, setProt]           = useState('')
-  const [carb, setCarb]           = useState('')
-  const [fat, setFat]             = useState('')
-  const [fib, setFib]             = useState('')
-  const [ings, setIngs]           = useState<[string, string][]>([])
+  const [prepTime, setPrepTime]   = useState(() => initialRecipe?.prepTime ?? initialRecipe?.prepL ?? '')
+  const [healthTag, setHealthTag] = useState<'healthy' | 'indulgent' | ''>(() => initialRecipe?.healthTag ?? '')
+  const [link, setLink]           = useState(() => initialRecipe?.link ?? '')
+  const [image, setImage]         = useState(() => initialRecipe?.image ?? '')
+  // Single macro set: read from hk/hp/hc/hf/hfi (the "per serving" set)
+  const [kcal, setKcal]           = useState(() => initialRecipe ? String(initialRecipe.hk || '') : '')
+  const [prot, setProt]           = useState(() => stripG(initialRecipe?.hp))
+  const [carb, setCarb]           = useState(() => stripG(initialRecipe?.hc))
+  const [fat, setFat]             = useState(() => stripG(initialRecipe?.hf))
+  const [fib, setFib]             = useState(() => stripG(initialRecipe?.hfi))
+  const [ings, setIngs]           = useState<[string, string][]>(() => initialRecipe?.ings ?? [])
   const [ingName, setIngName]     = useState('')
   const [ingAmt, setIngAmt]       = useState('')
-  const [steps, setSteps]         = useState<string[]>([])
+  const [steps, setSteps]         = useState<string[]>(() => initialRecipe?.steps ?? [])
   const [stepTxt, setStepTxt]     = useState('')
-  const [tip, setTip]             = useState('')
+  const [tip, setTip]             = useState(() => initialRecipe?.tip ?? '')
   const [msg, setMsg]             = useState('')
   const [msgOk, setMsgOk]         = useState(true)
 
@@ -58,10 +71,19 @@ export default function RecipeModal({ customTags, onSave, onAddTag, onClose }: P
 
   const save = () => {
     if (!name.trim()) { setMsg('Please enter a recipe name.'); setMsgOk(false); return }
+
+    const hkVal = parseInt(kcal) || 0
     const recipe: Recipe = {
-      id: Date.now(), custom: true, cat,
+      // Preserve id when editing; generate a new one when creating
+      id: initialRecipe?.id ?? Date.now(),
+      // Carry forward fork/source metadata
+      defaultId: initialRecipe?.defaultId,
+      source: initialRecipe?.source ?? 'user',
+      custom: true,
+      cat,
       type: cat.charAt(0).toUpperCase() + cat.slice(1),
-      color: 'var(--purple)', sc: 'cp',
+      color: initialRecipe?.color ?? 'var(--purple)',
+      sc:    initialRecipe?.sc    ?? 'cp',
       name: name.trim(),
       tag: tagLine.trim() || 'My recipe',
       prepL: prepTime || 'Custom',
@@ -70,16 +92,20 @@ export default function RecipeModal({ customTags, onSave, onAddTag, onClose }: P
       healthTag: (healthTag as 'healthy' | 'indulgent') || undefined,
       link: link.trim() || undefined,
       image: image.trim() || undefined,
-      hk: parseInt(kcal) || 0,
+      // Single macro set — both sizes share the same values
+      hk: hkVal,
       hp: `${parseInt(prot) || 0}g`,
       hc: `${parseInt(carb) || 0}g`,
       hf: `${parseInt(fat) || 0}g`,
       hfi: fib ? `${parseInt(fib) || 0}g` : undefined,
-      mk: 0, mp: '0g', mc: '0g', mf: '0g',
+      mk: hkVal,
+      mp: `${parseInt(prot) || 0}g`,
+      mc: `${parseInt(carb) || 0}g`,
+      mf: `${parseInt(fat) || 0}g`,
       ings, steps, tip: tip.trim(),
     }
     onSave(recipe)
-    setMsg('Recipe saved!')
+    setMsg(isEdit ? 'Changes saved!' : 'Recipe saved!')
     setMsgOk(true)
     setTimeout(onClose, 900)
   }
@@ -100,7 +126,10 @@ export default function RecipeModal({ customTags, onSave, onAddTag, onClose }: P
       <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 16, maxWidth: 600, margin: '0 auto', padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <div style={{ fontFamily: '"DM Serif Display",serif', fontSize: 22, fontWeight: 400, color: 'var(--text)' }}>
-            Add my <em style={{ fontStyle: 'italic', color: 'var(--purple-light)' }}>Recipe</em>
+            {isEdit
+              ? <>Edit my <em style={{ fontStyle: 'italic', color: 'var(--purple-light)' }}>Recipe</em></>
+              : <>Add my <em style={{ fontStyle: 'italic', color: 'var(--purple-light)' }}>Recipe</em></>
+            }
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, color: 'var(--muted)', cursor: 'pointer' }}>×</button>
         </div>
@@ -158,7 +187,7 @@ export default function RecipeModal({ customTags, onSave, onAddTag, onClose }: P
           </div>
         </FieldRow>
 
-        {/* Macros */}
+        {/* Macros — single set per serving */}
         <FieldRow label="Macros per serving (optional)">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 6 }}>
             {([['kcal', kcal, setKcal], ['prot g', prot, setProt], ['carb g', carb, setCarb], ['fat g', fat, setFat], ['fiber g', fib, setFib]] as [string, string, (v: string) => void][]).map(([ph, val, set]) => (
@@ -225,7 +254,9 @@ export default function RecipeModal({ customTags, onSave, onAddTag, onClose }: P
         </FieldRow>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-          <button onClick={save} className="tbtn" style={{ flex: 1, background: 'var(--purple)', color: '#fff' }}>Save recipe</button>
+          <button onClick={save} className="tbtn" style={{ flex: 1, background: 'var(--purple)', color: '#fff' }}>
+            {isEdit ? 'Save changes' : 'Save recipe'}
+          </button>
           <button onClick={onClose} style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontFamily: 'sans-serif', color: 'var(--muted)', cursor: 'pointer' }}>Cancel</button>
         </div>
         {msg && <div style={{ marginTop: 10, fontSize: 13, textAlign: 'center', color: msgOk ? 'var(--green-light)' : 'var(--coral-light)' }}>{msg}</div>}

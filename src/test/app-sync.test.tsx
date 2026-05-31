@@ -19,23 +19,25 @@ vi.mock('../lib/supabase', () => ({
 }))
 
 vi.mock('../lib/sync', () => ({
-  fetchBuiltinRecipes: vi.fn(),
-  fetchUserRecipes:    vi.fn(),
-  upsertUserRecipe:    vi.fn(),
-  deleteUserRecipe:    vi.fn(),
-  pullAllDays:        vi.fn(),
-  pullTags:           vi.fn(),
-  pullGrocery:        vi.fn(),
-  pullFoodLibrary:    vi.fn(),
-  pullSchedule:       vi.fn(),
-  pullMedGuides:      vi.fn(),
-  pullGroceryCatalog: vi.fn(),
-  pushDay:            vi.fn(),
-  pushTags:           vi.fn(),
-  pushGrocery:        vi.fn(),
-  pushFoodLibrary:    vi.fn(),
-  pushSchedule:       vi.fn(),
-  pushMedGuides:      vi.fn(),
+  fetchBuiltinRecipes:      vi.fn(),
+  fetchUserRecipes:         vi.fn(),
+  upsertUserRecipe:         vi.fn(),
+  deleteUserRecipe:         vi.fn(),
+  pullAllDays:              vi.fn(),
+  pullTags:                 vi.fn(),
+  pullGrocery:              vi.fn(),
+  pullFoodLibrary:          vi.fn(),
+  pullSchedule:             vi.fn(),
+  pullMedGuides:            vi.fn(),
+  pullGroceryCatalog:       vi.fn(),
+  pullUserGroceryCatalog:   vi.fn(),
+  pushDay:                  vi.fn(),
+  pushTags:                 vi.fn(),
+  pushGrocery:              vi.fn(),
+  pushFoodLibrary:          vi.fn(),
+  pushSchedule:             vi.fn(),
+  pushMedGuides:            vi.fn(),
+  pushUserGroceryCatalog:   vi.fn(),
 }))
 
 // ── Imports (after mocks) ─────────────────────────────────────────
@@ -82,12 +84,14 @@ beforeEach(() => {
   mockSync['pullSchedule'].mockResolvedValue(null)
   mockSync['pullMedGuides'].mockResolvedValue(null)
   mockSync['pullGroceryCatalog'].mockResolvedValue(null)
+  mockSync['pullUserGroceryCatalog'].mockResolvedValue(null)
   mockSync['pushDay'].mockResolvedValue(undefined)
   mockSync['pushTags'].mockResolvedValue(undefined)
   mockSync['pushGrocery'].mockResolvedValue(undefined)
   mockSync['pushFoodLibrary'].mockResolvedValue(undefined)
   mockSync['pushSchedule'].mockResolvedValue(undefined)
   mockSync['pushMedGuides'].mockResolvedValue(undefined)
+  mockSync['pushUserGroceryCatalog'].mockResolvedValue(undefined)
 })
 
 afterEach(() => {
@@ -132,6 +136,21 @@ describe('App (with mocked Supabase)', () => {
     expect(mockSync['pullTags']).toHaveBeenCalledWith(MOCK_USER.id)
     expect(mockSync['pullGrocery']).toHaveBeenCalledWith(MOCK_USER.id)
     expect(mockSync['pullFoodLibrary']).toHaveBeenCalledWith(MOCK_USER.id)
+    expect(mockSync['pullUserGroceryCatalog']).toHaveBeenCalledWith(MOCK_USER.id)
+  })
+
+  it('local-only grocery catalog items survive the merge', async () => {
+    ls['whub_grocery_catalog_v1'] = JSON.stringify([{ id: 'local-1', n: 'Local Kale', cat: 'Produce - Vegetables' }])
+    mockAuth.getSession.mockResolvedValue({ data: { session: { user: MOCK_USER } }, error: null })
+    mockSync['pullUserGroceryCatalog'].mockResolvedValue([{ id: 'remote-1', n: 'Remote Salmon', cat: 'Protein - Animal' }])
+
+    render(<App />)
+    await waitFor(() => {
+      expect(mockSync['pushUserGroceryCatalog']).toHaveBeenCalled()
+    }, { timeout: 3000 })
+    const pushed = mockSync['pushUserGroceryCatalog'].mock.calls[0]?.[1]
+    expect(pushed?.find((i: any) => i.id === 'local-1')).toBeDefined()
+    expect(pushed?.find((i: any) => i.id === 'remote-1')).toBeDefined()
   })
 
   it('calls push functions after syncing', async () => {
@@ -165,12 +184,14 @@ describe('App (with mocked Supabase)', () => {
     mockSync['pullSchedule'].mockResolvedValue(null)
     mockSync['pullMedGuides'].mockResolvedValue(null)
     mockSync['pullGroceryCatalog'].mockResolvedValue(null)
+    mockSync['pullUserGroceryCatalog'].mockResolvedValue(null)
     mockSync['pushDay'].mockResolvedValue(undefined)
     mockSync['pushTags'].mockResolvedValue(undefined)
     mockSync['pushGrocery'].mockResolvedValue(undefined)
     mockSync['pushFoodLibrary'].mockResolvedValue(undefined)
     mockSync['pushSchedule'].mockResolvedValue(undefined)
     mockSync['pushMedGuides'].mockResolvedValue(undefined)
+    mockSync['pushUserGroceryCatalog'].mockResolvedValue(undefined)
 
     authCb!('SIGNED_IN', { user: MOCK_USER })
 

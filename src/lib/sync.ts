@@ -6,7 +6,7 @@ import { supabase } from './supabase'
 import type { DayData, QuickFood } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
 import type { CustomBlock } from '../data/schedule'
-import type { GroceryItem } from '../data/grocery'
+import type { GroceryItem, GroceryCatalogItem } from '../data/grocery'
 import type { Reminder } from '../data/reminders'
 
 // ── Tracker days ─────────────────────────────────────────────────
@@ -233,6 +233,23 @@ export async function upsertReminder(userId: string, r: Reminder): Promise<strin
 
 export async function deleteReminder(reminderId: string): Promise<void> {
   await supabase!.from('reminders').delete().eq('id', reminderId)
+}
+
+// ── User grocery catalog (per-user CRUD) ─────────────────────────
+
+export async function pushUserGroceryCatalog(userId: string, items: GroceryCatalogItem[]) {
+  await supabase!
+    .from('user_grocery_catalog')
+    .upsert({ user_id: userId, items, updated_at: new Date().toISOString() })
+}
+
+export async function pullUserGroceryCatalog(userId: string): Promise<GroceryCatalogItem[] | null> {
+  const { data } = await supabase!
+    .from('user_grocery_catalog')
+    .select('items')
+    .eq('user_id', userId)
+    .single()
+  return data ? (data.items as GroceryCatalogItem[]) : null
 }
 
 // ── Grocery catalog (shared, public read) ─────────────────────────

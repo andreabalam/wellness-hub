@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PRESET_CATS } from '../data/recipes'
+import { PRESET_CATS, DEFAULT_RECIPE_IDS } from '../data/recipes'
 import type { Recipe } from '../data/recipes'
 
 // ── Recipe interface fixtures ─────────────────────────────────────
@@ -177,5 +177,68 @@ describe('PRESET_CATS', () => {
       expect(typeof cat).toBe('string')
       expect(cat.length).toBeGreaterThan(0)
     })
+  })
+})
+
+// ── DEFAULT_RECIPE_IDS ────────────────────────────────────────────
+
+describe('DEFAULT_RECIPE_IDS', () => {
+  it('contains exactly 7 ids (one per category except Drinks)', () => {
+    expect(DEFAULT_RECIPE_IDS).toHaveLength(7)
+  })
+
+  it('includes the expected category representatives', () => {
+    // Breakfast=2, Smoothie=5, Lunch=9, Dinner=13, Dessert=22, Ferments=24, Snack=45
+    expect(DEFAULT_RECIPE_IDS).toContain(2)   // Breakfast
+    expect(DEFAULT_RECIPE_IDS).toContain(5)   // Smoothie
+    expect(DEFAULT_RECIPE_IDS).toContain(9)   // Lunch
+    expect(DEFAULT_RECIPE_IDS).toContain(13)  // Dinner
+    expect(DEFAULT_RECIPE_IDS).toContain(22)  // Dessert
+    expect(DEFAULT_RECIPE_IDS).toContain(24)  // Ferments
+    expect(DEFAULT_RECIPE_IDS).toContain(45)  // Snack
+  })
+
+  it('all ids are positive integers', () => {
+    DEFAULT_RECIPE_IDS.forEach(id => {
+      expect(Number.isInteger(id)).toBe(true)
+      expect(id).toBeGreaterThan(0)
+    })
+  })
+
+  it('all ids are unique', () => {
+    expect(new Set(DEFAULT_RECIPE_IDS).size).toBe(DEFAULT_RECIPE_IDS.length)
+  })
+})
+
+// ── Recipe optional Phase 1 fields ───────────────────────────────
+
+describe('Recipe interface — Phase 1 new fields', () => {
+  it('defaultId is optional and can be set on a forked recipe', () => {
+    const forked: Recipe = {
+      id: 1001, cat: 'breakfast', type: 'Breakfast', color: '', sc: '', name: 'My Oats',
+      tag: '', prepL: '', prepC: '', hk: 300, hp: '15g', hc: '40g', hf: '8g',
+      mk: 0, mp: '0g', mc: '0g', mf: '0g', ings: [], steps: [], tip: '',
+      custom: true, source: 'user', defaultId: 2,
+    }
+    expect(forked.defaultId).toBe(2)
+  })
+
+  it('hidden is optional and defaults to undefined', () => {
+    const recipe: Recipe = {
+      cat: 'snack', type: 'Snack', color: '', sc: '', name: 'Hidden Snack',
+      tag: '', prepL: '', prepC: '', hk: 100, hp: '5g', hc: '10g', hf: '2g',
+      mk: 0, mp: '0g', mc: '0g', mf: '0g', ings: [], steps: [], tip: '',
+    }
+    expect(recipe.hidden).toBeUndefined()
+  })
+
+  it('hidden can be set to true to suppress a default recipe', () => {
+    const recipe: Recipe = {
+      cat: 'dinner', type: 'Dinner', color: '', sc: '', name: 'Boring Salmon',
+      tag: '', prepL: '', prepC: '', hk: 400, hp: '35g', hc: '30g', hf: '10g',
+      mk: 0, mp: '0g', mc: '0g', mf: '0g', ings: [], steps: [], tip: '',
+      hidden: true,
+    }
+    expect(recipe.hidden).toBe(true)
   })
 })

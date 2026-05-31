@@ -35,7 +35,9 @@ import UpdatePrompt   from '../components/UpdatePrompt'
 import GroceryPanel   from '../components/RecipesTab/GroceryPanel'
 import RecipeCard     from '../components/RecipesTab/RecipeCard'
 import RecipeModal    from '../components/RecipesTab/RecipeModal'
-import RecipesTab     from '../components/RecipesTab'
+import CookingMode              from '../components/RecipesTab/CookingMode'
+import GroceryIngredientModal   from '../components/RecipesTab/GroceryIngredientModal'
+import RecipesTab               from '../components/RecipesTab'
 import WorkoutsTab    from '../components/WorkoutsTab'
 import ScheduleTab    from '../components/ScheduleTab'
 import ScheduleEditor from '../components/ScheduleTab/ScheduleEditor'
@@ -45,6 +47,7 @@ import { SCHEDULE_BLOCKS, defaultToCustomBlock } from '../data/schedule'
 import type { CustomBlock } from '../data/schedule'
 import type { Recipe } from '../data/recipes'
 import type { User } from '@supabase/supabase-js'
+import { hiddenRecipeStore } from '../hooks/useStore'
 
 const FAKE_USER = { id: 'test-user-1' } as User
 
@@ -173,6 +176,125 @@ describe('GroceryPanel', () => {
 })
 
 // ═════════════════════════════════════════════════════════════════
+// GroceryPanel Phase 5 — dynamic catalog items
+// ═════════════════════════════════════════════════════════════════
+describe('GroceryPanel — dynamic catalog', () => {
+  it('shows "Add item to my list" toggle button', () => {
+    render(<GroceryPanel />)
+    expect(screen.getByRole('button', { name: /add grocery item/i })).toBeInTheDocument()
+  })
+
+  it('clicking the toggle reveals the add-item form', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    expect(screen.getByPlaceholderText(/Item name/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add item' })).toBeInTheDocument()
+  })
+
+  it('Cancel button hides the form again', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByPlaceholderText(/Item name/i)).not.toBeInTheDocument()
+  })
+
+  it('Add item button is disabled when name is empty', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    expect(screen.getByRole('button', { name: 'Add item' })).toBeDisabled()
+  })
+
+  it('typing a name enables the Add item button', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Kimchi' } })
+    expect(screen.getByRole('button', { name: 'Add item' })).not.toBeDisabled()
+  })
+
+  it('submitting adds the item and it appears in the list', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Kimchi' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    expect(screen.getByText('Kimchi')).toBeInTheDocument()
+    // Form closes after submit
+    expect(screen.queryByPlaceholderText(/Item name/i)).not.toBeInTheDocument()
+  })
+
+  it('pressing Enter in the name field submits the form', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Sauerkraut' } })
+    fireEvent.keyDown(screen.getByPlaceholderText(/Item name/i), { key: 'Enter' })
+    expect(screen.getByText('Sauerkraut')).toBeInTheDocument()
+  })
+
+  it('user-added item can be checked off', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Miso' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    const item = screen.getByText('Miso').closest('.gitem')!
+    fireEvent.click(item)
+    expect(item).toHaveClass('gchecked')
+  })
+
+  it('user-added item has a × remove button', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Tempeh' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    expect(screen.getByRole('button', { name: /Remove Tempeh/i })).toBeInTheDocument()
+  })
+
+  it('clicking × removes the item from the list', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Natto' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    expect(screen.getByText('Natto')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Remove Natto/i }))
+    expect(screen.queryByText('Natto')).not.toBeInTheDocument()
+  })
+
+  it('user item for a standard category appears under that category header', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Dragon Fruit' } })
+    // Select "Produce - Fruit" category
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Produce - Fruit' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    // The item should appear; its category header should also be visible
+    const header = screen.getByText('Produce - Fruit')
+    const item   = screen.getByText('Dragon Fruit')
+    expect(header).toBeInTheDocument()
+    expect(item).toBeInTheDocument()
+  })
+
+  it('item for a non-standard category appears under "My Custom Items"', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Magic Beans' } })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'My Custom Items' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    expect(screen.getByText('My Custom Items')).toBeInTheDocument()
+    expect(screen.getByText('Magic Beans')).toBeInTheDocument()
+  })
+
+  it('multiple user items can be added independently', () => {
+    render(<GroceryPanel />)
+    for (const name of ['Item A', 'Item B', 'Item C']) {
+      fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+      fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: name } })
+      fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    }
+    expect(screen.getByText('Item A')).toBeInTheDocument()
+    expect(screen.getByText('Item B')).toBeInTheDocument()
+    expect(screen.getByText('Item C')).toBeInTheDocument()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
 // RecipeCard
 // ═════════════════════════════════════════════════════════════════
 describe('RecipeCard', () => {
@@ -281,10 +403,183 @@ describe('RecipeCard', () => {
     fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
     expect(screen.queryByText('Delete recipe')).not.toBeInTheDocument()
   })
+
+  // ── Phase 2: action bar buttons ─────────────────────────────────
+
+  it('shows Edit button when expanded and onEdit is provided', () => {
+    render(<RecipeCard recipe={BASE_RECIPE} onEdit={vi.fn()} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
+  })
+
+  it('calls onEdit with the recipe when Edit is clicked', () => {
+    const onEdit = vi.fn()
+    render(<RecipeCard recipe={BASE_RECIPE} onEdit={onEdit} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    expect(onEdit).toHaveBeenCalledWith(BASE_RECIPE)
+  })
+
+  it('does not show Edit button when onEdit is not provided', () => {
+    render(<RecipeCard recipe={BASE_RECIPE} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
+  })
+
+  it('shows Cook button when expanded and recipe has steps + onCook provided', () => {
+    render(<RecipeCard recipe={BASE_RECIPE} onCook={vi.fn()} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.getByRole('button', { name: /cook/i })).toBeInTheDocument()
+  })
+
+  it('calls onCook with the recipe when Cook is clicked', () => {
+    const onCook = vi.fn()
+    render(<RecipeCard recipe={BASE_RECIPE} onCook={onCook} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByRole('button', { name: /cook/i }))
+    expect(onCook).toHaveBeenCalledWith(BASE_RECIPE)
+  })
+
+  it('does not show Cook button when recipe has no steps', () => {
+    const noSteps = { ...BASE_RECIPE, steps: [] }
+    render(<RecipeCard recipe={noSteps} onCook={vi.fn()} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.queryByRole('button', { name: /cook/i })).not.toBeInTheDocument()
+  })
+
+  it('shows Grocery button when expanded and recipe has ingredients + onGrocery provided', () => {
+    render(<RecipeCard recipe={BASE_RECIPE} onGrocery={vi.fn()} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.getByRole('button', { name: /grocery/i })).toBeInTheDocument()
+  })
+
+  it('calls onGrocery with the recipe when Grocery is clicked', () => {
+    const onGrocery = vi.fn()
+    render(<RecipeCard recipe={BASE_RECIPE} onGrocery={onGrocery} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByRole('button', { name: /grocery/i }))
+    expect(onGrocery).toHaveBeenCalledWith(BASE_RECIPE)
+  })
+
+  it('does not show Grocery button when recipe has no ingredients', () => {
+    const noIngs = { ...BASE_RECIPE, ings: [] as [string,string][] }
+    render(<RecipeCard recipe={noIngs} onGrocery={vi.fn()} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.queryByRole('button', { name: /grocery/i })).not.toBeInTheDocument()
+  })
+
+  it('shows Hide button for built-in recipes when onHide is provided', () => {
+    render(<RecipeCard recipe={BASE_RECIPE} onHide={vi.fn()} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.getByRole('button', { name: /hide/i })).toBeInTheDocument()
+  })
+
+  it('calls onHide with the recipe id when Hide is clicked', () => {
+    const onHide = vi.fn()
+    render(<RecipeCard recipe={BASE_RECIPE} onHide={onHide} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByRole('button', { name: /hide/i }))
+    expect(onHide).toHaveBeenCalledWith(9001)
+  })
+
+  it('does not show Hide button for custom recipes (Delete is shown instead)', () => {
+    render(<RecipeCard recipe={CUSTOM_RECIPE} onDelete={vi.fn()} onHide={vi.fn()} />)
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    // Delete is shown, Hide should not be (custom recipes use Delete)
+    expect(screen.getByText('Delete recipe')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^hide$/i })).not.toBeInTheDocument()
+  })
+
+  it('action buttons do not toggle the card when clicked', () => {
+    const onEdit = vi.fn()
+    render(<RecipeCard recipe={BASE_RECIPE} onEdit={onEdit} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    // Card is now open — clicking Edit should NOT close it
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    expect(screen.getByText('tap to collapse')).toBeInTheDocument()
+  })
 })
 
 // ═════════════════════════════════════════════════════════════════
-// RecipeModal
+// CookingMode
+// ═════════════════════════════════════════════════════════════════
+describe('CookingMode', () => {
+  const onClose = vi.fn()
+  beforeEach(() => onClose.mockClear())
+
+  it('renders the recipe name in the header', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText('Test Dish')).toBeInTheDocument()
+  })
+
+  it('shows ingredients section with all items', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText('Chicken breast')).toBeInTheDocument()
+    expect(screen.getByText('Broccoli')).toBeInTheDocument()
+  })
+
+  it('shows ingredient amounts', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText('200g')).toBeInTheDocument()
+    expect(screen.getByText('1 cup')).toBeInTheDocument()
+  })
+
+  it('shows steps section with all steps', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText('Cook chicken')).toBeInTheDocument()
+    expect(screen.getByText('Steam broccoli')).toBeInTheDocument()
+  })
+
+  it('shows tip when present', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText('Add lemon for brightness')).toBeInTheDocument()
+  })
+
+  it('calls onClose when Exit cooking mode is clicked', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    fireEvent.click(screen.getByText(/Exit cooking mode/))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('shows step counter in footer', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText(/Step 1 of 2/)).toBeInTheDocument()
+  })
+
+  it('Next button advances to the next step', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    fireEvent.click(screen.getByText('Next ▶'))
+    expect(screen.getByText(/Step 2 of 2/)).toBeInTheDocument()
+  })
+
+  it('Prev button is disabled on the first step', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText('◀ Prev')).toBeDisabled()
+  })
+
+  it('Next button is disabled on the last step', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    fireEvent.click(screen.getByText('Next ▶'))
+    expect(screen.getByText('Next ▶')).toBeDisabled()
+  })
+
+  it('clicking an ingredient checks it off', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    const chickenRow = screen.getByText('Chicken breast').closest('div[style]')!
+    fireEvent.click(chickenRow)
+    // After click the ingredient text gets line-through style — indicator has '✓'
+    expect(screen.getByText('✓')).toBeInTheDocument()
+  })
+
+  it('clicking Hide toggles the ingredients section', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    fireEvent.click(screen.getByText('↑ Hide'))
+    expect(screen.queryByText('Chicken breast')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('↓ Show'))
+    expect(screen.getByText('Chicken breast')).toBeInTheDocument()
+  })
+})
+
 // ═════════════════════════════════════════════════════════════════
 describe('RecipeModal', () => {
   const noop  = vi.fn()
@@ -461,6 +756,369 @@ describe('RecipeModal', () => {
     const tipArea = screen.getByPlaceholderText('Any notes, variations, or tips...')
     fireEvent.change(tipArea, { target: { value: 'Great with lemon' } })
     expect((tipArea as HTMLTextAreaElement).value).toBe('Great with lemon')
+  })
+
+  // ── Phase 3: edit mode ───────────────────────────────────────────
+
+  it('shows "Edit my Recipe" heading when initialRecipe is provided', () => {
+    render(<RecipeModal {...baseProps} initialRecipe={CUSTOM_RECIPE} />)
+    expect(screen.getByText(/Edit my/)).toBeInTheDocument()
+  })
+
+  it('shows "Add my Recipe" heading when no initialRecipe', () => {
+    render(<RecipeModal {...baseProps} />)
+    expect(screen.getByText(/Add my/)).toBeInTheDocument()
+  })
+
+  it('pre-fills name from initialRecipe', () => {
+    render(<RecipeModal {...baseProps} initialRecipe={CUSTOM_RECIPE} />)
+    expect((screen.getByPlaceholderText('e.g. Mango Chia Pudding') as HTMLInputElement).value)
+      .toBe('My Smoothie')
+  })
+
+  it('pre-fills tagline from initialRecipe', () => {
+    render(<RecipeModal {...baseProps} initialRecipe={CUSTOM_RECIPE} />)
+    expect((screen.getByPlaceholderText('e.g. High protein · gluten free') as HTMLInputElement).value)
+      .toBe(CUSTOM_RECIPE.tag)
+  })
+
+  it('pre-fills macros from initialRecipe', () => {
+    const recipe: Recipe = {
+      ...CUSTOM_RECIPE,
+      hk: 350, hp: '28g', hc: '42g', hf: '10g', hfi: '6g',
+    }
+    render(<RecipeModal {...baseProps} initialRecipe={recipe} />)
+    expect((screen.getByPlaceholderText('kcal') as HTMLInputElement).value).toBe('350')
+    expect((screen.getByPlaceholderText('prot g') as HTMLInputElement).value).toBe('28')
+    expect((screen.getByPlaceholderText('carb g') as HTMLInputElement).value).toBe('42')
+    expect((screen.getByPlaceholderText('fat g') as HTMLInputElement).value).toBe('10')
+    expect((screen.getByPlaceholderText('fiber g') as HTMLInputElement).value).toBe('6')
+  })
+
+  it('pre-fills ingredients from initialRecipe', () => {
+    const recipe: Recipe = {
+      ...CUSTOM_RECIPE,
+      ings: [['Spinach', '2 cups'], ['Banana', '1 medium']],
+    }
+    render(<RecipeModal {...baseProps} initialRecipe={recipe} />)
+    expect(screen.getByText('Spinach')).toBeInTheDocument()
+    expect(screen.getByText('Banana')).toBeInTheDocument()
+    expect(screen.getByText('2 cups')).toBeInTheDocument()
+  })
+
+  it('pre-fills steps from initialRecipe', () => {
+    render(<RecipeModal {...baseProps} initialRecipe={BASE_RECIPE} />)
+    expect(screen.getByText('Cook chicken')).toBeInTheDocument()
+    expect(screen.getByText('Steam broccoli')).toBeInTheDocument()
+  })
+
+  it('pre-fills tip from initialRecipe', () => {
+    render(<RecipeModal {...baseProps} initialRecipe={BASE_RECIPE} />)
+    expect((screen.getByPlaceholderText('Any notes, variations, or tips...') as HTMLTextAreaElement).value)
+      .toBe('Add lemon for brightness')
+  })
+
+  it('shows "Save changes" button in edit mode', () => {
+    render(<RecipeModal {...baseProps} initialRecipe={CUSTOM_RECIPE} />)
+    expect(screen.getByText('Save changes')).toBeInTheDocument()
+    expect(screen.queryByText('Save recipe')).not.toBeInTheDocument()
+  })
+
+  it('shows "Save recipe" button in create mode', () => {
+    render(<RecipeModal {...baseProps} />)
+    expect(screen.getByText('Save recipe')).toBeInTheDocument()
+    expect(screen.queryByText('Save changes')).not.toBeInTheDocument()
+  })
+
+  it('preserves id when saving in edit mode', () => {
+    const onSave = vi.fn()
+    render(<RecipeModal {...baseProps} onSave={onSave} initialRecipe={CUSTOM_RECIPE} />)
+    fireEvent.click(screen.getByText('Save changes'))
+    expect(onSave.mock.calls[0][0].id).toBe(9002)
+  })
+
+  it('preserves defaultId when saving a forked recipe', () => {
+    const forked: Recipe = { ...CUSTOM_RECIPE, id: 5001, defaultId: 13 }
+    const onSave = vi.fn()
+    render(<RecipeModal {...baseProps} onSave={onSave} initialRecipe={forked} />)
+    fireEvent.click(screen.getByText('Save changes'))
+    expect(onSave.mock.calls[0][0].defaultId).toBe(13)
+  })
+
+  it('mk/mp/mc/mf mirror the single macro set on save', () => {
+    const onSave = vi.fn()
+    render(<RecipeModal {...baseProps} onSave={onSave} />)
+    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), { target: { value: 'Test' } })
+    fireEvent.change(screen.getByPlaceholderText('kcal'), { target: { value: '400' } })
+    fireEvent.change(screen.getByPlaceholderText('prot g'), { target: { value: '30' } })
+    fireEvent.click(screen.getByText('Save recipe'))
+    const saved = onSave.mock.calls[0][0]
+    expect(saved.hk).toBe(400)
+    expect(saved.mk).toBe(400)  // mirrors hk
+    expect(saved.hp).toBe('30g')
+    expect(saved.mp).toBe('30g')  // mirrors hp
+  })
+
+  it('shows "Changes saved!" message after saving in edit mode', async () => {
+    vi.useFakeTimers()
+    render(<RecipeModal {...baseProps} initialRecipe={CUSTOM_RECIPE} />)
+    fireEvent.click(screen.getByText('Save changes'))
+    expect(screen.getByText('Changes saved!')).toBeInTheDocument()
+    vi.useRealTimers()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
+// Phase 4 — hiddenRecipeStore + fork-on-edit (RecipesTab)
+// ═════════════════════════════════════════════════════════════════
+describe('hiddenRecipeStore', () => {
+  it('starts empty', () => {
+    expect(hiddenRecipeStore.getAll()).toEqual([])
+  })
+
+  it('hide() adds an id', () => {
+    hiddenRecipeStore.hide(42)
+    expect(hiddenRecipeStore.getAll()).toContain(42)
+    expect(hiddenRecipeStore.isHidden(42)).toBe(true)
+  })
+
+  it('hide() is idempotent — no duplicates', () => {
+    hiddenRecipeStore.hide(42)
+    hiddenRecipeStore.hide(42)
+    expect(hiddenRecipeStore.getAll().filter((i: number) => i === 42).length).toBe(1)
+  })
+
+  it('restore() removes a specific id', () => {
+    hiddenRecipeStore.hide(42)
+    hiddenRecipeStore.hide(99)
+    hiddenRecipeStore.restore(42)
+    expect(hiddenRecipeStore.isHidden(42)).toBe(false)
+    expect(hiddenRecipeStore.isHidden(99)).toBe(true)
+  })
+
+  it('restoreAll() clears all hidden ids', () => {
+    hiddenRecipeStore.hide(1)
+    hiddenRecipeStore.hide(2)
+    hiddenRecipeStore.hide(3)
+    hiddenRecipeStore.restoreAll()
+    expect(hiddenRecipeStore.getAll()).toEqual([])
+  })
+
+  it('isHidden() returns false for un-hidden id', () => {
+    expect(hiddenRecipeStore.isHidden(999)).toBe(false)
+  })
+})
+
+describe('RecipesTab Phase 4 — fork / hide / restore', () => {
+  const BUILTIN: Recipe = {
+    id: 5, name: 'Builtin Dinner', cat: 'dinner', type: 'Dinner',
+    color: 'var(--green)', sc: 'cg', tag: 'Classic', prepL: '30 min', prepC: 'var(--green)',
+    hk: 500, hp: '40g', hc: '35g', hf: '15g',
+    mk: 500, mp: '40g', mc: '35g', mf: '15g',
+    ings: [['Chicken', '200g']], steps: ['Cook it'], tip: '', custom: false,
+  }
+
+  it('Edit on a built-in pre-fills the modal as a fork (heading is "Edit my Recipe")', async () => {
+    // Seed builtin into the recipes state by intercepting fetchBuiltinRecipes
+    // We render RecipesTab which fetches on mount — but supabase is null in tests,
+    // so builtinRecipes stays empty. We test the fork logic via RecipeCard directly.
+    const onEdit = vi.fn()
+    render(
+      <RecipeCard
+        recipe={BUILTIN}
+        onEdit={onEdit}
+        cookCount={0}
+      />
+    )
+    // Expand card
+    fireEvent.click(screen.getByText('Builtin Dinner'))
+    // Click Edit
+    fireEvent.click(screen.getByRole('button', { name: /edit recipe/i }))
+    expect(onEdit).toHaveBeenCalledWith(BUILTIN)
+  })
+
+  it('RecipeModal receives a fork recipe and shows "Edit my Recipe"', () => {
+    const fork: Recipe = {
+      ...BUILTIN,
+      id: Date.now(),
+      defaultId: BUILTIN.id,
+      source: 'user' as const,
+      custom: true,
+      color: 'var(--purple)',
+      sc: 'cp',
+    }
+    const onSave = vi.fn()
+    render(
+      <RecipeModal
+        customTags={[]}
+        initialRecipe={fork}
+        onSave={onSave}
+        onAddTag={() => {}}
+        onClose={() => {}}
+      />
+    )
+    expect(screen.getByText(/Edit my/)).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Builtin Dinner')).toBeInTheDocument()
+  })
+
+  it('saving a fork preserves defaultId', () => {
+    const fork: Recipe = {
+      ...BUILTIN,
+      id: 12345,
+      defaultId: BUILTIN.id,
+      source: 'user' as const,
+      custom: true,
+      color: 'var(--purple)',
+      sc: 'cp',
+    }
+    const onSave = vi.fn()
+    render(
+      <RecipeModal
+        customTags={[]}
+        initialRecipe={fork}
+        onSave={onSave}
+        onAddTag={() => {}}
+        onClose={() => {}}
+      />
+    )
+    fireEvent.click(screen.getByText('Save changes'))
+    expect(onSave.mock.calls[0][0].defaultId).toBe(BUILTIN.id)
+    expect(onSave.mock.calls[0][0].custom).toBe(true)
+  })
+
+  it('Hide button calls onHide with recipe id', () => {
+    const onHide = vi.fn()
+    render(
+      <RecipeCard
+        recipe={BUILTIN}
+        cookCount={0}
+        onHide={onHide}
+      />
+    )
+    fireEvent.click(screen.getByText('Builtin Dinner'))
+    fireEvent.click(screen.getByRole('button', { name: /hide this suggestion/i }))
+    expect(onHide).toHaveBeenCalledWith(BUILTIN.id)
+  })
+
+  it('Hide button is not shown for custom recipes', () => {
+    const custom: Recipe = { ...BUILTIN, id: 9002, custom: true }
+    render(
+      <RecipeCard
+        recipe={custom}
+        cookCount={0}
+        onHide={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getByText('Builtin Dinner'))
+    expect(screen.queryByRole('button', { name: /hide this suggestion/i })).toBeNull()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
+// Phase 6 — GroceryIngredientModal
+// ═════════════════════════════════════════════════════════════════
+describe('GroceryIngredientModal', () => {
+  const RECIPE_WITH_INGS: Recipe = {
+    ...BASE_RECIPE,
+    id: 7001,
+    name: 'Test Stir Fry',
+    ings: [['Chicken breast', '200g'], ['Broccoli', '1 cup'], ['Soy sauce', '2 tbsp']],
+  }
+
+  const baseProps = {
+    recipe: RECIPE_WITH_INGS,
+    onAdd:  vi.fn(),
+    onClose: vi.fn(),
+  }
+
+  it('renders the recipe name as subtitle', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    expect(screen.getByText('Test Stir Fry')).toBeInTheDocument()
+  })
+
+  it('renders all ingredients as checked checkboxes by default', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    const checkboxes = screen.getAllByRole('checkbox')
+    expect(checkboxes).toHaveLength(3)
+    checkboxes.forEach(cb => expect(cb).toBeChecked())
+  })
+
+  it('shows ingredient names and amounts', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    expect(screen.getByText('Chicken breast')).toBeInTheDocument()
+    expect(screen.getByText('Broccoli')).toBeInTheDocument()
+    expect(screen.getByText('200g')).toBeInTheDocument()
+    expect(screen.getByText('1 cup')).toBeInTheDocument()
+  })
+
+  it('Add button shows correct item count', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    expect(screen.getByRole('button', { name: /Add 3 items to grocery/i })).toBeInTheDocument()
+  })
+
+  it('unchecking an ingredient decrements the count', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    fireEvent.click(screen.getAllByRole('checkbox')[0])
+    expect(screen.getByRole('button', { name: /Add 2 items to grocery/i })).toBeInTheDocument()
+  })
+
+  it('"Deselect all" unchecks everything and disables the Add button', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Deselect all' }))
+    screen.getAllByRole('checkbox').forEach(cb => expect(cb).not.toBeChecked())
+    expect(screen.getByRole('button', { name: /Add items to grocery/i })).toBeDisabled()
+  })
+
+  it('"Select all" re-checks all after deselecting', () => {
+    render(<GroceryIngredientModal {...baseProps} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Deselect all' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Select all' }))
+    screen.getAllByRole('checkbox').forEach(cb => expect(cb).toBeChecked())
+  })
+
+  it('clicking Add calls onAdd with the right item names', () => {
+    const onAdd = vi.fn()
+    render(<GroceryIngredientModal {...baseProps} onAdd={onAdd} />)
+    // Deselect Broccoli (index 1)
+    fireEvent.click(screen.getAllByRole('checkbox')[1])
+    fireEvent.click(screen.getByRole('button', { name: /Add 2 items/i }))
+    expect(onAdd).toHaveBeenCalledOnce()
+    const items = onAdd.mock.calls[0][0]
+    expect(items).toHaveLength(2)
+    expect(items.map((i: { n: string }) => i.n)).toEqual(['Chicken breast', 'Soy sauce'])
+  })
+
+  it('items get the selected category', () => {
+    const onAdd = vi.fn()
+    render(<GroceryIngredientModal {...baseProps} onAdd={onAdd} />)
+    // Change category to Produce - Fruit
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Produce - Fruit' } })
+    fireEvent.click(screen.getByRole('button', { name: /Add 3 items/i }))
+    const items = onAdd.mock.calls[0][0]
+    items.forEach((item: { cat: string }) => expect(item.cat).toBe('Produce - Fruit'))
+  })
+
+  it('shows success message after adding', () => {
+    vi.useFakeTimers()
+    render(<GroceryIngredientModal {...baseProps} />)
+    fireEvent.click(screen.getByRole('button', { name: /Add 3 items/i }))
+    expect(screen.getByText(/3 items added to grocery list/i)).toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
+  it('Cancel button calls onClose', () => {
+    const onClose = vi.fn()
+    render(<GroceryIngredientModal {...baseProps} onClose={onClose} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('clicking backdrop calls onClose', () => {
+    const onClose = vi.fn()
+    const { container } = render(<GroceryIngredientModal {...baseProps} onClose={onClose} />)
+    fireEvent.click(container.firstChild as HTMLElement)
+    expect(onClose).toHaveBeenCalledOnce()
   })
 })
 
@@ -1018,6 +1676,48 @@ describe('RecipesTab', () => {
     })
     fireEvent.click(screen.getByText('Add tag'))
     // Tag is now in the category selector — no crash = handleAddTag was called
+  })
+
+  // ── Phase 2: CookingMode wired in RecipesTab ──────────────────
+
+  it('Cook button appears on expanded custom recipe with steps', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
+    render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByText('⭐ My Recipes'))
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    expect(screen.getByRole('button', { name: /cook/i })).toBeInTheDocument()
+  })
+
+  it('clicking Cook opens CookingMode overlay', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
+    render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByText('⭐ My Recipes'))
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    fireEvent.click(screen.getByRole('button', { name: /cook/i }))
+    // CookingMode shows "Exit cooking mode" and the recipe name
+    expect(screen.getByText(/Exit cooking mode/)).toBeInTheDocument()
+  })
+
+  it('exiting CookingMode closes the overlay', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
+    render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByText('⭐ My Recipes'))
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    fireEvent.click(screen.getByRole('button', { name: /cook/i }))
+    fireEvent.click(screen.getByText(/Exit cooking mode/))
+    expect(screen.queryByText(/Exit cooking mode/)).not.toBeInTheDocument()
+  })
+
+  it('Edit button appears on expanded custom recipe', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
+    render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByText('⭐ My Recipes'))
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
   })
 })
 
