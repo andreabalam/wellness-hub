@@ -9,7 +9,7 @@ export function safeGet<T>(key: string, fallback: T): T {
     return raw ? (JSON.parse(raw) as T) : fallback
   } catch {
     console.warn(`[storage] corrupt value at "${key}", resetting to default`)
-    localStorage.removeItem(key)
+    try { localStorage.removeItem(key) } catch { /* quota or stubbed env */ }
     return fallback
   }
 }
