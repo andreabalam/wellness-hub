@@ -49,15 +49,6 @@ The E2E suite starts the dev server automatically. Make sure `npm install` has b
 | Pull request → `main` | `ci.yml` | Lint, unit tests, build |
 | Push to `main` (merge) | `e2e.yml` | E2E tests → deploy to GitHub Pages if green |
 
-**Required GitHub repository secrets** (Settings → Secrets and variables → Actions):
-
-| Secret | Value |
-|---|---|
-| `VITE_SUPABASE_URL` | Your Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | Your Supabase anon key |
-
-Without these the deploy job builds and ships successfully but the app runs in local-only mode (no auth, no sync).
-
 ## Stack
 
 - [Vite](https://vitejs.dev/) + [React 18](https://react.dev/) + TypeScript
