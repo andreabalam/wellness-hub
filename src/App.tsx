@@ -24,7 +24,10 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function App() {
   const [active, setActive]       = useState<Tab>('tracker')
-  const [swUpdate, setSwUpdate]   = useState<(() => void) | null>(null)
+  // Lazy-init from window so we avoid setState inside the effect below
+  const [swUpdate, setSwUpdate]   = useState<(() => void) | null>(
+    () => window.__swPendingUpdate ?? null
+  )
   const [user, setUser]           = useState<User | null>(null)
   const [syncing, setSyncing]     = useState(false)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
@@ -123,7 +126,8 @@ export default function App() {
 
   // ── SW update prompt ─────────────────────────────────────────
   useEffect(() => {
-    if (window.__swPendingUpdate) setSwUpdate(() => window.__swPendingUpdate!)
+    // window.__swPendingUpdate is read once at mount via lazy useState above.
+    // Here we only wire up the callback for future SW updates.
     window.__swOnUpdate = (cb: () => void) => setSwUpdate(() => cb)
     return () => { window.__swOnUpdate = undefined }
   }, [])

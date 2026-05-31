@@ -10,7 +10,11 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',          // allow _ in destructuring: const { id: _, ...rest }
+        caughtErrorsIgnorePattern: '^_',
+      }],
       // These rules catch real bugs but have intentional false-positives in this codebase
       // (e.g. setState in load effects, Date.now in helper fns called from JSX).
       // Downgrade to warn so CI flags regressions without blocking valid patterns.

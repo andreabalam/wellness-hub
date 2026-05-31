@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase, isConfigured } from '../lib/supabase'
 
@@ -39,6 +39,17 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced }: Prop
     if (panelState === 'sent') setTimeout(() => codeRef.current?.focus(), 50)
   }, [panelState])
 
+  // Must be before the early return — hooks can't be called conditionally
+  const lastSyncedLabel = useMemo(() => {
+    if (!lastSynced) return 'not yet'
+    // eslint-disable-next-line react-hooks/purity -- Date.now() in useMemo is intentional
+    const diff = Math.round((Date.now() - lastSynced.getTime()) / 1000)
+    if (diff < 10)   return 'just now'
+    if (diff < 60)   return `${diff}s ago`
+    if (diff < 3600) return `${Math.round(diff / 60)}m ago`
+    return lastSynced.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }, [lastSynced])
+
   if (!isConfigured) return null
 
   const sendOtp = async () => {
@@ -76,15 +87,6 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced }: Prop
   const reset = () => { setPanelState('idle'); setEmail(''); setCode(''); setError('') }
 
   const signOut = async () => { await supabase!.auth.signOut(); setOpen(false) }
-
-  const formatLastSynced = () => {
-    if (!lastSynced) return 'not yet'
-    const diff = Math.round((Date.now() - lastSynced.getTime()) / 1000)
-    if (diff < 10)   return 'just now'
-    if (diff < 60)   return `${diff}s ago`
-    if (diff < 3600) return `${Math.round(diff / 60)}m ago`
-    return lastSynced.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
 
   const initials = user?.email?.slice(0, 2).toUpperCase() ?? ''
 
@@ -239,7 +241,7 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced }: Prop
                   <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: '"DM Mono", monospace', marginTop: 2 }}>
                     {syncing
                       ? <span style={{ color: 'var(--amber-light)' }}>syncing…</span>
-                      : <span>synced: <span style={{ color: 'var(--teal-light)' }}>{formatLastSynced()}</span></span>
+                      : <span>synced: <span style={{ color: 'var(--teal-light)' }}>{lastSyncedLabel}</span></span>
                     }
                   </div>
                 </div>
