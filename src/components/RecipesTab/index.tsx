@@ -6,6 +6,7 @@ import * as sync from '../../lib/sync'
 import RecipeCard from './RecipeCard'
 import RecipeModal from './RecipeModal'
 import GroceryPanel from './GroceryPanel'
+import CookingMode from './CookingMode'
 
 type Filter = 'all' | 'breakfast' | 'smoothie' | 'lunch' | 'dinner' | 'dessert' | 'snack' | 'ferments' | 'drinks' | 'custom' | 'grocery'
 
@@ -41,6 +42,8 @@ export default function RecipesTab() {
   const [filter, setFilter]         = useState<Filter>('all')
   const [customTag, setCustomTag]   = useState<string | null>(null)
   const [showModal, setShowModal]   = useState(false)
+  const [cookingRecipe, setCookingRecipe] = useState<Recipe | null>(null)
+  const [editRecipe, setEditRecipe] = useState<Recipe | null>(null)
   const [customRecipes, setCustomRecipes] = useState<Recipe[]>(() => store.getRecipes())
   const [customTags, setCustomTags] = useState<string[]>(() => store.getTags())
   const [query, setQuery]           = useState('')
@@ -123,6 +126,20 @@ export default function RecipesTab() {
     store.addTag(tag)
     refreshCustom()
   }
+
+  const handleEdit = useCallback((recipe: Recipe) => {
+    setEditRecipe(recipe)
+    setShowModal(true)
+  }, [])
+
+  const handleCook = useCallback((recipe: Recipe) => {
+    setCookingRecipe(recipe)
+  }, [])
+
+  // Placeholder — Phase 6 will open GroceryIngredientModal
+  const handleGrocery = useCallback((_recipe: Recipe) => {
+    // TODO Phase 6: open ingredient picker
+  }, [])
 
   // Displayed recipes
   const visibleRecipes = useMemo<Recipe[]>(() => {
@@ -277,20 +294,32 @@ export default function RecipesTab() {
                 key={r.custom ? r.id : i}
                 recipe={r}
                 cookCount={cookCounts[r.name.toLowerCase()] ?? 0}
+                onEdit={handleEdit}
                 onDelete={r.custom ? handleDelete : undefined}
+                onCook={r.steps.length > 0 ? handleCook : undefined}
+                onGrocery={r.ings.length > 0 ? handleGrocery : undefined}
               />
             ))
           )}
         </div>
       )}
 
-      {/* Modal */}
+      {/* Add / Edit modal */}
       {showModal && (
         <RecipeModal
           customTags={customTags}
+          initialRecipe={editRecipe ?? undefined}
           onSave={handleSave}
           onAddTag={handleAddTag}
-          onClose={() => setShowModal(false)}
+          onClose={() => { setShowModal(false); setEditRecipe(null) }}
+        />
+      )}
+
+      {/* Cooking mode overlay */}
+      {cookingRecipe && (
+        <CookingMode
+          recipe={cookingRecipe}
+          onClose={() => setCookingRecipe(null)}
         />
       )}
     </>

@@ -35,6 +35,7 @@ import UpdatePrompt   from '../components/UpdatePrompt'
 import GroceryPanel   from '../components/RecipesTab/GroceryPanel'
 import RecipeCard     from '../components/RecipesTab/RecipeCard'
 import RecipeModal    from '../components/RecipesTab/RecipeModal'
+import CookingMode    from '../components/RecipesTab/CookingMode'
 import RecipesTab     from '../components/RecipesTab'
 import WorkoutsTab    from '../components/WorkoutsTab'
 import ScheduleTab    from '../components/ScheduleTab'
@@ -281,10 +282,183 @@ describe('RecipeCard', () => {
     fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
     expect(screen.queryByText('Delete recipe')).not.toBeInTheDocument()
   })
+
+  // ── Phase 2: action bar buttons ─────────────────────────────────
+
+  it('shows Edit button when expanded and onEdit is provided', () => {
+    render(<RecipeCard recipe={BASE_RECIPE} onEdit={vi.fn()} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
+  })
+
+  it('calls onEdit with the recipe when Edit is clicked', () => {
+    const onEdit = vi.fn()
+    render(<RecipeCard recipe={BASE_RECIPE} onEdit={onEdit} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    expect(onEdit).toHaveBeenCalledWith(BASE_RECIPE)
+  })
+
+  it('does not show Edit button when onEdit is not provided', () => {
+    render(<RecipeCard recipe={BASE_RECIPE} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
+  })
+
+  it('shows Cook button when expanded and recipe has steps + onCook provided', () => {
+    render(<RecipeCard recipe={BASE_RECIPE} onCook={vi.fn()} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.getByRole('button', { name: /cook/i })).toBeInTheDocument()
+  })
+
+  it('calls onCook with the recipe when Cook is clicked', () => {
+    const onCook = vi.fn()
+    render(<RecipeCard recipe={BASE_RECIPE} onCook={onCook} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByRole('button', { name: /cook/i }))
+    expect(onCook).toHaveBeenCalledWith(BASE_RECIPE)
+  })
+
+  it('does not show Cook button when recipe has no steps', () => {
+    const noSteps = { ...BASE_RECIPE, steps: [] }
+    render(<RecipeCard recipe={noSteps} onCook={vi.fn()} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.queryByRole('button', { name: /cook/i })).not.toBeInTheDocument()
+  })
+
+  it('shows Grocery button when expanded and recipe has ingredients + onGrocery provided', () => {
+    render(<RecipeCard recipe={BASE_RECIPE} onGrocery={vi.fn()} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.getByRole('button', { name: /grocery/i })).toBeInTheDocument()
+  })
+
+  it('calls onGrocery with the recipe when Grocery is clicked', () => {
+    const onGrocery = vi.fn()
+    render(<RecipeCard recipe={BASE_RECIPE} onGrocery={onGrocery} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByRole('button', { name: /grocery/i }))
+    expect(onGrocery).toHaveBeenCalledWith(BASE_RECIPE)
+  })
+
+  it('does not show Grocery button when recipe has no ingredients', () => {
+    const noIngs = { ...BASE_RECIPE, ings: [] as [string,string][] }
+    render(<RecipeCard recipe={noIngs} onGrocery={vi.fn()} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.queryByRole('button', { name: /grocery/i })).not.toBeInTheDocument()
+  })
+
+  it('shows Hide button for built-in recipes when onHide is provided', () => {
+    render(<RecipeCard recipe={BASE_RECIPE} onHide={vi.fn()} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    expect(screen.getByRole('button', { name: /hide/i })).toBeInTheDocument()
+  })
+
+  it('calls onHide with the recipe id when Hide is clicked', () => {
+    const onHide = vi.fn()
+    render(<RecipeCard recipe={BASE_RECIPE} onHide={onHide} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByRole('button', { name: /hide/i }))
+    expect(onHide).toHaveBeenCalledWith(9001)
+  })
+
+  it('does not show Hide button for custom recipes (Delete is shown instead)', () => {
+    render(<RecipeCard recipe={CUSTOM_RECIPE} onDelete={vi.fn()} onHide={vi.fn()} />)
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    // Delete is shown, Hide should not be (custom recipes use Delete)
+    expect(screen.getByText('Delete recipe')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^hide$/i })).not.toBeInTheDocument()
+  })
+
+  it('action buttons do not toggle the card when clicked', () => {
+    const onEdit = vi.fn()
+    render(<RecipeCard recipe={BASE_RECIPE} onEdit={onEdit} />)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    // Card is now open — clicking Edit should NOT close it
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    expect(screen.getByText('tap to collapse')).toBeInTheDocument()
+  })
 })
 
 // ═════════════════════════════════════════════════════════════════
-// RecipeModal
+// CookingMode
+// ═════════════════════════════════════════════════════════════════
+describe('CookingMode', () => {
+  const onClose = vi.fn()
+  beforeEach(() => onClose.mockClear())
+
+  it('renders the recipe name in the header', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText('Test Dish')).toBeInTheDocument()
+  })
+
+  it('shows ingredients section with all items', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText('Chicken breast')).toBeInTheDocument()
+    expect(screen.getByText('Broccoli')).toBeInTheDocument()
+  })
+
+  it('shows ingredient amounts', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText('200g')).toBeInTheDocument()
+    expect(screen.getByText('1 cup')).toBeInTheDocument()
+  })
+
+  it('shows steps section with all steps', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText('Cook chicken')).toBeInTheDocument()
+    expect(screen.getByText('Steam broccoli')).toBeInTheDocument()
+  })
+
+  it('shows tip when present', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText('Add lemon for brightness')).toBeInTheDocument()
+  })
+
+  it('calls onClose when Exit cooking mode is clicked', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    fireEvent.click(screen.getByText(/Exit cooking mode/))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('shows step counter in footer', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText(/Step 1 of 2/)).toBeInTheDocument()
+  })
+
+  it('Next button advances to the next step', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    fireEvent.click(screen.getByText('Next ▶'))
+    expect(screen.getByText(/Step 2 of 2/)).toBeInTheDocument()
+  })
+
+  it('Prev button is disabled on the first step', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    expect(screen.getByText('◀ Prev')).toBeDisabled()
+  })
+
+  it('Next button is disabled on the last step', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    fireEvent.click(screen.getByText('Next ▶'))
+    expect(screen.getByText('Next ▶')).toBeDisabled()
+  })
+
+  it('clicking an ingredient checks it off', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    const chickenRow = screen.getByText('Chicken breast').closest('div[style]')!
+    fireEvent.click(chickenRow)
+    // After click the ingredient text gets line-through style — indicator has '✓'
+    expect(screen.getByText('✓')).toBeInTheDocument()
+  })
+
+  it('clicking Hide toggles the ingredients section', () => {
+    render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
+    fireEvent.click(screen.getByText('↑ Hide'))
+    expect(screen.queryByText('Chicken breast')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('↓ Show'))
+    expect(screen.getByText('Chicken breast')).toBeInTheDocument()
+  })
+})
+
 // ═════════════════════════════════════════════════════════════════
 describe('RecipeModal', () => {
   const noop  = vi.fn()
@@ -1018,6 +1192,48 @@ describe('RecipesTab', () => {
     })
     fireEvent.click(screen.getByText('Add tag'))
     // Tag is now in the category selector — no crash = handleAddTag was called
+  })
+
+  // ── Phase 2: CookingMode wired in RecipesTab ──────────────────
+
+  it('Cook button appears on expanded custom recipe with steps', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
+    render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByText('⭐ My Recipes'))
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    expect(screen.getByRole('button', { name: /cook/i })).toBeInTheDocument()
+  })
+
+  it('clicking Cook opens CookingMode overlay', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
+    render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByText('⭐ My Recipes'))
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    fireEvent.click(screen.getByRole('button', { name: /cook/i }))
+    // CookingMode shows "Exit cooking mode" and the recipe name
+    expect(screen.getByText(/Exit cooking mode/)).toBeInTheDocument()
+  })
+
+  it('exiting CookingMode closes the overlay', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
+    render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByText('⭐ My Recipes'))
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    fireEvent.click(screen.getByRole('button', { name: /cook/i }))
+    fireEvent.click(screen.getByText(/Exit cooking mode/))
+    expect(screen.queryByText(/Exit cooking mode/)).not.toBeInTheDocument()
+  })
+
+  it('Edit button appears on expanded custom recipe', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
+    render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByText('⭐ My Recipes'))
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
   })
 })
 

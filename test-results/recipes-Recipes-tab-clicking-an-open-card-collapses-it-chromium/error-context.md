@@ -203,6 +203,8 @@ Call log:
   146 |     ])
   147 |     expect(download.suggestedFilename()).toMatch(/wellness_hub_backup_.+\.json/)
   148 |   })
-  149 | })
-  150 | 
+  149 | 
+  150 |   // ── Phase 2: action bar + CookingMode ───────────────────────────
+  151 | 
+  152 |   test('expanded custom recipe shows Edit, Cook, and Grocery buttons', async ({ page }) => {
 ```

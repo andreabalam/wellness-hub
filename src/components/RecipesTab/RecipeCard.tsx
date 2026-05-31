@@ -4,7 +4,16 @@ import type { Recipe } from '../../data/recipes'
 interface Props {
   recipe: Recipe
   cookCount?: number
+  /** Called when the user clicks Edit — parent opens an edit modal */
+  onEdit?: (recipe: Recipe) => void
+  /** Called when the user clicks Delete (custom recipes only) */
   onDelete?: (id: number) => void
+  /** Called when the user clicks Hide (built-in / default recipes only) */
+  onHide?: (id: number) => void
+  /** Called when the user clicks 🍳 Cook — parent renders CookingMode */
+  onCook?: (recipe: Recipe) => void
+  /** Called when the user clicks 🛒 Grocery — parent opens ingredient picker */
+  onGrocery?: (recipe: Recipe) => void
 }
 
 /** Auto-detects a health badge when no explicit healthTag is set.
@@ -31,7 +40,15 @@ function autoBadge(r: Recipe): { label: string; color: string } | null {
   return null
 }
 
-export default memo(function RecipeCard({ recipe: r, cookCount = 0, onDelete }: Props) {
+export default memo(function RecipeCard({
+  recipe: r,
+  cookCount = 0,
+  onEdit,
+  onDelete,
+  onHide,
+  onCook,
+  onGrocery,
+}: Props) {
   const [open, setOpen] = useState(false)
   const isFerment = r.cat === 'ferments'
 
@@ -45,6 +62,8 @@ export default memo(function RecipeCard({ recipe: r, cookCount = 0, onDelete }: 
       ? { label: 'Healthy', color: 'var(--green)' }
       : { label: 'Indulgent', color: 'var(--purple)' }
     : autoBadge(r)
+
+  const stop = (e: React.MouseEvent) => e.stopPropagation()
 
   return (
     <div className={`rcard${open ? ' open' : ''}`} onClick={() => setOpen(o => !o)}>
@@ -132,7 +151,7 @@ export default memo(function RecipeCard({ recipe: r, cookCount = 0, onDelete }: 
             src={r.image}
             alt={r.name}
             style={{ width: '100%', borderRadius: 8, marginBottom: 14, objectFit: 'cover', maxHeight: 220 }}
-            onClick={e => e.stopPropagation()}
+            onClick={stop}
           />
         )}
 
@@ -170,7 +189,7 @@ export default memo(function RecipeCard({ recipe: r, cookCount = 0, onDelete }: 
             href={r.link}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={e => e.stopPropagation()}
+            onClick={stop}
             style={{
               display: 'block', marginTop: 10, fontSize: 12,
               color: 'var(--blue-light)', textDecoration: 'none',
@@ -182,19 +201,71 @@ export default memo(function RecipeCard({ recipe: r, cookCount = 0, onDelete }: 
           </a>
         )}
 
-        {r.custom && onDelete && r.id != null && (
-          <button
-            onClick={e => { e.stopPropagation(); onDelete(r.id!) }}
-            style={{
-              marginTop: 12, width: '100%', background: 'none',
-              border: '1px solid var(--red)', borderRadius: 7, padding: 6,
-              fontSize: 12, color: 'var(--red-light)', cursor: 'pointer',
-              fontFamily: 'sans-serif',
-            }}
-          >
-            Delete recipe
-          </button>
-        )}
+        {/* ── Action bar ────────────────────────────────────────── */}
+        <div
+          className="rcard-actions"
+          onClick={stop}
+          style={{
+            display: 'flex', gap: 6, flexWrap: 'wrap',
+            marginTop: 14, paddingTop: 12,
+            borderTop: '1px solid var(--border)',
+          }}
+        >
+          {/* Primary actions */}
+          {onEdit && (
+            <button
+              className="btn btn--ghost btn--sm"
+              onClick={() => onEdit(r)}
+              aria-label="Edit recipe"
+            >
+              ✎ Edit
+            </button>
+          )}
+
+          {onCook && r.steps.length > 0 && (
+            <button
+              className="btn btn--ghost btn--sm"
+              onClick={() => onCook(r)}
+              aria-label="Cook this recipe"
+            >
+              🍳 Cook
+            </button>
+          )}
+
+          {onGrocery && r.ings.length > 0 && (
+            <button
+              className="btn btn--ghost btn--sm"
+              onClick={() => onGrocery(r)}
+              aria-label="Add ingredients to grocery list"
+            >
+              🛒 Grocery
+            </button>
+          )}
+
+          {/* Destructive actions pushed to the right */}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+            {r.custom && onDelete && r.id != null && (
+              <button
+                className="btn btn--danger btn--sm"
+                onClick={() => onDelete(r.id!)}
+                aria-label="Delete recipe"
+              >
+                Delete recipe
+              </button>
+            )}
+
+            {!r.custom && onHide && r.id != null && (
+              <button
+                className="btn btn--ghost btn--sm"
+                onClick={() => onHide(r.id!)}
+                aria-label="Hide this suggestion"
+                style={{ color: 'var(--muted2)', borderColor: 'var(--border)' }}
+              >
+                Hide
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

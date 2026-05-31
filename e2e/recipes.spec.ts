@@ -146,4 +146,67 @@ test.describe('Recipes tab', () => {
     ])
     expect(download.suggestedFilename()).toMatch(/wellness_hub_backup_.+\.json/)
   })
+
+  // ── Phase 2: action bar + CookingMode ───────────────────────────
+
+  test('expanded custom recipe shows Edit, Cook, and Grocery buttons', async ({ page }) => {
+    // Create a recipe with steps and ingredients
+    await page.getByRole('button', { name: '+ Add my recipe' }).click()
+    await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Action Bar Recipe')
+    // Add an ingredient (use textbox role scoped to "Ingredient" label)
+    await page.getByRole('textbox', { name: 'Ingredient' }).fill('Oats')
+    await page.getByPlaceholder('Amount').fill('50g')
+    // The ingredient and step "+" buttons have exact text "+"; use exact match
+    // to avoid matching "⁺ Add my recipe" etc.
+    const plusBtns = page.getByRole('button', { name: '+', exact: true })
+    await plusBtns.first().click()
+    // Add a step (placeholder is "Add a step...", step "+" is the second exact-"+" button)
+    await page.getByPlaceholder('Add a step...').fill('Cook the oats')
+    await plusBtns.last().click()
+    await page.getByRole('button', { name: 'Save recipe' }).click()
+
+    // Open My Recipes, expand the card
+    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    await page.getByText('Action Bar Recipe').click()
+
+    await expect(page.getByRole('button', { name: /edit recipe/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /cook this recipe/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /add ingredients to grocery/i })).toBeVisible()
+  })
+
+  test('Cook button launches CookingMode overlay', async ({ page }) => {
+    // Create a recipe with a step
+    await page.getByRole('button', { name: '+ Add my recipe' }).click()
+    await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Cook Test Recipe')
+    await page.getByPlaceholder('Add a step...').fill('Boil water')
+    await page.getByRole('button', { name: '+', exact: true }).last().click()
+    await page.getByRole('button', { name: 'Save recipe' }).click()
+
+    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    await page.getByText('Cook Test Recipe').click()
+    await page.getByRole('button', { name: /cook/i }).click()
+
+    await expect(page.getByText(/Exit cooking mode/)).toBeVisible()
+    // Recipe name appears in CookingMode header (span element)
+    await expect(page.locator('span').filter({ hasText: 'Cook Test Recipe' })).toBeVisible()
+  })
+
+  test('CookingMode can be exited via Exit button', async ({ page }) => {
+    // Create a recipe with a step
+    await page.getByRole('button', { name: '+ Add my recipe' }).click()
+    await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Exit Cook Recipe')
+    await page.getByPlaceholder('Add a step...').fill('Stir gently')
+    await page.getByRole('button', { name: '+', exact: true }).last().click()
+    await page.getByRole('button', { name: 'Save recipe' }).click()
+
+    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    await page.getByText('Exit Cook Recipe').click()
+    await page.getByRole('button', { name: /cook/i }).click()
+    await expect(page.getByText(/Exit cooking mode/)).toBeVisible()
+
+    await page.getByText(/Exit cooking mode/).click()
+    await expect(page.getByText(/Exit cooking mode/)).not.toBeVisible()
+    // Back on the recipes view
+    await expect(page.getByRole('button', { name: '⭐ My Recipes' })).toBeVisible()
+  })
 })

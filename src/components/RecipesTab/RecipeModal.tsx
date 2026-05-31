@@ -4,6 +4,8 @@ import type { Recipe } from '../../data/recipes'
 
 interface Props {
   customTags: string[]
+  /** When set, the modal pre-populates fields for editing an existing recipe */
+  initialRecipe?: Recipe
   onSave: (r: Recipe) => void
   onAddTag: (tag: string) => void
   onClose: () => void
@@ -11,7 +13,8 @@ interface Props {
 
 const PREP_TIME_PRESETS = ['5 min', '10 min', '15 min', '20 min', '30 min', '45 min', '1 hr+', 'Prep ahead', 'Meal prep']
 
-export default function RecipeModal({ customTags, onSave, onAddTag, onClose }: Props) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export default function RecipeModal({ customTags, initialRecipe: _initialRecipe, onSave, onAddTag, onClose }: Props) {
   const [name, setName]           = useState('')
   const [tagLine, setTagLine]     = useState('')
   const [cat, setCat]             = useState('dinner')
