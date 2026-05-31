@@ -38,8 +38,25 @@ The E2E suite starts the dev server automatically. Make sure `npm install` has b
 | `npm run build` | Production build → `dist/` |
 | `npm run preview` | Preview the production build locally |
 | `npm run deploy` | Build + publish to GitHub Pages (`gh-pages` branch) |
+| `npm run lint` | ESLint — exits non-zero on errors, warns only |
 | `npm test` | Unit tests (Vitest) |
 | `npm run test:e2e` | E2E tests (Playwright, Chromium) |
+
+## CI / CD
+
+| Trigger | Workflow | What it does |
+|---|---|---|
+| Pull request → `main` | `ci.yml` | Lint, unit tests, build |
+| Push to `main` (merge) | `e2e.yml` | E2E tests → deploy to GitHub Pages if green |
+
+**Required GitHub repository secrets** (Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|---|---|
+| `VITE_SUPABASE_URL` | Your Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Your Supabase anon key |
+
+Without these the deploy job builds and ships successfully but the app runs in local-only mode (no auth, no sync).
 
 ## Stack
 
