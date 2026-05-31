@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import type { User } from '@supabase/supabase-js'
 import type { Recipe } from '../../data/recipes'
 import { useRecipeStore, useTrackerStore } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
@@ -22,7 +21,7 @@ const FILTER_BTNS: { id: Filter; label: string }[] = [
   { id: 'ferments', label: 'Ferments' },
 ]
 
-export default function RecipesTab({ user }: { user?: User | null }) {
+export default function RecipesTab() {
   const store        = useRecipeStore()
   const trackerStore = useTrackerStore()
 
@@ -80,10 +79,7 @@ export default function RecipesTab({ user }: { user?: User | null }) {
     return () => { cancelled = true }
   }, [])
 
-  // When logged out, clamp gated filters to 'all' at render time
-  const activeFilter: Filter = (!user && (filter === 'custom' || filter === 'grocery'))
-    ? 'all'
-    : filter
+  const activeFilter: Filter = filter
 
   const refreshCustom = useCallback(() => {
     setCustomRecipes(store.getRecipes())
@@ -165,24 +161,20 @@ export default function RecipesTab({ user }: { user?: User | null }) {
             {btn.label}
           </button>
         ))}
-        {user && (
-          <button
-            className={`rfbtn${activeFilter === 'custom' ? ' active' : ''}`}
-            style={{ borderColor: activeFilter === 'custom' ? undefined : 'var(--purple)', color: activeFilter === 'custom' ? undefined : 'var(--purple-light)' }}
-            onClick={() => { setFilter('custom'); setCustomTag(null) }}
-          >
-            ⭐ My Recipes
-          </button>
-        )}
-        {user && (
-          <button
-            className={`rfbtn${activeFilter === 'grocery' ? ' active' : ''}`}
-            style={{ borderColor: activeFilter === 'grocery' ? undefined : 'var(--green2)', color: activeFilter === 'grocery' ? undefined : 'var(--green-light)' }}
-            onClick={() => setFilter('grocery')}
-          >
-            🛒 Grocery
-          </button>
-        )}
+        <button
+          className={`rfbtn${activeFilter === 'custom' ? ' active' : ''}`}
+          style={{ borderColor: activeFilter === 'custom' ? undefined : 'var(--purple)', color: activeFilter === 'custom' ? undefined : 'var(--purple-light)' }}
+          onClick={() => { setFilter('custom'); setCustomTag(null) }}
+        >
+          ⭐ My Recipes
+        </button>
+        <button
+          className={`rfbtn${activeFilter === 'grocery' ? ' active' : ''}`}
+          style={{ borderColor: activeFilter === 'grocery' ? undefined : 'var(--green2)', color: activeFilter === 'grocery' ? undefined : 'var(--green-light)' }}
+          onClick={() => setFilter('grocery')}
+        >
+          🛒 Grocery
+        </button>
       </div>
 
       {/* Custom tag sub-filter */}
@@ -249,16 +241,14 @@ export default function RecipesTab({ user }: { user?: User | null }) {
       )}
 
       {/* Action bar */}
-      {user && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18, alignItems: 'center' }}>
-          <button
-            onClick={() => setShowModal(true)}
-            style={{ background: 'var(--purple)', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontFamily: 'sans-serif', color: '#fff', cursor: 'pointer', fontWeight: 500 }}
-          >
-            + Add my recipe
-          </button>
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18, alignItems: 'center' }}>
+        <button
+          onClick={() => setShowModal(true)}
+          style={{ background: 'var(--purple)', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontFamily: 'sans-serif', color: '#fff', cursor: 'pointer', fontWeight: 500 }}
+        >
+          + Add my recipe
+        </button>
+      </div>
 
       {/* Grocery panel */}
       {activeFilter === 'grocery' && <GroceryPanel />}
