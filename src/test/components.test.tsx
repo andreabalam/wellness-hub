@@ -175,6 +175,125 @@ describe('GroceryPanel', () => {
 })
 
 // ═════════════════════════════════════════════════════════════════
+// GroceryPanel Phase 5 — dynamic catalog items
+// ═════════════════════════════════════════════════════════════════
+describe('GroceryPanel — dynamic catalog', () => {
+  it('shows "Add item to my list" toggle button', () => {
+    render(<GroceryPanel />)
+    expect(screen.getByRole('button', { name: /add grocery item/i })).toBeInTheDocument()
+  })
+
+  it('clicking the toggle reveals the add-item form', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    expect(screen.getByPlaceholderText(/Item name/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add item' })).toBeInTheDocument()
+  })
+
+  it('Cancel button hides the form again', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByPlaceholderText(/Item name/i)).not.toBeInTheDocument()
+  })
+
+  it('Add item button is disabled when name is empty', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    expect(screen.getByRole('button', { name: 'Add item' })).toBeDisabled()
+  })
+
+  it('typing a name enables the Add item button', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Kimchi' } })
+    expect(screen.getByRole('button', { name: 'Add item' })).not.toBeDisabled()
+  })
+
+  it('submitting adds the item and it appears in the list', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Kimchi' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    expect(screen.getByText('Kimchi')).toBeInTheDocument()
+    // Form closes after submit
+    expect(screen.queryByPlaceholderText(/Item name/i)).not.toBeInTheDocument()
+  })
+
+  it('pressing Enter in the name field submits the form', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Sauerkraut' } })
+    fireEvent.keyDown(screen.getByPlaceholderText(/Item name/i), { key: 'Enter' })
+    expect(screen.getByText('Sauerkraut')).toBeInTheDocument()
+  })
+
+  it('user-added item can be checked off', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Miso' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    const item = screen.getByText('Miso').closest('.gitem')!
+    fireEvent.click(item)
+    expect(item).toHaveClass('gchecked')
+  })
+
+  it('user-added item has a × remove button', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Tempeh' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    expect(screen.getByRole('button', { name: /Remove Tempeh/i })).toBeInTheDocument()
+  })
+
+  it('clicking × removes the item from the list', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Natto' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    expect(screen.getByText('Natto')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Remove Natto/i }))
+    expect(screen.queryByText('Natto')).not.toBeInTheDocument()
+  })
+
+  it('user item for a standard category appears under that category header', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Dragon Fruit' } })
+    // Select "Produce - Fruit" category
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Produce - Fruit' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    // The item should appear; its category header should also be visible
+    const header = screen.getByText('Produce - Fruit')
+    const item   = screen.getByText('Dragon Fruit')
+    expect(header).toBeInTheDocument()
+    expect(item).toBeInTheDocument()
+  })
+
+  it('item for a non-standard category appears under "My Custom Items"', () => {
+    render(<GroceryPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Magic Beans' } })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'My Custom Items' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    expect(screen.getByText('My Custom Items')).toBeInTheDocument()
+    expect(screen.getByText('Magic Beans')).toBeInTheDocument()
+  })
+
+  it('multiple user items can be added independently', () => {
+    render(<GroceryPanel />)
+    for (const name of ['Item A', 'Item B', 'Item C']) {
+      fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+      fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: name } })
+      fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    }
+    expect(screen.getByText('Item A')).toBeInTheDocument()
+    expect(screen.getByText('Item B')).toBeInTheDocument()
+    expect(screen.getByText('Item C')).toBeInTheDocument()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
 // RecipeCard
 // ═════════════════════════════════════════════════════════════════
 describe('RecipeCard', () => {

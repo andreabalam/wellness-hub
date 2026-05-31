@@ -154,57 +154,57 @@ Call log:
   97  |     expect(checkedCount).toBe(0)
   98  |   })
   99  | 
-  100 |   test('can add a custom recipe and it appears under My Recipes', async ({ page }) => {
-  101 |     await page.getByRole('button', { name: '+ Add my recipe' }).click()
-  102 |     // Modal is open when the recipe name input is visible
-  103 |     await expect(page.getByPlaceholder('e.g. Mango Chia Pudding')).toBeVisible()
-  104 | 
-  105 |     await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('My Test Recipe')
-  106 |     await page.getByPlaceholder('e.g. High protein · gluten free').fill('Quick · 5 min')
-  107 |     await page.getByRole('button', { name: 'Save recipe' }).click()
-  108 | 
-  109 |     // Modal closes, recipe appears in My Recipes
-  110 |     await page.getByRole('button', { name: '⭐ My Recipes' }).click()
-  111 |     await expect(page.getByText('My Test Recipe')).toBeVisible()
-  112 |   })
-  113 | 
-  114 |   test('custom recipe is retained after page reload', async ({ page }) => {
-  115 |     await page.getByRole('button', { name: '+ Add my recipe' }).click()
-  116 |     await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Persistent Recipe')
-  117 |     await page.getByRole('button', { name: 'Save recipe' }).click()
-  118 | 
-  119 |     await page.reload()
-  120 |     await page.getByRole('button', { name: /Recipes/i }).click()
-  121 |     await page.getByRole('button', { name: '⭐ My Recipes' }).click()
-  122 |     await expect(page.getByText('Persistent Recipe')).toBeVisible()
-  123 |   })
-  124 | 
-  125 |   test('custom recipe can be deleted', async ({ page }) => {
-  126 |     // Add
-  127 |     await page.getByRole('button', { name: '+ Add my recipe' }).click()
-  128 |     await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Delete Me')
-  129 |     await page.getByRole('button', { name: 'Save recipe' }).click()
-  130 | 
-  131 |     // Open My Recipes, expand card, delete
-  132 |     await page.getByRole('button', { name: '⭐ My Recipes' }).click()
-  133 |     await page.getByText('Delete Me').click()
-  134 |     page.once('dialog', d => d.accept())
-  135 |     await page.getByRole('button', { name: 'Delete recipe' }).click()
-  136 | 
-  137 |     await expect(page.getByText('Delete Me')).not.toBeVisible()
-  138 |   })
-  139 | 
-  140 |   test('export data button triggers a download', async ({ page }) => {
-  141 |     // Export lives in TrackerTab, not RecipesTab
-  142 |     await page.getByRole('button', { name: /Tracker/i }).click()
-  143 |     const [download] = await Promise.all([
-  144 |       page.waitForEvent('download'),
-  145 |       page.getByRole('button', { name: '↓ Export' }).click(),
-  146 |     ])
-  147 |     expect(download.suggestedFilename()).toMatch(/wellness_hub_backup_.+\.json/)
-  148 |   })
-  149 | 
-  150 |   // ── Phase 2: action bar + CookingMode ───────────────────────────
+  100 |   // ── Phase 5: dynamic grocery catalog ────────────────────────────
+  101 | 
+  102 |   test('can add a custom item to the grocery list', async ({ page }) => {
+  103 |     await page.getByRole('button', { name: '🛒 Grocery' }).click()
+  104 |     await page.getByRole('button', { name: /add grocery item/i }).click()
+  105 |     await page.getByPlaceholder(/Item name/i).fill('Kimchi')
+  106 |     await page.getByRole('button', { name: 'Add item' }).click()
+  107 |     await expect(page.getByText('Kimchi')).toBeVisible()
+  108 |   })
+  109 | 
+  110 |   test('added grocery item can be checked off', async ({ page }) => {
+  111 |     await page.getByRole('button', { name: '🛒 Grocery' }).click()
+  112 |     await page.getByRole('button', { name: /add grocery item/i }).click()
+  113 |     await page.getByPlaceholder(/Item name/i).fill('Miso Paste')
+  114 |     await page.getByRole('button', { name: 'Add item' }).click()
+  115 |     const item = page.locator('.gitem').filter({ hasText: 'Miso Paste' })
+  116 |     await item.click()
+  117 |     await expect(item).toHaveClass(/gchecked/)
+  118 |   })
+  119 | 
+  120 |   test('added grocery item persists after page reload', async ({ page }) => {
+  121 |     await page.getByRole('button', { name: '🛒 Grocery' }).click()
+  122 |     await page.getByRole('button', { name: /add grocery item/i }).click()
+  123 |     await page.getByPlaceholder(/Item name/i).fill('Persistent Item')
+  124 |     await page.getByRole('button', { name: 'Add item' }).click()
+  125 | 
+  126 |     await page.reload()
+  127 |     await page.getByRole('button', { name: /Recipes/i }).click()
+  128 |     await page.getByRole('button', { name: '🛒 Grocery' }).click()
+  129 |     await expect(page.getByText('Persistent Item')).toBeVisible()
+  130 |   })
+  131 | 
+  132 |   test('added grocery item can be removed', async ({ page }) => {
+  133 |     await page.getByRole('button', { name: '🛒 Grocery' }).click()
+  134 |     await page.getByRole('button', { name: /add grocery item/i }).click()
+  135 |     await page.getByPlaceholder(/Item name/i).fill('Delete Me Item')
+  136 |     await page.getByRole('button', { name: 'Add item' }).click()
+  137 |     await expect(page.getByText('Delete Me Item')).toBeVisible()
+  138 | 
+  139 |     await page.getByRole('button', { name: /Remove Delete Me Item/i }).click()
+  140 |     await expect(page.getByText('Delete Me Item')).not.toBeVisible()
+  141 |   })
+  142 | 
+  143 |   test('can add a custom recipe and it appears under My Recipes', async ({ page }) => {
+  144 |     await page.getByRole('button', { name: '+ Add my recipe' }).click()
+  145 |     // Modal is open when the recipe name input is visible
+  146 |     await expect(page.getByPlaceholder('e.g. Mango Chia Pudding')).toBeVisible()
+  147 | 
+  148 |     await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('My Test Recipe')
+  149 |     await page.getByPlaceholder('e.g. High protein · gluten free').fill('Quick · 5 min')
+  150 |     await page.getByRole('button', { name: 'Save recipe' }).click()
   151 | 
-  152 |   test('expanded custom recipe shows Edit, Cook, and Grocery buttons', async ({ page }) => {
+  152 |     // Modal closes, recipe appears in My Recipes
 ```

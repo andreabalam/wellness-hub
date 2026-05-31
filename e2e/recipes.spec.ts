@@ -97,6 +97,49 @@ test.describe('Recipes tab', () => {
     expect(checkedCount).toBe(0)
   })
 
+  // ── Phase 5: dynamic grocery catalog ────────────────────────────
+
+  test('can add a custom item to the grocery list', async ({ page }) => {
+    await page.getByRole('button', { name: '🛒 Grocery' }).click()
+    await page.getByRole('button', { name: /add grocery item/i }).click()
+    await page.getByPlaceholder(/Item name/i).fill('Kimchi')
+    await page.getByRole('button', { name: 'Add item' }).click()
+    await expect(page.getByText('Kimchi')).toBeVisible()
+  })
+
+  test('added grocery item can be checked off', async ({ page }) => {
+    await page.getByRole('button', { name: '🛒 Grocery' }).click()
+    await page.getByRole('button', { name: /add grocery item/i }).click()
+    await page.getByPlaceholder(/Item name/i).fill('Miso Paste')
+    await page.getByRole('button', { name: 'Add item' }).click()
+    const item = page.locator('.gitem').filter({ hasText: 'Miso Paste' })
+    await item.click()
+    await expect(item).toHaveClass(/gchecked/)
+  })
+
+  test('added grocery item persists after page reload', async ({ page }) => {
+    await page.getByRole('button', { name: '🛒 Grocery' }).click()
+    await page.getByRole('button', { name: /add grocery item/i }).click()
+    await page.getByPlaceholder(/Item name/i).fill('Persistent Item')
+    await page.getByRole('button', { name: 'Add item' }).click()
+
+    await page.reload()
+    await page.getByRole('button', { name: /Recipes/i }).click()
+    await page.getByRole('button', { name: '🛒 Grocery' }).click()
+    await expect(page.getByText('Persistent Item')).toBeVisible()
+  })
+
+  test('added grocery item can be removed', async ({ page }) => {
+    await page.getByRole('button', { name: '🛒 Grocery' }).click()
+    await page.getByRole('button', { name: /add grocery item/i }).click()
+    await page.getByPlaceholder(/Item name/i).fill('Delete Me Item')
+    await page.getByRole('button', { name: 'Add item' }).click()
+    await expect(page.getByText('Delete Me Item')).toBeVisible()
+
+    await page.getByRole('button', { name: /Remove Delete Me Item/i }).click()
+    await expect(page.getByText('Delete Me Item')).not.toBeVisible()
+  })
+
   test('can add a custom recipe and it appears under My Recipes', async ({ page }) => {
     await page.getByRole('button', { name: '+ Add my recipe' }).click()
     // Modal is open when the recipe name input is visible
