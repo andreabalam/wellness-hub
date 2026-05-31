@@ -4,18 +4,20 @@ import type { Recipe } from '../data/recipes'
 import type { CustomBlock } from '../data/schedule'
 import type { MedGuide } from '../lib/sync'
 import type { Reminder } from '../data/reminders'
+import type { GroceryCatalogItem } from '../data/grocery'
 import { supabase } from '../lib/supabase'
 import * as sync from '../lib/sync'
 import { safeGet, safeSet } from '../lib/storage'
 
-const TRACKER_KEY      = 'whub_tracker_v3'
-const RECIPES_KEY      = 'whub_custom_recipes_v1'
-const TAGS_KEY         = 'whub_custom_tags_v1'
-const GROCERY_KEY      = 'whub_grocery_v1'
-const FOOD_LIBRARY_KEY = 'whub_food_library_v1'
-const SCHEDULE_KEY     = 'whub_schedule_v1'
+const TRACKER_KEY           = 'whub_tracker_v3'
+const RECIPES_KEY           = 'whub_custom_recipes_v1'
+const TAGS_KEY              = 'whub_custom_tags_v1'
+const GROCERY_KEY           = 'whub_grocery_v1'
+const GROCERY_CATALOG_KEY   = 'whub_grocery_catalog_v1'
+const FOOD_LIBRARY_KEY      = 'whub_food_library_v1'
+const SCHEDULE_KEY          = 'whub_schedule_v1'
 export const MED_GUIDES_KEY = 'whub_med_guides_v1'
-const REMINDERS_KEY    = 'whub_reminders_v1'
+const REMINDERS_KEY         = 'whub_reminders_v1'
 
 /**
  * Fire-and-forget push to Supabase — only runs when a user is signed in.
@@ -111,6 +113,37 @@ export const scheduleStore = {
   },
 }
 
+// ── Grocery catalog ── user-owned dynamic list of shopping items ──
+export const groceryCatalogStore = {
+  getAll: (): GroceryCatalogItem[] => safeGet<GroceryCatalogItem[]>(GROCERY_CATALOG_KEY, []),
+
+  save: (items: GroceryCatalogItem[]) => {
+    safeSet(GROCERY_CATALOG_KEY, items)
+    tryPush(uid => sync.pushUserGroceryCatalog(uid, items))
+  },
+
+  add: (item: GroceryCatalogItem) =>
+    groceryCatalogStore.save([...groceryCatalogStore.getAll(), item]),
+
+  update: (id: string, patch: Partial<GroceryCatalogItem>) =>
+    groceryCatalogStore.save(
+      groceryCatalogStore.getAll().map(i => i.id === id ? { ...i, ...patch } : i)
+    ),
+
+  remove: (id: string) =>
+    groceryCatalogStore.save(groceryCatalogStore.getAll().filter(i => i.id !== id)),
+
+  /** True when the key exists in localStorage (even if the array is empty) */
+  isInitialized: (): boolean => {
+    try { return localStorage.getItem(GROCERY_CATALOG_KEY) !== null } catch { return false }
+  },
+
+  /** Wipe the key so it can be re-seeded from defaults */
+  reset: () => {
+    try { localStorage.removeItem(GROCERY_CATALOG_KEY) } catch { /* quota */ }
+  },
+}
+
 // ── Reminders ── persistent cross-day checklist ───────────────────
 export const remindersStore = {
   getAll: (): Reminder[] => safeGet<Reminder[]>(REMINDERS_KEY, []),
@@ -133,7 +166,8 @@ export function useTrackerStore()     { return trackerStore }
 export function useRecipeStore()      { return recipeStore }
 export function useGroceryStore()     { return groceryStore }
 export function useFoodLibraryStore() { return foodLibraryStore }
-export function useRemindersStore()   { return remindersStore }
+export function useRemindersStore()      { return remindersStore }
+export function useGroceryCatalogStore() { return groceryCatalogStore }
 
 // ── Merge remote data into localStorage without triggering another push ──
 export function importRemoteData(remote: {
@@ -144,14 +178,16 @@ export function importRemoteData(remote: {
   foodLibrary?: QuickFood[]
   schedule?: CustomBlock[]
   medGuides?: MedGuide[]
+  groceryCatalog?: GroceryCatalogItem[]
 }) {
-  if (remote.tracker     !== undefined) safeSet(TRACKER_KEY,      remote.tracker)
-  if (remote.recipes     !== undefined) safeSet(RECIPES_KEY,      remote.recipes)
-  if (remote.tags        !== undefined) safeSet(TAGS_KEY,         remote.tags)
-  if (remote.grocery     !== undefined) safeSet(GROCERY_KEY,      remote.grocery)
-  if (remote.foodLibrary !== undefined) safeSet(FOOD_LIBRARY_KEY, remote.foodLibrary)
-  if (remote.schedule    !== undefined) safeSet(SCHEDULE_KEY,     remote.schedule)
-  if (remote.medGuides   !== undefined) safeSet(MED_GUIDES_KEY,   remote.medGuides)
+  if (remote.tracker        !== undefined) safeSet(TRACKER_KEY,        remote.tracker)
+  if (remote.recipes        !== undefined) safeSet(RECIPES_KEY,        remote.recipes)
+  if (remote.tags           !== undefined) safeSet(TAGS_KEY,           remote.tags)
+  if (remote.grocery        !== undefined) safeSet(GROCERY_KEY,        remote.grocery)
+  if (remote.foodLibrary    !== undefined) safeSet(FOOD_LIBRARY_KEY,   remote.foodLibrary)
+  if (remote.schedule       !== undefined) safeSet(SCHEDULE_KEY,       remote.schedule)
+  if (remote.medGuides      !== undefined) safeSet(MED_GUIDES_KEY,     remote.medGuides)
+  if (remote.groceryCatalog !== undefined) safeSet(GROCERY_CATALOG_KEY, remote.groceryCatalog)
 }
 
 // ── Full export / import (JSON backup) ───────────────────────────
@@ -162,6 +198,7 @@ export function exportAllData() {
     customTags:     safeGet<string[]>(TAGS_KEY, []),
     groceryChecked: safeGet<string[]>(GROCERY_KEY, []),
     foodLibrary:    safeGet<QuickFood[]>(FOOD_LIBRARY_KEY, []),
+    groceryCatalog: safeGet<GroceryCatalogItem[]>(GROCERY_CATALOG_KEY, []),
     exportedAt:     new Date().toISOString(),
     version:        'whub_v1',
   }
@@ -171,11 +208,12 @@ export function importAllData(json: string): boolean {
   try {
     const data = JSON.parse(json)
     if (data.version !== 'whub_v1') throw new Error('bad version')
-    if (data.tracker)        safeSet(TRACKER_KEY,      data.tracker)
-    if (data.customRecipes)  safeSet(RECIPES_KEY,      data.customRecipes)
-    if (data.customTags)     safeSet(TAGS_KEY,         data.customTags)
-    if (data.groceryChecked) safeSet(GROCERY_KEY,      data.groceryChecked)
-    if (data.foodLibrary)    safeSet(FOOD_LIBRARY_KEY, data.foodLibrary)
+    if (data.tracker)        safeSet(TRACKER_KEY,         data.tracker)
+    if (data.customRecipes)  safeSet(RECIPES_KEY,         data.customRecipes)
+    if (data.customTags)     safeSet(TAGS_KEY,            data.customTags)
+    if (data.groceryChecked) safeSet(GROCERY_KEY,         data.groceryChecked)
+    if (data.foodLibrary)    safeSet(FOOD_LIBRARY_KEY,    data.foodLibrary)
+    if (data.groceryCatalog) safeSet(GROCERY_CATALOG_KEY, data.groceryCatalog)
     return true
   } catch { return false }
 }

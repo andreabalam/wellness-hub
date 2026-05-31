@@ -13,6 +13,34 @@ export interface GroceryItem {
   nutri?: NutriInfo
 }
 
+/**
+ * A user-owned grocery catalog item.
+ * id is a client-side uuid; nutri is optional.
+ */
+export interface GroceryCatalogItem {
+  id: string
+  n: string
+  cat: string
+  nutri?: NutriInfo
+}
+
+/** All 11 grocery categories — used in dropdowns and category headers. */
+export const GROCERY_CATEGORIES = [
+  'Produce - Vegetables',
+  'Produce - Fruit',
+  'Protein - Animal',
+  'Protein - Plant',
+  'Dairy and Refrigerated',
+  'Grains and Bread',
+  'Nuts, Seeds and Fat',
+  'Oils and Condiments',
+  'Spices and Seasonings',
+  'Baking',
+  'Supplements and Extras',
+] as const
+
+export type GroceryCategory = typeof GROCERY_CATEGORIES[number]
+
 export const GROCERY_DATA: Record<string, GroceryItem[]> = {
   'Produce - Vegetables': [
     { n: 'Baby spinach',    nutri: { srv: '1 cup raw',    cal: 7,   p: 0.9, c: 1.1, f: 0.1, fi: 0.7 } },

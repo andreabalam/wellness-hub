@@ -31,6 +31,23 @@ export interface Recipe {
   custom?: boolean
   /** Who created this recipe: 'builtin' | 'dr_emily' | 'user' */
   source?: 'builtin' | 'dr_emily' | 'user'
+  /**
+   * DB id of the built-in recipe this was forked from.
+   * Set when the user edits a default recipe — the original stays untouched.
+   */
+  defaultId?: number
+  /**
+   * When true, this default recipe is hidden for this user.
+   * Hidden defaults do not appear in the recipe list but can be restored.
+   */
+  hidden?: boolean
 }
 
 export const PRESET_CATS = ['breakfast', 'smoothie', 'lunch', 'dinner', 'dessert', 'ferments', 'snack', 'drinks', 'sauce', 'side']
+
+/**
+ * One default recipe per category, chosen by best protein-to-calorie ratio.
+ * Breakfast=2, Smoothie=5, Lunch=9, Dinner=13, Dessert=22, Ferments=24, Snack=45.
+ * (No Drinks recipe is currently in the DB.)
+ */
+export const DEFAULT_RECIPE_IDS = [2, 5, 9, 13, 22, 24, 45] as const

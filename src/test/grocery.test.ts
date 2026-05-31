@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { GROCERY_DATA } from '../data/grocery'
+import { GROCERY_DATA, GROCERY_CATEGORIES } from '../data/grocery'
+import type { GroceryCatalogItem } from '../data/grocery'
 
 const ALL_ITEMS = Object.values(GROCERY_DATA).flat()
 
@@ -128,5 +129,43 @@ describe('Spices and Seasonings have no nutri', () => {
     GROCERY_DATA['Spices and Seasonings'].forEach(item => {
       expect(item.nutri, `${item.n} should not have nutri`).toBeUndefined()
     })
+  })
+})
+
+// ── GROCERY_CATEGORIES ────────────────────────────────────────────
+describe('GROCERY_CATEGORIES', () => {
+  it('has exactly 11 entries', () => {
+    expect(GROCERY_CATEGORIES).toHaveLength(11)
+  })
+
+  it('matches the keys of GROCERY_DATA exactly', () => {
+    const dataKeys = Object.keys(GROCERY_DATA).sort()
+    const catKeys  = [...GROCERY_CATEGORIES].sort()
+    expect(catKeys).toEqual(dataKeys)
+  })
+
+  it('is read-only (TypeScript const assertion)', () => {
+    // TypeScript enforces this at compile time; just verify the array exists and is truthy
+    expect(GROCERY_CATEGORIES).toBeTruthy()
+  })
+})
+
+// ── GroceryCatalogItem interface shape ────────────────────────────
+describe('GroceryCatalogItem shape', () => {
+  it('can be constructed with required fields only', () => {
+    const item: GroceryCatalogItem = { id: 'test-1', n: 'Kale', cat: 'Produce - Vegetables' }
+    expect(item.id).toBe('test-1')
+    expect(item.n).toBe('Kale')
+    expect(item.cat).toBe('Produce - Vegetables')
+    expect(item.nutri).toBeUndefined()
+  })
+
+  it('accepts optional nutri info', () => {
+    const item: GroceryCatalogItem = {
+      id: 'test-2', n: 'Salmon fillet', cat: 'Protein - Animal',
+      nutri: { srv: '4 oz', cal: 160, p: 25, c: 0, f: 7 },
+    }
+    expect(item.nutri?.cal).toBe(160)
+    expect(item.nutri?.p).toBe(25)
   })
 })

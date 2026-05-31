@@ -11,7 +11,7 @@ import { supabase } from './lib/supabase'
 import * as sync from './lib/sync'
 import type { MedGuide } from './lib/sync'
 import { safeGet } from './lib/storage'
-import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStore, importRemoteData, MED_GUIDES_KEY } from './hooks/useStore'
+import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStore, groceryCatalogStore, importRemoteData, MED_GUIDES_KEY } from './hooks/useStore'
 
 type Tab = 'tracker' | 'recipes' | 'workouts' | 'schedule'
 
@@ -38,13 +38,14 @@ export default function App() {
     setSyncing(true)
     try {
       // Pull remote data
-      const [remoteDays, remoteTags, remoteGrocery, remoteFoodLib, remoteSchedule, remoteMedGuides] = await Promise.all([
+      const [remoteDays, remoteTags, remoteGrocery, remoteFoodLib, remoteSchedule, remoteMedGuides, remoteGroceryCatalog] = await Promise.all([
         sync.pullAllDays(userId),
         sync.pullTags(userId),
         sync.pullGrocery(userId),
         sync.pullFoodLibrary(userId),
         sync.pullSchedule(userId),
         sync.pullMedGuides(userId),
+        sync.pullUserGroceryCatalog(userId),
       ])
 
       // Merge: remote wins for tracker day conflicts (another device is authoritative);
@@ -71,14 +72,22 @@ export default function App() {
       const localMedGuides = safeGet<MedGuide[] | null>(MED_GUIDES_KEY, null)
       const mergedMedGuides = remoteMedGuides ?? localMedGuides
 
+      // Grocery catalog: remote wins per id; local-only items are kept
+      const localCatalog = groceryCatalogStore.getAll()
+      const remoteIds = new Set((remoteGroceryCatalog ?? []).map(i => i.id))
+      const mergedGroceryCatalog = remoteGroceryCatalog !== null
+        ? [...(remoteGroceryCatalog ?? []), ...localCatalog.filter(i => !remoteIds.has(i.id))]
+        : localCatalog
+
       // Write merged data to localStorage (bypasses push to avoid a loop)
       importRemoteData({
-        tracker:     mergedDays,
-        tags:        mergedTags,
-        grocery:     mergedGrocery,
-        foodLibrary: mergedFoodLib,
-        ...(mergedSchedule   ? { schedule:   mergedSchedule   } : {}),
-        ...(mergedMedGuides  ? { medGuides:  mergedMedGuides  } : {}),
+        tracker:        mergedDays,
+        tags:           mergedTags,
+        grocery:        mergedGrocery,
+        foodLibrary:    mergedFoodLib,
+        ...(mergedSchedule        ? { schedule:        mergedSchedule        } : {}),
+        ...(mergedMedGuides       ? { medGuides:       mergedMedGuides       } : {}),
+        ...(mergedGroceryCatalog.length ? { groceryCatalog: mergedGroceryCatalog } : {}),
       })
 
       // Push merged data back so any local-only items reach Supabase
@@ -89,8 +98,9 @@ export default function App() {
         sync.pushTags(userId, mergedTags),
         sync.pushGrocery(userId, mergedGrocery),
         sync.pushFoodLibrary(userId, mergedFoodLib),
-        ...(mergedSchedule  ? [sync.pushSchedule(userId, mergedSchedule)]  : []),
-        ...(mergedMedGuides ? [sync.pushMedGuides(userId, mergedMedGuides)] : []),
+        ...(mergedSchedule        ? [sync.pushSchedule(userId, mergedSchedule)]              : []),
+        ...(mergedMedGuides       ? [sync.pushMedGuides(userId, mergedMedGuides)]             : []),
+        ...(mergedGroceryCatalog.length ? [sync.pushUserGroceryCatalog(userId, mergedGroceryCatalog)] : []),
       ])
 
       setLastSynced(new Date())

@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   trackerStore, recipeStore, groceryStore, scheduleStore,
-  foodLibraryStore, importRemoteData,
+  foodLibraryStore, groceryCatalogStore, importRemoteData,
   useTrackerStore, useRecipeStore, useGroceryStore, useFoodLibraryStore,
+  useGroceryCatalogStore,
   exportAllData, importAllData,
 } from '../hooks/useStore'
 import { EMPTY_DAY } from '../data/tracker'
 import type { CustomBlock } from '../data/schedule'
+import type { GroceryCatalogItem } from '../data/grocery'
 
 // ── localStorage mock ────────────────────────────────────────────
 const store: Record<string, string> = {}
@@ -154,6 +156,7 @@ describe('export / import round-trip', () => {
     expect(data).toHaveProperty('customRecipes')
     expect(data).toHaveProperty('customTags')
     expect(data).toHaveProperty('groceryChecked')
+    expect(data).toHaveProperty('groceryCatalog')
     expect(data).toHaveProperty('exportedAt')
   })
 
@@ -165,6 +168,9 @@ describe('export / import round-trip', () => {
     recipeStore.addRecipe({ ...recipeBase, id: 99, name: 'Exported Recipe' })
     groceryStore.toggle('Avocados')
 
+    const catItem: GroceryCatalogItem = { id: 'e1', n: 'Exported Kale', cat: 'Produce - Vegetables' }
+    groceryCatalogStore.add(catItem)
+
     const json = JSON.stringify(exportAllData())
     Object.keys(store).forEach(k => delete store[k])
 
@@ -172,6 +178,7 @@ describe('export / import round-trip', () => {
     expect(trackerStore.getDay('2026-05-25').workout).toBe('pilates')
     expect(recipeStore.getRecipes()[0].name).toBe('Exported Recipe')
     expect(groceryStore.getChecked()).toContain('Avocados')
+    expect(groceryCatalogStore.getAll().find(i => i.id === 'e1')?.n).toBe('Exported Kale')
   })
 
   it('importAllData rejects a bad version', () => {
@@ -330,6 +337,12 @@ describe('importRemoteData', () => {
     expect(stored[0].title).toBe('Remote Guide')
   })
 
+  it('writes groceryCatalog to localStorage', () => {
+    const item: GroceryCatalogItem = { id: 'rc1', n: 'Remote Kale', cat: 'Produce - Vegetables' }
+    importRemoteData({ groceryCatalog: [item] })
+    expect(groceryCatalogStore.getAll().find(i => i.id === 'rc1')).toBeDefined()
+  })
+
   it('ignores undefined fields (no-ops)', () => {
     importRemoteData({})
     expect(trackerStore.getAll()).toEqual({})
@@ -352,6 +365,88 @@ describe('store hook wrappers', () => {
 
   it('useFoodLibraryStore returns the same foodLibraryStore', () => {
     expect(useFoodLibraryStore()).toBe(foodLibraryStore)
+  })
+
+  it('useGroceryCatalogStore returns the same groceryCatalogStore', () => {
+    expect(useGroceryCatalogStore()).toBe(groceryCatalogStore)
+  })
+})
+
+// ── groceryCatalogStore ──────────────────────────────────────────
+describe('groceryCatalogStore', () => {
+  const spinach: GroceryCatalogItem = { id: 'g1', n: 'Spinach', cat: 'Produce - Vegetables' }
+  const salmon:  GroceryCatalogItem = { id: 'g2', n: 'Salmon',  cat: 'Protein - Animal' }
+
+  it('getAll returns [] initially', () => {
+    expect(groceryCatalogStore.getAll()).toEqual([])
+  })
+
+  it('add appends an item', () => {
+    groceryCatalogStore.add(spinach)
+    const items = groceryCatalogStore.getAll()
+    expect(items).toHaveLength(1)
+    expect(items[0].n).toBe('Spinach')
+  })
+
+  it('add appends multiple distinct items', () => {
+    groceryCatalogStore.add(spinach)
+    groceryCatalogStore.add(salmon)
+    expect(groceryCatalogStore.getAll()).toHaveLength(2)
+  })
+
+  it('update patches a field by id', () => {
+    groceryCatalogStore.add(spinach)
+    groceryCatalogStore.update('g1', { n: 'Baby Spinach' })
+    expect(groceryCatalogStore.getAll()[0].n).toBe('Baby Spinach')
+  })
+
+  it('update leaves other items untouched', () => {
+    groceryCatalogStore.add(spinach)
+    groceryCatalogStore.add(salmon)
+    groceryCatalogStore.update('g1', { cat: 'Produce - Fruit' })
+    expect(groceryCatalogStore.getAll().find(i => i.id === 'g2')?.n).toBe('Salmon')
+  })
+
+  it('update with unknown id is a no-op', () => {
+    groceryCatalogStore.add(spinach)
+    groceryCatalogStore.update('zz', { n: 'Ghost' })
+    expect(groceryCatalogStore.getAll()[0].n).toBe('Spinach')
+  })
+
+  it('remove deletes by id', () => {
+    groceryCatalogStore.add(spinach)
+    groceryCatalogStore.add(salmon)
+    groceryCatalogStore.remove('g1')
+    const items = groceryCatalogStore.getAll()
+    expect(items).toHaveLength(1)
+    expect(items[0].id).toBe('g2')
+  })
+
+  it('remove with unknown id is a no-op', () => {
+    groceryCatalogStore.add(spinach)
+    groceryCatalogStore.remove('zz')
+    expect(groceryCatalogStore.getAll()).toHaveLength(1)
+  })
+
+  it('isInitialized returns false before any write', () => {
+    expect(groceryCatalogStore.isInitialized()).toBe(false)
+  })
+
+  it('isInitialized returns true after an add', () => {
+    groceryCatalogStore.add(spinach)
+    expect(groceryCatalogStore.isInitialized()).toBe(true)
+  })
+
+  it('isInitialized returns true even when catalog is empty after save([])', () => {
+    groceryCatalogStore.save([])
+    expect(groceryCatalogStore.isInitialized()).toBe(true)
+  })
+
+  it('reset removes the key so isInitialized returns false', () => {
+    groceryCatalogStore.add(spinach)
+    groceryCatalogStore.reset()
+    expect(groceryCatalogStore.isInitialized()).toBe(false)
+    expect(groceryCatalogStore.getAll()).toEqual([])
   })
 })
 
