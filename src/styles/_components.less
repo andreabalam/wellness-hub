@@ -1,0 +1,98 @@
+// ── Shared component styles ───────────────────────────────────────
+// Class names follow BEM-style: .block--modifier
+
+// ── Button ───────────────────────────────────────────────────────
+.btn {
+  border-radius: 8px;
+  font-family: "DM Sans", sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+
+  // Sizes
+  &--sm { padding: 5px 12px;  font-size: 12px; }
+  &--md { padding: 7px 16px;  font-size: 13px; }
+
+  // Variants
+  &--primary   { background: var(--green);  border: none; color: #fff; }
+  &--secondary { background: var(--purple); border: none; color: #fff; }
+  &--ghost     { background: none; border: 1px solid var(--border);  color: var(--muted); }
+  &--danger    { background: none; border: 1px solid var(--coral);   color: var(--coral-light); }
+}
+
+// ── StatusBanner ─────────────────────────────────────────────────
+.banner {
+  padding: 10px 14px;
+  border-radius: 9px;
+  font-family: "DM Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+
+  &--info    { background: rgba(58,125,90,0.12);  border: 1px solid var(--green);  color: var(--green-light); }
+  &--warn    { background: rgba(201,145,58,0.12); border: 1px solid var(--amber);  color: var(--amber-light); }
+  &--error   { background: rgba(220,80,60,0.12);  border: 1px solid var(--coral);  color: var(--coral-light); }
+  &--success { background: rgba(58,125,90,0.18);  border: 1px solid var(--teal);   color: var(--teal-light); }
+}
+
+// ── EmptyState ────────────────────────────────────────────────────
+.empty-state {
+  padding: 32px;
+  text-align: center;
+  color: var(--muted2);
+  font-size: 13px;
+  font-style: italic;
+  grid-column: 1 / -1;
+}
+
+// ── SectionHeader ─────────────────────────────────────────────────
+.section-header {
+  margin-bottom: 18px;
+
+  &__title {
+    font-family: "DM Serif Display", serif;
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--text);
+    margin: 0;
+  }
+
+  &__subtitle {
+    font-size: 12px;
+    color: var(--muted2);
+    margin: 4px 0 0;
+    font-family: "DM Sans", sans-serif;
+  }
+}
+
+// ── ConfirmDialog ─────────────────────────────────────────────────
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+
+  &__card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 28px;
+    max-width: 360px;
+    width: 100%;
+  }
+
+  &__message {
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+}

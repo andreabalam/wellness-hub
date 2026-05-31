@@ -380,7 +380,8 @@ export default function TrackerTab({ user }: { user?: User | null }) {
       if (result.length >= 10) break
     }
     return result
-  }, [store])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store, day])
 
   const logWorkout = () => {
     if (!selSession) { alert('Select a session type first.'); return }

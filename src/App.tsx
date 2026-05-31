@@ -169,22 +169,12 @@ export default function App() {
       </ErrorBoundary>
       <ErrorBoundary name="Recipes">
         <div className={`view${active === 'recipes' ? ' active' : ''}`}>
-          <RecipesTab user={user} />
+          <RecipesTab />
         </div>
       </ErrorBoundary>
       <ErrorBoundary name="Tracker">
         <div className={`view${active === 'tracker' ? ' active' : ''}`}>
-          {active === 'tracker' && (
-            user
-              ? <TrackerTab user={user} />
-              : (
-                <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--muted2)' }}>
-                  <div style={{ fontSize: 36, marginBottom: 16 }}>📊</div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Sign in to access your Tracker</div>
-                  <div style={{ fontSize: 13 }}>Log food, track workouts, and monitor your health metrics — all synced across devices.</div>
-                </div>
-              )
-          )}
+          {active === 'tracker' && <TrackerTab user={user} />}
         </div>
       </ErrorBoundary>
 

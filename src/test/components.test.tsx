@@ -861,18 +861,11 @@ describe('ScheduleEditor', () => {
 // RecipesTab
 // ═════════════════════════════════════════════════════════════════
 describe('RecipesTab', () => {
-  it('renders filter buttons', () => {
+  it('renders all filter buttons', () => {
     render(<RecipesTab />)
     expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Breakfast' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Smoothies' })).toBeInTheDocument()
-    // gated buttons require user
-    expect(screen.queryByRole('button', { name: '⭐ My Recipes' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '🛒 Grocery' })).not.toBeInTheDocument()
-  })
-
-  it('renders gated filter buttons when user is logged in', () => {
-    render(<RecipesTab user={FAKE_USER} />)
     expect(screen.getByRole('button', { name: '⭐ My Recipes' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '🛒 Grocery' })).toBeInTheDocument()
   })
@@ -925,14 +918,14 @@ describe('RecipesTab', () => {
   })
 
   it('clicking Grocery shows GroceryPanel', () => {
-    render(<RecipesTab user={FAKE_USER} />)
+    render(<RecipesTab />)
     fireEvent.click(screen.getByText('🛒 Grocery'))
     expect(screen.getByText('Your')).toBeInTheDocument() // "Your Grocery List"
     expect(screen.queryByPlaceholderText('Search recipes, ingredients…')).not.toBeInTheDocument()
   })
 
   it('⭐ My Recipes shows empty state when no custom recipes', async () => {
-    render(<RecipesTab user={FAKE_USER} />)
+    render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('⭐ My Recipes'))
     expect(screen.getByText(/No custom recipes yet/)).toBeInTheDocument()
@@ -941,7 +934,7 @@ describe('RecipesTab', () => {
   it('custom recipes show tag sub-filter when tags exist', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     ls['whub_custom_tags_v1']    = JSON.stringify(['smoothie'])
-    render(<RecipesTab user={FAKE_USER} />)
+    render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('⭐ My Recipes'))
     expect(screen.getByText('Filter by tag:')).toBeInTheDocument()
@@ -950,7 +943,7 @@ describe('RecipesTab', () => {
   it('clicking "All my recipes" sub-filter clears tag filter', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     ls['whub_custom_tags_v1']    = JSON.stringify(['smoothie'])
-    render(<RecipesTab user={FAKE_USER} />)
+    render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('⭐ My Recipes'))
     fireEvent.click(screen.getByText('Smoothie'))  // filter to smoothie tag
@@ -959,7 +952,7 @@ describe('RecipesTab', () => {
   })
 
   it('+ Add my recipe opens the modal', () => {
-    render(<RecipesTab user={FAKE_USER} />)
+    render(<RecipesTab />)
     fireEvent.click(screen.getByText('+ Add my recipe'))
     expect(screen.getByText('Recipe')).toBeInTheDocument()
   })
@@ -967,7 +960,7 @@ describe('RecipesTab', () => {
   it('deleting a custom recipe removes it from the list', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     vi.mocked(window.confirm).mockReturnValue(true)
-    render(<RecipesTab user={FAKE_USER} />)
+    render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('⭐ My Recipes'))
     fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
@@ -978,7 +971,7 @@ describe('RecipesTab', () => {
   it('cancelling delete keeps the recipe', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     vi.mocked(window.confirm).mockReturnValue(false)
-    render(<RecipesTab user={FAKE_USER} />)
+    render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('⭐ My Recipes'))
     fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
@@ -995,7 +988,7 @@ describe('RecipesTab', () => {
   })
 
   it('closing the Add recipe modal via onClose hides it', () => {
-    render(<RecipesTab user={FAKE_USER} />)
+    render(<RecipesTab />)
     fireEvent.click(screen.getByText('+ Add my recipe'))
     expect(screen.getByText('Recipe')).toBeInTheDocument()
     // The RecipeModal × button calls onClose → setShowModal(false)
@@ -1005,7 +998,7 @@ describe('RecipesTab', () => {
   })
 
   it('saving a recipe through the modal calls handleSave and shows it in My Recipes', async () => {
-    render(<RecipesTab user={FAKE_USER} />)
+    render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('+ Add my recipe'))
     // Fill in recipe name — placeholder is "e.g. Mango Chia Pudding"
@@ -1018,7 +1011,7 @@ describe('RecipesTab', () => {
   })
 
   it('adding a tag through the modal calls handleAddTag', () => {
-    render(<RecipesTab user={FAKE_USER} />)
+    render(<RecipesTab />)
     fireEvent.click(screen.getByText('+ Add my recipe'))
     fireEvent.change(screen.getByPlaceholderText('New tag (e.g. Sauce, Side...)'), {
       target: { value: 'keto' },
@@ -1656,9 +1649,9 @@ describe('App', () => {
     expect(screen.getByText('📅 Schedule')).toBeInTheDocument()
   })
 
-  it('shows sign-in prompt on Tracker tab when logged out', () => {
+  it('shows TrackerTab on Tracker tab (works without sign-in)', () => {
     render(<App />)
-    expect(screen.getByText(/Sign in to access your Tracker/)).toBeInTheDocument()
+    expect(screen.getByText(/Daily Tracker/)).toBeInTheDocument()
   })
 
   it('ScheduleTab is always rendered (cognitive peak banner visible)', () => {
@@ -1689,11 +1682,11 @@ describe('App', () => {
     expect(screen.getByText('✎ Edit schedule')).toBeInTheDocument()
   })
 
-  it('clicking back to Tracker shows sign-in prompt when logged out', () => {
+  it('clicking back to Tracker tab shows TrackerTab', () => {
     render(<App />)
     fireEvent.click(screen.getByText('🍽 Recipes'))
     fireEvent.click(screen.getByText('📊 Tracker'))
-    expect(screen.getByText(/Sign in to access your Tracker/)).toBeInTheDocument()
+    expect(screen.getByText(/Daily Tracker/)).toBeInTheDocument()
   })
 
   it('UpdatePrompt renders nothing when no SW update pending', () => {
