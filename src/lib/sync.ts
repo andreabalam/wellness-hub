@@ -7,6 +7,7 @@ import type { DayData, QuickFood } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
 import type { CustomBlock } from '../data/schedule'
 import type { GroceryItem } from '../data/grocery'
+import type { Reminder } from '../data/reminders'
 
 // ── Tracker days ─────────────────────────────────────────────────
 
@@ -197,6 +198,41 @@ export async function pullMedGuides(userId: string): Promise<MedGuide[] | null> 
     .eq('user_id', userId)
     .single()
   return data ? (data.guides as MedGuide[]) : null
+}
+
+// ── Reminders ──────────────────────────────────────────────────────
+export async function fetchReminders(userId: string): Promise<Reminder[]> {
+  const { data, error } = await supabase!
+    .from('reminders')
+    .select('id, text, checked, checked_at, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true })
+  if (error || !data) return []
+  return data.map(r => ({
+    id:        r.id as string,
+    text:      r.text as string,
+    checked:   r.checked as boolean,
+    checkedAt: r.checked_at as string | null,
+    createdAt: r.created_at as string,
+  }))
+}
+
+export async function upsertReminder(userId: string, r: Reminder): Promise<string | null> {
+  const { error } = await supabase!
+    .from('reminders')
+    .upsert({
+      id:         r.id,
+      user_id:    userId,
+      text:       r.text,
+      checked:    r.checked,
+      checked_at: r.checkedAt,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' })
+  return error ? error.message : null
+}
+
+export async function deleteReminder(reminderId: string): Promise<void> {
+  await supabase!.from('reminders').delete().eq('id', reminderId)
 }
 
 // ── Grocery catalog (shared, public read) ─────────────────────────

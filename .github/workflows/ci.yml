@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [main]
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -13,3 +13,5 @@ jobs:
       - run: npm run lint  # fails on errors; warnings are allowed
       - run: npm test
       - run: npm run build
+      - name: report-build-status
+        run: echo "Build succeeded"

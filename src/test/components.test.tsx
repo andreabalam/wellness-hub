@@ -1632,8 +1632,10 @@ describe('TrackerTab', () => {
     const patInput = screen.getByPlaceholderText('Paste your Oura PAT here…')
     fireEvent.change(patInput, { target: { value: 'fake-token-12345' } })
     fireEvent.click(screen.getByText('Save & test connection'))
-    // saveOuraPat throws "Not signed in" (no user in tests) → ouraError is shown
-    expect(await screen.findByText('Not signed in')).toBeInTheDocument()
+    // saveOuraPat throws an auth error → ouraError is shown in the UI.
+    // "Not signed in" locally (supabase non-null, no session);
+    // "Supabase not configured" in CI (no .env.local).
+    expect(await screen.findByText(/Not signed in|Supabase not configured/)).toBeInTheDocument()
   })
 })
 

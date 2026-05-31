@@ -3,6 +3,7 @@ import { EMPTY_DAY } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
 import type { CustomBlock } from '../data/schedule'
 import type { MedGuide } from '../lib/sync'
+import type { Reminder } from '../data/reminders'
 import { supabase } from '../lib/supabase'
 import * as sync from '../lib/sync'
 import { safeGet, safeSet } from '../lib/storage'
@@ -14,6 +15,7 @@ const GROCERY_KEY      = 'whub_grocery_v1'
 const FOOD_LIBRARY_KEY = 'whub_food_library_v1'
 const SCHEDULE_KEY     = 'whub_schedule_v1'
 export const MED_GUIDES_KEY = 'whub_med_guides_v1'
+const REMINDERS_KEY    = 'whub_reminders_v1'
 
 /**
  * Fire-and-forget push to Supabase — only runs when a user is signed in.
@@ -109,11 +111,29 @@ export const scheduleStore = {
   },
 }
 
+// ── Reminders ── persistent cross-day checklist ───────────────────
+export const remindersStore = {
+  getAll: (): Reminder[] => safeGet<Reminder[]>(REMINDERS_KEY, []),
+  save:   (arr: Reminder[]) => safeSet(REMINDERS_KEY, arr),
+
+  add: (r: Reminder) =>
+    remindersStore.save([...remindersStore.getAll(), r]),
+
+  update: (id: string, patch: Partial<Reminder>) =>
+    remindersStore.save(
+      remindersStore.getAll().map(r => r.id === id ? { ...r, ...patch } : r)
+    ),
+
+  remove: (id: string) =>
+    remindersStore.save(remindersStore.getAll().filter(r => r.id !== id)),
+}
+
 // ── React hook wrappers (same object, named for clarity in components) ──
 export function useTrackerStore()     { return trackerStore }
 export function useRecipeStore()      { return recipeStore }
 export function useGroceryStore()     { return groceryStore }
 export function useFoodLibraryStore() { return foodLibraryStore }
+export function useRemindersStore()   { return remindersStore }
 
 // ── Merge remote data into localStorage without triggering another push ──
 export function importRemoteData(remote: {

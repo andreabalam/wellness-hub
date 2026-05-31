@@ -138,8 +138,12 @@ describe('getOuraPat', () => {
 })
 
 describe('saveOuraPat', () => {
-  it('throws "Not signed in" when no user session exists', async () => {
-    await expect(saveOuraPat('tok')).rejects.toThrow('Not signed in')
+  it('rejects when not authenticated (no session or Supabase not configured)', async () => {
+    // CI has no .env.local so supabase is null → "Supabase not configured"
+    // Locally supabase is non-null but there is no session → "Not signed in"
+    await expect(saveOuraPat('tok')).rejects.toThrow(
+      /Not signed in|Supabase not configured/
+    )
   })
 })
 

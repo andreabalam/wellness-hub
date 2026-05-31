@@ -1,17 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 /**
  * Shown when a new service-worker version is waiting to activate.
  * The callback is provided by the SW registration (see main.tsx).
  */
 export default function UpdatePrompt({ onUpdate }: { onUpdate: (() => void) | null }) {
-  const [show, setShow] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
 
-  useEffect(() => {
-    if (onUpdate) setShow(true)
-  }, [onUpdate])
-
-  if (!show || !onUpdate) return null
+  if (!onUpdate || dismissed) return null
 
   return (
     <div
@@ -38,7 +34,7 @@ export default function UpdatePrompt({ onUpdate }: { onUpdate: (() => void) | nu
       <span style={{ color: 'var(--teal-light)' }}>✦</span>
       <span>New version available</span>
       <button
-        onClick={() => { onUpdate(); setShow(false) }}
+        onClick={() => { onUpdate(); setDismissed(true) }}
         style={{
           background: 'var(--teal)',
           border: 'none',
@@ -53,7 +49,7 @@ export default function UpdatePrompt({ onUpdate }: { onUpdate: (() => void) | nu
         Update
       </button>
       <button
-        onClick={() => setShow(false)}
+        onClick={() => setDismissed(true)}
         style={{
           background: 'none',
           border: 'none',

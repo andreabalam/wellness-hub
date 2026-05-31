@@ -46,16 +46,13 @@ export default function RecipesTab({ user }: { user?: User | null }) {
   const [customTags, setCustomTags] = useState<string[]>(() => store.getTags())
   const [query, setQuery]           = useState('')
   const [builtinRecipes, setBuiltinRecipes] = useState<Recipe[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [loadError, setLoadError]   = useState(false)
+  // When supabase isn't configured there's nothing to load — start in error state
+  const [loading, setLoading]       = useState(!supabase ? false : true)
+  const [loadError, setLoadError]   = useState(!supabase)
 
   // Fetch built-in + user recipes from Supabase on mount
   useEffect(() => {
-    if (!supabase) {
-      setLoading(false)
-      setLoadError(true)
-      return
-    }
+    if (!supabase) return  // already initialised as error state above
     let cancelled = false
     ;(async () => {
       const [remote, user] = await Promise.all([
@@ -83,10 +80,10 @@ export default function RecipesTab({ user }: { user?: User | null }) {
     return () => { cancelled = true }
   }, [])
 
-  // Reset to 'all' if user logs out while on a gated filter
-  useEffect(() => {
-    if (!user && (filter === 'custom' || filter === 'grocery')) setFilter('all')
-  }, [user, filter])
+  // When logged out, clamp gated filters to 'all' at render time
+  const activeFilter: Filter = (!user && (filter === 'custom' || filter === 'grocery'))
+    ? 'all'
+    : filter
 
   const refreshCustom = useCallback(() => {
     setCustomRecipes(store.getRecipes())
@@ -146,12 +143,12 @@ export default function RecipesTab({ user }: { user?: User | null }) {
       )
     }
 
-    if (filter === 'custom') {
+    if (activeFilter === 'custom') {
       return customTag ? customRecipes.filter(r => r.cat === customTag) : customRecipes
     }
-    if (filter === 'all') return builtinRecipes
-    return builtinRecipes.filter(r => r.cat === filter)
-  }, [query, filter, customTag, builtinRecipes, customRecipes])
+    if (activeFilter === 'all') return builtinRecipes
+    return builtinRecipes.filter(r => r.cat === activeFilter)
+  }, [query, activeFilter, customTag, builtinRecipes, customRecipes])
 
   const tagsInUse = useMemo(() => [...new Set(customRecipes.map(r => r.cat))], [customRecipes])
 
@@ -162,7 +159,7 @@ export default function RecipesTab({ user }: { user?: User | null }) {
         {FILTER_BTNS.map(btn => (
           <button
             key={btn.id}
-            className={`rfbtn${filter === btn.id ? ' active' : ''}`}
+            className={`rfbtn${activeFilter === btn.id ? ' active' : ''}`}
             onClick={() => { setFilter(btn.id); setCustomTag(null) }}
           >
             {btn.label}
@@ -170,8 +167,8 @@ export default function RecipesTab({ user }: { user?: User | null }) {
         ))}
         {user && (
           <button
-            className={`rfbtn${filter === 'custom' ? ' active' : ''}`}
-            style={{ borderColor: filter === 'custom' ? undefined : 'var(--purple)', color: filter === 'custom' ? undefined : 'var(--purple-light)' }}
+            className={`rfbtn${activeFilter === 'custom' ? ' active' : ''}`}
+            style={{ borderColor: activeFilter === 'custom' ? undefined : 'var(--purple)', color: activeFilter === 'custom' ? undefined : 'var(--purple-light)' }}
             onClick={() => { setFilter('custom'); setCustomTag(null) }}
           >
             ⭐ My Recipes
@@ -179,8 +176,8 @@ export default function RecipesTab({ user }: { user?: User | null }) {
         )}
         {user && (
           <button
-            className={`rfbtn${filter === 'grocery' ? ' active' : ''}`}
-            style={{ borderColor: filter === 'grocery' ? undefined : 'var(--green2)', color: filter === 'grocery' ? undefined : 'var(--green-light)' }}
+            className={`rfbtn${activeFilter === 'grocery' ? ' active' : ''}`}
+            style={{ borderColor: activeFilter === 'grocery' ? undefined : 'var(--green2)', color: activeFilter === 'grocery' ? undefined : 'var(--green-light)' }}
             onClick={() => setFilter('grocery')}
           >
             🛒 Grocery
@@ -189,7 +186,7 @@ export default function RecipesTab({ user }: { user?: User | null }) {
       </div>
 
       {/* Custom tag sub-filter */}
-      {filter === 'custom' && tagsInUse.length > 0 && (
+      {activeFilter === 'custom' && tagsInUse.length > 0 && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14, padding: '10px 14px', background: 'var(--bg2)', border: '1px solid var(--purple)', borderRadius: 9, alignItems: 'center' }}>
           <span style={{ fontSize: 11, color: 'var(--purple-light)', fontFamily: '"DM Mono",monospace', marginRight: 4 }}>Filter by tag:</span>
           <button
@@ -211,7 +208,7 @@ export default function RecipesTab({ user }: { user?: User | null }) {
       )}
 
       {/* Search */}
-      {filter !== 'grocery' && (
+      {activeFilter !== 'grocery' && (
         <div style={{ position: 'relative', marginBottom: 14 }}>
           <svg
             width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -264,10 +261,10 @@ export default function RecipesTab({ user }: { user?: User | null }) {
       )}
 
       {/* Grocery panel */}
-      {filter === 'grocery' && <GroceryPanel />}
+      {activeFilter === 'grocery' && <GroceryPanel />}
 
       {/* Recipe grid */}
-      {filter !== 'grocery' && (
+      {activeFilter !== 'grocery' && (
         <div className="rgrid">
           {loading ? (
             <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted2)', fontSize: 13, gridColumn: '1/-1' }}>

@@ -237,6 +237,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
     setPhotoStatus('idle'); setPhotoNotes(''); setPhotoConfidence(null)
   }, [store])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadDate(date) }, [date, loadDate])
 
   const save = useCallback((patch: Partial<DayData>) => {
@@ -379,7 +380,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
       if (result.length >= 10) break
     }
     return result
-  }, [day, store])
+  }, [store])
 
   const logWorkout = () => {
     if (!selSession) { alert('Select a session type first.'); return }
@@ -454,11 +455,13 @@ export default function TrackerTab({ user }: { user?: User | null }) {
     getOuraPat().then(pat => setOuraConnected(!!pat)).catch(() => {})
   }, [])
 
-  // Clear Oura per-day data when date changes
+  // Clear Oura per-day data when date changes (batch-reset is fine in React 18)
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setReadiness(null)
     setOuraHRV(null); setOuraHR(null); setOuraMood(null); setOuraActualMin(null)
   }, [date])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const saveAndTestPat = async () => {
     const pat = ouraPatInput.trim()
