@@ -22,7 +22,7 @@ test.describe('Food photo feature', () => {
     await page.goto('/')
     await page.evaluate(() => {
       localStorage.clear()
-      sessionStorage.setItem('__e2e_user__', JSON.stringify({
+      localStorage.setItem('__e2e_user__', JSON.stringify({
         id: 'e2e-test-id', email: 'test@e2e.com',
         app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
       }))

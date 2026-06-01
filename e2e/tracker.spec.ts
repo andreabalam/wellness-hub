@@ -4,11 +4,12 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Tracker tab', () => {
   test.beforeEach(async ({ page }) => {
-    // Inject mock user before reload so TrackerTab bypasses the auth gate in DEV mode
+    // Load, wipe localStorage, inject a mock user so TrackerTab bypasses the
+    // auth gate in DEV mode, then reload so React initialises with clean state.
     await page.goto('/')
     await page.evaluate(() => {
       localStorage.clear()
-      sessionStorage.setItem('__e2e_user__', JSON.stringify({
+      localStorage.setItem('__e2e_user__', JSON.stringify({
         id: 'e2e-test-id', email: 'test@e2e.com',
         app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
       }))

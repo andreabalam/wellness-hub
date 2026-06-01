@@ -25,7 +25,7 @@ test.describe('Tab navigation', () => {
 
   test('switches to Workouts tab', async ({ page }) => {
     await page.getByRole('button', { name: /Workouts/i }).click()
-    // Guest users see the male full-body template
+    // Guest users see the male full-body template (no auth required)
     await expect(page.getByText('3×/week Template')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Week 1' })).toBeVisible()
   })
@@ -41,7 +41,7 @@ test.describe('Tab navigation', () => {
     // Navigate away first, then switch back
     await tabBar(page).getByRole('button', { name: /Schedule/i }).click()
     await tabBar(page).getByRole('button', { name: /Tracker/i }).click()
-    // TrackerTab shows an auth gate for unauthenticated users
+    // TrackerTab shows the auth gate for unauthenticated users
     await expect(page.getByText(/Sign in to use/i)).toBeVisible()
   })
 
@@ -49,7 +49,7 @@ test.describe('Tab navigation', () => {
     // Go to Workouts, click Week 2
     await page.getByRole('button', { name: /Workouts/i }).click()
     await page.getByRole('button', { name: 'Week 2' }).click()
-    // Guest sees male template; Week 2 is "Progressive Overload"
+    // Guest users see the male template; Week 2 is "Progressive Overload"
     await expect(page.getByText(/Progressive Overload/)).toBeVisible()
 
     // Switch away and back

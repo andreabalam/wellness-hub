@@ -29,12 +29,10 @@ export default function App() {
     () => window.__swPendingUpdate ?? null
   )
 
-  // DEV-only: E2E tests inject a mock user via sessionStorage.__e2e_user__ so
-  // auth-gated components render without a real Supabase session.
-  // sessionStorage is used (not localStorage) so the mock never leaks into
-  // a real browser session after the Playwright tab closes.
+  // DEV-only: E2E tests can inject a mock user via localStorage.__e2e_user__
+  // so auth-gated components render without a real Supabase session.
   const e2eUser = import.meta.env.DEV
-    ? (() => { try { return JSON.parse(sessionStorage.getItem('__e2e_user__') ?? 'null') as User | null } catch { return null } })()
+    ? (() => { try { return JSON.parse(localStorage.getItem('__e2e_user__') ?? 'null') as User | null } catch { return null } })()
     : null
 
   const [user, setUser]           = useState<User | null>(e2eUser)
