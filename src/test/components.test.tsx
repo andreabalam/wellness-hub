@@ -1528,12 +1528,14 @@ describe('RecipesTab', () => {
     expect(screen.getByRole('button', { name: '🛒 Grocery' })).toBeInTheDocument()
   })
 
-  it('shows connection error message when DB is unavailable', async () => {
+  it('shows static fallback recipes when DB is unavailable', async () => {
     render(<RecipesTab />)
-    // supabase is null in unit tests → error shown after effect runs
+    // supabase is null in unit tests → static BUILTIN_RECIPES shown immediately
     await waitFor(() => {
-      expect(screen.getByText(/Could not load recipes/)).toBeInTheDocument()
+      expect(screen.getByText('Overnight Oats')).toBeInTheDocument()
     })
+    // No error banner — the fallback silently covers for missing Supabase
+    expect(screen.queryByText(/Could not load recipes/)).not.toBeInTheDocument()
   })
 
   it('renders the search bar in non-grocery views', () => {
@@ -1577,7 +1579,10 @@ describe('RecipesTab', () => {
 
   it('clicking Grocery shows GroceryPanel', () => {
     render(<RecipesTab />)
-    fireEvent.click(screen.getByText('🛒 Grocery'))
+    // Use getByRole so the aria-label on recipe-card action buttons doesn't cause
+    // a "multiple elements" error — the filter button's accessible name is its
+    // text content "🛒 Grocery", while card buttons have aria-label="Add ingredients…"
+    fireEvent.click(screen.getByRole('button', { name: '🛒 Grocery' }))
     expect(screen.getByText('Your')).toBeInTheDocument() // "Your Grocery List"
     expect(screen.queryByPlaceholderText('Search recipes, ingredients…')).not.toBeInTheDocument()
   })

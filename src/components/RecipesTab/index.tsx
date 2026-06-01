@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { Recipe } from '../../data/recipes'
+import { BUILTIN_RECIPES } from '../../data/recipes'
 import { useRecipeStore, useTrackerStore, useHiddenRecipeStore, useGroceryCatalogStore } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
@@ -51,17 +52,19 @@ export default function RecipesTab() {
   const [customRecipes, setCustomRecipes] = useState<Recipe[]>(() => store.getRecipes())
   const [customTags, setCustomTags] = useState<string[]>(() => store.getTags())
   const [query, setQuery]           = useState('')
-  const [builtinRecipes, setBuiltinRecipes] = useState<Recipe[]>([])
+  // Seed with the static fallback so the UI is never empty without Supabase.
+  // If Supabase is configured, the effect below upgrades this to the full DB catalog.
+  const [builtinRecipes, setBuiltinRecipes] = useState<Recipe[]>(BUILTIN_RECIPES)
   const [hiddenIds, setHiddenIds]   = useState<number[]>(() => hiddenStore.getAll())
-  // When supabase isn't configured there's nothing to load — start in error state
-  const [loading, setLoading]       = useState(!supabase ? false : true)
-  const [loadError, setLoadError]   = useState(!supabase)
+  const [loading, setLoading]       = useState(false)
+  const [loadError]   = useState(false)
 
-  // Fetch built-in + user recipes from Supabase on mount
+  // When Supabase is available, upgrade the static fallback to the full DB catalog.
   useEffect(() => {
-    if (!supabase) return  // already initialised as error state above
+    if (!supabase) return
     let cancelled = false
     ;(async () => {
+      setLoading(true)
       const [remote, user] = await Promise.all([
         sync.fetchBuiltinRecipes().catch(() => null),
         (async () => {
@@ -73,13 +76,11 @@ export default function RecipesTab() {
       ])
       if (cancelled) return
       if (remote) {
+        // Full DB catalog replaces the static fallback
         setBuiltinRecipes(remote)
-        setLoadError(false)
-      } else {
-        setLoadError(true)
       }
+      // If fetch failed we silently keep the static fallback — no error banner
       if (user.length) {
-        // Merge: DB custom recipes take priority over localStorage
         setCustomRecipes(user)
       }
       setLoading(false)
