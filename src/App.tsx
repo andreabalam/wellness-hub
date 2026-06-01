@@ -225,7 +225,7 @@ export default function App() {
       </ErrorBoundary>
       <ErrorBoundary name="Recipes">
         <div className={`view${active === 'recipes' ? ' active' : ''}`}>
-          <RecipesTab />
+          <RecipesTab user={user} />
         </div>
       </ErrorBoundary>
       <ErrorBoundary name="Tracker">

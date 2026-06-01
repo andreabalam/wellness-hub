@@ -32,8 +32,9 @@ test.describe('Tab navigation', () => {
 
   test('switches to Recipes tab', async ({ page }) => {
     await page.getByRole('button', { name: /Recipes/i }).click()
-    await expect(page.getByRole('button', { name: '+ Add my recipe' })).toBeVisible()
+    // Filter bar always visible; guests see sign-in empty state (no recipe cards)
     await expect(page.getByRole('button', { name: 'All' })).toBeVisible()
+    await expect(page.getByText(/Sign in to add and view your recipes/)).toBeVisible()
   })
 
   test('switches to Tracker tab', async ({ page }) => {

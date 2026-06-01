@@ -119,32 +119,32 @@ describe('UpdatePrompt', () => {
 // ═════════════════════════════════════════════════════════════════
 describe('GroceryPanel', () => {
   it('renders category headers', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     expect(screen.getByText('Produce - Vegetables')).toBeInTheDocument()
     expect(screen.getByText('Produce - Fruit')).toBeInTheDocument()
     expect(screen.getByText('Protein - Animal')).toBeInTheDocument()
   })
 
   it('renders a grocery item', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     expect(screen.getByText('Baby spinach')).toBeInTheDocument()
   })
 
   it('renders nutrition info for items that have nutri data', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     // Multiple items render "kcal" in their nutrition line
     const kcalTexts = screen.getAllByText(/kcal/)
     expect(kcalTexts.length).toBeGreaterThan(5)
   })
 
   it('renders specific nutrition for Blueberries (84 kcal)', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     // The blueberries nutrition span contains "84 kcal"
     expect(screen.getByText(/84 kcal/)).toBeInTheDocument()
   })
 
   it('clicking an item adds it to the checked list (gchecked class)', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     const spinach = screen.getByText('Baby spinach').closest('.gitem')!
     expect(spinach).not.toHaveClass('gchecked')
     fireEvent.click(spinach)
@@ -152,7 +152,7 @@ describe('GroceryPanel', () => {
   })
 
   it('clicking a checked item unchecks it', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     const spinach = screen.getByText('Baby spinach').closest('.gitem')!
     fireEvent.click(spinach)
     fireEvent.click(spinach)
@@ -160,7 +160,7 @@ describe('GroceryPanel', () => {
   })
 
   it('clear all button unchecks all items', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     const spinach = screen.getByText('Baby spinach').closest('.gitem')!
     fireEvent.click(spinach)
     expect(spinach).toHaveClass('gchecked')
@@ -168,12 +168,10 @@ describe('GroceryPanel', () => {
     expect(spinach).not.toHaveClass('gchecked')
   })
 
-  it('renders legend chips (Keep, Add, Swap, Remove)', () => {
+  it('guest: shows sign-in prompt instead of grocery list', () => {
     render(<GroceryPanel />)
-    expect(screen.getByText('Keep')).toBeInTheDocument()
-    expect(screen.getByText('Add')).toBeInTheDocument()
-    expect(screen.getByText('Swap')).toBeInTheDocument()
-    expect(screen.getByText('Remove')).toBeInTheDocument()
+    expect(screen.getByText(/Sign in to manage your personalised grocery list/)).toBeInTheDocument()
+    expect(screen.queryByText('Produce - Vegetables')).not.toBeInTheDocument()
   })
 })
 
@@ -182,39 +180,39 @@ describe('GroceryPanel', () => {
 // ═════════════════════════════════════════════════════════════════
 describe('GroceryPanel — dynamic catalog', () => {
   it('shows "Add item to my list" toggle button', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     expect(screen.getByRole('button', { name: /add grocery item/i })).toBeInTheDocument()
   })
 
   it('clicking the toggle reveals the add-item form', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
     expect(screen.getByPlaceholderText(/Item name/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add item' })).toBeInTheDocument()
   })
 
   it('Cancel button hides the form again', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByPlaceholderText(/Item name/i)).not.toBeInTheDocument()
   })
 
   it('Add item button is disabled when name is empty', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
     expect(screen.getByRole('button', { name: 'Add item' })).toBeDisabled()
   })
 
   it('typing a name enables the Add item button', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
     fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Kimchi' } })
     expect(screen.getByRole('button', { name: 'Add item' })).not.toBeDisabled()
   })
 
   it('submitting adds the item and it appears in the list', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
     fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Kimchi' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
@@ -224,7 +222,7 @@ describe('GroceryPanel — dynamic catalog', () => {
   })
 
   it('pressing Enter in the name field submits the form', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
     fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Sauerkraut' } })
     fireEvent.keyDown(screen.getByPlaceholderText(/Item name/i), { key: 'Enter' })
@@ -232,7 +230,7 @@ describe('GroceryPanel — dynamic catalog', () => {
   })
 
   it('user-added item can be checked off', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
     fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Miso' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
@@ -242,7 +240,7 @@ describe('GroceryPanel — dynamic catalog', () => {
   })
 
   it('user-added item has a × remove button', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
     fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Tempeh' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
@@ -250,7 +248,7 @@ describe('GroceryPanel — dynamic catalog', () => {
   })
 
   it('clicking × removes the item from the list', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
     fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Natto' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
@@ -260,7 +258,7 @@ describe('GroceryPanel — dynamic catalog', () => {
   })
 
   it('user item for a standard category appears under that category header', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
     fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Dragon Fruit' } })
     // Select "Produce - Fruit" category
@@ -274,7 +272,7 @@ describe('GroceryPanel — dynamic catalog', () => {
   })
 
   it('item for a non-standard category appears under "My Custom Items"', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
     fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Magic Beans' } })
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'My Custom Items' } })
@@ -284,7 +282,7 @@ describe('GroceryPanel — dynamic catalog', () => {
   })
 
   it('multiple user items can be added independently', () => {
-    render(<GroceryPanel />)
+    render(<GroceryPanel user={FAKE_USER} />)
     for (const name of ['Item A', 'Item B', 'Item C']) {
       fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
       fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: name } })
@@ -293,6 +291,48 @@ describe('GroceryPanel — dynamic catalog', () => {
     expect(screen.getByText('Item A')).toBeInTheDocument()
     expect(screen.getByText('Item B')).toBeInTheDocument()
     expect(screen.getByText('Item C')).toBeInTheDocument()
+  })
+
+  it('clicking ✎ on an item shows an inline edit input', () => {
+    render(<GroceryPanel user={FAKE_USER} />)
+    // Add an item first
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Edit Me' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    // Click the edit button
+    fireEvent.click(screen.getByRole('button', { name: /Edit Edit Me/i }))
+    expect(screen.getByDisplayValue('Edit Me')).toBeInTheDocument()
+  })
+
+  it('saving the edit renames the item', () => {
+    render(<GroceryPanel user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Old Name' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    fireEvent.click(screen.getByRole('button', { name: /Edit Old Name/i }))
+    const input = screen.getByDisplayValue('Old Name')
+    fireEvent.change(input, { target: { value: 'New Name' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.queryByText('Old Name')).not.toBeInTheDocument()
+    expect(screen.getByText('New Name')).toBeInTheDocument()
+  })
+
+  it('cancelling edit (Escape or ✕) restores original name', () => {
+    render(<GroceryPanel user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Stay Same' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    fireEvent.click(screen.getByRole('button', { name: /Edit Stay Same/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel edit' }))
+    expect(screen.getByText('Stay Same')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('Stay Same')).not.toBeInTheDocument()
+  })
+
+  it('all items (including seeded default items) have edit and remove buttons', () => {
+    render(<GroceryPanel user={FAKE_USER} />)
+    // Baby spinach is a seeded default item
+    expect(screen.getByRole('button', { name: /Edit Baby spinach/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Remove Baby spinach/i })).toBeInTheDocument()
   })
 })
 
@@ -1769,13 +1809,13 @@ describe('RecipesTab', () => {
     expect(screen.getByRole('button', { name: /Grocery/ })).toBeInTheDocument()
   })
 
-  it('shows static fallback recipes when DB is unavailable', async () => {
+  it('shows empty state (not an error) when DB is unavailable', async () => {
     render(<RecipesTab />)
-    // supabase is null in unit tests → static BUILTIN_RECIPES shown immediately
+    // supabase is null in unit tests → BUILTIN_RECIPES is [] → empty state shown
     await waitFor(() => {
-      expect(screen.getByText('Overnight Oats')).toBeInTheDocument()
+      expect(screen.getByText(/Sign in to add and view your recipes/)).toBeInTheDocument()
     })
-    // No error banner — the fallback silently covers for missing Supabase
+    // No error banner — graceful empty state, not a network error
     expect(screen.queryByText(/Could not load recipes/)).not.toBeInTheDocument()
   })
 
@@ -1811,6 +1851,16 @@ describe('RecipesTab', () => {
     expect((searchInput as HTMLInputElement).value).toBe('')
   })
 
+  it('guest with no recipes shows sign-in prompt', async () => {
+    render(<RecipesTab />)
+    // Wait for the Supabase fetch to fail gracefully (supabase is configured but
+    // network is unavailable in jsdom), then check the empty state.
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
+    // No built-in recipes → guest sees the sign-in empty state
+    expect(screen.queryByText('⭐ My Recipes')).not.toBeInTheDocument()
+    expect(screen.getByText(/Sign in to add and view your recipes/)).toBeInTheDocument()
+  })
+
   it('clicking Breakfast filter activates that filter button', () => {
     render(<RecipesTab />)
     const btn = screen.getByRole('button', { name: 'Breakfast' })
@@ -1828,14 +1878,6 @@ describe('RecipesTab', () => {
     expect(screen.queryByPlaceholderText('Search recipes, ingredients…')).not.toBeInTheDocument()
   })
 
-  it('no My Recipes section shown when no custom recipes', () => {
-    render(<RecipesTab />)
-    // With no custom recipes, the purple "My Recipes" section header does not appear;
-    // built-in recipes still show.
-    expect(screen.queryByText('⭐ My Recipes')).not.toBeInTheDocument()
-    expect(screen.getByText('Overnight Oats')).toBeInTheDocument()
-  })
-
   it('custom recipe appears in All view without navigating to a separate tab', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     render(<RecipesTab />)
@@ -1844,18 +1886,34 @@ describe('RecipesTab', () => {
     expect(screen.getByText('My Smoothie')).toBeInTheDocument()
   })
 
-  it('custom recipe is visible in All view alongside built-in recipes', async () => {
+  it('custom recipe is the only recipe visible when no built-ins', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
-    // Both custom and built-in recipes are in the All view
+    // Only the custom recipe — no built-ins
     expect(screen.getByText('My Smoothie')).toBeInTheDocument()
-    expect(screen.getByText('Overnight Oats')).toBeInTheDocument()
+    expect(screen.queryByText('Overnight Oats')).not.toBeInTheDocument()
+  })
+
+  it('guest: + Add my recipe button is hidden', () => {
+    render(<RecipesTab />)
+    expect(screen.queryByText('+ Add my recipe')).not.toBeInTheDocument()
+  })
+
+  it('auth: + Add my recipe button is visible', () => {
+    render(<RecipesTab user={FAKE_USER} />)
+    expect(screen.getByRole('button', { name: '+ Add my recipe' })).toBeInTheDocument()
+  })
+
+  it('auth + grocery filter: + Add my recipe button is hidden', () => {
+    render(<RecipesTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: '🛒 Grocery' }))
+    expect(screen.queryByRole('button', { name: '+ Add my recipe' })).not.toBeInTheDocument()
   })
 
   it('+ Add my recipe opens the modal', () => {
-    render(<RecipesTab />)
-    fireEvent.click(screen.getByText('+ Add my recipe'))
+    render(<RecipesTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: '+ Add my recipe' }))
     expect(screen.getByText('Recipe')).toBeInTheDocument()
   })
 
@@ -1888,8 +1946,8 @@ describe('RecipesTab', () => {
   })
 
   it('closing the Add recipe modal via onClose hides it', () => {
-    render(<RecipesTab />)
-    fireEvent.click(screen.getByText('+ Add my recipe'))
+    render(<RecipesTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: '+ Add my recipe' }))
     expect(screen.getByText('Recipe')).toBeInTheDocument()
     // The RecipeModal × button calls onClose → setShowModal(false)
     const closeBtn = screen.getAllByText('×')[0]
@@ -1898,9 +1956,9 @@ describe('RecipesTab', () => {
   })
 
   it('saving a recipe through the modal shows it in the All view', async () => {
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
-    fireEvent.click(screen.getByText('+ Add my recipe'))
+    fireEvent.click(screen.getByRole('button', { name: '+ Add my recipe' }))
     // Fill in recipe name — placeholder is "e.g. Mango Chia Pudding"
     fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), { target: { value: 'My Test Recipe' } })
     // Save
@@ -1910,8 +1968,8 @@ describe('RecipesTab', () => {
   })
 
   it('adding a tag through the modal calls handleAddTag', () => {
-    render(<RecipesTab />)
-    fireEvent.click(screen.getByText('+ Add my recipe'))
+    render(<RecipesTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: '+ Add my recipe' }))
     fireEvent.change(screen.getByPlaceholderText('New tag (e.g. Sauce, Side...)'), {
       target: { value: 'keto' },
     })
