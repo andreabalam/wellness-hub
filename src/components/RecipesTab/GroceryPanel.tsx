@@ -24,8 +24,7 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
   const [editing, setEditing] = useState(false)
   const [editVal, setEditVal] = useState(item.n)
 
-  // Keep editVal in sync if the item name changes externally
-  useEffect(() => { setEditVal(item.n) }, [item.n])
+  const startEdit = () => { setEditVal(item.n); setEditing(true) }
 
   const commitEdit = () => {
     const trimmed = editVal.trim()
@@ -91,7 +90,7 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
       <button
         aria-label={`Edit ${item.n}`}
         title="Edit"
-        onClick={e => { e.stopPropagation(); setEditing(true) }}
+        onClick={e => { e.stopPropagation(); startEdit() }}
         style={{
           background: 'none', border: 'none', color: 'var(--muted2)',
           cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: '0 3px',
@@ -133,6 +132,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
       items.map(item => ({ id: uid(), n: item.n, cat, nutri: item.nutri }))
     )
     seeds.forEach(item => catalogStore.add(item))
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUserItems(catalogStore.getAll())
     localStorage.setItem(SEEDED_KEY, '1')
   }, [user, catalogStore])

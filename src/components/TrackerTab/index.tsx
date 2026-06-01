@@ -107,13 +107,23 @@ const WeekStrip = memo(function WeekStrip({ currentDate, onSelect, getDay }: {
   getDay: (key: string) => DayData
 }) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
-  const dow = (today.getDay() + 6) % 7
-  const startW = new Date(today); startW.setDate(today.getDate() - dow)
+  // Build week around currentDate (not always today) so Prev/Next navigate the strip too
+  const cur = new Date(currentDate); cur.setHours(0, 0, 0, 0)
+  const dow = (cur.getDay() + 6) % 7
+  const startW = new Date(cur); startW.setDate(cur.getDate() - dow)
   const DL = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+
+  // Label: "This week" when showing the current calendar week, otherwise show the range
+  const todayDow = (today.getDay() + 6) % 7
+  const startOfThisWeek = new Date(today); startOfThisWeek.setDate(today.getDate() - todayDow)
+  const isThisWeek = startW.getTime() === startOfThisWeek.getTime()
+  const endW = new Date(startW); endW.setDate(startW.getDate() + 6)
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const weekLabel = isThisWeek ? 'This week' : `${fmt(startW)} – ${fmt(endW)}`
 
   return (
     <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
-      <div style={{ fontFamily: '"DM Mono",monospace', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--muted2)', marginBottom: 12 }}>This week</div>
+      <div style={{ fontFamily: '"DM Mono",monospace', fontSize: 9, letterSpacing: '.15em', textTransform: 'uppercase', color: 'var(--muted2)', marginBottom: 12 }}>{weekLabel}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 5 }}>
         {DL.map((lbl, i) => {
           const d = new Date(startW); d.setDate(startW.getDate() + i)
@@ -423,11 +433,6 @@ export default function TrackerTab({ user }: { user?: User | null }) {
     setDate(d)
   }
 
-  const goToday = () => {
-    const d = new Date(); d.setHours(0, 0, 0, 0)
-    setDate(d)
-  }
-
   const phaseNote = PHASE_NOTES[phase] ?? PHASE_NOTES['']
 
   const openTargetsPanel = () => {
@@ -460,13 +465,12 @@ export default function TrackerTab({ user }: { user?: User | null }) {
     setShowTargetsPanel(false)
   }
 
-  // Auto-fill macro fields when split or kcal changes
-  useEffect(() => {
-    if (editSplit === 'custom') return
+  // Auto-fill macro fields when split or kcal changes (derived — no setState needed)
+  const autoMacros = useMemo(() => {
+    if (editSplit === 'custom') return null
     const kcal = parseInt(editKcal)
-    if (!kcal) return
-    const m = calcMacros(kcal, editSplit)
-    if (m) { setEditProt(String(m.p)); setEditCarb(String(m.c)); setEditFat(String(m.f)) }
+    if (!kcal) return null
+    return calcMacros(kcal, editSplit) ?? null
   }, [editSplit, editKcal])
 
   // ── Oura state ──────────────────────────────────────────────────
@@ -618,7 +622,6 @@ export default function TrackerTab({ user }: { user?: User | null }) {
           {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </div>
         <button onClick={() => goDate(1)} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 14px', color: 'var(--muted)', cursor: 'pointer', fontSize: 13, fontFamily: 'sans-serif' }}>Next ›</button>
-        <button onClick={goToday} style={{ background: 'rgba(58,144,144,0.1)', border: '1px solid var(--teal)', borderRadius: 8, padding: '6px 14px', color: 'var(--teal-light)', cursor: 'pointer', fontSize: 12, fontFamily: '"DM Mono",monospace' }}>TODAY</button>
       </div>
 
       {/* Week strip — always visible */}
@@ -699,9 +702,9 @@ export default function TrackerTab({ user }: { user?: User | null }) {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
                   {[
-                    { label: 'Protein g', val: editProt, set: setEditProt, aria: 'Protein target' },
-                    { label: 'Carbs g',   val: editCarb, set: setEditCarb, aria: 'Carbs target' },
-                    { label: 'Fat g',     val: editFat,  set: setEditFat,  aria: 'Fat target' },
+                    { label: 'Protein g', val: autoMacros ? String(autoMacros.p) : editProt, set: setEditProt, aria: 'Protein target' },
+                    { label: 'Carbs g',   val: autoMacros ? String(autoMacros.c) : editCarb, set: setEditCarb, aria: 'Carbs target' },
+                    { label: 'Fat g',     val: autoMacros ? String(autoMacros.f) : editFat,  set: setEditFat,  aria: 'Fat target' },
                     { label: 'Fiber g',   val: editFiber,set: setEditFiber,aria: 'Fiber target' },
                   ].map(({ label, val, set, aria }) => (
                     <div key={label}>

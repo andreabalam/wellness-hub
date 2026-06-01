@@ -176,7 +176,7 @@ export default function App() {
       }
     )
     return () => subscription.unsubscribe()
-  }, [syncAll])
+  }, [syncAll, e2eUser])
 
   // ── SW update prompt ─────────────────────────────────────────
   useEffect(() => {
