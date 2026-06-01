@@ -8,6 +8,7 @@ import type { Recipe } from '../data/recipes'
 import type { CustomBlock } from '../data/schedule'
 import type { GroceryItem, GroceryCatalogItem } from '../data/grocery'
 import type { Reminder } from '../data/reminders'
+import type { WorkoutWeek } from '../data/workouts'
 
 // ── Tracker days ─────────────────────────────────────────────────
 
@@ -264,4 +265,136 @@ export async function pullGroceryCatalog(): Promise<Record<string, GroceryItem[]
   return Object.fromEntries(
     data.map(r => [r.category as string, r.items as GroceryItem[]])
   )
+}
+
+// ── User settings (macro targets + cognitive peak) ─────────────────────────
+
+export interface UserSettings {
+  kcalTarget:         number
+  protTarget:         number
+  carbTarget:         number
+  fatTarget:          number
+  fiberTarget:        number
+  macroSplit:         'balanced' | 'high_protein' | 'low_carb' | 'custom'
+  cognitivePeakStart: string   // "HH:MM" 24-h
+  cognitivePeakEnd:   string
+}
+
+export async function fetchUserSettings(userId: string): Promise<UserSettings | null> {
+  const { data, error } = await supabase!
+    .from('user_settings')
+    .select('kcal_target, prot_target, carb_target, fat_target, fiber_target, macro_split, cognitive_peak_start, cognitive_peak_end')
+    .eq('user_id', userId)
+    .single()
+  if (error || !data) return null
+  return {
+    kcalTarget:         data.kcal_target          as number,
+    protTarget:         data.prot_target          as number,
+    carbTarget:         data.carb_target          as number,
+    fatTarget:          data.fat_target           as number,
+    fiberTarget:        data.fiber_target         as number,
+    macroSplit:         data.macro_split          as UserSettings['macroSplit'],
+    cognitivePeakStart: data.cognitive_peak_start as string,
+    cognitivePeakEnd:   data.cognitive_peak_end   as string,
+  }
+}
+
+export async function upsertUserSettings(userId: string, s: UserSettings): Promise<void> {
+  await supabase!.from('user_settings').upsert({
+    user_id:              userId,
+    kcal_target:          s.kcalTarget,
+    prot_target:          s.protTarget,
+    carb_target:          s.carbTarget,
+    fat_target:           s.fatTarget,
+    fiber_target:         s.fiberTarget,
+    macro_split:          s.macroSplit,
+    cognitive_peak_start: s.cognitivePeakStart,
+    cognitive_peak_end:   s.cognitivePeakEnd,
+    updated_at:           new Date().toISOString(),
+  }, { onConflict: 'user_id' })
+}
+
+// ── User body stats ─────────────────────────────────────────────────
+
+export interface UserBodyStats {
+  weightKg:    number
+  bodyFatPct:  number
+  heightM:     number
+  cycleType:   'regular' | 'irregular' | 'none'
+  equipment:   string
+  tdeeKcal:    number
+  kcalTarget:  number
+  protRange:   string
+  fatLossGoal: string
+  chronotype:  'early' | 'intermediate' | 'late'
+}
+
+export async function fetchUserBodyStats(userId: string): Promise<UserBodyStats | null> {
+  const { data, error } = await supabase!
+    .from('user_body_stats')
+    .select('weight_kg, body_fat_pct, height_m, cycle_type, equipment, tdee_kcal, kcal_target, prot_range, fat_loss_goal, chronotype')
+    .eq('user_id', userId)
+    .single()
+  if (error || !data) return null
+  return {
+    weightKg:    data.weight_kg     as number,
+    bodyFatPct:  data.body_fat_pct  as number,
+    heightM:     data.height_m      as number,
+    cycleType:   data.cycle_type    as UserBodyStats['cycleType'],
+    equipment:   data.equipment     as string,
+    tdeeKcal:    data.tdee_kcal     as number,
+    kcalTarget:  data.kcal_target   as number,
+    protRange:   data.prot_range    as string,
+    fatLossGoal: data.fat_loss_goal as string,
+    chronotype:  data.chronotype    as UserBodyStats['chronotype'],
+  }
+}
+
+export async function upsertUserBodyStats(userId: string, s: UserBodyStats): Promise<void> {
+  await supabase!.from('user_body_stats').upsert({
+    user_id:       userId,
+    weight_kg:     s.weightKg,
+    body_fat_pct:  s.bodyFatPct,
+    height_m:      s.heightM,
+    cycle_type:    s.cycleType,
+    equipment:     s.equipment,
+    tdee_kcal:     s.tdeeKcal,
+    kcal_target:   s.kcalTarget,
+    prot_range:    s.protRange,
+    fat_loss_goal: s.fatLossGoal,
+    chronotype:    s.chronotype,
+    updated_at:    new Date().toISOString(),
+  }, { onConflict: 'user_id' })
+}
+
+// ── User workout plan ─────────────────────────────────────────────────
+
+export interface UserWorkoutPlan {
+  gender:   'female' | 'male'
+  numWeeks: number
+  planData: WorkoutWeek[]
+}
+
+export async function fetchUserWorkoutPlan(userId: string): Promise<UserWorkoutPlan | null> {
+  const { data, error } = await supabase!
+    .from('user_workout_plans')
+    .select('gender, num_weeks, plan_data')
+    .eq('user_id', userId)
+    .single()
+  if (error || !data) return null
+  return {
+    gender:   data.gender    as 'female' | 'male',
+    numWeeks: data.num_weeks  as number,
+    planData: data.plan_data  as WorkoutWeek[],
+  }
+}
+
+export async function upsertUserWorkoutPlan(userId: string, plan: UserWorkoutPlan): Promise<void> {
+  await supabase!.from('user_workout_plans').upsert({
+    user_id:    userId,
+    gender:     plan.gender,
+    num_weeks:  plan.numWeeks,
+    plan_data:  plan.planData,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id' })
 }

@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { useTrackerStore, useFoodLibraryStore, MED_GUIDES_KEY, exportAllData, importAllData } from '../../hooks/useStore'
+import { useTrackerStore, useFoodLibraryStore, MED_GUIDES_KEY, useUserSettingsStore } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
-import type { MedGuide } from '../../lib/sync'
+import type { MedGuide, UserSettings } from '../../lib/sync'
 import {
-  KCAL_TARGET, PROT_TARGET, CARB_TARGET, FAT_TARGET, FIBER_TARGET,
   QUICK_FOODS, SESSION_OPTS, MED_MINS, MED_STYLES, PHASE_NOTES,
 } from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
@@ -20,6 +19,16 @@ import { analyzeImage } from '../../lib/analyzeFood'
 import type { PhotoAnalysisResult } from '../../lib/analyzeFood'
 
 function dkey(d: Date) { return d.toISOString().split('T')[0] }
+
+// ── Macro split helpers ──────────────────────────────────────────
+type MacroSplit = UserSettings['macroSplit']
+
+function calcMacros(kcal: number, split: MacroSplit) {
+  if (split === 'balanced')     return { p: Math.round(kcal * 0.30 / 4), c: Math.round(kcal * 0.40 / 4), f: Math.round(kcal * 0.30 / 9) }
+  if (split === 'high_protein') return { p: Math.round(kcal * 0.35 / 4), c: Math.round(kcal * 0.35 / 4), f: Math.round(kcal * 0.30 / 9) }
+  if (split === 'low_carb')     return { p: Math.round(kcal * 0.35 / 4), c: Math.round(kcal * 0.20 / 4), f: Math.round(kcal * 0.45 / 9) }
+  return null
+}
 
 // ── Meditation guides ────────────────────────────────────────────
 const DEFAULT_GUIDES: MedGuide[] = [
@@ -148,9 +157,19 @@ const WeekStrip = memo(function WeekStrip({ currentDate, onSelect, getDay }: {
 
 // ── Main component ───────────────────────────────────────────────
 export default function TrackerTab({ user }: { user?: User | null }) {
-  const store    = useTrackerStore()
-  const libStore = useFoodLibraryStore()
+  const store         = useTrackerStore()
+  const libStore      = useFoodLibraryStore()
+  const settingsStore = useUserSettingsStore()
   const todayBase = new Date(); todayBase.setHours(0, 0, 0, 0)
+
+  const [targets, setTargets]     = useState(() => settingsStore.get())
+  const [showTargetsPanel, setShowTargetsPanel] = useState(false)
+  const [editKcal,  setEditKcal]  = useState('')
+  const [editSplit, setEditSplit] = useState<MacroSplit>('balanced')
+  const [editProt,  setEditProt]  = useState('')
+  const [editCarb,  setEditCarb]  = useState('')
+  const [editFat,   setEditFat]   = useState('')
+  const [editFiber, setEditFiber] = useState('')
 
   const [date, setDate]           = useState<Date>(new Date(todayBase))
   const [day, setDay]             = useState<DayData>(() => store.getDay(dkey(todayBase)))
@@ -184,30 +203,6 @@ export default function TrackerTab({ user }: { user?: User | null }) {
   const [checkInSaved, setCheckInSaved] = useState(false)
   const [stripKey, setStripKey] = useState(0)
   const [innerTab, setInnerTab] = useState<'food' | 'workout' | 'meditation'>('food')
-
-  // Data export / import
-  const handleExport = () => {
-    const data = JSON.stringify(exportAllData(), null, 2)
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `wellness_hub_backup_${new Date().toISOString().split('T')[0]}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => {
-      const ok = importAllData(ev.target?.result as string)
-      if (ok) { alert('Data imported! Reloading...'); location.reload() }
-      else alert('Import failed. Make sure you are using a backup file exported from this Hub.')
-    }
-    reader.readAsText(file)
-    e.target.value = ''
-  }
 
   // Meditation guides
   const [guides, setGuides]             = useState<MedGuide[]>(loadGuides)
@@ -435,6 +430,45 @@ export default function TrackerTab({ user }: { user?: User | null }) {
 
   const phaseNote = PHASE_NOTES[phase] ?? PHASE_NOTES['']
 
+  const openTargetsPanel = () => {
+    const t = settingsStore.get()
+    setTargets(t)
+    setEditKcal(String(t.kcalTarget))
+    setEditSplit(t.macroSplit)
+    setEditProt(String(t.protTarget))
+    setEditCarb(String(t.carbTarget))
+    setEditFat(String(t.fatTarget))
+    setEditFiber(String(t.fiberTarget))
+    setShowTargetsPanel(true)
+  }
+
+  const saveTargets = () => {
+    const kcal = parseInt(editKcal) || targets.kcalTarget
+    const auto = editSplit !== 'custom' ? calcMacros(kcal, editSplit) : null
+    const next: UserSettings = {
+      kcalTarget:         kcal,
+      protTarget:         auto ? auto.p : (parseInt(editProt) || targets.protTarget),
+      carbTarget:         auto ? auto.c : (parseInt(editCarb) || targets.carbTarget),
+      fatTarget:          auto ? auto.f : (parseInt(editFat)  || targets.fatTarget),
+      fiberTarget:        parseInt(editFiber) || targets.fiberTarget,
+      macroSplit:         editSplit,
+      cognitivePeakStart: targets.cognitivePeakStart,
+      cognitivePeakEnd:   targets.cognitivePeakEnd,
+    }
+    settingsStore.set(next)
+    setTargets(next)
+    setShowTargetsPanel(false)
+  }
+
+  // Auto-fill macro fields when split or kcal changes
+  useEffect(() => {
+    if (editSplit === 'custom') return
+    const kcal = parseInt(editKcal)
+    if (!kcal) return
+    const m = calcMacros(kcal, editSplit)
+    if (m) { setEditProt(String(m.p)); setEditCarb(String(m.c)); setEditFat(String(m.f)) }
+  }, [editSplit, editKcal])
+
   // ── Oura state ──────────────────────────────────────────────────
   const [ouraConnected, setOuraConnected]     = useState(false)
   const [ouraShowSettings, setOuraShowSettings] = useState(false)
@@ -554,6 +588,20 @@ export default function TrackerTab({ user }: { user?: User | null }) {
     return () => window.removeEventListener('resize', handler)
   }, [])
 
+  if (!user) {
+    return (
+      <div style={{ textAlign: 'center', padding: '64px 24px 32px' }}>
+        <div style={{ fontSize: 44, marginBottom: 14 }}>🔒</div>
+        <div style={{ fontFamily: '"DM Serif Display",serif', fontSize: 22, fontWeight: 400, color: 'var(--text)', marginBottom: 8 }}>
+          Sign in to use <em style={{ color: 'var(--teal-light)' }}>Tracker</em>
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--muted)', maxWidth: 300, margin: '0 auto', lineHeight: 1.6 }}>
+          Log meals, track macros and monitor your daily progress. Your data stays private and syncs across devices.
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       {/* Header */}
@@ -609,13 +657,89 @@ export default function TrackerTab({ user }: { user?: User | null }) {
 
           {/* Macro summary */}
           <div className="tcard">
-            <div className="tlabel" style={{ color: 'var(--muted2)' }}>Daily macro targets · fat loss + recomposition</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div className="tlabel" style={{ color: 'var(--muted2)', marginBottom: 0 }}>Daily targets</div>
+              <button
+                onClick={openTargetsPanel}
+                style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--muted)', cursor: 'pointer', fontFamily: '"DM Mono",monospace', padding: '2px 6px' }}
+              >
+                ✎ Edit
+              </button>
+            </div>
+
+            {/* Collapsible edit panel */}
+            {showTargetsPanel && (
+              <div style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Calories (kcal)</div>
+                    <input
+                      aria-label="Calorie target"
+                      type="number"
+                      value={editKcal}
+                      onChange={e => setEditKcal(e.target.value)}
+                      className="tinput"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Macro split</div>
+                    <select
+                      aria-label="Macro split"
+                      value={editSplit}
+                      onChange={e => setEditSplit(e.target.value as MacroSplit)}
+                      style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, padding: '8px 8px', fontSize: 12, color: 'var(--text)', fontFamily: '"DM Sans",sans-serif', outline: 'none' }}
+                    >
+                      <option value="balanced">Balanced (30P/40C/30F)</option>
+                      <option value="high_protein">High protein (35P/35C/30F)</option>
+                      <option value="low_carb">Low carb (35P/20C/45F)</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
+                  {[
+                    { label: 'Protein g', val: editProt, set: setEditProt, aria: 'Protein target' },
+                    { label: 'Carbs g',   val: editCarb, set: setEditCarb, aria: 'Carbs target' },
+                    { label: 'Fat g',     val: editFat,  set: setEditFat,  aria: 'Fat target' },
+                    { label: 'Fiber g',   val: editFiber,set: setEditFiber,aria: 'Fiber target' },
+                  ].map(({ label, val, set, aria }) => (
+                    <div key={label}>
+                      <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 3 }}>{label}</div>
+                      <input
+                        aria-label={aria}
+                        type="number"
+                        value={val}
+                        onChange={e => { set(e.target.value); setEditSplit('custom') }}
+                        className="tinput"
+                        style={{ width: '100%', padding: '6px 6px', fontSize: 12 }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={saveTargets}
+                    style={{ flex: 1, background: 'var(--teal)', border: 'none', borderRadius: 7, padding: '8px 0', fontSize: 12, color: '#fff', cursor: 'pointer', fontFamily: 'sans-serif', fontWeight: 500 }}
+                  >
+                    Save targets
+                  </button>
+                  <button
+                    onClick={() => setShowTargetsPanel(false)}
+                    style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, padding: '8px 12px', fontSize: 12, color: 'var(--muted)', cursor: 'pointer', fontFamily: 'sans-serif' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <MacroBar label="Calories" val={totals.k} target={KCAL_TARGET} color="var(--green)" valColor="var(--green-light)" />
-              <MacroBar label="Protein" sub="muscle retention" val={totals.p} target={PROT_TARGET} color="var(--blue)" valColor="var(--blue-light)" />
-              <MacroBar label="Carbs" sub="moderate-low" val={totals.c} target={CARB_TARGET} color="var(--amber)" valColor="var(--amber-light)" />
-              <MacroBar label="Fat" sub="hormonal health" val={totals.f} target={FAT_TARGET} color="var(--coral)" valColor="var(--coral-light)" />
-              <MacroBar label="Fiber" sub="satiety on deficit" val={totals.fi} target={FIBER_TARGET} color="var(--teal)" valColor="var(--teal-light)" />
+              <MacroBar label="Calories" val={totals.k} target={targets.kcalTarget} color="var(--green)" valColor="var(--green-light)" />
+              <MacroBar label="Protein" sub="muscle retention" val={totals.p} target={targets.protTarget} color="var(--blue)" valColor="var(--blue-light)" />
+              <MacroBar label="Carbs" sub="moderate-low" val={totals.c} target={targets.carbTarget} color="var(--amber)" valColor="var(--amber-light)" />
+              <MacroBar label="Fat" sub="hormonal health" val={totals.f} target={targets.fatTarget} color="var(--coral)" valColor="var(--coral-light)" />
+              <MacroBar label="Fiber" sub="satiety on deficit" val={totals.fi} target={targets.fiberTarget} color="var(--teal)" valColor="var(--teal-light)" />
             </div>
           </div>
 
@@ -1033,21 +1157,6 @@ export default function TrackerTab({ user }: { user?: User | null }) {
           </div>
         </div>
       )}
-
-      {/* Data backup */}
-      <div className="tcard" style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: '"DM Mono",monospace', marginRight: 4 }}>Data backup</span>
-        <button
-          onClick={handleExport}
-          style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontFamily: '"DM Mono",monospace', color: 'var(--muted)', cursor: 'pointer' }}
-        >
-          ↓ Export
-        </button>
-        <label style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontFamily: '"DM Mono",monospace', color: 'var(--muted)', cursor: 'pointer' }}>
-          ↑ Import
-          <input type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
-        </label>
-      </div>
 
       {/* Oura Ring settings — only shown when Supabase is configured */}
       {user && (

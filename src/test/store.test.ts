@@ -5,10 +5,14 @@ import {
   useTrackerStore, useRecipeStore, useGroceryStore, useFoodLibraryStore,
   useGroceryCatalogStore,
   exportAllData, importAllData,
+  bodyStatsStore, workoutPlanStore,
+  useBodyStatsStore, useWorkoutPlanStore,
+  userSettingsStore,
 } from '../hooks/useStore'
 import { EMPTY_DAY } from '../data/tracker'
 import type { CustomBlock } from '../data/schedule'
 import type { GroceryCatalogItem } from '../data/grocery'
+import type { UserBodyStats, UserWorkoutPlan } from '../lib/sync'
 
 // ── localStorage mock ────────────────────────────────────────────
 const store: Record<string, string> = {}
@@ -459,5 +463,150 @@ describe('load() error handling', () => {
     const result = trackerStore.getAll()
     // Should return the fallback ({}) instead of throwing
     expect(result).toEqual({})
+  })
+})
+
+// ── bodyStatsStore ────────────────────────────────────────────────
+describe('bodyStatsStore', () => {
+  const sampleStats: UserBodyStats = {
+    weightKg: 70, bodyFatPct: 18, heightM: 1.78,
+    cycleType: 'none', equipment: 'Barbell + dumbbells',
+    tdeeKcal: 2400, kcalTarget: 2000,
+    protRange: '140-160g/day', fatLossGoal: '0.5 kg/wk',
+    chronotype: 'intermediate',
+  }
+
+  it('get returns defaults when nothing is saved', () => {
+    const s = bodyStatsStore.get()
+    expect(s.weightKg).toBe(0)
+    expect(s.bodyFatPct).toBe(0)
+    expect(s.cycleType).toBe('none')
+    expect(s.chronotype).toBe('intermediate')
+  })
+
+  it('set persists a partial patch and is retrievable via get', () => {
+    bodyStatsStore.set({ weightKg: 70, bodyFatPct: 18 })
+    const s = bodyStatsStore.get()
+    expect(s.weightKg).toBe(70)
+    expect(s.bodyFatPct).toBe(18)
+    // Other fields remain at defaults
+    expect(s.heightM).toBe(0)
+  })
+
+  it('set merges a second patch without erasing previous fields', () => {
+    bodyStatsStore.set({ weightKg: 70 })
+    bodyStatsStore.set({ heightM: 1.78 })
+    const s = bodyStatsStore.get()
+    expect(s.weightKg).toBe(70)
+    expect(s.heightM).toBe(1.78)
+  })
+
+  it('set persists all stats fields', () => {
+    bodyStatsStore.set(sampleStats)
+    const s = bodyStatsStore.get()
+    expect(s.equipment).toBe('Barbell + dumbbells')
+    expect(s.protRange).toBe('140-160g/day')
+    expect(s.fatLossGoal).toBe('0.5 kg/wk')
+    expect(s.tdeeKcal).toBe(2400)
+    expect(s.kcalTarget).toBe(2000)
+  })
+
+  it('importFromRemote writes remote value without triggering push', () => {
+    bodyStatsStore.importFromRemote(sampleStats)
+    const s = bodyStatsStore.get()
+    expect(s.weightKg).toBe(70)
+    expect(s.chronotype).toBe('intermediate')
+  })
+
+  it('importFromRemote overwrites existing local data', () => {
+    bodyStatsStore.set({ weightKg: 50 })
+    bodyStatsStore.importFromRemote({ ...sampleStats, weightKg: 80 })
+    expect(bodyStatsStore.get().weightKg).toBe(80)
+  })
+
+  it('useBodyStatsStore returns the same bodyStatsStore object', () => {
+    expect(useBodyStatsStore()).toBe(bodyStatsStore)
+  })
+})
+
+// ── workoutPlanStore ──────────────────────────────────────────────
+describe('workoutPlanStore', () => {
+  const samplePlan: UserWorkoutPlan = {
+    gender: 'female',
+    numWeeks: 3,
+    planData: [
+      {
+        week: 1, label: 'Week 1', color: 'var(--teal)', note: 'Test note', nutr: 'Test nutr',
+        days: [{ slot: 'Day A', type: 'Home', label: 'Test day', time: '30 min', color: 'var(--teal)', solin: 'Note', exs: [] }],
+      },
+    ],
+  }
+
+  it('get returns null when nothing is saved', () => {
+    expect(workoutPlanStore.get()).toBeNull()
+  })
+
+  it('set persists a plan and is retrievable via get', () => {
+    workoutPlanStore.set(samplePlan)
+    const p = workoutPlanStore.get()
+    expect(p).not.toBeNull()
+    expect(p!.gender).toBe('female')
+    expect(p!.numWeeks).toBe(3)
+    expect(p!.planData[0].label).toBe('Week 1')
+  })
+
+  it('set overwrites the previous plan', () => {
+    workoutPlanStore.set(samplePlan)
+    workoutPlanStore.set({ ...samplePlan, gender: 'male', numWeeks: 4 })
+    const p = workoutPlanStore.get()
+    expect(p!.gender).toBe('male')
+    expect(p!.numWeeks).toBe(4)
+  })
+
+  it('importFromRemote writes a plan without triggering push', () => {
+    workoutPlanStore.importFromRemote(samplePlan)
+    const p = workoutPlanStore.get()
+    expect(p!.gender).toBe('female')
+    expect(p!.planData).toHaveLength(1)
+  })
+
+  it('importFromRemote overwrites an existing plan', () => {
+    workoutPlanStore.set(samplePlan)
+    const malePlan = { ...samplePlan, gender: 'male' as const }
+    workoutPlanStore.importFromRemote(malePlan)
+    expect(workoutPlanStore.get()!.gender).toBe('male')
+  })
+
+  it('useWorkoutPlanStore returns the same workoutPlanStore object', () => {
+    expect(useWorkoutPlanStore()).toBe(workoutPlanStore)
+  })
+})
+
+// ── userSettingsStore ─────────────────────────────────────────────
+describe('userSettingsStore', () => {
+  it('get returns defaults when nothing is saved', () => {
+    const s = userSettingsStore.get()
+    expect(s.kcalTarget).toBe(1380)
+    expect(s.macroSplit).toBe('custom')
+    expect(s.cognitivePeakStart).toBe('11:00')
+  })
+
+  it('set persists a partial patch', () => {
+    userSettingsStore.set({ kcalTarget: 1600, macroSplit: 'high_protein' })
+    const s = userSettingsStore.get()
+    expect(s.kcalTarget).toBe(1600)
+    expect(s.macroSplit).toBe('high_protein')
+    expect(s.protTarget).toBe(110) // unchanged default
+  })
+
+  it('importFromRemote writes remote settings', () => {
+    userSettingsStore.importFromRemote({
+      kcalTarget: 1800, protTarget: 140, carbTarget: 180, fatTarget: 60,
+      fiberTarget: 30, macroSplit: 'balanced',
+      cognitivePeakStart: '09:00', cognitivePeakEnd: '11:00',
+    })
+    const s = userSettingsStore.get()
+    expect(s.kcalTarget).toBe(1800)
+    expect(s.cognitivePeakStart).toBe('09:00')
   })
 })

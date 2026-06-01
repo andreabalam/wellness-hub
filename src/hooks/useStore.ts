@@ -2,7 +2,7 @@ import type { DayData, QuickFood } from '../data/tracker'
 import { EMPTY_DAY } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
 import type { CustomBlock } from '../data/schedule'
-import type { MedGuide } from '../lib/sync'
+import type { MedGuide, UserSettings, UserBodyStats, UserWorkoutPlan } from '../lib/sync'
 import type { Reminder } from '../data/reminders'
 import type { GroceryCatalogItem } from '../data/grocery'
 import { supabase } from '../lib/supabase'
@@ -19,6 +19,9 @@ const SCHEDULE_KEY            = 'whub_schedule_v1'
 export const MED_GUIDES_KEY   = 'whub_med_guides_v1'
 const REMINDERS_KEY           = 'whub_reminders_v1'
 const HIDDEN_RECIPES_KEY      = 'whub_hidden_recipes_v1'
+const USER_SETTINGS_KEY       = 'whub_user_settings_v1'
+const BODY_STATS_KEY          = 'whub_body_stats_v1'
+const WORKOUT_PLAN_KEY        = 'whub_workout_plan_v1'
 
 /**
  * Fire-and-forget push to Supabase — only runs when a user is signed in.
@@ -162,6 +165,75 @@ export const hiddenRecipeStore = {
   isHidden: (id: number): boolean => hiddenRecipeStore.getAll().includes(id),
 }
 
+// ── User settings (macro targets + cognitive peak) ────────────────
+
+const USER_SETTINGS_DEFAULTS: UserSettings = {
+  kcalTarget:         1380,
+  protTarget:         110,
+  carbTarget:         130,
+  fatTarget:          52,
+  fiberTarget:        25,
+  macroSplit:         'custom',
+  cognitivePeakStart: '11:00',
+  cognitivePeakEnd:   '13:00',
+}
+
+export const userSettingsStore = {
+  get: (): UserSettings => safeGet<UserSettings>(USER_SETTINGS_KEY, USER_SETTINGS_DEFAULTS),
+
+  set: (patch: Partial<UserSettings>) => {
+    const next = { ...userSettingsStore.get(), ...patch }
+    safeSet(USER_SETTINGS_KEY, next)
+    tryPush(uid => sync.upsertUserSettings(uid, next))
+  },
+
+  /** Used during syncAll — writes remote value without re-triggering a push */
+  importFromRemote: (s: UserSettings) => safeSet(USER_SETTINGS_KEY, s),
+}
+
+export function useUserSettingsStore() { return userSettingsStore }
+
+// ── Body stats (weight, body fat, TDEE etc.) ─────────────────────
+
+const BODY_STATS_DEFAULTS: UserBodyStats = {
+  weightKg: 0, bodyFatPct: 0, heightM: 0,
+  cycleType: 'none', equipment: '',
+  tdeeKcal: 0, kcalTarget: 0,
+  protRange: '', fatLossGoal: '',
+  chronotype: 'intermediate',
+}
+
+export const bodyStatsStore = {
+  get: (): UserBodyStats => safeGet<UserBodyStats>(BODY_STATS_KEY, BODY_STATS_DEFAULTS),
+
+  set: (patch: Partial<UserBodyStats>) => {
+    const next = { ...bodyStatsStore.get(), ...patch }
+    safeSet(BODY_STATS_KEY, next)
+    tryPush(uid => sync.upsertUserBodyStats(uid, next))
+  },
+
+  /** Used during syncAll — writes remote value without re-triggering a push */
+  importFromRemote: (s: UserBodyStats) => safeSet(BODY_STATS_KEY, s),
+}
+
+export function useBodyStatsStore() { return bodyStatsStore }
+
+// ── Workout plan (user_workout_plans JSONB) ─────────────────────
+
+export const workoutPlanStore = {
+  get: (): UserWorkoutPlan | null => safeGet<UserWorkoutPlan | null>(WORKOUT_PLAN_KEY, null),
+
+  set: (plan: UserWorkoutPlan) => {
+    safeSet(WORKOUT_PLAN_KEY, plan)
+    tryPush(uid => sync.upsertUserWorkoutPlan(uid, plan))
+  },
+
+  /** Used during syncAll — writes remote value without re-triggering a push */
+  importFromRemote: (p: UserWorkoutPlan) => safeSet(WORKOUT_PLAN_KEY, p),
+}
+
+export function useWorkoutPlanStore() { return workoutPlanStore }
+
 // ── Reminders ── persistent cross-day checklist ───────────────────
 export const remindersStore = {
   getAll: (): Reminder[] => safeGet<Reminder[]>(REMINDERS_KEY, []),
@@ -219,6 +291,7 @@ export function exportAllData() {
     foodLibrary:    safeGet<QuickFood[]>(FOOD_LIBRARY_KEY, []),
     groceryCatalog: safeGet<GroceryCatalogItem[]>(GROCERY_CATALOG_KEY, []),
     hiddenRecipes:  safeGet<number[]>(HIDDEN_RECIPES_KEY, []),
+    userSettings:   safeGet<UserSettings>(USER_SETTINGS_KEY, USER_SETTINGS_DEFAULTS),
     exportedAt:     new Date().toISOString(),
     version:        'whub_v1',
   }
@@ -235,6 +308,7 @@ export function importAllData(json: string): boolean {
     if (data.foodLibrary)    safeSet(FOOD_LIBRARY_KEY,    data.foodLibrary)
     if (data.groceryCatalog) safeSet(GROCERY_CATALOG_KEY, data.groceryCatalog)
     if (data.hiddenRecipes)  safeSet(HIDDEN_RECIPES_KEY,  data.hiddenRecipes)
+    if (data.userSettings)   safeSet(USER_SETTINGS_KEY,   data.userSettings)
     return true
   } catch { return false }
 }

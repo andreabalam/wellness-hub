@@ -155,51 +155,8 @@ export default function GroceryPanel() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 12 }}>
-        {/* Static catalog + user items merged per category */}
-        {Object.entries(catalog).map(([cat, items]) => (
-          <div key={cat} className="gcat">
-            <div className="gcatlbl">{cat}</div>
-            {items.map(item => (
-              <GroceryItemRow
-                key={item.n}
-                item={item}
-                checked={checked.includes(item.n)}
-                onToggle={toggle}
-              />
-            ))}
-            {/* User-added items for this standard category */}
-            {(userByStdCat[cat] ?? []).map(ui => (
-              <GroceryItemRow
-                key={ui.id}
-                item={{ n: ui.n, nutri: ui.nutri }}
-                checked={checked.includes(ui.n)}
-                onToggle={toggle}
-                onRemove={() => handleRemoveItem(ui.id)}
-              />
-            ))}
-          </div>
-        ))}
-
-        {/* User-added items whose category doesn't match any standard category */}
-        {userCustomItems.length > 0 && (
-          <div className="gcat">
-            <div className="gcatlbl">My Custom Items</div>
-            {userCustomItems.map(ui => (
-              <GroceryItemRow
-                key={ui.id}
-                item={{ n: ui.n, nutri: ui.nutri }}
-                checked={checked.includes(ui.n)}
-                onToggle={toggle}
-                onRemove={() => handleRemoveItem(ui.id)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Add item section */}
-      <div style={{ marginTop: 20 }}>
+      {/* Add item section — at top, before the category grid */}
+      <div style={{ marginBottom: 20 }}>
         {!showAddForm ? (
           <button
             aria-label="Add grocery item"
@@ -275,6 +232,50 @@ export default function GroceryPanel() {
           </div>
         )}
       </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 12 }}>
+        {/* Static catalog + user items merged per category */}
+        {Object.entries(catalog).map(([cat, items]) => (
+          <div key={cat} className="gcat">
+            <div className="gcatlbl">{cat}</div>
+            {items.map(item => (
+              <GroceryItemRow
+                key={item.n}
+                item={item}
+                checked={checked.includes(item.n)}
+                onToggle={toggle}
+              />
+            ))}
+            {/* User-added items for this standard category */}
+            {(userByStdCat[cat] ?? []).map(ui => (
+              <GroceryItemRow
+                key={ui.id}
+                item={{ n: ui.n, nutri: ui.nutri }}
+                checked={checked.includes(ui.n)}
+                onToggle={toggle}
+                onRemove={() => handleRemoveItem(ui.id)}
+              />
+            ))}
+          </div>
+        ))}
+
+        {/* User-added items whose category doesn't match any standard category */}
+        {userCustomItems.length > 0 && (
+          <div className="gcat">
+            <div className="gcatlbl">My Custom Items</div>
+            {userCustomItems.map(ui => (
+              <GroceryItemRow
+                key={ui.id}
+                item={{ n: ui.n, nutri: ui.nutri }}
+                checked={checked.includes(ui.n)}
+                onToggle={toggle}
+                onRemove={() => handleRemoveItem(ui.id)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
     </div>
   )
 }

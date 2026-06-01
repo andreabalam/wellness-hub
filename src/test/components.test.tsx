@@ -3,7 +3,7 @@
  * AuthButton and sync.ts are excluded from coverage (require live Supabase).
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 
 
 // ── localStorage mock ─────────────────────────────────────────────
@@ -39,6 +39,8 @@ import CookingMode              from '../components/RecipesTab/CookingMode'
 import GroceryIngredientModal   from '../components/RecipesTab/GroceryIngredientModal'
 import RecipesTab               from '../components/RecipesTab'
 import WorkoutsTab    from '../components/WorkoutsTab'
+import ErrorBoundary  from '../components/ErrorBoundary'
+import { MALE_DEFAULT_PLAN } from '../data/workouts'
 import ScheduleTab    from '../components/ScheduleTab'
 import ScheduleEditor from '../components/ScheduleTab/ScheduleEditor'
 import TrackerTab     from '../components/TrackerTab'
@@ -331,13 +333,13 @@ describe('RecipeCard', () => {
 
   it('clicking the card toggles to "tap to collapse" hint', () => {
     render(<RecipeCard recipe={BASE_RECIPE} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     expect(screen.getByText('tap to collapse')).toBeInTheDocument()
   })
 
   it('clicking an open card shows "tap to see recipe" again', () => {
     render(<RecipeCard recipe={BASE_RECIPE} />)
-    const card = screen.getByText('Test Dish').closest('.rcard')!
+    const card = screen.getByText('Test Dish').closest('.rcard') as HTMLElement
     fireEvent.click(card)
     fireEvent.click(card)
     expect(screen.getByText('tap to see recipe')).toBeInTheDocument()
@@ -345,26 +347,26 @@ describe('RecipeCard', () => {
 
   it('clicking the card reveals ingredients', () => {
     render(<RecipeCard recipe={BASE_RECIPE} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     expect(screen.getByText('Chicken breast')).toBeInTheDocument()
     expect(screen.getByText('Cook chicken')).toBeInTheDocument()
   })
 
   it('shows tip when open', () => {
     render(<RecipeCard recipe={BASE_RECIPE} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     expect(screen.getByText('Add lemon for brightness')).toBeInTheDocument()
   })
 
   it('shows "serves 2" in ingredients label for non-custom', () => {
     render(<RecipeCard recipe={BASE_RECIPE} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     expect(screen.getByText('Ingredients (serves 2)')).toBeInTheDocument()
   })
 
   it('shows "Ingredients" without "(serves 2)" for custom', () => {
     render(<RecipeCard recipe={CUSTOM_RECIPE} />)
-    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard') as HTMLElement)
     expect(screen.queryByText(/serves 2/)).not.toBeInTheDocument()
   })
 
@@ -393,14 +395,14 @@ describe('RecipeCard', () => {
   it('shows Delete button when custom + onDelete + id provided', () => {
     const onDelete = vi.fn()
     render(<RecipeCard recipe={CUSTOM_RECIPE} onDelete={onDelete} />)
-    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard') as HTMLElement)
     fireEvent.click(screen.getByText('Delete recipe'))
     expect(onDelete).toHaveBeenCalledWith(9002)
   })
 
   it('does not show Delete button when onDelete is not provided', () => {
     render(<RecipeCard recipe={CUSTOM_RECIPE} />)
-    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard') as HTMLElement)
     expect(screen.queryByText('Delete recipe')).not.toBeInTheDocument()
   })
 
@@ -408,34 +410,34 @@ describe('RecipeCard', () => {
 
   it('shows Edit button when expanded and onEdit is provided', () => {
     render(<RecipeCard recipe={BASE_RECIPE} onEdit={vi.fn()} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
   })
 
   it('calls onEdit with the recipe when Edit is clicked', () => {
     const onEdit = vi.fn()
     render(<RecipeCard recipe={BASE_RECIPE} onEdit={onEdit} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
     expect(onEdit).toHaveBeenCalledWith(BASE_RECIPE)
   })
 
   it('does not show Edit button when onEdit is not provided', () => {
     render(<RecipeCard recipe={BASE_RECIPE} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
   })
 
   it('shows Cook button when expanded and recipe has steps + onCook provided', () => {
     render(<RecipeCard recipe={BASE_RECIPE} onCook={vi.fn()} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     expect(screen.getByRole('button', { name: /cook/i })).toBeInTheDocument()
   })
 
   it('calls onCook with the recipe when Cook is clicked', () => {
     const onCook = vi.fn()
     render(<RecipeCard recipe={BASE_RECIPE} onCook={onCook} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     fireEvent.click(screen.getByRole('button', { name: /cook/i }))
     expect(onCook).toHaveBeenCalledWith(BASE_RECIPE)
   })
@@ -443,20 +445,20 @@ describe('RecipeCard', () => {
   it('does not show Cook button when recipe has no steps', () => {
     const noSteps = { ...BASE_RECIPE, steps: [] }
     render(<RecipeCard recipe={noSteps} onCook={vi.fn()} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     expect(screen.queryByRole('button', { name: /cook/i })).not.toBeInTheDocument()
   })
 
   it('shows Grocery button when expanded and recipe has ingredients + onGrocery provided', () => {
     render(<RecipeCard recipe={BASE_RECIPE} onGrocery={vi.fn()} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     expect(screen.getByRole('button', { name: /grocery/i })).toBeInTheDocument()
   })
 
   it('calls onGrocery with the recipe when Grocery is clicked', () => {
     const onGrocery = vi.fn()
     render(<RecipeCard recipe={BASE_RECIPE} onGrocery={onGrocery} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     fireEvent.click(screen.getByRole('button', { name: /grocery/i }))
     expect(onGrocery).toHaveBeenCalledWith(BASE_RECIPE)
   })
@@ -464,27 +466,27 @@ describe('RecipeCard', () => {
   it('does not show Grocery button when recipe has no ingredients', () => {
     const noIngs = { ...BASE_RECIPE, ings: [] as [string,string][] }
     render(<RecipeCard recipe={noIngs} onGrocery={vi.fn()} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     expect(screen.queryByRole('button', { name: /grocery/i })).not.toBeInTheDocument()
   })
 
   it('shows Hide button for built-in recipes when onHide is provided', () => {
     render(<RecipeCard recipe={BASE_RECIPE} onHide={vi.fn()} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     expect(screen.getByRole('button', { name: /hide/i })).toBeInTheDocument()
   })
 
   it('calls onHide with the recipe id when Hide is clicked', () => {
     const onHide = vi.fn()
     render(<RecipeCard recipe={BASE_RECIPE} onHide={onHide} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     fireEvent.click(screen.getByRole('button', { name: /hide/i }))
     expect(onHide).toHaveBeenCalledWith(9001)
   })
 
   it('does not show Hide button for custom recipes (Delete is shown instead)', () => {
     render(<RecipeCard recipe={CUSTOM_RECIPE} onDelete={vi.fn()} onHide={vi.fn()} />)
-    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard') as HTMLElement)
     // Delete is shown, Hide should not be (custom recipes use Delete)
     expect(screen.getByText('Delete recipe')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^hide$/i })).not.toBeInTheDocument()
@@ -493,7 +495,7 @@ describe('RecipeCard', () => {
   it('action buttons do not toggle the card when clicked', () => {
     const onEdit = vi.fn()
     render(<RecipeCard recipe={BASE_RECIPE} onEdit={onEdit} />)
-    fireEvent.click(screen.getByText('Test Dish').closest('.rcard')!)
+    fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     // Card is now open — clicking Edit should NOT close it
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
     expect(screen.getByText('tap to collapse')).toBeInTheDocument()
@@ -1126,66 +1128,291 @@ describe('GroceryIngredientModal', () => {
 // WorkoutsTab
 // ═════════════════════════════════════════════════════════════════
 describe('WorkoutsTab', () => {
-  it('renders the plan heading', () => {
-    render(<WorkoutsTab />)
-    expect(screen.getByText(/Fat Loss/)).toBeInTheDocument()
+  // ── Guest (no user) view — shows male 3×/week template ─────────
+  it('guest: shows example plan banner', () => {
+    render(<WorkoutsTab user={null} />)
+    expect(screen.getByText(/Example plan/i)).toBeInTheDocument()
   })
 
-  it('renders all 3 week nav buttons', () => {
-    render(<WorkoutsTab />)
+  it('guest: renders all 3 week nav buttons', () => {
+    render(<WorkoutsTab user={null} />)
     expect(screen.getByRole('button', { name: 'Week 1' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Week 2' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Week 3' })).toBeInTheDocument()
   })
 
-  it('renders stats strip entries', () => {
-    render(<WorkoutsTab />)
-    expect(screen.getByText('58 kg')).toBeInTheDocument()
-    expect(screen.getByText('~1,380 kcal')).toBeInTheDocument()
+  it('guest: renders Full-Body Strength Plan heading', () => {
+    render(<WorkoutsTab user={null} />)
+    expect(screen.getByText(/3×\/week Template/i)).toBeInTheDocument()
   })
 
-  it('shows plan notes for week 1 by default', () => {
-    render(<WorkoutsTab />)
-    expect(screen.getByText(/Plan guidance/i)).toBeInTheDocument()
+  it('guest: renders "tap any exercise to expand" hint for week 1 exercises', () => {
+    render(<WorkoutsTab user={null} />)
+    const hints = screen.getAllByText('tap any exercise to expand')
+    expect(hints.length).toBeGreaterThan(0)
   })
 
-  it('clicking Week 2 hides plan notes', () => {
-    render(<WorkoutsTab />)
+  it('guest: clicking Week 3 shows week 3 label', () => {
+    render(<WorkoutsTab user={null} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Week 3' }))
+    expect(screen.getByText(/Week 3.*Volume/i)).toBeInTheDocument()
+  })
+
+  it('guest: clicking an ExerciseRow expands its instruction', () => {
+    render(<WorkoutsTab user={null} />)
+    // Goblet Squat appears in Day A and Day C; take the first one
+    const exerciseTitle = screen.getAllByText('Goblet Squat')[0]
+    fireEvent.click(exerciseTitle.closest('div[style*="cursor: pointer"]')!)
+    expect(screen.getByText(/Hold one dumbbell/i)).toBeInTheDocument()
+  })
+
+  it('guest: does not show stats strip or plan notes', () => {
+    render(<WorkoutsTab user={null} />)
+    expect(screen.queryByText(/Plan guidance/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('Fat mass')).not.toBeInTheDocument()
+  })
+
+  // ── Auth user view — shows personalised plan ────────────────────
+  it('auth: shows Her Fat Loss plan heading', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    // "Recomposition Plan" is the <em> inside the female plan title — unique to the heading
+    expect(screen.getByText(/Recomposition Plan/i)).toBeInTheDocument()
+  })
+
+  it('auth: renders all 3 week nav buttons', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    expect(screen.getByRole('button', { name: 'Week 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Week 2' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Week 3' })).toBeInTheDocument()
+  })
+
+  it('auth: clicking Week 2 hides plan notes', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: 'Week 2' }))
     expect(screen.queryByText(/Plan guidance/i)).not.toBeInTheDocument()
   })
 
-  it('clicking Week 3 shows week 3 content label', () => {
-    render(<WorkoutsTab />)
+  it('auth: clicking Week 3 shows week 3 content label', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: 'Week 3' }))
     expect(screen.getByText('Week 3 - Ovulatory to Luteal Phase')).toBeInTheDocument()
   })
 
-  it('clicking back to Week 1 restores plan notes', () => {
-    render(<WorkoutsTab />)
+  it('auth: clicking back to Week 1 restores plan notes', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: 'Week 2' }))
     fireEvent.click(screen.getByRole('button', { name: 'Week 1' }))
     expect(screen.getByText(/Plan guidance/i)).toBeInTheDocument()
   })
 
-  it('renders "tap any exercise to expand" hint', () => {
-    render(<WorkoutsTab />)
+  it('auth: shows "tap any exercise to expand" hint', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
     const hints = screen.getAllByText('tap any exercise to expand')
     expect(hints.length).toBeGreaterThan(0)
   })
 
-  it('renders 3-week cycle section', () => {
-    render(<WorkoutsTab />)
-    expect(screen.getByText(/3-Week Rotating Cycle/)).toBeInTheDocument()
-  })
-
-  it('clicking an ExerciseRow expands its instruction', () => {
-    render(<WorkoutsTab />)
-    // Exercise rows contain an exercise title — click the first one
+  it('auth: clicking an ExerciseRow expands its instruction', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
     const exerciseTitle = screen.getByText('Footwork series')
     fireEvent.click(exerciseTitle.closest('div[style*="cursor: pointer"]')!)
-    // After expanding, description text is visible (the 'd' field)
-    expect(screen.getByText(/4 min/)).toBeInTheDocument()
+    expect(screen.getByText(/Reformer footwork/i)).toBeInTheDocument()
+  })
+
+  it('auth: "Set up my stats" button is shown when no stats saved', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    expect(screen.getByRole('button', { name: /Set up my stats/i })).toBeInTheDocument()
+  })
+
+  it('auth: clicking "Set up my stats" opens the edit panel', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /Set up my stats/i }))
+    expect(screen.getByText('Edit body stats')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('58')).toBeInTheDocument()
+  })
+
+  it('auth: Cancel closes the edit stats panel', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /Set up my stats/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Cancel/i }))
+    expect(screen.queryByText('Edit body stats')).not.toBeInTheDocument()
+  })
+
+  it('auth: Save persists updated weight to localStorage', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /Set up my stats/i }))
+    const weightInput = screen.getByPlaceholderText('58')
+    fireEvent.change(weightInput, { target: { value: '72' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }))
+    // After save, edit panel closes
+    expect(screen.queryByText('Edit body stats')).not.toBeInTheDocument()
+    // localStorage now has the saved value
+    const saved = JSON.parse(ls['whub_body_stats_v1'] ?? '{}')
+    expect(saved.weightKg).toBe(72)
+  })
+
+  // ── Auth user WITH pre-seeded body stats ────────────────────────
+  it('auth with stats: shows stats strip with weight and TDEE', () => {
+    ls['whub_body_stats_v1'] = JSON.stringify({
+      weightKg: 58, bodyFatPct: 35, heightM: 1.56,
+      cycleType: 'irregular', equipment: 'Dumbbells',
+      tdeeKcal: 1680, kcalTarget: 1380,
+      protRange: '105-115g/day', fatLossGoal: '0.4-0.5 kg/wk',
+      chronotype: 'late',
+    })
+    render(<WorkoutsTab user={FAKE_USER} />)
+    expect(screen.getByText('58 kg')).toBeInTheDocument()
+    // Stats strip has "Daily target" label; use getAllByText since kcal appears in weekly note too
+    const kcalCells = screen.getAllByText(/1.?380 kcal/)
+    expect(kcalCells.length).toBeGreaterThan(0)
+    expect(screen.getByText('105-115g/day')).toBeInTheDocument()
+  })
+
+  it('auth with stats: shows 3-Week Rotating Cycle for irregular cycle type', () => {
+    ls['whub_body_stats_v1'] = JSON.stringify({
+      weightKg: 58, bodyFatPct: 35, heightM: 1.56, cycleType: 'irregular',
+      equipment: '', tdeeKcal: 1680, kcalTarget: 1380,
+      protRange: '', fatLossGoal: '', chronotype: 'late',
+    })
+    render(<WorkoutsTab user={FAKE_USER} />)
+    expect(screen.getByText('3-Week Rotating Cycle')).toBeInTheDocument()
+  })
+
+  it('auth with stats: "Edit stats" button opens pre-filled form', () => {
+    ls['whub_body_stats_v1'] = JSON.stringify({
+      weightKg: 58, bodyFatPct: 35, heightM: 1.56, cycleType: 'irregular',
+      equipment: 'Dumbbells', tdeeKcal: 1680, kcalTarget: 1380,
+      protRange: '105-115g/day', fatLossGoal: '0.4-0.5 kg/wk', chronotype: 'late',
+    })
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /Edit stats/ }))
+    // Form should appear with the weight pre-filled
+    const weightInput = screen.getByPlaceholderText('58') as HTMLInputElement
+    expect(weightInput.value).toBe('58')
+  })
+
+  it('auth with stats: stats-toggle Cancel button hides edit panel', () => {
+    ls['whub_body_stats_v1'] = JSON.stringify({
+      weightKg: 58, bodyFatPct: 35, heightM: 1.56, cycleType: 'none',
+      equipment: '', tdeeKcal: 1680, kcalTarget: 1380,
+      protRange: '', fatLossGoal: '', chronotype: 'intermediate',
+    })
+    render(<WorkoutsTab user={FAKE_USER} />)
+    // Open edit panel via "✎ Edit stats" button
+    fireEvent.click(screen.getByRole('button', { name: /✎ Edit stats/ }))
+    expect(screen.getByText('Edit body stats')).toBeInTheDocument()
+    // The stats-strip toggle button now reads "✕ Cancel"; click it to close
+    fireEvent.click(screen.getByRole('button', { name: /✕ Cancel/ }))
+    expect(screen.queryByText('Edit body stats')).not.toBeInTheDocument()
+  })
+
+  it('auth with stats: changing cycle type select updates value', () => {
+    ls['whub_body_stats_v1'] = JSON.stringify({
+      weightKg: 58, bodyFatPct: 35, heightM: 1.56, cycleType: 'none',
+      equipment: '', tdeeKcal: 0, kcalTarget: 0,
+      protRange: '', fatLossGoal: '', chronotype: 'intermediate',
+    })
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /Edit stats/ }))
+    const cycleSelect = screen.getByDisplayValue('None / N/A')
+    fireEvent.change(cycleSelect, { target: { value: 'regular' } })
+    expect((cycleSelect as HTMLSelectElement).value).toBe('regular')
+  })
+
+  it('auth with male plan: shows Full-Body Strength Plan heading', () => {
+    ls['whub_workout_plan_v1'] = JSON.stringify({
+      gender: 'male', numWeeks: 3, planData: MALE_DEFAULT_PLAN,
+    })
+    render(<WorkoutsTab user={FAKE_USER} />)
+    expect(screen.getByText(/Strength Plan/i)).toBeInTheDocument()
+    expect(screen.getByText(/Strength · Full-body · Home/i)).toBeInTheDocument()
+  })
+
+  it('auth: changing chronotype select in edit form works', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /Set up my stats/i }))
+    const chrono = screen.getByDisplayValue('Intermediate')
+    fireEvent.change(chrono, { target: { value: 'late' } })
+    expect((chrono as HTMLSelectElement).value).toBe('late')
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
+// ErrorBoundary
+// ═════════════════════════════════════════════════════════════════
+describe('ErrorBoundary', () => {
+  // Suppress React's error boundary console output during these tests
+  let consoleError: typeof console.error
+  beforeEach(() => {
+    consoleError = console.error
+    console.error = () => {}
+  })
+  afterEach(() => {
+    console.error = consoleError
+  })
+
+  // A component whose throw/render is conditioned on a ref value so TS is satisfied
+  function BrokenChild({ doThrow = true }: { doThrow?: boolean }) {
+    if (doThrow) throw new Error('Render explosion')
+    return null
+  }
+
+  it('shows the fallback UI when a child throws', () => {
+    render(
+      <ErrorBoundary name="TestSection">
+        <BrokenChild />
+      </ErrorBoundary>
+    )
+    expect(screen.getByText(/Something went wrong in TestSection/i)).toBeInTheDocument()
+    expect(screen.getByText('Render explosion')).toBeInTheDocument()
+  })
+
+  it('shows fallback without name when name prop is omitted', () => {
+    render(
+      <ErrorBoundary>
+        <BrokenChild />
+      </ErrorBoundary>
+    )
+    expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument()
+  })
+
+  it('"Try again" button resets the error and shows the children', () => {
+    let shouldThrow = true
+    function MaybeThrow() {
+      if (shouldThrow) throw new Error('Boom')
+      return <div>Content OK</div>
+    }
+
+    const { rerender } = render(
+      <ErrorBoundary>
+        <MaybeThrow />
+      </ErrorBoundary>
+    )
+    expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument()
+
+    // Stop throwing, then click "Try again"
+    shouldThrow = false
+    fireEvent.click(screen.getByRole('button', { name: /Try again/i }))
+    rerender(
+      <ErrorBoundary>
+        <MaybeThrow />
+      </ErrorBoundary>
+    )
+    expect(screen.getByText('Content OK')).toBeInTheDocument()
+  })
+
+  it('"Reset all data" button calls localStorage.clear', () => {
+    const clearSpy = vi.spyOn(window.localStorage, 'clear')
+    // location.reload doesn't exist in jsdom, stub it
+    vi.stubGlobal('location', { ...window.location, reload: vi.fn() })
+
+    render(
+      <ErrorBoundary>
+        <BrokenChild />
+      </ErrorBoundary>
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Reset all data/i }))
+    expect(clearSpy).toHaveBeenCalled()
+    clearSpy.mockRestore()
   })
 })
 
@@ -1303,6 +1530,20 @@ describe('ScheduleTab', () => {
     const toInput = dateInputs[1]
     fireEvent.change(toInput, { target: { value: '2026-08-01' } })
     expect((toInput as HTMLInputElement).value).toBe('2026-08-01')
+  })
+
+  it('cognitive peak displays stored times and has an edit button', () => {
+    render(<ScheduleTab />)
+    // Default times from USER_SETTINGS_DEFAULTS: 11:00 and 13:00
+    expect(screen.getByText(/Cognitive peak/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Edit cognitive peak/i })).toBeInTheDocument()
+  })
+
+  it('clicking edit cognitive peak shows time inputs', () => {
+    render(<ScheduleTab />)
+    fireEvent.click(screen.getByRole('button', { name: /Edit cognitive peak/i }))
+    expect(screen.getByLabelText(/Peak start time/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Peak end time/i)).toBeInTheDocument()
   })
 })
 
@@ -1524,8 +1765,8 @@ describe('RecipesTab', () => {
     expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Breakfast' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Smoothies' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '⭐ My Recipes' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '🛒 Grocery' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '⭐ My Recipes' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Grocery/ })).toBeInTheDocument()
   })
 
   it('shows static fallback recipes when DB is unavailable', async () => {
@@ -1587,31 +1828,29 @@ describe('RecipesTab', () => {
     expect(screen.queryByPlaceholderText('Search recipes, ingredients…')).not.toBeInTheDocument()
   })
 
-  it('⭐ My Recipes shows empty state when no custom recipes', async () => {
+  it('no My Recipes section shown when no custom recipes', () => {
     render(<RecipesTab />)
-    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
-    fireEvent.click(screen.getByText('⭐ My Recipes'))
-    expect(screen.getByText(/No custom recipes yet/)).toBeInTheDocument()
+    // With no custom recipes, the purple "My Recipes" section header does not appear;
+    // built-in recipes still show.
+    expect(screen.queryByText('⭐ My Recipes')).not.toBeInTheDocument()
+    expect(screen.getByText('Overnight Oats')).toBeInTheDocument()
   })
 
-  it('custom recipes show tag sub-filter when tags exist', async () => {
+  it('custom recipe appears in All view without navigating to a separate tab', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
-    ls['whub_custom_tags_v1']    = JSON.stringify(['smoothie'])
     render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
-    fireEvent.click(screen.getByText('⭐ My Recipes'))
-    expect(screen.getByText('Filter by tag:')).toBeInTheDocument()
-  })
-
-  it('clicking "All my recipes" sub-filter clears tag filter', async () => {
-    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
-    ls['whub_custom_tags_v1']    = JSON.stringify(['smoothie'])
-    render(<RecipesTab />)
-    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
-    fireEvent.click(screen.getByText('⭐ My Recipes'))
-    fireEvent.click(screen.getByText('Smoothie'))  // filter to smoothie tag
-    fireEvent.click(screen.getByText('All my recipes'))
+    // Custom recipe is visible in the default All view — no navigation needed
     expect(screen.getByText('My Smoothie')).toBeInTheDocument()
+  })
+
+  it('custom recipe is visible in All view alongside built-in recipes', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
+    render(<RecipesTab />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
+    // Both custom and built-in recipes are in the All view
+    expect(screen.getByText('My Smoothie')).toBeInTheDocument()
+    expect(screen.getByText('Overnight Oats')).toBeInTheDocument()
   })
 
   it('+ Add my recipe opens the modal', () => {
@@ -1625,8 +1864,7 @@ describe('RecipesTab', () => {
     vi.mocked(window.confirm).mockReturnValue(true)
     render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
-    fireEvent.click(screen.getByText('⭐ My Recipes'))
-    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard') as HTMLElement)
     fireEvent.click(screen.getByText('Delete recipe'))
     expect(screen.queryByText('My Smoothie')).not.toBeInTheDocument()
   })
@@ -1636,8 +1874,7 @@ describe('RecipesTab', () => {
     vi.mocked(window.confirm).mockReturnValue(false)
     render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
-    fireEvent.click(screen.getByText('⭐ My Recipes'))
-    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
+    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard') as HTMLElement)
     fireEvent.click(screen.getByText('Delete recipe'))
     expect(screen.getByText('My Smoothie')).toBeInTheDocument()
   })
@@ -1660,7 +1897,7 @@ describe('RecipesTab', () => {
     expect(screen.queryByText('Recipe')).not.toBeInTheDocument()
   })
 
-  it('saving a recipe through the modal calls handleSave and shows it in My Recipes', async () => {
+  it('saving a recipe through the modal shows it in the All view', async () => {
     render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('+ Add my recipe'))
@@ -1668,8 +1905,7 @@ describe('RecipesTab', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), { target: { value: 'My Test Recipe' } })
     // Save
     fireEvent.click(screen.getByText('Save recipe'))
-    // Now in My Recipes
-    fireEvent.click(screen.getByText('⭐ My Recipes'))
+    // Recipe appears in the All view
     expect(screen.getByText('My Test Recipe')).toBeInTheDocument()
   })
 
@@ -1689,18 +1925,18 @@ describe('RecipesTab', () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
-    fireEvent.click(screen.getByText('⭐ My Recipes'))
-    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
-    expect(screen.getByRole('button', { name: /cook/i })).toBeInTheDocument()
+    const card = screen.getByText('My Smoothie').closest('.rcard') as HTMLElement
+    fireEvent.click(card)
+    expect(within(card).getByRole('button', { name: /cook/i })).toBeInTheDocument()
   })
 
   it('clicking Cook opens CookingMode overlay', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
-    fireEvent.click(screen.getByText('⭐ My Recipes'))
-    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
-    fireEvent.click(screen.getByRole('button', { name: /cook/i }))
+    const card = screen.getByText('My Smoothie').closest('.rcard') as HTMLElement
+    fireEvent.click(card)
+    fireEvent.click(within(card).getByRole('button', { name: /cook/i }))
     // CookingMode shows "Exit cooking mode" and the recipe name
     expect(screen.getByText(/Exit cooking mode/)).toBeInTheDocument()
   })
@@ -1709,9 +1945,9 @@ describe('RecipesTab', () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
-    fireEvent.click(screen.getByText('⭐ My Recipes'))
-    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
-    fireEvent.click(screen.getByRole('button', { name: /cook/i }))
+    const card = screen.getByText('My Smoothie').closest('.rcard') as HTMLElement
+    fireEvent.click(card)
+    fireEvent.click(within(card).getByRole('button', { name: /cook/i }))
     fireEvent.click(screen.getByText(/Exit cooking mode/))
     expect(screen.queryByText(/Exit cooking mode/)).not.toBeInTheDocument()
   })
@@ -1720,9 +1956,9 @@ describe('RecipesTab', () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     render(<RecipesTab />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
-    fireEvent.click(screen.getByText('⭐ My Recipes'))
-    fireEvent.click(screen.getByText('My Smoothie').closest('.rcard')!)
-    expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument()
+    const card = screen.getByText('My Smoothie').closest('.rcard') as HTMLElement
+    fireEvent.click(card)
+    expect(within(card).getByRole('button', { name: /edit/i })).toBeInTheDocument()
   })
 })
 
@@ -1731,31 +1967,31 @@ describe('RecipesTab', () => {
 // ═════════════════════════════════════════════════════════════════
 describe('TrackerTab', () => {
   it('renders the daily tracker heading', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     expect(screen.getByText(/Daily Tracker/)).toBeInTheDocument()
   })
 
   it('renders date navigation buttons', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     expect(screen.getByText('‹ Prev')).toBeInTheDocument()
     expect(screen.getByText('Next ›')).toBeInTheDocument()
     expect(screen.getByText('TODAY')).toBeInTheDocument()
   })
 
   it('renders the week strip', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     expect(screen.getByText('This week')).toBeInTheDocument()
   })
 
   it('renders inner tabs: Food, Workout, Meditation', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     expect(screen.getByText('Food')).toBeInTheDocument()
     expect(screen.getByText('Workout')).toBeInTheDocument()
     expect(screen.getByText('Meditation')).toBeInTheDocument()
   })
 
   it('Food tab is active by default with macro bars', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     expect(screen.getByText('Calories')).toBeInTheDocument()
     expect(screen.getByText('Protein')).toBeInTheDocument()
     expect(screen.getByText('Carbs')).toBeInTheDocument()
@@ -1764,23 +2000,23 @@ describe('TrackerTab', () => {
   })
 
   it('renders "No meals logged yet" when food list is empty', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     expect(screen.getByText('No meals logged yet.')).toBeInTheDocument()
   })
 
   it('renders quick-add placeholder when no history', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     expect(screen.getByText('Meals you log will appear here.')).toBeInTheDocument()
   })
 
   it('shows alert when logging food without name', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('+ Log food'))
     expect(window.alert).toHaveBeenCalledWith('Enter a name and calories.')
   })
 
   it('can log a food entry', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), {
       target: { value: 'Oatmeal' },
     })
@@ -1790,7 +2026,7 @@ describe('TrackerTab', () => {
   })
 
   it('logged food shows kcal in the log', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), {
       target: { value: 'Salmon' },
     })
@@ -1800,7 +2036,7 @@ describe('TrackerTab', () => {
   })
 
   it('clicking edit on a logged food shows "Save changes" button', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), {
       target: { value: 'Oatmeal' },
     })
@@ -1811,7 +2047,7 @@ describe('TrackerTab', () => {
   })
 
   it('can cancel food edit', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), {
       target: { value: 'Oatmeal' },
     })
@@ -1823,7 +2059,7 @@ describe('TrackerTab', () => {
   })
 
   it('can remove a logged food entry', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), {
       target: { value: 'Oatmeal' },
     })
@@ -1835,7 +2071,7 @@ describe('TrackerTab', () => {
   })
 
   it('prev date button decrements the displayed date', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     expect(screen.getByText(today)).toBeInTheDocument()
     fireEvent.click(screen.getByText('‹ Prev'))
@@ -1843,7 +2079,7 @@ describe('TrackerTab', () => {
   })
 
   it('TODAY button returns to today after navigating away', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     fireEvent.click(screen.getByText('‹ Prev'))
     fireEvent.click(screen.getByText('TODAY'))
@@ -1851,21 +2087,21 @@ describe('TrackerTab', () => {
   })
 
   it('switching to Workout tab shows session type selector', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Workout'))
     expect(screen.getByText('Workout log · 4:30 PM')).toBeInTheDocument()
     expect(screen.getByText('Pilates')).toBeInTheDocument()
   })
 
   it('logging workout without session shows alert', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Workout'))
     fireEvent.click(screen.getByText('+ Log workout'))
     expect(window.alert).toHaveBeenCalledWith('Select a session type first.')
   })
 
   it('can select a workout session and log it', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Workout'))
     fireEvent.click(screen.getByText('Pilates'))
     fireEvent.click(screen.getByText('+ Log workout'))
@@ -1873,7 +2109,7 @@ describe('TrackerTab', () => {
   })
 
   it('selecting same session twice deselects it', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Workout'))
     fireEvent.click(screen.getByText('Pilates'))
     fireEvent.click(screen.getByText('Pilates'))
@@ -1881,21 +2117,21 @@ describe('TrackerTab', () => {
   })
 
   it('switching to Meditation tab shows duration options', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     expect(screen.getByText('Meditation · 8:45 AM')).toBeInTheDocument()
     expect(screen.getByText('13 min')).toBeInTheDocument()
   })
 
   it('logging meditation without duration shows alert', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     fireEvent.click(screen.getByText('Log meditation'))
     expect(window.alert).toHaveBeenCalledWith('Select a duration first.')
   })
 
   it('can select a meditation duration and log it', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     fireEvent.click(screen.getByText('13 min'))
     fireEvent.click(screen.getByText('Log meditation'))
@@ -1904,7 +2140,7 @@ describe('TrackerTab', () => {
   })
 
   it('selecting same meditation duration deselects it', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     fireEvent.click(screen.getByText('13 min'))
     fireEvent.click(screen.getByText('13 min'))
@@ -1912,21 +2148,21 @@ describe('TrackerTab', () => {
   })
 
   it('renders the check-in section in Meditation tab', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     expect(screen.getByText('Daily check-in')).toBeInTheDocument()
     expect(screen.getByText('Save check-in')).toBeInTheDocument()
   })
 
   it('can click Save check-in', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     fireEvent.click(screen.getByText('Save check-in'))
     expect(screen.getByText('Saved!')).toBeInTheDocument()
   })
 
   it('can toggle cycle phase buttons', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     fireEvent.click(screen.getByText('Follicular'))
     fireEvent.click(screen.getByText('Follicular')) // deselect
@@ -1934,14 +2170,14 @@ describe('TrackerTab', () => {
   })
 
   it('renders Day notes section in Meditation tab', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     expect(screen.getByText('Day notes')).toBeInTheDocument()
     expect(screen.getByText('Save notes')).toBeInTheDocument()
   })
 
   it('can save day notes', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     const textarea = screen.getByPlaceholderText(/Cravings/)
     fireEvent.change(textarea, { target: { value: 'Feeling great today' } })
@@ -1950,7 +2186,7 @@ describe('TrackerTab', () => {
   })
 
   it('can select a meditation style', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     fireEvent.click(screen.getByText('Breath focus'))
     // deselect
@@ -1958,7 +2194,7 @@ describe('TrackerTab', () => {
   })
 
   it('can type in the workout notes textarea', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Workout'))
     const notes = screen.getByPlaceholderText('How did it feel? PRs? Modifications?')
     fireEvent.change(notes, { target: { value: 'Great session!' } })
@@ -1966,7 +2202,7 @@ describe('TrackerTab', () => {
   })
 
   it('clicking a day in the week strip navigates to that day', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     // Week strip has 7 clickable day buttons (M T W T F S S)
     const dayButtons = document.querySelectorAll('.wstrip-day')
     if (dayButtons.length > 0) {
@@ -1976,7 +2212,7 @@ describe('TrackerTab', () => {
   })
 
   it('auto-suggest appears when 2+ chars match a QUICK_FOOD', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     const nameInput = screen.getByPlaceholderText('Meal name (e.g. Berry Oats)')
     // QUICK_FOODS has 'Berry Oats' — typing 'Oat' triggers suggestions
     fireEvent.change(nameInput, { target: { value: 'Oat' } })
@@ -1985,7 +2221,7 @@ describe('TrackerTab', () => {
   })
 
   it('clicking a suggestion fills in the food fields', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     const nameInput = screen.getByPlaceholderText('Meal name (e.g. Berry Oats)')
     fireEvent.change(nameInput, { target: { value: 'Oat' } })
     // MouseDown on suggestion (onMouseDown handler)
@@ -1994,7 +2230,7 @@ describe('TrackerTab', () => {
   })
 
   it('food name input onFocus sets showSugg and onBlur clears it', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     const nameInput = screen.getByPlaceholderText('Meal name (e.g. Berry Oats)')
     fireEvent.focus(nameInput)   // line 435: onFocus → setShowSugg(true)
     fireEvent.blur(nameInput)    // line 436: onBlur → setTimeout(setShowSugg(false))
@@ -2002,14 +2238,14 @@ describe('TrackerTab', () => {
   })
 
   it('changing servings input updates the serving count', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     const srvInput = screen.getByPlaceholderText('1')
     fireEvent.change(srvInput, { target: { value: '2' } })  // line 458 onChange
     expect((srvInput as HTMLInputElement).value).toBe('2')
   })
 
   it('clicking Next › advances the date', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     fireEvent.click(screen.getByText('Next ›'))   // line 348 onClick
     // Date changed — today label is no longer shown
@@ -2017,7 +2253,7 @@ describe('TrackerTab', () => {
   })
 
   it('Save changes updates an existing food entry (editIndex branch)', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     // Log a food first
     fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), { target: { value: 'Oatmeal' } })
     fireEvent.change(screen.getByPlaceholderText('kcal'), { target: { value: '300' } })
@@ -2032,7 +2268,7 @@ describe('TrackerTab', () => {
   })
 
   it('quick-add from recent meals adds the food entry (quickAdd)', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     // Log Oatmeal today — it becomes a recent meal
     fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), { target: { value: 'Oatmeal' } })
     fireEvent.change(screen.getByPlaceholderText('kcal'), { target: { value: '300' } })
@@ -2049,7 +2285,7 @@ describe('TrackerTab', () => {
   })
 
   it('clicking a star in the daily check-in sets rating', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     // Star buttons are rendered for Energy, Mood, Sleep ratings (5 buttons each × 3 rows = 15)
     const stars = screen.getAllByText('·')
@@ -2060,7 +2296,7 @@ describe('TrackerTab', () => {
   })
 
   it('clicking a day in the week strip navigates to that date', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     // WeekStrip: find the grid container via the "This week" label, then click first day cell
     const heading = screen.getByText('This week')
     const grid = heading.nextElementSibling as HTMLElement
@@ -2071,85 +2307,22 @@ describe('TrackerTab', () => {
     }
   })
 
-  it('Export button triggers a file download', () => {
-    const click = vi.fn()
-    spyCreateLink(click)
-    render(<TrackerTab />)
-    fireEvent.click(screen.getByText('↓ Export'))
-    expect(click).toHaveBeenCalledOnce()
-  })
-
-  it('Import with valid backup shows success alert and reloads', async () => {
-    const backup = {
-      version: 'whub_v1',
-      tracker: {},
-      customRecipes: [],
-      customTags: [],
-      groceryChecked: [],
-      foodLibrary: [],
-      exportedAt: new Date().toISOString(),
-    }
-    class MockFileReader {
-      onload?: (e: { target: { result: string } }) => void
-      readAsText() {
-        setTimeout(() => this.onload?.({ target: { result: JSON.stringify(backup) } }), 0)
-      }
-    }
-    vi.stubGlobal('FileReader', MockFileReader)
-    vi.stubGlobal('location', { reload: vi.fn() })
-
-    render(<TrackerTab />)
-    const fileInput = document.querySelector('input[type="file"][accept=".json"]') as HTMLInputElement
-    const file = new File([JSON.stringify(backup)], 'backup.json', { type: 'application/json' })
-    Object.defineProperty(fileInput, 'files', { value: [file] })
-    await fireEvent.change(fileInput)
-
-    await new Promise(r => setTimeout(r, 10))
-    expect(window.alert).toHaveBeenCalledWith(expect.stringContaining('imported'))
-  })
-
-  it('Import with invalid backup shows failure alert', async () => {
-    class MockFileReader {
-      onload?: (e: { target: { result: string } }) => void
-      readAsText() {
-        setTimeout(() => this.onload?.({ target: { result: '{"version":"bad"}' } }), 0)
-      }
-    }
-    vi.stubGlobal('FileReader', MockFileReader)
-
-    render(<TrackerTab />)
-    const fileInput = document.querySelector('input[type="file"][accept=".json"]') as HTMLInputElement
-    const file = new File(['{"version":"bad"}'], 'bad.json', { type: 'application/json' })
-    Object.defineProperty(fileInput, 'files', { value: [file] })
-    await fireEvent.change(fileInput)
-
-    await new Promise(r => setTimeout(r, 10))
-    expect(window.alert).toHaveBeenCalledWith(expect.stringContaining('Import failed'))
-  })
-
-  it('Import file input clears value after change', () => {
-    class MockFileReader {
-      onload?: (e: { target: { result: string } }) => void
-      readAsText() { /* no-op */ }
-    }
-    vi.stubGlobal('FileReader', MockFileReader)
-
-    render(<TrackerTab />)
-    const fileInput = document.querySelector('input[type="file"][accept=".json"]') as HTMLInputElement
-    // Dispatching change with no files — exercises the early-return guard
-    fireEvent.change(fileInput)
-    // No crash = guard handled correctly
+  it('Export and Import buttons are no longer in TrackerTab (moved to AuthButton)', () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    // Export/Import was moved to the AuthButton signed-in panel
+    expect(screen.queryByText('↓ Export')).not.toBeInTheDocument()
+    expect(screen.queryByText('↑ Import')).not.toBeInTheDocument()
   })
 
   it('Meditation tab shows default guide links', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     expect(screen.getByText('Guided Meditation · Session 1')).toBeInTheDocument()
     expect(screen.getByText('Guided Meditation · Session 2')).toBeInTheDocument()
   })
 
   it('clicking × on a guide removes it', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     expect(screen.getByText('Guided Meditation · Session 1')).toBeInTheDocument()
     // The guides section has × remove buttons — find the first one in the guides card
@@ -2160,7 +2333,7 @@ describe('TrackerTab', () => {
   })
 
   it('+ Add opens guide form and Cancel closes it', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     fireEvent.click(screen.getByText('+ Add'))
     expect(screen.getByPlaceholderText('Title (e.g. Morning Calm · 13 min)')).toBeInTheDocument()
@@ -2169,7 +2342,7 @@ describe('TrackerTab', () => {
   })
 
   it('Add guide button adds guide with title and URL', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     fireEvent.click(screen.getByText('+ Add'))
     fireEvent.change(screen.getByPlaceholderText('Title (e.g. Morning Calm · 13 min)'), {
@@ -2183,7 +2356,7 @@ describe('TrackerTab', () => {
   })
 
   it('Add guide with only URL uses URL as title', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     fireEvent.click(screen.getByText('+ Add'))
     fireEvent.change(screen.getByPlaceholderText('URL'), {
@@ -2194,7 +2367,7 @@ describe('TrackerTab', () => {
   })
 
   it('Add guide with empty URL does nothing', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     fireEvent.click(screen.getByText('+ Add'))
     const initialGuideCount = screen.getAllByTitle('Remove').length
@@ -2203,7 +2376,7 @@ describe('TrackerTab', () => {
   })
 
   it('pressing Enter in URL field submits the guide', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     fireEvent.click(screen.getByText('+ Add'))
     const urlInput = screen.getByPlaceholderText('URL')
@@ -2213,14 +2386,14 @@ describe('TrackerTab', () => {
   })
 
   it('camera 📷 button is visible in the food tab', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     const cameraBtn = screen.getByTitle('Analyze food photo or nutrition label')
     expect(cameraBtn).toBeInTheDocument()
     expect(cameraBtn).toHaveTextContent('📷')
   })
 
   it('logging food with servings > 1 shows ×N srv label', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), {
       target: { value: 'Chicken' },
     })
@@ -2231,7 +2404,7 @@ describe('TrackerTab', () => {
   })
 
   it('logging food with fiber shows fiber in the macro line', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), {
       target: { value: 'Broccoli' },
     })
@@ -2242,7 +2415,7 @@ describe('TrackerTab', () => {
   })
 
   it('removing the food being edited calls cancelEdit first', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     // Log a food, start editing it, then remove it via ×
     fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), {
       target: { value: 'Eggs' },
@@ -2257,23 +2430,23 @@ describe('TrackerTab', () => {
     expect(screen.queryByText('✓ Save changes')).not.toBeInTheDocument()
   })
 
-  it('Data backup section is always visible', () => {
-    render(<TrackerTab />)
-    expect(screen.getByText('Data backup')).toBeInTheDocument()
-    expect(screen.getByText('↓ Export')).toBeInTheDocument()
-    expect(screen.getByText('↑ Import')).toBeInTheDocument()
+  it('Data backup section is no longer in TrackerTab (moved to AuthButton)', () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    // Data backup was moved to the AuthButton signed-in panel
+    expect(screen.queryByText('Data backup')).not.toBeInTheDocument()
   })
 
   it('hovering the check-in card does not crash (syncSleepFromOura guard)', () => {
-    render(<TrackerTab />)
+    render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
     const checkInCard = screen.getByText('Daily check-in').closest('.tcard')!
     fireEvent.mouseEnter(checkInCard)
     // ouraConnected is false → function returns immediately. No crash = guard works
   })
 
-  it('Oura Ring section is not rendered when user is logged out', () => {
-    render(<TrackerTab />)
+  it('Oura Ring section is not rendered when no user prop', () => {
+    // With auth gate in place, passing null user shows the sign-in gate
+    render(<TrackerTab user={null} />)
     expect(screen.queryByText('Oura Ring')).not.toBeInTheDocument()
   })
 
@@ -2338,6 +2511,23 @@ describe('TrackerTab', () => {
 })
 
 // ═════════════════════════════════════════════════════════════════
+// TrackerTab auth gate
+// ═════════════════════════════════════════════════════════════════
+describe('TrackerTab auth gate', () => {
+  it('shows sign-in gate when user is null', () => {
+    render(<TrackerTab user={null} />)
+    expect(screen.getByText(/Sign in to use/i)).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/Search recipes/)).not.toBeInTheDocument()
+  })
+
+  it('shows tracker content when user is provided', () => {
+    const fakeUser = { id: 'u1', email: 'test@example.com' } as any
+    render(<TrackerTab user={fakeUser} />)
+    expect(screen.queryByText(/Sign in to use/i)).not.toBeInTheDocument()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
 // App — top-level integration
 // ═════════════════════════════════════════════════════════════════
 describe('App', () => {
@@ -2354,9 +2544,9 @@ describe('App', () => {
     expect(screen.getByText('📅 Schedule')).toBeInTheDocument()
   })
 
-  it('shows TrackerTab on Tracker tab (works without sign-in)', () => {
+  it('shows auth gate on Tracker tab when not signed in', () => {
     render(<App />)
-    expect(screen.getByText(/Daily Tracker/)).toBeInTheDocument()
+    expect(screen.getByText(/Sign in to use/i)).toBeInTheDocument()
   })
 
   it('ScheduleTab is always rendered (cognitive peak banner visible)', () => {
@@ -2364,9 +2554,10 @@ describe('App', () => {
     expect(screen.getByText(/Cognitive peak/)).toBeInTheDocument()
   })
 
-  it('WorkoutsTab is always rendered (plan heading visible)', () => {
+  it('WorkoutsTab is always rendered (guest template heading visible)', () => {
     render(<App />)
-    expect(screen.getByText(/Fat Loss/)).toBeInTheDocument()
+    // Without a signed-in user, App renders the guest male template
+    expect(screen.getByText(/3×\/week Template/i)).toBeInTheDocument()
   })
 
   it('clicking Recipes tab makes recipes search visible', () => {
@@ -2387,11 +2578,11 @@ describe('App', () => {
     expect(screen.getByText('✎ Edit schedule')).toBeInTheDocument()
   })
 
-  it('clicking back to Tracker tab shows TrackerTab', () => {
+  it('clicking back to Tracker tab shows auth gate when not signed in', () => {
     render(<App />)
     fireEvent.click(screen.getByText('🍽 Recipes'))
     fireEvent.click(screen.getByText('📊 Tracker'))
-    expect(screen.getByText(/Daily Tracker/)).toBeInTheDocument()
+    expect(screen.getByText(/Sign in to use/i)).toBeInTheDocument()
   })
 
   it('UpdatePrompt renders nothing when no SW update pending', () => {
