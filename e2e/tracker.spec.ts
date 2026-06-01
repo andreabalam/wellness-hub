@@ -4,9 +4,16 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Tracker tab', () => {
   test.beforeEach(async ({ page }) => {
-    // Load, wipe localStorage, then reload so React initialises with clean state
+    // Load, wipe localStorage, inject a mock user so TrackerTab bypasses the
+    // auth gate in DEV mode, then reload so React initialises with clean state.
     await page.goto('/')
-    await page.evaluate(() => localStorage.clear())
+    await page.evaluate(() => {
+      localStorage.clear()
+      localStorage.setItem('__e2e_user__', JSON.stringify({
+        id: 'e2e-test-id', email: 'test@e2e.com',
+        app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
+      }))
+    })
     await page.reload()
     // App defaults to Tracker tab → Food inner-tab is visible
   })

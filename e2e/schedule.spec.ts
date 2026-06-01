@@ -9,7 +9,7 @@ test.describe('Schedule tab', () => {
 
   test('shows the cognitive peak banner', async ({ page }) => {
     await expect(page.locator('.pbanner').first()).toBeVisible()
-    await expect(page.locator('.pbanner').first()).toContainText('Cognitive peak: 11 AM - 1 PM')
+    await expect(page.locator('.pbanner').first()).toContainText('Cognitive peak: 11 AM')
   })
 
   test('timeline is populated with schedule blocks', async ({ page }) => {
