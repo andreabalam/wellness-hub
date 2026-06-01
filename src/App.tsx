@@ -28,7 +28,14 @@ export default function App() {
   const [swUpdate, setSwUpdate]   = useState<(() => void) | null>(
     () => window.__swPendingUpdate ?? null
   )
-  const [user, setUser]           = useState<User | null>(null)
+
+  // DEV-only: E2E tests can inject a mock user via localStorage.__e2e_user__
+  // so auth-gated components render without a real Supabase session.
+  const e2eUser = import.meta.env.DEV
+    ? (() => { try { return JSON.parse(localStorage.getItem('__e2e_user__') ?? 'null') as User | null } catch { return null } })()
+    : null
+
+  const [user, setUser]           = useState<User | null>(e2eUser)
   const [syncing, setSyncing]     = useState(false)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
 
@@ -150,7 +157,7 @@ export default function App() {
 
   // ── Auth state listener ───────────────────────────────────────
   useEffect(() => {
-    if (!supabase) return
+    if (!supabase || e2eUser) return  // skip for DEV mock user
 
     // Check for an existing session (handles magic link redirect on page load)
     supabase.auth.getSession().then(({ data: { session } }) => {
