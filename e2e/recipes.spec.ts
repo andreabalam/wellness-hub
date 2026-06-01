@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test'
 
+// Grocery catalog pre-seed — avoids relying on GroceryPanel's async seeding effect.
+// Using the same categories as GROCERY_DATA so .gcat elements appear immediately.
+const SEED_GROCERY = JSON.stringify([
+  { id: 'g-e2e-1', n: 'Oats',           cat: 'Grains & Legumes' },
+  { id: 'g-e2e-2', n: 'Banana',         cat: 'Fruits' },
+  { id: 'g-e2e-3', n: 'Chicken breast', cat: 'Protein' },
+])
+
 // Two pre-seeded test recipes used by filter/expand/collapse tests.
 // Built-in recipes have been removed; tests that need cards must seed their own.
 const SEED_RECIPES = JSON.stringify([
@@ -19,17 +27,29 @@ const SEED_RECIPES = JSON.stringify([
 
 test.describe('Recipes tab', () => {
   test.beforeEach(async ({ page }) => {
-    // Inject mock user (auth-gates the "+ Add my recipe" button) and seed two test
-    // recipes so filter / expand tests always have cards to work with.
-    await page.goto('/')
-    await page.evaluate((seeds) => {
-      localStorage.clear()
+    // addInitScript runs before any page scripts on EVERY navigation (including
+    // page.reload() within tests). It sets sessionStorage so the DEV mock-user
+    // bypass in App.tsx always sees a valid user without needing a real Supabase
+    // session. Only sessionStorage is touched here so localStorage persistence
+    // tests (lines 93, 139, 175) are not disrupted by the init script re-running.
+    await page.addInitScript(() => {
       sessionStorage.setItem('__e2e_user__', JSON.stringify({
         id: 'e2e-test-id', email: 'test@e2e.com',
         app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
       }))
-      localStorage.setItem('whub_custom_recipes_v1', seeds)
-    }, SEED_RECIPES)
+    })
+
+    // Seed localStorage once before the initial navigation.
+    // We pre-seed the grocery catalog (SEEDED_KEY + items) to avoid relying on
+    // GroceryPanel's async seeding useEffect, which can miss the 5-second
+    // Playwright assertion timeout on slow CI runners.
+    await page.goto('/')
+    await page.evaluate(({ recipes, grocery }) => {
+      localStorage.clear()
+      localStorage.setItem('whub_custom_recipes_v1', recipes)
+      localStorage.setItem('whub_grocery_initialized_v1', '1')   // skip seeding effect
+      localStorage.setItem('whub_grocery_catalog_v1', grocery)
+    }, { recipes: SEED_RECIPES, grocery: SEED_GROCERY })
     await page.reload()
     await page.getByRole('button', { name: /Recipes/i }).click()
   })

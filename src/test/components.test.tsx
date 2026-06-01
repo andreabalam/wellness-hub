@@ -2033,7 +2033,6 @@ describe('TrackerTab', () => {
     render(<TrackerTab user={FAKE_USER} />)
     expect(screen.getByText('‹ Prev')).toBeInTheDocument()
     expect(screen.getByText('Next ›')).toBeInTheDocument()
-    expect(screen.getByText('TODAY')).toBeInTheDocument()
   })
 
   it('renders the week strip', () => {
@@ -2136,11 +2135,12 @@ describe('TrackerTab', () => {
     expect(screen.queryByText(today)).not.toBeInTheDocument()
   })
 
-  it('TODAY button returns to today after navigating away', () => {
+  it('Next › button returns to today after navigating to previous day', () => {
     render(<TrackerTab user={FAKE_USER} />)
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     fireEvent.click(screen.getByText('‹ Prev'))
-    fireEvent.click(screen.getByText('TODAY'))
+    expect(screen.queryByText(today)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Next ›'))
     expect(screen.getByText(today)).toBeInTheDocument()
   })
 
@@ -2333,7 +2333,7 @@ describe('TrackerTab', () => {
     fireEvent.click(screen.getByText('+ Log food'))
     // Navigate away and back to re-compute recentMeals from store
     fireEvent.click(screen.getByText('‹ Prev'))
-    fireEvent.click(screen.getByText('TODAY'))
+    fireEvent.click(screen.getByText('Next ›'))
     // Now recentMeals should contain Oatmeal
     const recentBtn = document.querySelector('[style*="cursor: pointer"][style*="border"]') as HTMLElement
     if (recentBtn && recentBtn.textContent?.includes('Oatmeal')) {
