@@ -140,7 +140,7 @@ test.describe('Recipes tab', () => {
     await expect(page.getByText('Delete Me Item')).not.toBeVisible()
   })
 
-  test('can add a custom recipe and it appears under My Recipes', async ({ page }) => {
+  test('can add a custom recipe and it appears in the All view', async ({ page }) => {
     await page.getByRole('button', { name: '+ Add my recipe' }).click()
     // Modal is open when the recipe name input is visible
     await expect(page.getByPlaceholder('e.g. Mango Chia Pudding')).toBeVisible()
@@ -149,8 +149,7 @@ test.describe('Recipes tab', () => {
     await page.getByPlaceholder('e.g. High protein · gluten free').fill('Quick · 5 min')
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
-    // Modal closes, recipe appears in My Recipes
-    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    // Modal closes, recipe appears in the All view
     await expect(page.getByText('My Test Recipe')).toBeVisible()
   })
 
@@ -161,7 +160,6 @@ test.describe('Recipes tab', () => {
 
     await page.reload()
     await page.getByRole('button', { name: /Recipes/i }).click()
-    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
     await expect(page.getByText('Persistent Recipe')).toBeVisible()
   })
 
@@ -171,8 +169,7 @@ test.describe('Recipes tab', () => {
     await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Delete Me')
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
-    // Open My Recipes, expand card, delete
-    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    // Expand card in the All view and delete
     await page.getByText('Delete Me').click()
     page.once('dialog', d => d.accept())
     await page.getByRole('button', { name: 'Delete recipe' }).click()
@@ -181,8 +178,8 @@ test.describe('Recipes tab', () => {
   })
 
   test('export data button triggers a download', async ({ page }) => {
-    // Export lives in TrackerTab, not RecipesTab
-    await page.getByRole('button', { name: /Tracker/i }).click()
+    // Export is now in the settings panel (⚙ button in the header)
+    await page.getByRole('button', { name: 'Settings' }).click()
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       page.getByRole('button', { name: '↓ Export' }).click(),
@@ -208,8 +205,7 @@ test.describe('Recipes tab', () => {
     await plusBtns.last().click()
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
-    // Open My Recipes, expand the card
-    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    // Expand the card in the All view
     await page.getByText('Action Bar Recipe').click()
 
     await expect(page.getByRole('button', { name: /edit recipe/i })).toBeVisible()
@@ -225,7 +221,6 @@ test.describe('Recipes tab', () => {
     await page.getByRole('button', { name: '+', exact: true }).last().click()
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
-    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
     await page.getByText('Cook Test Recipe').click()
     await page.getByRole('button', { name: /cook/i }).click()
 
@@ -242,15 +237,14 @@ test.describe('Recipes tab', () => {
     await page.getByRole('button', { name: '+', exact: true }).last().click()
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
-    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
     await page.getByText('Exit Cook Recipe').click()
     await page.getByRole('button', { name: /cook/i }).click()
     await expect(page.getByText(/Exit cooking mode/)).toBeVisible()
 
     await page.getByText(/Exit cooking mode/).click()
     await expect(page.getByText(/Exit cooking mode/)).not.toBeVisible()
-    // Back on the recipes view
-    await expect(page.getByRole('button', { name: '⭐ My Recipes' })).toBeVisible()
+    // Back on the recipes view — Grocery button should still be there
+    await expect(page.getByRole('button', { name: /Grocery/ })).toBeVisible()
   })
 
   // ── Phase 3 & 4: edit mode + fork / hide ────────────────────────
@@ -261,8 +255,7 @@ test.describe('Recipes tab', () => {
     await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Original Name')
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
-    // Open My Recipes and expand
-    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    // Expand the card in the All view
     await page.getByText('Original Name').click()
 
     // Click Edit — modal should say "Edit my Recipe" with name pre-filled
@@ -276,7 +269,6 @@ test.describe('Recipes tab', () => {
     await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Before Edit')
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
-    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
     await page.getByText('Before Edit').click()
     await page.getByRole('button', { name: /edit recipe/i }).click()
 
@@ -286,8 +278,7 @@ test.describe('Recipes tab', () => {
     await nameField.fill('After Edit')
     await page.getByRole('button', { name: 'Save changes' }).click()
 
-    // Modal closes; updated name appears
-    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
+    // Modal closes; updated name appears in All view
     await expect(page.getByText('After Edit')).toBeVisible()
     await expect(page.getByText('Before Edit')).not.toBeVisible()
   })
@@ -303,7 +294,6 @@ test.describe('Recipes tab', () => {
     await page.getByRole('button', { name: '+', exact: true }).first().click()
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
-    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
     await page.getByText('Grocery Test Recipe').click()
     await page.getByRole('button', { name: /add ingredients to grocery/i }).click()
 
@@ -325,7 +315,6 @@ test.describe('Recipes tab', () => {
     await plusBtns.first().click()
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
-    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
     await page.getByText('Two Ing Recipe').click()
     await page.getByRole('button', { name: /add ingredients to grocery/i }).click()
 
@@ -351,7 +340,6 @@ test.describe('Recipes tab', () => {
     await plusBtns.first().click()
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
-    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
     await page.getByText('Partial Add Recipe').click()
     await page.getByRole('button', { name: /add ingredients to grocery/i }).click()
 
@@ -373,7 +361,6 @@ test.describe('Recipes tab', () => {
     await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('No Hide Here')
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
-    await page.getByRole('button', { name: '⭐ My Recipes' }).click()
     await page.getByText('No Hide Here').click()
 
     await expect(page.getByRole('button', { name: /hide this suggestion/i })).not.toBeVisible()

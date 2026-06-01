@@ -7,11 +7,13 @@ interface Props {
   syncing: boolean
   lastSynced: Date | null
   onSynced: () => void
+  onExport: () => void
+  onImportFile: (e: React.ChangeEvent<HTMLInputElement>) => void
 }
 
 type PanelState = 'idle' | 'sending' | 'sent' | 'verifying'
 
-export default function AuthButton({ user, syncing, lastSynced, onSynced }: Props) {
+export default function AuthButton({ user, syncing, lastSynced, onSynced, onExport, onImportFile }: Props) {
   const [open, setOpen]               = useState(false)
   const [email, setEmail]             = useState('')
   const [code, setCode]               = useState('')
@@ -50,7 +52,55 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced }: Prop
     return lastSynced.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }, [lastSynced])
 
-  if (!isConfigured) return null
+  // When Supabase is not configured (local dev / E2E without .env.local), render a
+  // minimal settings button so Export / Import are still accessible everywhere.
+  if (!isConfigured) {
+    return (
+      <div style={{ position: 'relative' }}>
+        <button
+          ref={btnRef}
+          aria-label="Settings"
+          onClick={() => setOpen(o => !o)}
+          title="Data backup"
+          style={{
+            width: 32, height: 32, borderRadius: '50%',
+            border: '1px solid var(--border2)', background: 'var(--bg3)',
+            color: 'var(--muted)', cursor: 'pointer', fontSize: 14,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all .2s', flexShrink: 0,
+          }}
+        >
+          ⚙
+        </button>
+        {open && (
+          <div
+            ref={panelRef}
+            style={{
+              position: 'absolute', top: 40, right: 0, zIndex: 200,
+              width: 200, background: 'var(--bg2)',
+              border: '1px solid var(--border2)', borderRadius: 12,
+              padding: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              fontFamily: '"DM Sans", sans-serif',
+            }}
+          >
+            <div style={{ fontSize: 11, color: 'var(--muted2)', fontFamily: '"DM Mono",monospace', marginBottom: 10 }}>Data backup</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                onClick={() => { onExport(); setOpen(false) }}
+                style={{ flex: 1, padding: '7px 0', background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, color: 'var(--muted)', fontSize: 12, cursor: 'pointer', fontFamily: '"DM Mono",monospace' }}
+              >
+                ↓ Export
+              </button>
+              <label style={{ flex: 1, padding: '7px 0', background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, color: 'var(--muted)', fontSize: 12, cursor: 'pointer', fontFamily: '"DM Mono",monospace', textAlign: 'center', display: 'block' }}>
+                ↑ Import
+                <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => { onImportFile(e); setOpen(false) }} />
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const sendOtp = async () => {
     if (!email.trim()) return
@@ -260,6 +310,20 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced }: Prop
               >
                 {syncing ? 'syncing…' : '↻ Sync now'}
               </button>
+
+              {/* Data backup */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                <button
+                  onClick={() => { onExport(); setOpen(false) }}
+                  style={{ flex: 1, padding: '7px 0', background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, color: 'var(--muted)', fontSize: 12, cursor: 'pointer', fontFamily: '"DM Mono",monospace' }}
+                >
+                  ↓ Export
+                </button>
+                <label style={{ flex: 1, padding: '7px 0', background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, color: 'var(--muted)', fontSize: 12, cursor: 'pointer', fontFamily: '"DM Mono",monospace', textAlign: 'center', display: 'block' }}>
+                  ↑ Import
+                  <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => { onImportFile(e); setOpen(false) }} />
+                </label>
+              </div>
 
               <button
                 onClick={signOut}

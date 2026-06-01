@@ -1,11 +1,18 @@
 import { useState, useCallback } from 'react'
 import { SCHEDULE_BLOCKS, customToScheduleBlock, defaultToCustomBlock } from '../../data/schedule'
 import type { CustomBlock } from '../../data/schedule'
-import { scheduleStore } from '../../hooks/useStore'
+import { scheduleStore, useUserSettingsStore } from '../../hooks/useStore'
 import { generateIcs, downloadIcs } from '../../lib/ics'
 import ScheduleEditor from './ScheduleEditor'
 
 // ── Helpers ──────────────────────────────────────────────────────
+
+function formatPeakTime(t: string): string {
+  const [h, m] = t.split(':').map(Number)
+  const period = h < 12 ? 'AM' : 'PM'
+  const hour12 = h % 12 || 12
+  return m === 0 ? `${hour12} ${period}` : `${hour12}:${String(m).padStart(2, '0')} ${period}`
+}
 
 function todayStr() {
   return new Date().toISOString().split('T')[0]
@@ -27,12 +34,22 @@ function loadBlocks(): CustomBlock[] {
 // ── Component ────────────────────────────────────────────────────
 
 export default function ScheduleTab() {
+  const settingsStore = useUserSettingsStore()
+
   const [blocks, setBlocks]         = useState<CustomBlock[]>(loadBlocks)
   const [openRows, setOpenRows]     = useState<Set<number>>(new Set())
   const [showEditor, setShowEditor] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const [startDate, setStartDate]   = useState(todayStr)
   const [endDate, setEndDate]       = useState(oneMonthOut)
+  const [peakStart, setPeakStart]   = useState(() => settingsStore.get().cognitivePeakStart)
+  const [peakEnd,   setPeakEnd]     = useState(() => settingsStore.get().cognitivePeakEnd)
+  const [editingPeak, setEditingPeak] = useState(false)
+
+  const savePeak = () => {
+    settingsStore.set({ cognitivePeakStart: peakStart, cognitivePeakEnd: peakEnd })
+    setEditingPeak(false)
+  }
 
   const isCustom = !!scheduleStore.getBlocks()
 
@@ -117,11 +134,45 @@ export default function ScheduleTab() {
       )}
 
       {/* ── Timeline ── */}
-      <div className="pbanner">
-        <span>○</span>
-        <span>
-          <strong>Cognitive peak: 11 AM - 1 PM.</strong>
-        </span>
+      <div className="pbanner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>○</span>
+          {editingPeak ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <strong>Cognitive peak:</strong>
+              <input
+                aria-label="Peak start time"
+                type="time"
+                value={peakStart}
+                onChange={e => setPeakStart(e.target.value)}
+                style={{ background: 'var(--bg3)', border: '1px solid var(--teal)', borderRadius: 5, padding: '2px 6px', color: 'var(--text)', fontSize: 12, fontFamily: '"DM Mono",monospace', outline: 'none', colorScheme: 'dark' }}
+              />
+              <span>–</span>
+              <input
+                aria-label="Peak end time"
+                type="time"
+                value={peakEnd}
+                onChange={e => setPeakEnd(e.target.value)}
+                style={{ background: 'var(--bg3)', border: '1px solid var(--teal)', borderRadius: 5, padding: '2px 6px', color: 'var(--text)', fontSize: 12, fontFamily: '"DM Mono",monospace', outline: 'none', colorScheme: 'dark' }}
+              />
+              <button onClick={savePeak} style={{ background: 'var(--teal)', border: 'none', borderRadius: 5, padding: '3px 10px', fontSize: 11, color: '#fff', cursor: 'pointer', fontFamily: 'sans-serif' }}>Save</button>
+              <button onClick={() => setEditingPeak(false)} style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--muted)', cursor: 'pointer', fontFamily: 'sans-serif' }}>Cancel</button>
+            </span>
+          ) : (
+            <span>
+              <strong>Cognitive peak: {formatPeakTime(peakStart)} – {formatPeakTime(peakEnd)}.</strong>
+            </span>
+          )}
+        </div>
+        {!editingPeak && (
+          <button
+            aria-label="Edit cognitive peak"
+            onClick={() => setEditingPeak(true)}
+            style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--muted)', cursor: 'pointer', fontFamily: '"DM Mono",monospace', padding: '2px 4px', flexShrink: 0 }}
+          >
+            ✎
+          </button>
+        )}
       </div>
 
       <div className="tl">

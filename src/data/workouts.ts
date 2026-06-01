@@ -233,6 +233,80 @@ export const WORKOUT_PLAN: WorkoutWeek[] = [
   },
 ]
 
+// ── Male default full-body 3×/week template ──────────────────────
+// Shown to guest (unauthenticated) users. Only Week 1 has pre-filled exercises.
+export const MALE_DEFAULT_PLAN: WorkoutWeek[] = [
+  {
+    week: 1, label: 'Week 1 – Full Body Foundation', color: 'var(--teal)',
+    note: 'Establish movement patterns. Focus on form over load. Aim for 7–8 RPE on the main lifts. Rest 90–120 sec between sets.',
+    nutr: 'Set calories to your goal (deficit for fat loss, slight surplus for muscle gain). Target 0.8–1 g protein per lb bodyweight.',
+    days: [
+      {
+        slot: 'Day A', type: 'Home', label: 'Full Body A – Squat & Push', time: '50–60 min', color: 'var(--teal)',
+        solin: 'Lead with a squat pattern and horizontal push — these two movements recruit the most muscle mass per set.',
+        exs: [
+          { t: 'Goblet Squat', d: '4×8', i: 'Hold one dumbbell at chest, feet shoulder-width, toes slightly out. Sit deep, drive knees out, stand tall. 3-sec descent, pause 1 sec at bottom.' },
+          { t: 'Dumbbell Bench Press', d: '4×8-10', i: 'Lie on floor or bench. Lower until elbows graze the surface, press to full lockout. Full range of motion.' },
+          { t: 'Bent-over Row', d: '4×10', i: 'Hinge 45°, grip DBs or barbell, pull elbows back and up. Squeeze shoulder blades together at top.' },
+          { t: 'Romanian Deadlift', d: '3×10-12', i: 'Push hips back, maintain neutral spine, feel hamstring stretch, drive hips forward to stand. 3-sec eccentric.' },
+          { t: 'Overhead Press', d: '3×8-10', i: 'Press DBs overhead from shoulder height. Control the descent. Keep ribs down, core braced throughout.' },
+          { t: 'Plank', d: '3×30-45 sec', i: 'Forearms or straight-arm. Squeeze glutes and quads. Body forms a straight line — no hips sagging or rising.' },
+        ],
+      },
+      {
+        slot: 'Day B', type: 'Rest', label: 'Rest / Active Recovery', time: '20–30 min optional', color: 'var(--muted2)',
+        solin: 'Active recovery accelerates adaptation. A 20-min walk raises blood flow to muscles without adding training stress.',
+        exs: [
+          { t: 'Light walk', d: '20 min', i: 'Easy Zone 2 pace — you could hold a full conversation.' },
+          { t: 'Mobility work', d: '10 min', i: 'Hip flexors, thoracic spine, shoulder circles. Hold each position 30–60 sec.' },
+        ],
+      },
+      {
+        slot: 'Day C', type: 'Home', label: 'Full Body B – Hinge & Pull', time: '50–60 min', color: 'var(--teal)',
+        solin: 'Lead with a hip hinge to train the posterior chain when CNS is fresh, then pair vertical pull with a press variation.',
+        exs: [
+          { t: 'Deadlift', d: '4×5-6', i: 'Conventional stance. Grip just outside legs, push the floor away, lock out hips fully at top. Neutral spine throughout.' },
+          { t: 'Single-arm Dumbbell Row', d: '4×10 each', i: 'One hand on bench or chair. Pull elbow back and up, feel full lat engagement. Lower under control.' },
+          { t: 'Push-up', d: '3×10-15', i: 'Full push-up if possible, hands on elevated surface to scale. 3-sec descent.' },
+          { t: 'Goblet Squat', d: '3×12', i: 'Higher-rep second squat variation for muscle endurance and quad emphasis.' },
+          { t: 'Lateral Raise', d: '3×12-15', i: 'Light DBs. Raise to shoulder height, thumb slightly down. 2-sec descent.' },
+          { t: 'Dead Bug', d: '3×8 each side', i: 'On back, arms vertical. Lower opposite arm and leg to 2 inches from floor. Lower back stays imprinted the entire time.' },
+        ],
+      },
+      {
+        slot: 'Day D', type: 'Rest', label: 'Rest / Stretching', time: 'Optional', color: 'var(--muted2)',
+        solin: 'Muscle is built during recovery, not during sets. Protect 7–9 hours of sleep — it is the highest-leverage recovery tool.',
+        exs: [
+          { t: 'Full-body stretching', d: '15-20 min', i: 'Hip flexors, hamstrings, chest, lats. Hold each 30–60 sec. Focus on areas that feel tight.' },
+          { t: 'Box breathing', d: '5 min', i: '4 sec in / 4 hold / 4 out / 4 hold. Lowers cortisol and accelerates nervous system recovery.' },
+        ],
+      },
+    ],
+  },
+  {
+    week: 2, label: 'Week 2 – Progressive Overload', color: 'var(--blue)',
+    note: 'Add weight or 1–2 reps to the main lifts from Week 1. Keep form strict — no grinding reps.',
+    nutr: 'Maintain protein intake. Adjust calories if energy or recovery feels off.',
+    days: [
+      { slot: 'Day A', type: 'Home', label: 'Full Body A', time: '50–60 min', color: 'var(--blue)',   solin: 'Increase load by 2–5% from Week 1 Day A. Same movements, more weight.', exs: [] },
+      { slot: 'Day B', type: 'Rest', label: 'Rest / Active Recovery', time: '20–30 min', color: 'var(--muted2)', solin: 'Same recovery protocol as Week 1.', exs: [] },
+      { slot: 'Day C', type: 'Home', label: 'Full Body B', time: '50–60 min', color: 'var(--blue)',   solin: 'Increase load by 2–5% from Week 1 Day C.', exs: [] },
+      { slot: 'Day D', type: 'Rest', label: 'Rest / Stretching', time: 'Optional', color: 'var(--muted2)', solin: 'Prioritise sleep and recovery.', exs: [] },
+    ],
+  },
+  {
+    week: 3, label: 'Week 3 – Volume & Intensity', color: 'var(--amber)',
+    note: 'Peak week. Push intensity. After this, take a full deload week (50% of normal load) before starting a new block.',
+    nutr: 'Higher intensity may increase appetite. Stay on calorie target. Prioritise carbs around workouts this week.',
+    days: [
+      { slot: 'Day A', type: 'Home', label: 'Full Body A', time: '50–60 min', color: 'var(--amber)', solin: 'Peak effort — aim for RPE 9 on the main lifts. Same movements as Week 2.', exs: [] },
+      { slot: 'Day B', type: 'Rest', label: 'Rest / Active Recovery', time: '20–30 min', color: 'var(--muted2)', solin: 'Recovery is programmed — it is not optional.', exs: [] },
+      { slot: 'Day C', type: 'Home', label: 'Full Body B', time: '50–60 min', color: 'var(--amber)', solin: 'Peak effort on main lifts. Finish strong.', exs: [] },
+      { slot: 'Day D', type: 'Rest', label: 'Rest / Stretching', time: 'Optional', color: 'var(--muted2)', solin: 'Deload next week, or continue if recovering well.', exs: [] },
+    ],
+  },
+]
+
 export const PLAN_NOTES: PlanNote[] = [
   { icon: '📊', title: 'Calorie & Nutrition', color: 'var(--amber)', text: 'Recipes tab targets ~1,380 kcal/day. On luteal phase days with higher hunger, increase to ~1,500 kcal by adding one extra protein serving. Never go below 1,200 kcal - this suppresses thyroid and slows metabolism.' },
   { icon: '💊', title: 'Supplement Timing', color: 'var(--green)', text: 'Creatine (3-5g/day): take consistently, even on rest days - particularly effective for women, improving muscle retention in a caloric deficit. Whey protein: hit 105-115g protein/day from food first. Fish oil (2g/day): reduces DOMS and supports hormonal health.' },

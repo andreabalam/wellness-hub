@@ -10,7 +10,7 @@ import GroceryPanel from './GroceryPanel'
 import CookingMode from './CookingMode'
 import GroceryIngredientModal from './GroceryIngredientModal'
 
-type Filter = 'all' | 'breakfast' | 'smoothie' | 'lunch' | 'dinner' | 'dessert' | 'snack' | 'ferments' | 'drinks' | 'custom' | 'grocery'
+type Filter = 'all' | 'breakfast' | 'smoothie' | 'lunch' | 'dinner' | 'dessert' | 'snack' | 'ferments' | 'drinks' | 'grocery'
 
 const FILTER_BTNS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -44,7 +44,6 @@ export default function RecipesTab() {
   }, [trackerStore])
 
   const [filter, setFilter]         = useState<Filter>('all')
-  const [customTag, setCustomTag]   = useState<string | null>(null)
   const [showModal, setShowModal]   = useState(false)
   const [cookingRecipe, setCookingRecipe]   = useState<Recipe | null>(null)
   const [groceryRecipe, setGroceryRecipe]   = useState<Recipe | null>(null)
@@ -204,7 +203,7 @@ export default function RecipesTab() {
 
     // When searching, scan everything (built-in + custom) regardless of filter
     if (q) {
-      const all = [...visibleBuiltins, ...customRecipes]
+      const all = [...customRecipes, ...visibleBuiltins]
       return all.filter(r =>
         r.name.toLowerCase().includes(q) ||
         (r.tag  ?? '').toLowerCase().includes(q) ||
@@ -213,14 +212,9 @@ export default function RecipesTab() {
       )
     }
 
-    if (activeFilter === 'custom') {
-      return customTag ? customRecipes.filter(r => r.cat === customTag) : customRecipes
-    }
-    if (activeFilter === 'all') return visibleBuiltins
-    return visibleBuiltins.filter(r => r.cat === activeFilter)
-  }, [query, activeFilter, customTag, visibleBuiltins, customRecipes])
-
-  const tagsInUse = useMemo(() => [...new Set(customRecipes.map(r => r.cat))], [customRecipes])
+    if (activeFilter === 'all') return [...customRecipes, ...visibleBuiltins]
+    return [...customRecipes.filter(r => r.cat === activeFilter), ...visibleBuiltins.filter(r => r.cat === activeFilter)]
+  }, [query, activeFilter, visibleBuiltins, customRecipes])
 
   return (
     <>
@@ -230,18 +224,11 @@ export default function RecipesTab() {
           <button
             key={btn.id}
             className={`rfbtn${activeFilter === btn.id ? ' active' : ''}`}
-            onClick={() => { setFilter(btn.id); setCustomTag(null) }}
+            onClick={() => setFilter(btn.id)}
           >
             {btn.label}
           </button>
         ))}
-        <button
-          className={`rfbtn${activeFilter === 'custom' ? ' active' : ''}`}
-          style={{ borderColor: activeFilter === 'custom' ? undefined : 'var(--purple)', color: activeFilter === 'custom' ? undefined : 'var(--purple-light)' }}
-          onClick={() => { setFilter('custom'); setCustomTag(null) }}
-        >
-          ⭐ My Recipes
-        </button>
         <button
           className={`rfbtn${activeFilter === 'grocery' ? ' active' : ''}`}
           style={{ borderColor: activeFilter === 'grocery' ? undefined : 'var(--green2)', color: activeFilter === 'grocery' ? undefined : 'var(--green-light)' }}
@@ -250,28 +237,6 @@ export default function RecipesTab() {
           🛒 Grocery
         </button>
       </div>
-
-      {/* Custom tag sub-filter */}
-      {activeFilter === 'custom' && tagsInUse.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14, padding: '10px 14px', background: 'var(--bg2)', border: '1px solid var(--purple)', borderRadius: 9, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: 'var(--purple-light)', fontFamily: '"DM Mono",monospace', marginRight: 4 }}>Filter by tag:</span>
-          <button
-            onClick={() => setCustomTag(null)}
-            style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid var(--purple)', background: 'rgba(138,106,184,0.12)', color: 'var(--purple-light)', cursor: 'pointer', fontFamily: 'sans-serif' }}
-          >
-            All my recipes
-          </button>
-          {tagsInUse.map(tag => (
-            <button
-              key={tag}
-              onClick={() => setCustomTag(tag)}
-              style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: `1px solid ${customTag === tag ? 'var(--purple)' : 'var(--border)'}`, background: customTag === tag ? 'rgba(138,106,184,0.12)' : 'var(--bg3)', color: customTag === tag ? 'var(--purple-light)' : 'var(--muted)', cursor: 'pointer', fontFamily: 'sans-serif' }}
-            >
-              {tag.charAt(0).toUpperCase() + tag.slice(1)}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Search */}
       {activeFilter !== 'grocery' && (
@@ -360,7 +325,7 @@ export default function RecipesTab() {
             <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted2)', fontSize: 13, gridColumn: '1/-1' }}>
               Loading recipes…
             </div>
-          ) : loadError && filter !== 'custom' && !query.trim() ? (
+          ) : loadError && !query.trim() ? (
             <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted2)', fontSize: 13, fontStyle: 'italic', gridColumn: '1/-1' }}>
               Could not load recipes — check your connection and refresh.
             </div>

@@ -11,7 +11,7 @@ import { supabase } from './lib/supabase'
 import * as sync from './lib/sync'
 import type { MedGuide } from './lib/sync'
 import { safeGet } from './lib/storage'
-import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStore, groceryCatalogStore, importRemoteData, MED_GUIDES_KEY } from './hooks/useStore'
+import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStore, groceryCatalogStore, importRemoteData, MED_GUIDES_KEY, exportAllData, importAllData, userSettingsStore, bodyStatsStore, workoutPlanStore } from './hooks/useStore'
 
 type Tab = 'tracker' | 'recipes' | 'workouts' | 'schedule'
 
@@ -31,6 +31,30 @@ export default function App() {
   const [user, setUser]           = useState<User | null>(null)
   const [syncing, setSyncing]     = useState(false)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
+
+  // Data export / import
+  const handleExport = () => {
+    const data = JSON.stringify(exportAllData(), null, 2)
+    const blob = new Blob([data], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `wellness_hub_backup_${new Date().toISOString().split('T')[0]}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const ok = importAllData(ev.target?.result as string)
+      if (ok) { alert('Data imported! Reloading...'); location.reload() }
+      else alert('Import failed. Make sure you are using a backup file exported from this Hub.')
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
 
   // ── Bidirectional sync on sign-in ─────────────────────────────
   const syncAll = useCallback(async (userId: string) => {
@@ -103,6 +127,19 @@ export default function App() {
         ...(mergedGroceryCatalog.length ? [sync.pushUserGroceryCatalog(userId, mergedGroceryCatalog)] : []),
       ])
 
+      // User settings: remote wins; push local if no remote copy
+      const remoteSettings = await sync.fetchUserSettings(userId).catch(() => null)
+      if (remoteSettings) userSettingsStore.importFromRemote(remoteSettings)
+      else await sync.upsertUserSettings(userId, userSettingsStore.get()).catch(() => {})
+
+      // Body stats: remote wins; skip push if empty
+      const remoteBodyStats = await sync.fetchUserBodyStats(userId).catch(() => null)
+      if (remoteBodyStats) bodyStatsStore.importFromRemote(remoteBodyStats)
+
+      // Workout plan: remote wins; skip push (plan is set via DB seed / future UI)
+      const remoteWorkoutPlan = await sync.fetchUserWorkoutPlan(userId).catch(() => null)
+      if (remoteWorkoutPlan) workoutPlanStore.importFromRemote(remoteWorkoutPlan)
+
       setLastSynced(new Date())
     } catch (err) {
       console.warn('[sync] syncAll failed:', err)
@@ -152,6 +189,8 @@ export default function App() {
             syncing={syncing}
             lastSynced={lastSynced}
             onSynced={() => user && syncAll(user.id)}
+            onExport={handleExport}
+            onImportFile={handleImport}
           />
         </div>
         <nav className="tabs">
@@ -174,7 +213,7 @@ export default function App() {
       </ErrorBoundary>
       <ErrorBoundary name="Workouts">
         <div className={`view${active === 'workouts' ? ' active' : ''}`}>
-          <WorkoutsTab />
+          <WorkoutsTab user={user} />
         </div>
       </ErrorBoundary>
       <ErrorBoundary name="Recipes">
