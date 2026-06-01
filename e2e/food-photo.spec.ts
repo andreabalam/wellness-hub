@@ -20,7 +20,13 @@ const MOCK_LABEL: Record<string, unknown>  = {
 test.describe('Food photo feature', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
-    await page.evaluate(() => localStorage.clear())
+    await page.evaluate(() => {
+      localStorage.clear()
+      sessionStorage.setItem('__e2e_user__', JSON.stringify({
+        id: 'e2e-test-id', email: 'test@e2e.com',
+        app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
+      }))
+    })
     await page.reload()
   })
 

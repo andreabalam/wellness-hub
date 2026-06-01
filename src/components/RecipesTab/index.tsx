@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import type { User } from '@supabase/supabase-js'
 import type { Recipe } from '../../data/recipes'
 import { BUILTIN_RECIPES } from '../../data/recipes'
 import { useRecipeStore, useTrackerStore, useHiddenRecipeStore, useGroceryCatalogStore } from '../../hooks/useStore'
@@ -24,7 +25,8 @@ const FILTER_BTNS: { id: Filter; label: string }[] = [
   { id: 'ferments', label: 'Ferments' },
 ]
 
-export default function RecipesTab() {
+export default function RecipesTab({ user }: { user?: User | null }) {
+  const isAuth = !!user
   const store        = useRecipeStore()
   const trackerStore = useTrackerStore()
   const hiddenStore  = useHiddenRecipeStore()
@@ -279,18 +281,20 @@ export default function RecipesTab() {
         </div>
       )}
 
-      {/* Action bar */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18, alignItems: 'center' }}>
-        <button
-          onClick={() => setShowModal(true)}
-          style={{ background: 'var(--purple)', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontFamily: 'sans-serif', color: '#fff', cursor: 'pointer', fontWeight: 500 }}
-        >
-          + Add my recipe
-        </button>
-      </div>
+      {/* Action bar — only visible to signed-in users and not on the grocery view */}
+      {isAuth && activeFilter !== 'grocery' && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18, alignItems: 'center' }}>
+          <button
+            onClick={() => setShowModal(true)}
+            style={{ background: 'var(--purple)', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontFamily: 'sans-serif', color: '#fff', cursor: 'pointer', fontWeight: 500 }}
+          >
+            + Add my recipe
+          </button>
+        </div>
+      )}
 
       {/* Grocery panel */}
-      {activeFilter === 'grocery' && <GroceryPanel />}
+      {activeFilter === 'grocery' && <GroceryPanel user={user} />}
 
       {/* Restore hidden banner — shown when the user has hidden built-in recipes */}
       {hiddenIds.length > 0 && activeFilter !== 'grocery' && (
@@ -333,7 +337,9 @@ export default function RecipesTab() {
             <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted2)', fontSize: 13, fontStyle: 'italic', gridColumn: '1/-1' }}>
               {query.trim()
                 ? <>No recipes found for <strong style={{ color: 'var(--text)' }}>"{query.trim()}"</strong>.</>
-                : <>No custom recipes yet. Tap <strong style={{ color: 'var(--purple-light)' }}>+ Add my recipe</strong> to create your first one.</>
+                : isAuth
+                  ? <>No recipes yet. Tap <strong style={{ color: 'var(--purple-light)' }}>+ Add my recipe</strong> to create your first one.</>
+                  : <>Sign in to add and view your recipes.</>
               }
             </div>
           ) : (

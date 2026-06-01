@@ -12,7 +12,8 @@ test.describe('Tab navigation', () => {
 
   test('loads with Tracker tab active by default', async ({ page }) => {
     await expect(tabBar(page).getByRole('button', { name: /Tracker/i })).toHaveClass(/active/)
-    await expect(page.getByText('My Daily Tracker')).toBeVisible()
+    // TrackerTab shows an auth gate for unauthenticated users
+    await expect(page.getByText(/Sign in to use/i)).toBeVisible()
   })
 
   test('switches to Schedule tab', async ({ page }) => {
@@ -24,34 +25,37 @@ test.describe('Tab navigation', () => {
 
   test('switches to Workouts tab', async ({ page }) => {
     await page.getByRole('button', { name: /Workouts/i }).click()
-    await expect(page.getByText('Her Fat Loss')).toBeVisible()
+    // Guest users see the male full-body template
+    await expect(page.getByText('3×/week Template')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Week 1' })).toBeVisible()
   })
 
   test('switches to Recipes tab', async ({ page }) => {
     await page.getByRole('button', { name: /Recipes/i }).click()
-    await expect(page.getByRole('button', { name: '+ Add my recipe' })).toBeVisible()
+    // Filter bar always visible; guests see sign-in empty state (no recipe cards)
     await expect(page.getByRole('button', { name: 'All' })).toBeVisible()
+    await expect(page.getByText(/Sign in to add and view your recipes/)).toBeVisible()
   })
 
   test('switches to Tracker tab', async ({ page }) => {
     // Navigate away first, then switch back
     await tabBar(page).getByRole('button', { name: /Schedule/i }).click()
     await tabBar(page).getByRole('button', { name: /Tracker/i }).click()
-    await expect(page.getByText('My Daily Tracker')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'TODAY' })).toBeVisible()
+    // TrackerTab shows an auth gate for unauthenticated users
+    await expect(page.getByText(/Sign in to use/i)).toBeVisible()
   })
 
   test('tabs retain their state when switching away and back', async ({ page }) => {
     // Go to Workouts, click Week 2
     await page.getByRole('button', { name: /Workouts/i }).click()
     await page.getByRole('button', { name: 'Week 2' }).click()
-    await expect(page.getByText('Follicular Phase')).toBeVisible()
+    // Guest sees male template; Week 2 is "Progressive Overload"
+    await expect(page.getByText(/Progressive Overload/)).toBeVisible()
 
     // Switch away and back
     await tabBar(page).getByRole('button', { name: /Schedule/i }).click()
     await page.getByRole('button', { name: /Workouts/i }).click()
     // Week 2 content still showing (React state preserved)
-    await expect(page.getByText('Follicular Phase')).toBeVisible()
+    await expect(page.getByText(/Progressive Overload/)).toBeVisible()
   })
 })

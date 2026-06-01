@@ -1,42 +1,61 @@
 import { test, expect } from '@playwright/test'
 
+// Two pre-seeded test recipes used by filter/expand/collapse tests.
+// Built-in recipes have been removed; tests that need cards must seed their own.
+const SEED_RECIPES = JSON.stringify([
+  {
+    name: 'Test Breakfast Bowl', cat: 'breakfast', type: 'Breakfast',
+    color: 'var(--amber)', sc: 'am', tag: 'Quick', prepL: '10 min', prepC: 'var(--amber)',
+    hk: 350, hp: '20g', hc: '40g', hf: '8g', mk: 350, mp: '20g', mc: '40g', mf: '8g',
+    ings: [['Oats', '50g']], steps: ['Cook oats', 'Top with fruit'], tip: '', custom: true, source: 'user',
+  },
+  {
+    name: 'Test Green Smoothie', cat: 'smoothie', type: 'Smoothie',
+    color: 'var(--green)', sc: 'cg', tag: 'Quick', prepL: '5 min', prepC: 'var(--green)',
+    hk: 250, hp: '10g', hc: '45g', hf: '3g', mk: 250, mp: '10g', mc: '45g', mf: '3g',
+    ings: [['Banana', '1 piece'], ['Spinach', '30g']], steps: ['Blend everything'], tip: '', custom: true, source: 'user',
+  },
+])
+
 test.describe('Recipes tab', () => {
   test.beforeEach(async ({ page }) => {
+    // Inject mock user (auth-gates the "+ Add my recipe" button) and seed two test
+    // recipes so filter / expand tests always have cards to work with.
     await page.goto('/')
-    await page.evaluate(() => localStorage.clear())
+    await page.evaluate((seeds) => {
+      localStorage.clear()
+      sessionStorage.setItem('__e2e_user__', JSON.stringify({
+        id: 'e2e-test-id', email: 'test@e2e.com',
+        app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
+      }))
+      localStorage.setItem('whub_custom_recipes_v1', seeds)
+    }, SEED_RECIPES)
+    await page.reload()
     await page.getByRole('button', { name: /Recipes/i }).click()
   })
 
-  test('shows all built-in recipes by default', async ({ page }) => {
+  test('shows seeded user recipes by default', async ({ page }) => {
+    // No built-in recipes — only the two seeded test recipes appear
     await expect(page.locator('.rcard').first()).toBeVisible()
-    // At least 20 built-in recipes
-    await expect(page.locator('.rcard')).toHaveCount(await page.locator('.rcard').count())
-    expect(await page.locator('.rcard').count()).toBeGreaterThan(15)
+    expect(await page.locator('.rcard').count()).toBe(2)
+    await expect(page.getByText('Test Breakfast Bowl')).toBeVisible()
+    await expect(page.getByText('Test Green Smoothie')).toBeVisible()
   })
 
   test('filter by Breakfast shows only breakfast recipes', async ({ page }) => {
-    // Wait for async DB load to finish before filtering
-    await expect(page.locator('.rcard').first()).toBeVisible({ timeout: 15000 })
+    await expect(page.locator('.rcard').first()).toBeVisible()
     await page.getByRole('button', { name: 'Breakfast' }).click()
     const cards = page.locator('.rcard')
-    const count = await cards.count()
-    expect(count).toBeGreaterThan(0)
-    // All visible cards show "Breakfast" type
-    for (let i = 0; i < count; i++) {
-      await expect(cards.nth(i).locator('.rctype')).toContainText('Breakfast')
-    }
+    expect(await cards.count()).toBe(1)
+    await expect(cards.first().locator('.rctype')).toContainText('Breakfast')
   })
 
   test('filter by Smoothies shows only smoothies', async ({ page }) => {
-    // Wait for async DB load to finish before filtering
-    await expect(page.locator('.rcard').first()).toBeVisible({ timeout: 15000 })
+    await expect(page.locator('.rcard').first()).toBeVisible()
     await page.getByRole('button', { name: 'Smoothies' }).click()
     const cards = page.locator('.rcard')
-    const count = await cards.count()
-    expect(count).toBeGreaterThan(0)
-    for (let i = 0; i < count; i++) {
-      await expect(cards.nth(i).locator('.rctype')).toContainText('Smoothie')
-    }
+    expect(await cards.count()).toBe(1)
+    await expect(cards.first().locator('.rctype')).toContainText('Smoothie')
   })
 
   test('clicking a recipe card expands it', async ({ page }) => {
