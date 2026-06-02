@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test'
 // Grocery catalog pre-seed — avoids relying on GroceryPanel's async seeding effect.
 // Using the same categories as GROCERY_DATA so .gcat elements appear immediately.
 const SEED_GROCERY = JSON.stringify([
-  { id: 'g-e2e-1', n: 'Oats',           cat: 'Grains & Legumes' },
-  { id: 'g-e2e-2', n: 'Banana',         cat: 'Fruits' },
+  { id: 'g-e2e-1', n: 'Brown rice',     cat: 'Grains & Legumes' },
+  { id: 'g-e2e-2', n: 'Blueberries',    cat: 'Fruits' },
   { id: 'g-e2e-3', n: 'Chicken breast', cat: 'Protein' },
 ])
 
@@ -217,8 +217,10 @@ test.describe('Recipes tab', () => {
   })
 
   test('export data button triggers a download', async ({ page }) => {
-    // Export is now in the settings panel (⚙ button in the header)
-    await page.getByRole('button', { name: 'Settings' }).click()
+    // Open the header auth/settings panel.
+    // – When Supabase is NOT configured: renders ⚙ with title "Data backup"
+    // – When Supabase IS configured: renders user initials with title = user email
+    await page.locator('button[title="Data backup"], button[title="test@e2e.com"]').first().click()
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       page.getByRole('button', { name: '↓ Export' }).click(),

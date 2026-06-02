@@ -508,17 +508,13 @@ export default function TrackerTab({ user }: { user?: User | null }) {
     setOuraTesting(true); setOuraError(null)
     try {
       await saveOuraPat(pat)
-      const ok = await testOuraConnection()
-      if (ok) {
-        setOuraConnected(true)
-        setOuraPatSaved(true)
-        setTimeout(() => { setOuraPatSaved(false); setOuraShowSettings(false) }, 1800)
-      } else {
-        setOuraError('Connection test failed — double-check your token.')
-        setOuraConnected(false)
-      }
+      await testOuraConnection()
+      setOuraConnected(true)
+      setOuraPatSaved(true)
+      setTimeout(() => { setOuraPatSaved(false); setOuraShowSettings(false) }, 1800)
     } catch (err: unknown) {
-      setOuraError(err instanceof Error ? err.message : 'Save failed')
+      setOuraError(err instanceof Error ? err.message : 'Connection test failed')
+      setOuraConnected(false)
     } finally {
       setOuraTesting(false)
     }
