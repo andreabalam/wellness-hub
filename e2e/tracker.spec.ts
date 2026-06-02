@@ -52,7 +52,7 @@ test.describe('Tracker tab', () => {
     await page.getByRole('button', { name: '+ Log food' }).click()
 
     // Navigate back to today — Berry Oats is now in recent meals
-    await page.getByRole('button', { name: 'TODAY' }).click()
+    await page.getByRole('button', { name: 'Next ›' }).click()
     await page.getByRole('button', { name: /Berry Oats \(350\)/ }).click()
 
     await expect(page.getByText('350 / 1,380 kcal')).toBeVisible()
@@ -107,10 +107,11 @@ test.describe('Tracker tab', () => {
     await expect(page.getByText(label)).toBeVisible()
   })
 
-  test('TODAY button returns to current date', async ({ page }) => {
+  test('Next button returns to current date after going to previous day', async ({ page }) => {
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     await page.getByRole('button', { name: '‹ Prev' }).click()
-    await page.getByRole('button', { name: 'TODAY' }).click()
+    await expect(page.getByText(today)).not.toBeVisible()
+    await page.getByRole('button', { name: 'Next ›' }).click()
     await expect(page.getByText(today)).toBeVisible()
   })
 
