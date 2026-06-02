@@ -170,10 +170,24 @@ describe('testOuraConnection', () => {
     expect(await testOuraConnection()).toBe(true)
   })
 
-  it('returns false when fetch fails', async () => {
+  it('throws with error message when fetch fails', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }))
-    expect(await testOuraConnection()).toBe(false)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: async () => ({ error: 'No Oura Personal Access Token configured.' }),
+    }))
+    await expect(testOuraConnection()).rejects.toThrow('No Oura Personal Access Token configured.')
+  })
+
+  it('throws with fallback message when error body is unparseable', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 502,
+      json: async () => { throw new Error('not json') },
+    }))
+    await expect(testOuraConnection()).rejects.toThrow('HTTP 502')
   })
 })
 

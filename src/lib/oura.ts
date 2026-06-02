@@ -190,7 +190,10 @@ export async function fetchOuraSessions(date: string): Promise<OuraSession[]> {
   return proxyFetch<OuraSession>('session', date)
 }
 
-/** Calls personal_info endpoint — used by "Test connection" button */
+/** Calls personal_info endpoint — used by "Test connection" button.
+ *  Returns true on success. Returns false if Supabase is unconfigured or
+ *  no session exists. Throws with the API error message for all other failures
+ *  (bad token, RLS error, network error, etc.) so callers can surface the cause. */
 export async function testOuraConnection(): Promise<boolean> {
   if (!supabase) return false
   const { data: { session } } = await supabase.auth.getSession()
@@ -201,5 +204,10 @@ export async function testOuraConnection(): Promise<boolean> {
     `${supabaseUrl}/functions/v1/oura-proxy?endpoint=personal_info`,
     { headers: { Authorization: `Bearer ${session.access_token}` } },
   )
-  return res.ok
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    const msg = body?.error ?? `Oura connection failed (HTTP ${res.status})`
+    throw new Error(msg)
+  }
+  return true
 }
