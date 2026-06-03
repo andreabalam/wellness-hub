@@ -1535,8 +1535,6 @@ describe('ScheduleTab', () => {
 
   it('editing blocks on one day does not affect another day', () => {
     render(<ScheduleTab />)
-    // Get the today's (default) blocks count
-    const todayBlocks = screen.getAllByText(/./).filter(el => el.closest('.trow'))
     // Switch to Sat, blocks should be independent (both days have default blocks)
     fireEvent.click(screen.getByText('Sat'))
     expect(screen.getByText('Wake + no-phone rule')).toBeInTheDocument()
