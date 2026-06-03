@@ -220,38 +220,87 @@ describe('scheduleStore', () => {
     dur: '30 min', color: 'green', whyTxt: '', desc: '', phase: '',
   }
 
-  it('getBlocks returns null when nothing is saved', () => {
-    expect(scheduleStore.getBlocks()).toBeNull()
+  it('getWeek returns a WeekSchedule with all 7 days', () => {
+    const week = scheduleStore.getWeek()
+    const keys = Object.keys(week)
+    expect(keys).toContain('mon')
+    expect(keys).toContain('sun')
+    expect(keys).toHaveLength(7)
   })
 
-  it('saveBlocks persists blocks', () => {
-    scheduleStore.saveBlocks([sampleBlock])
-    const result = scheduleStore.getBlocks()
-    expect(result).toHaveLength(1)
-    expect(result![0].title).toBe('Test Block')
+  it('getWeek returns default blocks for each day when nothing is saved', () => {
+    const week = scheduleStore.getWeek()
+    // Default schedule has blocks for every day
+    expect(week.mon.length).toBeGreaterThan(0)
+    expect(week.sat.length).toBeGreaterThan(0)
   })
 
-  it('saveBlocks overwrites previous blocks', () => {
-    scheduleStore.saveBlocks([sampleBlock])
-    scheduleStore.saveBlocks([{ ...sampleBlock, id: 'b2', title: 'Replaced' }])
-    const result = scheduleStore.getBlocks()
-    expect(result).toHaveLength(1)
-    expect(result![0].title).toBe('Replaced')
+  it('saveDay persists blocks for a specific day', () => {
+    const monBlocks = [{ ...sampleBlock, id: 'mon-b1' }]
+    scheduleStore.saveDay('mon', monBlocks)
+    const week = scheduleStore.getWeek()
+    expect(week.mon).toHaveLength(1)
+    expect(week.mon[0].title).toBe('Test Block')
   })
 
-  it('saveBlocks persists multiple blocks', () => {
-    const blocks = [
-      sampleBlock,
-      { ...sampleBlock, id: 'b2', title: 'Second Block', color: 'teal' },
-    ]
-    scheduleStore.saveBlocks(blocks)
-    expect(scheduleStore.getBlocks()).toHaveLength(2)
+  it('saveDay for one day does not affect another day', () => {
+    const monBlocks = [{ ...sampleBlock, id: 'mon-custom', title: 'Mon Only' }]
+    scheduleStore.saveDay('mon', monBlocks)
+    const week = scheduleStore.getWeek()
+    // Sat should still have default blocks (not mon's custom block)
+    const satHasMonOnly = week.sat.some(b => b.title === 'Mon Only')
+    expect(satHasMonOnly).toBe(false)
   })
 
-  it('reset removes saved blocks so getBlocks returns null', () => {
-    scheduleStore.saveBlocks([sampleBlock])
+  it('saveWeek persists the entire week', () => {
+    const week = scheduleStore.getWeek()
+    const updated = { ...week, fri: [{ ...sampleBlock, id: 'fri-b1', title: 'Fri Block' }] }
+    scheduleStore.saveWeek(updated)
+    const loaded = scheduleStore.getWeek()
+    expect(loaded.fri).toHaveLength(1)
+    expect(loaded.fri[0].title).toBe('Fri Block')
+  })
+
+  it('resetDay restores default blocks for a day', () => {
+    // Save custom blocks first
+    scheduleStore.saveDay('tue', [{ ...sampleBlock, id: 'tue-custom', title: 'Custom Tue' }])
+    // Reset
+    const fresh = scheduleStore.resetDay('tue')
+    expect(fresh.length).toBeGreaterThan(0)
+    // The titles should be default titles (not 'Custom Tue')
+    expect(fresh.some(b => b.title === 'Custom Tue')).toBe(false)
+  })
+
+  it('reset clears the v2 schedule key', () => {
+    scheduleStore.saveDay('mon', [sampleBlock])
     scheduleStore.reset()
-    expect(scheduleStore.getBlocks()).toBeNull()
+    // After reset, getWeek falls back to defaults (not the saved custom blocks)
+    const week = scheduleStore.getWeek()
+    // Default blocks don't have 'Test Block' as a title
+    expect(week.mon.some(b => b.title === 'Test Block')).toBe(false)
+  })
+
+  it('resetWeek restores all 7 days to defaults', () => {
+    // Customise every day
+    const customBlock = { ...sampleBlock }
+    for (const day of ['mon','tue','wed','thu','fri','sat','sun'] as const) {
+      scheduleStore.saveDay(day, [{ ...customBlock, id: `${day}-custom`, title: 'Custom Block' }])
+    }
+    // Verify they're all custom
+    const before = scheduleStore.getWeek()
+    for (const day of ['mon','tue','wed','thu','fri','sat','sun'] as const) {
+      expect(before[day].every(b => b.title === 'Custom Block')).toBe(true)
+    }
+    // Reset all
+    const fresh = scheduleStore.resetWeek()
+    // All 7 days should have default blocks (not 'Custom Block')
+    for (const day of ['mon','tue','wed','thu','fri','sat','sun'] as const) {
+      expect(fresh[day].some(b => b.title === 'Custom Block')).toBe(false)
+      expect(fresh[day].length).toBeGreaterThan(0)
+    }
+    // Persisted state matches the returned week
+    const loaded = scheduleStore.getWeek()
+    expect(loaded.mon.map(b => b.title)).toEqual(fresh.mon.map(b => b.title))
   })
 })
 
@@ -328,11 +377,24 @@ describe('importRemoteData', () => {
     expect(foodLibraryStore.getAll().find(f => f.n === 'Chicken')).toBeDefined()
   })
 
-  it('writes schedule blocks to localStorage', () => {
+  it('writes v1 schedule blocks (legacy) to localStorage', () => {
     const block = { id: 's1', time: '08:00', title: 'Remote Block', dur: '30 min', color: 'teal', whyTxt: '', desc: '', phase: '' }
     importRemoteData({ schedule: [block] })
-    expect(scheduleStore.getBlocks()).toHaveLength(1)
-    expect(scheduleStore.getBlocks()![0].title).toBe('Remote Block')
+    // v1 is stored under the old key; accessible directly from localStorage
+    const stored = JSON.parse(store['whub_schedule_v1'] ?? '[]')
+    expect(stored).toHaveLength(1)
+    expect(stored[0].title).toBe('Remote Block')
+  })
+
+  it('writes weekSchedule (v2) to localStorage', () => {
+    const monBlock = { id: 'mon-s1', time: '08:00', title: 'Mon Remote', dur: '30 min', color: 'teal', whyTxt: '', desc: '', phase: '' }
+    const weekSched = {
+      mon: [monBlock], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [],
+    }
+    importRemoteData({ weekSchedule: weekSched as never })
+    const week = scheduleStore.getWeek()
+    expect(week.mon).toHaveLength(1)
+    expect(week.mon[0].title).toBe('Mon Remote')
   })
 
   it('writes medGuides to localStorage', () => {

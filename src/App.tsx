@@ -69,12 +69,12 @@ export default function App() {
     setSyncing(true)
     try {
       // Pull remote data
-      const [remoteDays, remoteTags, remoteGrocery, remoteFoodLib, remoteSchedule, remoteMedGuides, remoteGroceryCatalog] = await Promise.all([
+      const [remoteDays, remoteTags, remoteGrocery, remoteFoodLib, remoteWeekSchedule, remoteMedGuides, remoteGroceryCatalog] = await Promise.all([
         sync.pullAllDays(userId),
         sync.pullTags(userId),
         sync.pullGrocery(userId),
         sync.pullFoodLibrary(userId),
-        sync.pullSchedule(userId),
+        sync.pullWeekSchedule(userId),
         sync.pullMedGuides(userId),
         sync.pullUserGroceryCatalog(userId),
       ])
@@ -95,9 +95,9 @@ export default function App() {
         ...localLib.filter(f => !remoteLibNames.has(f.n.toLowerCase())),
       ]
 
-      // Schedule: remote wins; fall back to local if no remote copy exists yet
-      const localSchedule = scheduleStore.getBlocks()
-      const mergedSchedule = remoteSchedule ?? localSchedule
+      // Week schedule: remote wins; fall back to local if no remote copy exists yet
+      const localWeekSchedule = scheduleStore.getWeek()
+      const mergedWeekSchedule = remoteWeekSchedule ?? localWeekSchedule
 
       // Med guides: remote wins; fall back to local if no remote copy exists yet
       const localMedGuides = safeGet<MedGuide[] | null>(MED_GUIDES_KEY, null)
@@ -116,8 +116,8 @@ export default function App() {
         tags:           mergedTags,
         grocery:        mergedGrocery,
         foodLibrary:    mergedFoodLib,
-        ...(mergedSchedule        ? { schedule:        mergedSchedule        } : {}),
-        ...(mergedMedGuides       ? { medGuides:       mergedMedGuides       } : {}),
+        ...(mergedWeekSchedule  ? { weekSchedule:  mergedWeekSchedule  } : {}),
+        ...(mergedMedGuides     ? { medGuides:     mergedMedGuides     } : {}),
         ...(mergedGroceryCatalog.length ? { groceryCatalog: mergedGroceryCatalog } : {}),
       })
 
@@ -129,8 +129,8 @@ export default function App() {
         sync.pushTags(userId, mergedTags),
         sync.pushGrocery(userId, mergedGrocery),
         sync.pushFoodLibrary(userId, mergedFoodLib),
-        ...(mergedSchedule        ? [sync.pushSchedule(userId, mergedSchedule)]              : []),
-        ...(mergedMedGuides       ? [sync.pushMedGuides(userId, mergedMedGuides)]             : []),
+        ...(mergedWeekSchedule      ? [sync.pushWeekSchedule(userId, mergedWeekSchedule)]           : []),
+        ...(mergedMedGuides         ? [sync.pushMedGuides(userId, mergedMedGuides)]                 : []),
         ...(mergedGroceryCatalog.length ? [sync.pushUserGroceryCatalog(userId, mergedGroceryCatalog)] : []),
       ])
 

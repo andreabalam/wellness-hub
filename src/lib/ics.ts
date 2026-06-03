@@ -1,4 +1,6 @@
 import type { ScheduleBlock } from '../data/schedule'
+import { DAY_KEYS } from '../data/schedule'
+import type { DayKey } from '../data/schedule'
 
 // ── Duration parser ───────────────────────────────────────────────
 // Converts strings like "30 min", "1 hr 30 min", "90-120 min", "—"
@@ -21,10 +23,16 @@ export function parseDuration(dur: string): string {
 
 // ── Time helpers ─────────────────────────────────────────────────
 
-/** "08:00" or "8:00" → "080000" */
+/** "08:00", "8:00", "4:00 PM" → "080000" / "160000" */
 function timeToIcs(time: string): string {
-  const [h, m] = time.split(':')
-  return `${h.padStart(2, '0')}${(m ?? '00').padStart(2, '0')}00`
+  const m = time.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i)
+  if (!m) return '000000'
+  let h = parseInt(m[1], 10)
+  const min = m[2]
+  const period = m[3]?.toUpperCase()
+  if (period === 'PM' && h !== 12) h += 12
+  if (period === 'AM' && h === 12) h = 0
+  return `${String(h).padStart(2, '0')}${min}00`
 }
 
 /** date + "HH:MM" → "YYYYMMDDTHHMMSS" (floating / local time, no Z) */
@@ -121,6 +129,77 @@ export function generateIcs(
 
   lines.push('END:VCALENDAR')
 
+  return lines.map(foldLine).join('\r\n') + '\r\n'
+}
+
+// ── Week schedule ICS export ──────────────────────────────────────
+
+const DOW_MAP: Record<DayKey, number> = {
+  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
+}
+const BYDAY_MAP: Record<DayKey, string> = {
+  mon: 'MO', tue: 'TU', wed: 'WE', thu: 'TH', fri: 'FR', sat: 'SA', sun: 'SU',
+}
+
+function firstOccurrenceOfDay(from: Date, day: DayKey): Date {
+  const d = new Date(from)
+  d.setHours(0, 0, 0, 0)
+  const diff = (DOW_MAP[day] - d.getDay() + 7) % 7
+  d.setDate(d.getDate() + diff)
+  return d
+}
+
+/**
+ * Generate an .ics file string from a per-day WeekSchedule.
+ * Each day's blocks become recurring VEVENTs on that specific weekday.
+ */
+export function generateWeekIcs(
+  week: Record<DayKey, ScheduleBlock[]>,
+  startDate: Date,
+  endDate: Date,
+): string {
+  const until = new Date(endDate)
+  until.setHours(23, 59, 59, 0)
+  const untilStr = until.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '').replace('Z', '') + 'Z'
+  const now = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15) + 'Z'
+
+  const lines: string[] = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//My Wellness Hub//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:Wellness Hub Schedule',
+  ]
+
+  let idx = 0
+  for (const day of DAY_KEYS) {
+    const blocks = week[day]
+    if (!blocks?.length) continue
+    const anchor = firstOccurrenceOfDay(startDate, day)
+    const byday  = BYDAY_MAP[day]
+    for (const b of blocks) {
+      const uid      = `whub-${day}-${idx++}@wellness-hub`
+      const start    = dtStart(anchor, b.time)
+      const duration = parseDuration(b.dur)
+      const rrule    = `FREQ=WEEKLY;BYDAY=${byday};UNTIL=${untilStr}`
+      const event: string[] = [
+        'BEGIN:VEVENT',
+        `UID:${uid}`,
+        `DTSTAMP:${now}`,
+        `DTSTART:${start}`,
+        `DURATION:${duration}`,
+        `RRULE:${rrule}`,
+        `SUMMARY:${escapeIcs(b.title)}`,
+      ]
+      if (b.desc)    event.push(`DESCRIPTION:${escapeIcs(b.desc)}`)
+      if (b.whyTxt)  event.push(`CATEGORIES:${escapeIcs(b.whyTxt)}`)
+      event.push('END:VEVENT')
+      lines.push(...event)
+    }
+  }
+
+  lines.push('END:VCALENDAR')
   return lines.map(foldLine).join('\r\n') + '\r\n'
 }
 

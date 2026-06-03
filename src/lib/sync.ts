@@ -5,7 +5,7 @@
 import { supabase } from './supabase'
 import type { DayData, QuickFood } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
-import type { CustomBlock } from '../data/schedule'
+import type { CustomBlock, WeekSchedule } from '../data/schedule'
 import type { GroceryItem, GroceryCatalogItem } from '../data/grocery'
 import type { Reminder } from '../data/reminders'
 import type { WorkoutWeek } from '../data/workouts'
@@ -180,6 +180,28 @@ export async function pullSchedule(userId: string): Promise<CustomBlock[] | null
     .eq('user_id', userId)
     .single()
   return data ? (data.blocks as CustomBlock[]) : null
+}
+
+export async function pushWeekSchedule(userId: string, week: WeekSchedule) {
+  await supabase!
+    .from('schedule_blocks')
+    .upsert({ user_id: userId, week_schedule: week, updated_at: new Date().toISOString() })
+}
+
+export async function pullWeekSchedule(userId: string): Promise<WeekSchedule | null> {
+  const { data } = await supabase!
+    .from('schedule_blocks')
+    .select('week_schedule, blocks')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (!data) return null
+  if (data.week_schedule) return data.week_schedule as WeekSchedule
+  // fallback: migrate old `blocks` column
+  if (data.blocks) {
+    const { makeWeekSchedule } = await import('../data/schedule')
+    return makeWeekSchedule(data.blocks as CustomBlock[])
+  }
+  return null
 }
 
 // ── Meditation guides (per user) ─────────────────────────────────

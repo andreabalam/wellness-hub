@@ -80,6 +80,44 @@ export function defaultToCustomBlock(b: ScheduleBlock, idx: number): CustomBlock
   }
 }
 
+export type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
+
+export const DAY_KEYS: DayKey[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+
+export const DAY_LABELS: Record<DayKey, string> = {
+  mon: 'Mon', tue: 'Tue', wed: 'Wed',
+  thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun',
+}
+
+export type WeekSchedule = Record<DayKey, CustomBlock[]>
+
+/** Build a WeekSchedule where every day starts from the given base blocks.
+ *  Each day's blocks get a day-prefixed ID so they are globally unique. */
+export function makeWeekSchedule(base: CustomBlock[]): WeekSchedule {
+  return Object.fromEntries(
+    DAY_KEYS.map(day => [day, base.map(b => ({ ...b, id: `${day}-${b.id}` }))])
+  ) as WeekSchedule
+}
+
+// ── Sorting helpers ───────────────────────────────────────────────
+
+/** Convert "HH:MM" (24-hr) or "H:MM AM/PM" to minutes since midnight */
+export function timeToMinutes(time: string): number {
+  const m = time.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i)
+  if (!m) return 0
+  let h = parseInt(m[1], 10)
+  const min = parseInt(m[2], 10)
+  const period = m[3]?.toUpperCase()
+  if (period === 'PM' && h !== 12) h += 12
+  if (period === 'AM' && h === 12) h = 0
+  return h * 60 + min
+}
+
+/** Stable sort by start time (earliest first) */
+export function sortByTime<T extends { time: string }>(blocks: T[]): T[] {
+  return [...blocks].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time))
+}
+
 export const SCHEDULE_BLOCKS: ScheduleBlock[] = [
   {
     phase: 'Wake-up', time: '8:00', title: 'Wake + no-phone rule', dur: '5 min',
