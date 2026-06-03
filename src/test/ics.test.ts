@@ -150,10 +150,31 @@ describe('generateIcs', () => {
     expect(ics).toContain('SUMMARY:Lunch Break')
   })
 
-  it('DTSTART anchors to the first Monday on or after startDate', () => {
-    // 2026-06-01 is Monday → anchor is 2026-06-01
+  it('DTSTART uses startDate directly when it is a weekday (Monday)', () => {
+    // 2026-06-01 is Monday → anchor stays 2026-06-01
     const ics = generateIcs(SINGLE_BLOCK, start, end)
     expect(ics).toContain('DTSTART:20260601T090000')
+  })
+
+  it('DTSTART uses startDate directly when it is mid-week (Wednesday)', () => {
+    // 2026-06-03 is Wednesday → anchor stays 2026-06-03, not the next Monday
+    const wed = new Date('2026-06-03T00:00:00')
+    const ics = generateIcs(SINGLE_BLOCK, wed, end)
+    expect(ics).toContain('DTSTART:20260603T090000')
+  })
+
+  it('DTSTART advances to next Monday when startDate is a Saturday', () => {
+    // 2026-06-06 is Saturday → anchor is 2026-06-08 (Monday)
+    const sat = new Date('2026-06-06T00:00:00')
+    const ics = generateIcs(SINGLE_BLOCK, sat, end)
+    expect(ics).toContain('DTSTART:20260608T090000')
+  })
+
+  it('DTSTART advances to next Monday when startDate is a Sunday', () => {
+    // 2026-06-07 is Sunday → anchor is 2026-06-08 (Monday)
+    const sun = new Date('2026-06-07T00:00:00')
+    const ics = generateIcs(SINGLE_BLOCK, sun, end)
+    expect(ics).toContain('DTSTART:20260608T090000')
   })
 
   it('UNTIL is in the RRULE with trailing Z', () => {

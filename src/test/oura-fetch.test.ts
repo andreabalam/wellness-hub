@@ -76,10 +76,28 @@ describe('fetchOuraWorkouts', () => {
     expect(result[0].activity).toBe('yoga')
   })
 
-  it('throws on non-ok HTTP response', async () => {
+  it('throws on non-ok HTTP response with error field', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
     mockFetch({ error: 'Oura error' }, false)
-    await expect(fetchOuraWorkouts('2026-01-01')).rejects.toThrow()
+    await expect(fetchOuraWorkouts('2026-01-01')).rejects.toThrow('Oura error')
+  })
+
+  it('throws with detail field when Oura returns detail instead of error', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ detail: 'Token is invalid or expired.' }, false)
+    await expect(fetchOuraWorkouts('2026-01-01')).rejects.toThrow('Token is invalid or expired.')
+  })
+
+  it('throws with message field when body has message but no error or detail', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ message: 'Rate limit exceeded' }, false)
+    await expect(fetchOuraWorkouts('2026-01-01')).rejects.toThrow('Rate limit exceeded')
+  })
+
+  it('throws with fallback when error body has no known field', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({}, false)
+    await expect(fetchOuraWorkouts('2026-01-01')).rejects.toThrow('Oura error 500')
   })
 })
 
@@ -178,6 +196,26 @@ describe('testOuraConnection', () => {
       json: async () => ({ error: 'No Oura Personal Access Token configured.' }),
     }))
     await expect(testOuraConnection()).rejects.toThrow('No Oura Personal Access Token configured.')
+  })
+
+  it('throws with detail field when Oura returns detail instead of error', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ detail: 'Token is invalid or expired.' }),
+    }))
+    await expect(testOuraConnection()).rejects.toThrow('Token is invalid or expired.')
+  })
+
+  it('throws with message field when body has message but no error or detail', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: async () => ({ message: 'Forbidden' }),
+    }))
+    await expect(testOuraConnection()).rejects.toThrow('Forbidden')
   })
 
   it('throws with fallback message when error body is unparseable', async () => {

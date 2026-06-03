@@ -17,6 +17,7 @@ import {
 import type { OuraReadiness } from '../../lib/oura'
 import { analyzeImage } from '../../lib/analyzeFood'
 import type { PhotoAnalysisResult } from '../../lib/analyzeFood'
+import RemindersSection from './RemindersSection'
 
 function dkey(d: Date) { return d.toISOString().split('T')[0] }
 
@@ -1145,6 +1146,9 @@ export default function TrackerTab({ user }: { user?: User | null }) {
               </button>
             </div>
           </div>
+
+          {/* Reminders */}
+          <RemindersSection user={user} />
 
           {/* Day notes */}
           <div className="tcard">
