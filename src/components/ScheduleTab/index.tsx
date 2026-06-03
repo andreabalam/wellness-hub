@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react'
-import { SCHEDULE_BLOCKS, customToScheduleBlock, defaultToCustomBlock } from '../../data/schedule'
-import type { CustomBlock } from '../../data/schedule'
+import { useState, useCallback, useMemo } from 'react'
+import { customToScheduleBlock, DAY_KEYS, DAY_LABELS, sortByTime } from '../../data/schedule'
+import type { CustomBlock, DayKey, WeekSchedule } from '../../data/schedule'
 import { scheduleStore, useUserSettingsStore } from '../../hooks/useStore'
-import { generateIcs, downloadIcs } from '../../lib/ics'
+import { generateWeekIcs, downloadIcs } from '../../lib/ics'
 import ScheduleEditor from './ScheduleEditor'
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -24,11 +24,16 @@ function oneMonthOut() {
   return d.toISOString().split('T')[0]
 }
 
-/** Return the blocks to render: custom if saved, otherwise built-in defaults */
-function loadBlocks(): CustomBlock[] {
-  const stored = scheduleStore.getBlocks()
-  if (stored) return stored
-  return SCHEDULE_BLOCKS.map(defaultToCustomBlock)
+function loadWeek(): WeekSchedule {
+  return scheduleStore.getWeek()
+}
+
+/** Re-prefix block IDs for a target day (strips any existing day prefix first). */
+function rebrandForDay(blocks: CustomBlock[], day: DayKey): CustomBlock[] {
+  return blocks.map(b => ({
+    ...b,
+    id: `${day}-${b.id.replace(/^(mon|tue|wed|thu|fri|sat|sun)-/, '')}`,
+  }))
 }
 
 // ── Component ────────────────────────────────────────────────────
@@ -36,22 +41,26 @@ function loadBlocks(): CustomBlock[] {
 export default function ScheduleTab() {
   const settingsStore = useUserSettingsStore()
 
-  const [blocks, setBlocks]         = useState<CustomBlock[]>(loadBlocks)
-  const [openRows, setOpenRows]     = useState<Set<number>>(new Set())
-  const [showEditor, setShowEditor] = useState(false)
-  const [showExport, setShowExport] = useState(false)
-  const [startDate, setStartDate]   = useState(todayStr)
-  const [endDate, setEndDate]       = useState(oneMonthOut)
-  const [peakStart, setPeakStart]   = useState(() => settingsStore.get().cognitivePeakStart)
-  const [peakEnd,   setPeakEnd]     = useState(() => settingsStore.get().cognitivePeakEnd)
-  const [editingPeak, setEditingPeak] = useState(false)
+  const todayKey = (['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()]) as DayKey
+
+  const [weekSchedule, setWeekSchedule] = useState<WeekSchedule>(loadWeek)
+  const [selectedDay, setSelectedDay]   = useState<DayKey>(todayKey)
+  const [openRows, setOpenRows]         = useState<Set<number>>(new Set())
+  const [showEditor, setShowEditor]     = useState(false)
+  const [showExport, setShowExport]     = useState(false)
+  const [startDate, setStartDate]       = useState(todayStr)
+  const [endDate, setEndDate]           = useState(oneMonthOut)
+  const [peakStart, setPeakStart]       = useState(() => settingsStore.get().cognitivePeakStart)
+  const [peakEnd,   setPeakEnd]         = useState(() => settingsStore.get().cognitivePeakEnd)
+  const [editingPeak, setEditingPeak]   = useState(false)
+
+  // The blocks for the currently selected day
+  const blocks = weekSchedule[selectedDay]
 
   const savePeak = () => {
     settingsStore.set({ cognitivePeakStart: peakStart, cognitivePeakEnd: peakEnd })
     setEditingPeak(false)
   }
-
-  const isCustom = !!scheduleStore.getBlocks()
 
   const toggleRow = (i: number) => {
     setOpenRows(prev => {
@@ -62,30 +71,57 @@ export default function ScheduleTab() {
   }
 
   const handleBlocksChange = useCallback((updated: CustomBlock[]) => {
-    setBlocks(updated)
-    setOpenRows(new Set())   // collapse all on edit
+    scheduleStore.saveDay(selectedDay, updated)
+    setWeekSchedule(prev => ({ ...prev, [selectedDay]: updated }))
+    setOpenRows(new Set())
+  }, [selectedDay])
+
+  const handleResetDay = useCallback(() => {
+    const fresh = scheduleStore.resetDay(selectedDay)
+    setWeekSchedule(prev => ({ ...prev, [selectedDay]: fresh }))
+  }, [selectedDay])
+
+  const handleResetAll = useCallback(() => {
+    const fresh = scheduleStore.resetWeek()
+    setWeekSchedule(fresh)
+  }, [])
+
+  const handleSaveAll = useCallback((updated: CustomBlock[]) => {
+    const sorted = sortByTime(updated)
+    const newWeek = Object.fromEntries(
+      DAY_KEYS.map(d => [d, rebrandForDay(sorted, d)])
+    ) as WeekSchedule
+    scheduleStore.saveWeek(newWeek)
+    setWeekSchedule(newWeek)
+    setOpenRows(new Set())
   }, [])
 
   const handleExport = () => {
-    const scheduleBlocks = blocks.map(customToScheduleBlock)
+    const weekBlocks = Object.fromEntries(
+      DAY_KEYS.map(d => [d, weekSchedule[d].map(customToScheduleBlock)])
+    ) as Record<DayKey, ReturnType<typeof customToScheduleBlock>[]>
     const start = new Date(startDate + 'T00:00:00')
     const end   = new Date(endDate   + 'T00:00:00')
-    const ics = generateIcs(scheduleBlocks, start, end)
+    const ics   = generateWeekIcs(weekBlocks, start, end)
     downloadIcs(ics, `wellness-schedule-${startDate}.ics`)
   }
 
   // Convert CustomBlocks → ScheduleBlocks for rendering
   const renderBlocks = blocks.map(customToScheduleBlock)
 
+  // Day-modified indicator: a day gets a dot when its fingerprint differs from the majority
+  const dayModified = useMemo(() => {
+    const fp = (d: DayKey) => weekSchedule[d].map(b => `${b.time}|${b.title}`).join(',')
+    const counts: Record<string, number> = {}
+    for (const d of DAY_KEYS) { const f = fp(d); counts[f] = (counts[f] ?? 0) + 1 }
+    const majorityFp = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
+    return Object.fromEntries(DAY_KEYS.map(d => [d, fp(d) !== majorityFp])) as Record<DayKey, boolean>
+  }, [weekSchedule])
+
   return (
     <>
       {/* ── Toolbar ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-        {isCustom && (
-          <span style={{ fontSize: 10, fontFamily: '"DM Mono",monospace', color: 'var(--teal-light)', background: 'rgba(58,144,144,0.12)', border: '1px solid var(--teal)', borderRadius: 5, padding: '2px 8px', letterSpacing: '.05em' }}>
-            custom
-          </span>
-        )}
         <button
           onClick={() => setShowEditor(true)}
           style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 8, padding: '6px 14px', fontSize: 12, color: 'var(--muted)', cursor: 'pointer', fontFamily: '"DM Mono",monospace' }}
@@ -98,6 +134,34 @@ export default function ScheduleTab() {
         >
           📅 Export .ics
         </button>
+      </div>
+
+      {/* ── Day selector ── */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
+        {DAY_KEYS.map(day => (
+          <button
+            key={day}
+            onClick={() => { setSelectedDay(day); setShowEditor(false); setOpenRows(new Set()) }}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: '8px 14px', marginBottom: -1,
+              fontSize: 13, fontFamily: '"DM Mono",monospace',
+              color: selectedDay === day ? 'var(--teal-light)' : 'var(--muted)',
+              borderBottom: `2px solid ${selectedDay === day ? 'var(--teal)' : 'transparent'}`,
+              transition: 'color .15s, border-color .15s',
+              position: 'relative',
+            }}
+          >
+            {DAY_LABELS[day]}
+            {dayModified[day] && (
+              <span style={{
+                display: 'inline-block', width: 5, height: 5, borderRadius: '50%',
+                background: 'var(--amber)', marginLeft: 4,
+                verticalAlign: 'middle', flexShrink: 0,
+              }} />
+            )}
+          </button>
+        ))}
       </div>
 
       {/* ── ICS export panel ── */}
@@ -128,7 +192,7 @@ export default function ScheduleTab() {
             </button>
           </div>
           <div style={{ flexBasis: '100%', fontSize: 11, color: 'var(--muted2)', lineHeight: 1.5 }}>
-            Exports {renderBlocks.length} blocks as <strong style={{ color: 'var(--muted)' }}>recurring Mon–Fri events</strong>. Import the file into Apple Calendar, Google Calendar, or Outlook.
+            Exports the full week schedule as <strong style={{ color: 'var(--muted)' }}>recurring weekly events</strong>, one per day. Import the file into Apple Calendar, Google Calendar, or Outlook.
           </div>
         </div>
       )}
@@ -213,10 +277,10 @@ export default function ScheduleTab() {
         <ScheduleEditor
           blocks={blocks}
           onChange={handleBlocksChange}
-          onClose={() => {
-            setShowEditor(false)
-            setBlocks(loadBlocks())   // reload in case reset was triggered
-          }}
+          onSaveAll={handleSaveAll}
+          onReset={handleResetDay}
+          onResetAll={handleResetAll}
+          onClose={() => setShowEditor(false)}
         />
       )}
     </>

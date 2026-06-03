@@ -1,12 +1,16 @@
 import { useState, type Dispatch, type SetStateAction } from 'react'
 import type { CustomBlock } from '../../data/schedule'
-import { BLOCK_COLORS, SCHEDULE_BLOCKS, defaultToCustomBlock } from '../../data/schedule'
-import { scheduleStore } from '../../hooks/useStore'
+import { BLOCK_COLORS, sortByTime } from '../../data/schedule'
+
+type Scope = 'day' | 'all'
 
 interface Props {
   blocks: CustomBlock[]
-  onChange: (blocks: CustomBlock[]) => void
+  onChange:   (blocks: CustomBlock[]) => void
+  onSaveAll?:  (blocks: CustomBlock[]) => void
   onClose: () => void
+  onReset: () => void
+  onResetAll?: () => void
 }
 
 const EMPTY_FORM: Omit<CustomBlock, 'id'> = {
@@ -22,7 +26,34 @@ interface BlockFormProps {
   onCancel: () => void
 }
 
+function parseDurForm(dur: string): { num: number; unit: 'min' | 'hr' } {
+  if (!dur || dur === '—') return { num: 30, unit: 'min' }
+  const hasHr = /hr|hour/i.test(dur)
+  const n = parseInt(dur.match(/\d+/)?.[0] ?? '30', 10)
+  const unit: 'min' | 'hr' = hasHr ? 'hr' : 'min'
+  return { num: Math.min(isNaN(n) ? 30 : n, unit === 'min' ? 60 : 24), unit }
+}
+
 function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
+  const init = parseDurForm(form.dur)
+  const [durNum,  setDurNum]  = useState(init.num)
+  const [durUnit, setDurUnit] = useState<'min' | 'hr'>(init.unit)
+
+  const applyNum = (raw: string) => {
+    const max = durUnit === 'min' ? 60 : 24
+    const n = Math.max(1, Math.min(parseInt(raw) || 1, max))
+    setDurNum(n)
+    setForm(f => ({ ...f, dur: `${n} ${durUnit}` }))
+  }
+
+  const applyUnit = (unit: 'min' | 'hr') => {
+    const max = unit === 'min' ? 60 : 24
+    const n = Math.min(durNum, max)
+    setDurUnit(unit)
+    setDurNum(n)
+    setForm(f => ({ ...f, dur: `${n} ${unit}` }))
+  }
+
   return (
     <div style={{ background: 'var(--bg)', border: '1px solid var(--teal)', borderRadius: 10, padding: 14, marginTop: 6 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
@@ -37,12 +68,24 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
         </label>
         <label style={labelStyle}>
           Duration
-          <input
-            value={form.dur}
-            onChange={e => setForm(f => ({ ...f, dur: e.target.value }))}
-            placeholder="e.g. 30 min, 1 hr"
-            style={inputStyle}
-          />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              type="number"
+              min={1}
+              max={durUnit === 'min' ? 60 : 24}
+              value={durNum}
+              onChange={e => applyNum(e.target.value)}
+              style={{ ...inputStyle, width: 64, flex: 'none' }}
+            />
+            <select
+              value={durUnit}
+              onChange={e => applyUnit(e.target.value as 'min' | 'hr')}
+              style={{ ...inputStyle, flex: 1 }}
+            >
+              <option value="min">minutes</option>
+              <option value="hr">hours</option>
+            </select>
+          </div>
         </label>
       </div>
 
@@ -122,16 +165,18 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
   )
 }
 
-export default function ScheduleEditor({ blocks, onChange, onClose }: Props) {
+export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {}, onClose, onReset, onResetAll = () => {} }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [addingNew, setAddingNew] = useState(false)
   const [form, setForm]           = useState<Omit<CustomBlock, 'id'>>(EMPTY_FORM)
+  const [scope, setScope]         = useState<Scope>('day')
 
   // ── helpers ──────────────────────────────────────────────────────
 
-  const save = (updated: CustomBlock[]) => {
-    scheduleStore.saveBlocks(updated)
-    onChange(updated)
+  const save = (updated: CustomBlock[], autoSort = true) => {
+    const result = autoSort ? sortByTime(updated) : updated
+    if (scope === 'all') onSaveAll(result)
+    else onChange(result)
   }
 
   const startEdit = (b: CustomBlock) => {
@@ -164,7 +209,6 @@ export default function ScheduleEditor({ blocks, onChange, onClose }: Props) {
   }
 
   const del = (id: string) => {
-    if (!window.confirm('Delete this block?')) return
     save(blocks.filter(b => b.id !== id))
     if (editingId === id) setEditingId(null)
   }
@@ -174,13 +218,12 @@ export default function ScheduleEditor({ blocks, onChange, onClose }: Props) {
     const swap = idx + dir
     if (swap < 0 || swap >= next.length) return
     ;[next[idx], next[swap]] = [next[swap], next[idx]]
-    save(next)
+    save(next, false)  // manual reorder — don't auto-sort
   }
 
   const resetToDefault = () => {
-    if (!window.confirm('Reset to the built-in schedule? All your changes will be removed.')) return
-    scheduleStore.reset()
-    onChange(SCHEDULE_BLOCKS.map(defaultToCustomBlock))
+    if (scope === 'all') onResetAll()
+    else onReset()
     onClose()
   }
 
@@ -201,8 +244,29 @@ export default function ScheduleEditor({ blocks, onChange, onClose }: Props) {
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, color: 'var(--muted)', cursor: 'pointer' }}>×</button>
         </div>
 
+        {/* Scope toggle */}
+        <div style={{ display: 'flex', background: 'var(--bg3)', borderRadius: 8, padding: 3, border: '1px solid var(--border)', marginBottom: 14 }}>
+          {(['day', 'all'] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => setScope(s)}
+              style={{
+                flex: 1, padding: '6px 0', fontSize: 12, borderRadius: 6, border: 'none',
+                background: scope === s ? 'var(--teal)' : 'transparent',
+                color: scope === s ? '#fff' : 'var(--muted)',
+                cursor: 'pointer', fontFamily: 'sans-serif',
+                fontWeight: scope === s ? 500 : 400,
+                transition: 'all .15s',
+              }}
+            >
+              {s === 'day' ? 'This day only' : 'All 7 days'}
+            </button>
+          ))}
+        </div>
         <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.5 }}>
-          Reorder, edit, or delete blocks. Changes apply to every weekday.
+          {scope === 'day'
+            ? 'Changes apply to this day only.'
+            : 'Changes will overwrite the schedule for all 7 days.'}
         </div>
 
         {/* Block list */}
@@ -242,7 +306,7 @@ export default function ScheduleEditor({ blocks, onChange, onClose }: Props) {
               </div>
 
               {/* Inline edit form */}
-              {isEditing && <BlockForm form={form} setForm={setForm} onSave={commitEdit} onCancel={cancelForm} />}
+              {isEditing && <BlockForm key={b.id} form={form} setForm={setForm} onSave={commitEdit} onCancel={cancelForm} />}
             </div>
           )
         })}
@@ -250,7 +314,7 @@ export default function ScheduleEditor({ blocks, onChange, onClose }: Props) {
         {/* Add new block form */}
         {addingNew && (
           <div style={{ marginTop: 8 }}>
-            <BlockForm form={form} setForm={setForm} onSave={commitAdd} onCancel={cancelForm} />
+            <BlockForm key="new" form={form} setForm={setForm} onSave={commitAdd} onCancel={cancelForm} />
           </div>
         )}
 

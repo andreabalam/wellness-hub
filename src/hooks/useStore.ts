@@ -1,7 +1,8 @@
 import type { DayData, QuickFood } from '../data/tracker'
 import { EMPTY_DAY } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
-import type { CustomBlock } from '../data/schedule'
+import type { CustomBlock, WeekSchedule, DayKey } from '../data/schedule'
+import { SCHEDULE_BLOCKS, defaultToCustomBlock, makeWeekSchedule } from '../data/schedule'
 import type { MedGuide, UserSettings, UserBodyStats, UserWorkoutPlan } from '../lib/sync'
 import type { Reminder } from '../data/reminders'
 import type { GroceryCatalogItem } from '../data/grocery'
@@ -16,6 +17,7 @@ const GROCERY_KEY             = 'whub_grocery_v1'
 const GROCERY_CATALOG_KEY     = 'whub_grocery_catalog_v1'
 const FOOD_LIBRARY_KEY        = 'whub_food_library_v1'
 const SCHEDULE_KEY            = 'whub_schedule_v1'
+const WEEK_SCHEDULE_KEY       = 'whub_schedule_v2'
 export const MED_GUIDES_KEY   = 'whub_med_guides_v1'
 const REMINDERS_KEY           = 'whub_reminders_v1'
 const HIDDEN_RECIPES_KEY      = 'whub_hidden_recipes_v1'
@@ -104,16 +106,43 @@ export const foodLibraryStore = {
   },
 }
 
-// ── Schedule ── custom blocks (null = use built-in defaults) ────────
+// ── Schedule ── per-day week schedule ───────────────────────────
 export const scheduleStore = {
-  getBlocks: (): CustomBlock[] | null =>
-    safeGet<CustomBlock[] | null>(SCHEDULE_KEY, null),
+  getWeek(): WeekSchedule {
+    const v2 = safeGet<WeekSchedule | null>(WEEK_SCHEDULE_KEY, null)
+    if (v2) return v2
+    // migrate v1 (single CustomBlock[]) → v2 (per-day)
+    const v1 = safeGet<CustomBlock[] | null>(SCHEDULE_KEY, null)
+    const base = v1 ?? SCHEDULE_BLOCKS.map(defaultToCustomBlock)
+    return makeWeekSchedule(base)
+  },
 
-  saveBlocks: (blocks: CustomBlock[]) =>
-    safeSet(SCHEDULE_KEY, blocks),
+  saveDay(day: DayKey, blocks: CustomBlock[]) {
+    const next = { ...scheduleStore.getWeek(), [day]: blocks }
+    safeSet(WEEK_SCHEDULE_KEY, next)
+    tryPush(uid => sync.pushWeekSchedule(uid, next))
+  },
 
-  reset: () => {
-    try { localStorage.removeItem(SCHEDULE_KEY) } catch { /* quota */ }
+  saveWeek(week: WeekSchedule) {
+    safeSet(WEEK_SCHEDULE_KEY, week)
+    tryPush(uid => sync.pushWeekSchedule(uid, week))
+  },
+
+  resetDay(day: DayKey) {
+    const base = SCHEDULE_BLOCKS.map(defaultToCustomBlock)
+    const dayBlocks = base.map(b => ({ ...b, id: `${day}-${b.id}` }))
+    scheduleStore.saveDay(day, dayBlocks)
+    return dayBlocks
+  },
+
+  resetWeek() {
+    const week = makeWeekSchedule(SCHEDULE_BLOCKS.map(defaultToCustomBlock))
+    scheduleStore.saveWeek(week)
+    return week
+  },
+
+  reset() {
+    try { localStorage.removeItem(WEEK_SCHEDULE_KEY) } catch { /* quota */ }
   },
 }
 
@@ -268,16 +297,18 @@ export function importRemoteData(remote: {
   grocery?: string[]
   foodLibrary?: QuickFood[]
   schedule?: CustomBlock[]
+  weekSchedule?: WeekSchedule
   medGuides?: MedGuide[]
   groceryCatalog?: GroceryCatalogItem[]
 }) {
-  if (remote.tracker        !== undefined) safeSet(TRACKER_KEY,        remote.tracker)
-  if (remote.recipes        !== undefined) safeSet(RECIPES_KEY,        remote.recipes)
-  if (remote.tags           !== undefined) safeSet(TAGS_KEY,           remote.tags)
-  if (remote.grocery        !== undefined) safeSet(GROCERY_KEY,        remote.grocery)
-  if (remote.foodLibrary    !== undefined) safeSet(FOOD_LIBRARY_KEY,   remote.foodLibrary)
-  if (remote.schedule       !== undefined) safeSet(SCHEDULE_KEY,       remote.schedule)
-  if (remote.medGuides      !== undefined) safeSet(MED_GUIDES_KEY,     remote.medGuides)
+  if (remote.tracker        !== undefined) safeSet(TRACKER_KEY,         remote.tracker)
+  if (remote.recipes        !== undefined) safeSet(RECIPES_KEY,         remote.recipes)
+  if (remote.tags           !== undefined) safeSet(TAGS_KEY,            remote.tags)
+  if (remote.grocery        !== undefined) safeSet(GROCERY_KEY,         remote.grocery)
+  if (remote.foodLibrary    !== undefined) safeSet(FOOD_LIBRARY_KEY,    remote.foodLibrary)
+  if (remote.schedule       !== undefined) safeSet(SCHEDULE_KEY,        remote.schedule)
+  if (remote.weekSchedule   !== undefined) safeSet(WEEK_SCHEDULE_KEY,   remote.weekSchedule)
+  if (remote.medGuides      !== undefined) safeSet(MED_GUIDES_KEY,      remote.medGuides)
   if (remote.groceryCatalog !== undefined) safeSet(GROCERY_CATALOG_KEY, remote.groceryCatalog)
 }
 
@@ -292,6 +323,7 @@ export function exportAllData() {
     groceryCatalog: safeGet<GroceryCatalogItem[]>(GROCERY_CATALOG_KEY, []),
     hiddenRecipes:  safeGet<number[]>(HIDDEN_RECIPES_KEY, []),
     userSettings:   safeGet<UserSettings>(USER_SETTINGS_KEY, USER_SETTINGS_DEFAULTS),
+    weekSchedule:   safeGet(WEEK_SCHEDULE_KEY, null),
     exportedAt:     new Date().toISOString(),
     version:        'whub_v1',
   }
@@ -309,6 +341,9 @@ export function importAllData(json: string): boolean {
     if (data.groceryCatalog) safeSet(GROCERY_CATALOG_KEY, data.groceryCatalog)
     if (data.hiddenRecipes)  safeSet(HIDDEN_RECIPES_KEY,  data.hiddenRecipes)
     if (data.userSettings)   safeSet(USER_SETTINGS_KEY,   data.userSettings)
+    if (data.weekSchedule)   safeSet(WEEK_SCHEDULE_KEY,   data.weekSchedule)
+    else if (data.schedule)  safeSet(SCHEDULE_KEY,        data.schedule)
     return true
   } catch { return false }
 }
+

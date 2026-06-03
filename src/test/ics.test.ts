@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { parseDuration, generateIcs, downloadIcs } from '../lib/ics'
+import { parseDuration, generateIcs, generateWeekIcs, downloadIcs } from '../lib/ics'
 import type { ScheduleBlock } from '../data/schedule'
+import type { DayKey } from '../data/schedule'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -234,5 +235,92 @@ describe('downloadIcs', () => {
 
     downloadIcs('content')
     expect(captured).toBe('wellness-schedule.ics')
+  })
+})
+
+// ── generateWeekIcs ───────────────────────────────────────────────
+
+const MON_BLOCK: ScheduleBlock = {
+  phase: 'Morning', time: '09:00', title: 'Mon Deep Work',
+  dur: '90 min', dot: 'cg', why: 'wg', whyTxt: 'focus',
+  desc: 'Monday focus session', bridge: null,
+}
+
+const SAT_BLOCK: ScheduleBlock = {
+  phase: null, time: '10:00', title: 'Sat Yoga',
+  dur: '60 min', dot: 'ct', why: 'wt', whyTxt: 'flexibility',
+  desc: 'Saturday yoga', bridge: null,
+}
+
+function makeWeekWith(mon: ScheduleBlock[], sat: ScheduleBlock[]): Record<DayKey, ScheduleBlock[]> {
+  return {
+    mon, tue: [], wed: [], thu: [], fri: [], sat, sun: [],
+  }
+}
+
+describe('generateWeekIcs', () => {
+  const start = new Date('2026-06-01T00:00:00') // Monday
+  const end   = new Date('2026-07-01T00:00:00')
+
+  it('generates BEGIN:VCALENDAR', () => {
+    const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], []), start, end)
+    expect(ics).toContain('BEGIN:VCALENDAR')
+  })
+
+  it('ends with END:VCALENDAR and CRLF', () => {
+    const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], []), start, end)
+    expect(ics.trimEnd()).toMatch(/END:VCALENDAR$/)
+  })
+
+  it('Mon block gets BYDAY=MO in RRULE', () => {
+    const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], []), start, end)
+    expect(ics).toContain('BYDAY=MO')
+  })
+
+  it('Sat block gets BYDAY=SA in RRULE', () => {
+    const ics = generateWeekIcs(makeWeekWith([], [SAT_BLOCK]), start, end)
+    expect(ics).toContain('BYDAY=SA')
+  })
+
+  it('Mon block DTSTART is on a Monday', () => {
+    // 2026-06-01 is Monday → anchor stays 2026-06-01
+    const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], []), start, end)
+    expect(ics).toContain('DTSTART:20260601T090000')
+  })
+
+  it('Sat block DTSTART is on the first Saturday on or after startDate', () => {
+    // 2026-06-01 is Monday → first Saturday is 2026-06-06
+    const ics = generateWeekIcs(makeWeekWith([], [SAT_BLOCK]), start, end)
+    expect(ics).toContain('DTSTART:20260606T100000')
+  })
+
+  it('each day produces one VEVENT per block', () => {
+    const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], [SAT_BLOCK]), start, end)
+    expect((ics.match(/BEGIN:VEVENT/g) ?? []).length).toBe(2)
+  })
+
+  it('empty day array generates no events for that day', () => {
+    const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], []), start, end)
+    expect(ics).not.toContain('BYDAY=SA')
+    expect((ics.match(/BEGIN:VEVENT/g) ?? []).length).toBe(1)
+  })
+
+  it('includes SUMMARY with the block title', () => {
+    const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], [SAT_BLOCK]), start, end)
+    expect(ics).toContain('SUMMARY:Mon Deep Work')
+    expect(ics).toContain('SUMMARY:Sat Yoga')
+  })
+
+  it('includes UNTIL in the RRULE with trailing Z', () => {
+    const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], []), start, end)
+    expect(ics).toMatch(/UNTIL=\d{8}T\d{6}Z/)
+  })
+
+  it('fully empty week produces no VEVENTs', () => {
+    const emptyWeek: Record<DayKey, ScheduleBlock[]> = {
+      mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [],
+    }
+    const ics = generateWeekIcs(emptyWeek, start, end)
+    expect(ics).not.toContain('BEGIN:VEVENT')
   })
 })

@@ -28,6 +28,7 @@ vi.mock('../lib/sync', () => ({
   pullGrocery:              vi.fn(),
   pullFoodLibrary:          vi.fn(),
   pullSchedule:             vi.fn(),
+  pullWeekSchedule:         vi.fn(),
   pullMedGuides:            vi.fn(),
   pullGroceryCatalog:       vi.fn(),
   pullUserGroceryCatalog:   vi.fn(),
@@ -36,6 +37,7 @@ vi.mock('../lib/sync', () => ({
   pushGrocery:              vi.fn(),
   pushFoodLibrary:          vi.fn(),
   pushSchedule:             vi.fn(),
+  pushWeekSchedule:         vi.fn(),
   pushMedGuides:            vi.fn(),
   pushUserGroceryCatalog:   vi.fn(),
   fetchUserSettings:        vi.fn(),
@@ -86,6 +88,7 @@ beforeEach(() => {
   mockSync['pullGrocery'].mockResolvedValue([])
   mockSync['pullFoodLibrary'].mockResolvedValue([])
   mockSync['pullSchedule'].mockResolvedValue(null)
+  mockSync['pullWeekSchedule'].mockResolvedValue(null)
   mockSync['pullMedGuides'].mockResolvedValue(null)
   mockSync['pullGroceryCatalog'].mockResolvedValue(null)
   mockSync['pullUserGroceryCatalog'].mockResolvedValue(null)
@@ -94,6 +97,7 @@ beforeEach(() => {
   mockSync['pushGrocery'].mockResolvedValue(undefined)
   mockSync['pushFoodLibrary'].mockResolvedValue(undefined)
   mockSync['pushSchedule'].mockResolvedValue(undefined)
+  mockSync['pushWeekSchedule'].mockResolvedValue(undefined)
   mockSync['pushMedGuides'].mockResolvedValue(undefined)
   mockSync['pushUserGroceryCatalog'].mockResolvedValue(undefined)
   mockSync['fetchUserSettings'].mockResolvedValue(null)
@@ -190,6 +194,7 @@ describe('App (with mocked Supabase)', () => {
     mockSync['pullGrocery'].mockResolvedValue([])
     mockSync['pullFoodLibrary'].mockResolvedValue([])
     mockSync['pullSchedule'].mockResolvedValue(null)
+    mockSync['pullWeekSchedule'].mockResolvedValue(null)
     mockSync['pullMedGuides'].mockResolvedValue(null)
     mockSync['pullGroceryCatalog'].mockResolvedValue(null)
     mockSync['pullUserGroceryCatalog'].mockResolvedValue(null)
@@ -198,6 +203,7 @@ describe('App (with mocked Supabase)', () => {
     mockSync['pushGrocery'].mockResolvedValue(undefined)
     mockSync['pushFoodLibrary'].mockResolvedValue(undefined)
     mockSync['pushSchedule'].mockResolvedValue(undefined)
+    mockSync['pushWeekSchedule'].mockResolvedValue(undefined)
     mockSync['pushMedGuides'].mockResolvedValue(undefined)
     mockSync['pushUserGroceryCatalog'].mockResolvedValue(undefined)
 

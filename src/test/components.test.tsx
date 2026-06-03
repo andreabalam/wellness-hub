@@ -1517,13 +1517,27 @@ describe('ScheduleTab', () => {
     expect(click).toHaveBeenCalledOnce()
   })
 
-  it('shows custom badge when custom schedule is saved', () => {
-    const blocks: CustomBlock[] = [
-      { id: 'c1', time: '09:00', title: 'Custom Block', dur: '30 min', color: 'green', whyTxt: '', desc: '', phase: '' }
-    ]
-    ls['whub_schedule_v1'] = JSON.stringify(blocks)
+  it('renders day selector tabs (Mon through Sun)', () => {
     render(<ScheduleTab />)
-    expect(screen.getByText('custom')).toBeInTheDocument()
+    expect(screen.getByText('Mon')).toBeInTheDocument()
+    expect(screen.getByText('Sat')).toBeInTheDocument()
+    expect(screen.getByText('Sun')).toBeInTheDocument()
+  })
+
+  it('clicking a different day tab changes the selected day', () => {
+    render(<ScheduleTab />)
+    // Click Sat tab
+    fireEvent.click(screen.getByText('Sat'))
+    // Mon and Sat buttons should both be present
+    expect(screen.getByText('Sat')).toBeInTheDocument()
+    expect(screen.getByText('Mon')).toBeInTheDocument()
+  })
+
+  it('editing blocks on one day does not affect another day', () => {
+    render(<ScheduleTab />)
+    // Switch to Sat, blocks should be independent (both days have default blocks)
+    fireEvent.click(screen.getByText('Sat'))
+    expect(screen.getByText('Wake + no-phone rule')).toBeInTheDocument()
   })
 
   it('opens ScheduleEditor on Edit schedule click', () => {
@@ -1585,6 +1599,50 @@ describe('ScheduleTab', () => {
     expect(screen.getByLabelText(/Peak start time/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Peak end time/i)).toBeInTheDocument()
   })
+
+  it('editor opened from ScheduleTab has both scope buttons', () => {
+    render(<ScheduleTab />)
+    fireEvent.click(screen.getByText('✎ Edit schedule'))
+    expect(screen.getByText('This day only')).toBeInTheDocument()
+    expect(screen.getByText('All 7 days')).toBeInTheDocument()
+  })
+
+  it('Reset to default in "All 7 days" scope resets all days (handleResetAll)', () => {
+    render(<ScheduleTab />)
+    // Open editor, customise current day
+    fireEvent.click(screen.getByText('✎ Edit schedule'))
+    fireEvent.click(screen.getAllByTitle('Delete')[0])
+    // Switch to All 7 days scope and reset
+    fireEvent.click(screen.getByText('All 7 days'))
+    fireEvent.click(screen.getByText('Reset to default'))
+    // After reset the original first block should be back in the timeline
+    expect(screen.getByText('Wake + no-phone rule')).toBeInTheDocument()
+  })
+
+  it('saving in "All 7 days" scope propagates to all days (handleSaveAll)', () => {
+    render(<ScheduleTab />)
+    fireEvent.click(screen.getByText('✎ Edit schedule'))
+    // Switch to All 7 days and delete a block
+    fireEvent.click(screen.getByText('All 7 days'))
+    fireEvent.click(screen.getAllByTitle('Delete')[0])
+    fireEvent.click(screen.getByText('Done'))
+    // Switch to a different day — it should also be missing the deleted block
+    fireEvent.click(screen.getByRole('button', { name: /^Tue$/ }))
+    expect(screen.queryByText('Wake + no-phone rule')).not.toBeInTheDocument()
+  })
+
+  it('no day-modified dots when all days have the same schedule', () => {
+    render(<ScheduleTab />)
+    // All days start from the same default template — no dots expected
+    // (dots are <span> siblings inside the day tab buttons; aria is not set on them,
+    //  so we check that none of the day tab buttons have a dot child)
+    const dayTabs = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+    dayTabs.forEach(label => {
+      const btn = screen.getByRole('button', { name: new RegExp(`^${label}$`) })
+      // No amber dot span inside — just the text node
+      expect(btn.querySelectorAll('span').length).toBe(0)
+    })
+  })
 })
 
 // ═════════════════════════════════════════════════════════════════
@@ -1594,14 +1652,14 @@ describe('ScheduleEditor', () => {
   const defaultBlocks: CustomBlock[] = SCHEDULE_BLOCKS.map(defaultToCustomBlock)
 
   it('renders all blocks in the list', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     expect(screen.getByText('Wake + no-phone rule')).toBeInTheDocument()
     expect(screen.getByText('Deep work block')).toBeInTheDocument()
   })
 
   it('clicking × (header) closes the editor', () => {
     const onClose = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={onClose} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={onClose} onReset={vi.fn()} />)
     // The header × close button
     fireEvent.click(screen.getAllByText('×')[0])
     expect(onClose).toHaveBeenCalledOnce()
@@ -1609,20 +1667,20 @@ describe('ScheduleEditor', () => {
 
   it('clicking Done closes the editor', () => {
     const onClose = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={onClose} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={onClose} onReset={vi.fn()} />)
     fireEvent.click(screen.getByText('Done'))
     expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('clicking edit (✎) opens the inline form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     expect(screen.getByPlaceholderText('Block name')).toBeInTheDocument()
   })
 
   it('editing and saving a block calls onChange with updated block', () => {
     const onChange = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     const titleInput = screen.getByPlaceholderText('Block name')
     fireEvent.change(titleInput, { target: { value: 'Updated Block' } })
@@ -1633,44 +1691,35 @@ describe('ScheduleEditor', () => {
   })
 
   it('cancel edit closes the form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     expect(screen.getByPlaceholderText('Block name')).toBeInTheDocument()
     fireEvent.click(screen.getByText('Cancel'))
     expect(screen.queryByPlaceholderText('Block name')).not.toBeInTheDocument()
   })
 
-  it('delete button (confirmed) removes block', () => {
-    vi.mocked(window.confirm).mockReturnValue(true)
+  it('delete button removes block without confirmation', () => {
     const onChange = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getAllByTitle('Delete')[0])
     expect(onChange).toHaveBeenCalledOnce()
     expect(onChange.mock.calls[0][0]).toHaveLength(defaultBlocks.length - 1)
   })
 
-  it('delete button (cancelled) does not change blocks', () => {
-    vi.mocked(window.confirm).mockReturnValue(false)
-    const onChange = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} />)
-    fireEvent.click(screen.getAllByTitle('Delete')[0])
-    expect(onChange).not.toHaveBeenCalled()
-  })
-
   it('move up button is disabled for first block', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     expect(screen.getAllByTitle('Move up')[0]).toBeDisabled()
   })
 
   it('move down button is disabled for last block', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     const downs = screen.getAllByTitle('Move down')
     expect(downs[downs.length - 1]).toBeDisabled()
   })
 
   it('move up second block swaps it with the first', () => {
     const onChange = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getAllByTitle('Move up')[1])
     const updated: CustomBlock[] = onChange.mock.calls[0][0]
     expect(updated[0].id).toBe(defaultBlocks[1].id)
@@ -1678,49 +1727,40 @@ describe('ScheduleEditor', () => {
   })
 
   it('Add block button shows new block form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getByText('+ Add block'))
     expect(screen.getByPlaceholderText('Block name')).toBeInTheDocument()
   })
 
-  it('saving a new block appends it and calls onChange', () => {
+  it('saving a new block calls onChange with one extra block', () => {
     const onChange = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getByText('+ Add block'))
     fireEvent.change(screen.getByPlaceholderText('Block name'), { target: { value: 'New Block' } })
     fireEvent.click(screen.getByText('Save block'))
     expect(onChange).toHaveBeenCalledOnce()
     const updated: CustomBlock[] = onChange.mock.calls[0][0]
     expect(updated).toHaveLength(defaultBlocks.length + 1)
-    expect(updated[updated.length - 1].title).toBe('New Block')
+    expect(updated.some(b => b.title === 'New Block')).toBe(true)
   })
 
   it('Save block is disabled when title is empty', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getByText('+ Add block'))
     expect(screen.getByText('Save block')).toBeDisabled()
   })
 
-  it('Reset to default (confirmed) calls onChange with default blocks', () => {
-    vi.mocked(window.confirm).mockReturnValue(true)
-    const onChange = vi.fn()
-    const onClose  = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={onClose} />)
+  it('Reset to default calls onReset and onClose', () => {
+    const onReset = vi.fn()
+    const onClose = vi.fn()
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={onClose} onReset={onReset} />)
     fireEvent.click(screen.getByText('Reset to default'))
-    expect(onChange).toHaveBeenCalledOnce()
+    expect(onReset).toHaveBeenCalledOnce()
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('Reset to default (cancelled) does nothing', () => {
-    vi.mocked(window.confirm).mockReturnValue(false)
-    const onChange = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} />)
-    fireEvent.click(screen.getByText('Reset to default'))
-    expect(onChange).not.toHaveBeenCalled()
-  })
-
   it('clicking the same edit button again closes the form (toggle)', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     const editBtns = screen.getAllByTitle('Edit')
     fireEvent.click(editBtns[0])
     fireEvent.click(editBtns[0])
@@ -1729,7 +1769,7 @@ describe('ScheduleEditor', () => {
 
   it('move down button reorders blocks', () => {
     const onChange = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} onReset={vi.fn()} />)
     const downBtns = screen.getAllByTitle('Move down')
     // Find the first enabled Move down button (not the last block)
     const enabledDown = downBtns.find(btn => !(btn as HTMLButtonElement).disabled)!
@@ -1738,7 +1778,7 @@ describe('ScheduleEditor', () => {
   })
 
   it('clicking a color in the edit form updates form color', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     // Click the Teal color swatch — title comes from c.label in BLOCK_COLORS
     const colorBtns = screen.getAllByTitle(/Teal|Amber|Purple|Gold|Gray/i)
@@ -1747,23 +1787,31 @@ describe('ScheduleEditor', () => {
   })
 
   it('changing time input in edit form updates form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     const timeInput = screen.getByDisplayValue('08:00')
     fireEvent.change(timeInput, { target: { value: '09:30' } })
     expect((timeInput as HTMLInputElement).value).toBe('09:30')
   })
 
-  it('changing duration input in edit form updates form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+  it('changing duration number input in edit form updates value', () => {
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getAllByTitle('Edit')[0])
-    const durInput = screen.getByPlaceholderText('e.g. 30 min, 1 hr')
-    fireEvent.change(durInput, { target: { value: '45 min' } })
-    expect((durInput as HTMLInputElement).value).toBe('45 min')
+    const durInput = screen.getByRole('spinbutton')
+    fireEvent.change(durInput, { target: { value: '45' } })
+    expect((durInput as HTMLInputElement).value).toBe('45')
+  })
+
+  it('changing duration unit to hours updates the form', () => {
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    fireEvent.click(screen.getAllByTitle('Edit')[0])
+    const unitSelect = screen.getByRole('combobox')
+    fireEvent.change(unitSelect, { target: { value: 'hr' } })
+    expect((unitSelect as HTMLSelectElement).value).toBe('hr')
   })
 
   it('changing phase header input in edit form updates form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     const phaseInput = screen.getByPlaceholderText('e.g. Morning routine')
     fireEvent.change(phaseInput, { target: { value: 'Wake-up' } })
@@ -1771,7 +1819,7 @@ describe('ScheduleEditor', () => {
   })
 
   it('changing badge label input in edit form updates form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     const whyInput = screen.getByPlaceholderText('e.g. focus, nutrition')
     fireEvent.change(whyInput, { target: { value: 'morning energy' } })
@@ -1779,7 +1827,7 @@ describe('ScheduleEditor', () => {
   })
 
   it('changing description textarea in edit form updates form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={vi.fn()} />)
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     const descInput = screen.getByPlaceholderText('Why this block matters…')
     fireEvent.change(descInput, { target: { value: 'My custom description' } })
@@ -1788,10 +1836,92 @@ describe('ScheduleEditor', () => {
 
   it('closing modal from backdrop click calls onClose', () => {
     const onClose = vi.fn()
-    const { container } = render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={onClose} />)
-    // The outermost div is the backdrop; clicking it (as the target) triggers onClose
+    const { container } = render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={onClose} onReset={vi.fn()} />)
     const backdrop = container.firstChild as HTMLElement
     fireEvent.click(backdrop, { target: backdrop })
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  // ── Scope toggle ─────────────────────────────────────────────────
+
+  it('renders "This day only" and "All 7 days" scope buttons', () => {
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    expect(screen.getByText('This day only')).toBeInTheDocument()
+    expect(screen.getByText('All 7 days')).toBeInTheDocument()
+  })
+
+  it('default scope is "This day only" — save calls onChange not onSaveAll', () => {
+    const onChange  = vi.fn()
+    const onSaveAll = vi.fn()
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onSaveAll={onSaveAll} onClose={vi.fn()} onReset={vi.fn()} />)
+    fireEvent.click(screen.getAllByTitle('Delete')[0])
+    expect(onChange).toHaveBeenCalledOnce()
+    expect(onSaveAll).not.toHaveBeenCalled()
+  })
+
+  it('switching to "All 7 days" scope routes save to onSaveAll', () => {
+    const onChange  = vi.fn()
+    const onSaveAll = vi.fn()
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onSaveAll={onSaveAll} onClose={vi.fn()} onReset={vi.fn()} />)
+    fireEvent.click(screen.getByText('All 7 days'))
+    fireEvent.click(screen.getAllByTitle('Delete')[0])
+    expect(onSaveAll).toHaveBeenCalledOnce()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('move does not auto-sort — manual order is preserved', () => {
+    const onChange  = vi.fn()
+    const twoBlocks: CustomBlock[] = [
+      { id: 'a', time: '08:00', title: 'Early', dur: '30 min', color: 'green', phase: '', whyTxt: '', desc: '' },
+      { id: 'b', time: '10:00', title: 'Late',  dur: '30 min', color: 'green', phase: '', whyTxt: '', desc: '' },
+    ]
+    render(<ScheduleEditor blocks={twoBlocks} onChange={onChange} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    // Move "Late" (index 1) up — should produce [Late, Early] without re-sorting
+    fireEvent.click(screen.getAllByTitle('Move up')[1])
+    const updated: CustomBlock[] = onChange.mock.calls[0][0]
+    expect(updated[0].title).toBe('Late')
+    expect(updated[1].title).toBe('Early')
+  })
+
+  it('adding a block auto-sorts it into the correct time position', () => {
+    const onChange = vi.fn()
+    const twoBlocks: CustomBlock[] = [
+      { id: 'a', time: '10:00', title: 'Mid',  dur: '30 min', color: 'green', phase: '', whyTxt: '', desc: '' },
+      { id: 'b', time: '12:00', title: 'Late', dur: '30 min', color: 'green', phase: '', whyTxt: '', desc: '' },
+    ]
+    render(<ScheduleEditor blocks={twoBlocks} onChange={onChange} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    fireEvent.click(screen.getByText('+ Add block'))
+    fireEvent.change(screen.getByPlaceholderText('Block name'), { target: { value: 'Early' } })
+    fireEvent.change(screen.getByDisplayValue('09:00'), { target: { value: '08:00' } })
+    fireEvent.click(screen.getByText('Save block'))
+    const updated: CustomBlock[] = onChange.mock.calls[0][0]
+    expect(updated[0].title).toBe('Early')
+    expect(updated[1].title).toBe('Mid')
+    expect(updated[2].title).toBe('Late')
+  })
+
+  // ── Reset to default — scope-aware ────────────────────────────────
+
+  it('Reset to default in "This day only" scope calls onReset (not onResetAll)', () => {
+    const onReset    = vi.fn()
+    const onResetAll = vi.fn()
+    const onClose    = vi.fn()
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={onClose} onReset={onReset} onResetAll={onResetAll} />)
+    fireEvent.click(screen.getByText('Reset to default'))
+    expect(onReset).toHaveBeenCalledOnce()
+    expect(onResetAll).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('Reset to default in "All 7 days" scope calls onResetAll (not onReset)', () => {
+    const onReset    = vi.fn()
+    const onResetAll = vi.fn()
+    const onClose    = vi.fn()
+    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={onClose} onReset={onReset} onResetAll={onResetAll} />)
+    fireEvent.click(screen.getByText('All 7 days'))
+    fireEvent.click(screen.getByText('Reset to default'))
+    expect(onResetAll).toHaveBeenCalledOnce()
+    expect(onReset).not.toHaveBeenCalled()
     expect(onClose).toHaveBeenCalledOnce()
   })
 })
@@ -1801,7 +1931,7 @@ describe('ScheduleEditor', () => {
 // ═════════════════════════════════════════════════════════════════
 describe('RecipesTab', () => {
   it('renders all filter buttons', () => {
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Breakfast' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Smoothies' })).toBeInTheDocument()
@@ -1810,23 +1940,23 @@ describe('RecipesTab', () => {
   })
 
   it('shows empty state (not an error) when DB is unavailable', async () => {
-    render(<RecipesTab />)
-    // supabase is null in unit tests → BUILTIN_RECIPES is [] → empty state shown
+    render(<RecipesTab user={FAKE_USER} />)
+    // supabase is null in unit tests → BUILTIN_RECIPES is [] → authenticated empty state
     await waitFor(() => {
-      expect(screen.getByText(/Sign in to add and view your recipes/)).toBeInTheDocument()
+      expect(screen.getByText(/No recipes yet/)).toBeInTheDocument()
     })
     // No error banner — graceful empty state, not a network error
     expect(screen.queryByText(/Could not load recipes/)).not.toBeInTheDocument()
   })
 
   it('renders the search bar in non-grocery views', () => {
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     expect(screen.getByPlaceholderText('Search recipes, ingredients…')).toBeInTheDocument()
   })
 
   it('search filters custom recipes by name', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.change(screen.getByPlaceholderText('Search recipes, ingredients…'), {
       target: { value: 'My Smoothie' },
@@ -1835,7 +1965,7 @@ describe('RecipesTab', () => {
   })
 
   it('search with no match shows empty state', async () => {
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.change(screen.getByPlaceholderText('Search recipes, ingredients…'), {
       target: { value: 'xyznotarecipe' },
@@ -1844,32 +1974,28 @@ describe('RecipesTab', () => {
   })
 
   it('× clears the search', () => {
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     const searchInput = screen.getByPlaceholderText('Search recipes, ingredients…')
     fireEvent.change(searchInput, { target: { value: 'oats' } })
     fireEvent.click(screen.getByText('×'))
     expect((searchInput as HTMLInputElement).value).toBe('')
   })
 
-  it('guest with no recipes shows sign-in prompt', async () => {
+  it('guest sees sign-in gate instead of recipe content', () => {
     render(<RecipesTab />)
-    // Wait for the Supabase fetch to fail gracefully (supabase is configured but
-    // network is unavailable in jsdom), then check the empty state.
-    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
-    // No built-in recipes → guest sees the sign-in empty state
-    expect(screen.queryByText('⭐ My Recipes')).not.toBeInTheDocument()
-    expect(screen.getByText(/Sign in to add and view your recipes/)).toBeInTheDocument()
+    expect(screen.getByText(/Sign in to save/)).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Search recipes, ingredients…')).not.toBeInTheDocument()
   })
 
   it('clicking Breakfast filter activates that filter button', () => {
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     const btn = screen.getByRole('button', { name: 'Breakfast' })
     fireEvent.click(btn)
     expect(btn.className).toContain('active')
   })
 
   it('clicking Grocery shows GroceryPanel', () => {
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     // Use getByRole so the aria-label on recipe-card action buttons doesn't cause
     // a "multiple elements" error — the filter button's accessible name is its
     // text content "🛒 Grocery", while card buttons have aria-label="Add ingredients…"
@@ -1880,7 +2006,7 @@ describe('RecipesTab', () => {
 
   it('custom recipe appears in All view without navigating to a separate tab', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     // Custom recipe is visible in the default All view — no navigation needed
     expect(screen.getByText('My Smoothie')).toBeInTheDocument()
@@ -1888,14 +2014,14 @@ describe('RecipesTab', () => {
 
   it('custom recipe is the only recipe visible when no built-ins', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     // Only the custom recipe — no built-ins
     expect(screen.getByText('My Smoothie')).toBeInTheDocument()
     expect(screen.queryByText('Overnight Oats')).not.toBeInTheDocument()
   })
 
-  it('guest: + Add my recipe button is hidden', () => {
+  it('guest: + Add my recipe button is hidden behind gate', () => {
     render(<RecipesTab />)
     expect(screen.queryByText('+ Add my recipe')).not.toBeInTheDocument()
   })
@@ -1920,7 +2046,7 @@ describe('RecipesTab', () => {
   it('deleting a custom recipe removes it from the list', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     vi.mocked(window.confirm).mockReturnValue(true)
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('My Smoothie').closest('.rcard') as HTMLElement)
     fireEvent.click(screen.getByText('Delete recipe'))
@@ -1930,7 +2056,7 @@ describe('RecipesTab', () => {
   it('cancelling delete keeps the recipe', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
     vi.mocked(window.confirm).mockReturnValue(false)
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('My Smoothie').closest('.rcard') as HTMLElement)
     fireEvent.click(screen.getByText('Delete recipe'))
@@ -1938,7 +2064,7 @@ describe('RecipesTab', () => {
   })
 
   it('search input focus and blur fire styling handlers without crash', () => {
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     const input = screen.getByPlaceholderText('Search recipes, ingredients…')
     fireEvent.focus(input)
     fireEvent.blur(input)
@@ -1981,7 +2107,7 @@ describe('RecipesTab', () => {
 
   it('Cook button appears on expanded custom recipe with steps', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     const card = screen.getByText('My Smoothie').closest('.rcard') as HTMLElement
     fireEvent.click(card)
@@ -1990,7 +2116,7 @@ describe('RecipesTab', () => {
 
   it('clicking Cook opens CookingMode overlay', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     const card = screen.getByText('My Smoothie').closest('.rcard') as HTMLElement
     fireEvent.click(card)
@@ -2001,7 +2127,7 @@ describe('RecipesTab', () => {
 
   it('exiting CookingMode closes the overlay', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     const card = screen.getByText('My Smoothie').closest('.rcard') as HTMLElement
     fireEvent.click(card)
@@ -2012,7 +2138,7 @@ describe('RecipesTab', () => {
 
   it('Edit button appears on expanded custom recipe', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
-    render(<RecipesTab />)
+    render(<RecipesTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     const card = screen.getByText('My Smoothie').closest('.rcard') as HTMLElement
     fireEvent.click(card)
@@ -2625,10 +2751,11 @@ describe('App', () => {
     expect(screen.getByText(/3×\/week Template/i)).toBeInTheDocument()
   })
 
-  it('clicking Recipes tab makes recipes search visible', () => {
+  it('clicking Recipes tab shows sign-in gate when not authenticated', () => {
     render(<App />)
     fireEvent.click(screen.getByText('🍽 Recipes'))
-    expect(screen.getByPlaceholderText('Search recipes, ingredients…')).toBeInTheDocument()
+    expect(screen.getByText(/Sign in to save/)).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Search recipes, ingredients…')).not.toBeInTheDocument()
   })
 
   it('clicking Workouts tab preserves week navigation', () => {

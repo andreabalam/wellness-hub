@@ -218,6 +218,20 @@ export default function RecipesTab({ user }: { user?: User | null }) {
     return [...customRecipes.filter(r => r.cat === activeFilter), ...visibleBuiltins.filter(r => r.cat === activeFilter)]
   }, [query, activeFilter, visibleBuiltins, customRecipes])
 
+  if (!user) {
+    return (
+      <div style={{ textAlign: 'center', padding: '64px 24px 32px' }}>
+        <div style={{ fontSize: 44, marginBottom: 14 }}>📖</div>
+        <div style={{ fontFamily: '"DM Serif Display",serif', fontSize: 22, fontWeight: 400, color: 'var(--text)', marginBottom: 8 }}>
+          Sign in to save <em style={{ fontStyle: 'italic', color: 'var(--purple-light)' }}>Recipes</em>
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--muted)', maxWidth: 300, margin: '0 auto', lineHeight: 1.6 }}>
+          Create, save and organise your personal recipes. Your collection stays private and syncs across devices.
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       {/* Filter bar */}
