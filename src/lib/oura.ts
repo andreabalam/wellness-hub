@@ -162,8 +162,8 @@ async function proxyFetch<T>(endpoint: string, date: string): Promise<T[]> {
   })
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(err.error ?? `Oura error ${res.status}`)
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error ?? err.detail ?? err.message ?? `Oura error ${res.status}`)
   }
 
   const json = await res.json()
@@ -206,7 +206,7 @@ export async function testOuraConnection(): Promise<boolean> {
   )
   if (!res.ok) {
     const body = await res.json().catch(() => null)
-    const msg = body?.error ?? `Oura connection failed (HTTP ${res.status})`
+    const msg = body?.error ?? body?.detail ?? body?.message ?? `Oura connection failed (HTTP ${res.status})`
     throw new Error(msg)
   }
   return true

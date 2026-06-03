@@ -2234,6 +2234,13 @@ describe('TrackerTab', () => {
     expect(screen.getByText('Save notes')).toBeInTheDocument()
   })
 
+  it('renders Reminders section in Meditation tab', () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByText('Meditation'))
+    expect(screen.getByText('Reminders')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('New reminder…')).toBeInTheDocument()
+  })
+
   it('can save day notes', () => {
     render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))

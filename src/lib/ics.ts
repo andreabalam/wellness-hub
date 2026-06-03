@@ -35,13 +35,13 @@ function dtStart(date: Date, time: string): string {
   return `${y}${mo}${d}T${timeToIcs(time)}`
 }
 
-/** Return first Monday on or after the given date */
-function firstMonday(from: Date): Date {
+/** Return the given date if it is Mon–Fri, otherwise advance to the next Monday */
+function firstWeekday(from: Date): Date {
   const d = new Date(from)
   d.setHours(0, 0, 0, 0)
-  // getDay(): 0=Sun,1=Mon,…,6=Sat  →  shift so Mon=0
-  const dow = (d.getDay() + 6) % 7   // Mon=0 … Sun=6
-  if (dow !== 0) d.setDate(d.getDate() + (7 - dow))
+  const dow = d.getDay()   // 0=Sun … 6=Sat
+  if (dow === 0) d.setDate(d.getDate() + 1)       // Sun → Mon
+  else if (dow === 6) d.setDate(d.getDate() + 2)  // Sat → Mon
   return d
 }
 
@@ -73,7 +73,7 @@ export function generateIcs(
   startDate: Date,
   endDate: Date,
 ): string {
-  const anchor = firstMonday(startDate)
+  const anchor = firstWeekday(startDate)
 
   // UNTIL must be UTC, end of the last day
   const until = new Date(endDate)
