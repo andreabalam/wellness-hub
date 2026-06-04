@@ -1,6 +1,6 @@
 import { useState, type Dispatch, type SetStateAction } from 'react'
 import type { CustomBlock } from '../../data/schedule'
-import { BLOCK_COLORS, sortByTime } from '../../data/schedule'
+import { BLOCK_COLORS, sortByTime, normalizeTime } from '../../data/schedule'
 
 type Scope = 'day' | 'all'
 
@@ -31,7 +31,8 @@ function parseDurForm(dur: string): { num: number; unit: 'min' | 'hr' } {
   const hasHr = /hr|hour/i.test(dur)
   const n = parseInt(dur.match(/\d+/)?.[0] ?? '30', 10)
   const unit: 'min' | 'hr' = hasHr ? 'hr' : 'min'
-  return { num: Math.min(isNaN(n) ? 30 : n, unit === 'min' ? 60 : 24), unit }
+  const clamped = isNaN(n) ? 30 : (unit === 'hr' ? Math.min(n, 24) : n)
+  return { num: clamped, unit }
 }
 
 function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
@@ -40,23 +41,24 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
   const [durUnit, setDurUnit] = useState<'min' | 'hr'>(init.unit)
 
   const applyNum = (raw: string) => {
-    const max = durUnit === 'min' ? 60 : 24
-    const n = Math.max(1, Math.min(parseInt(raw) || 1, max))
+    const parsed = parseInt(raw)
+    const n = isNaN(parsed) ? 0 : Math.max(0, durUnit === 'hr' ? Math.min(parsed, 24) : parsed)
     setDurNum(n)
     setForm(f => ({ ...f, dur: `${n} ${durUnit}` }))
   }
 
   const applyUnit = (unit: 'min' | 'hr') => {
-    const max = unit === 'min' ? 60 : 24
-    const n = Math.min(durNum, max)
+    const n = unit === 'hr' ? Math.min(durNum, 24) : durNum
     setDurUnit(unit)
     setDurNum(n)
     setForm(f => ({ ...f, dur: `${n} ${unit}` }))
   }
 
+  const canSave = form.title.trim() !== '' && durNum > 0
+
   return (
     <div style={{ background: 'var(--bg)', border: '1px solid var(--teal)', borderRadius: 10, padding: 14, marginTop: 6 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+      <div className="blk-form-row">
         <label style={labelStyle}>
           Time
           <input
@@ -71,8 +73,8 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
           <div style={{ display: 'flex', gap: 6 }}>
             <input
               type="number"
-              min={1}
-              max={durUnit === 'min' ? 60 : 24}
+              min={0}
+              max={durUnit === 'hr' ? 24 : undefined}
               value={durNum}
               onChange={e => applyNum(e.target.value)}
               style={{ ...inputStyle, width: 64, flex: 'none' }}
@@ -99,9 +101,9 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
         />
       </label>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, margin: '8px 0' }}>
+      <div className="blk-form-row" style={{ margin: '8px 0' }}>
         <label style={labelStyle}>
-          Section header <span style={{ color: 'var(--muted2)' }}>(optional)</span>
+          Section header
           <input
             value={form.phase}
             onChange={e => setForm(f => ({ ...f, phase: e.target.value }))}
@@ -153,8 +155,8 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
         />
       </label>
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-        <button onClick={onSave} disabled={!form.title.trim()} style={{ ...actionBtn, background: 'var(--teal)', color: '#fff', opacity: form.title.trim() ? 1 : 0.5 }}>
+      <div className="blk-form-actions">
+        <button onClick={onSave} disabled={!canSave} style={{ ...actionBtn, background: 'var(--teal)', color: '#fff', opacity: canSave ? 1 : 0.5 }}>
           Save block
         </button>
         <button onClick={onCancel} style={{ ...actionBtn, background: 'var(--bg3)', color: 'var(--muted)' }}>
@@ -182,7 +184,7 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
   const startEdit = (b: CustomBlock) => {
     setAddingNew(false)
     setEditingId(b.id)
-    setForm({ time: b.time, title: b.title, dur: b.dur, color: b.color, whyTxt: b.whyTxt, desc: b.desc, phase: b.phase })
+    setForm({ time: normalizeTime(b.time), title: b.title, dur: b.dur, color: b.color, whyTxt: b.whyTxt, desc: b.desc, phase: b.phase })
   }
 
   const startAdd = () => {

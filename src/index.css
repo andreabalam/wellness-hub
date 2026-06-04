@@ -213,10 +213,20 @@ body {
 }
 .tlabel { font-family: "DM Mono", monospace; font-size: 9px; letter-spacing: .15em; text-transform: uppercase; margin-bottom: 10px; }
 
+/* ── Block form layout ── */
+.blk-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.blk-form-actions { display: flex; gap: 8px; margin-top: 10px; }
+
 /* ── Responsive ── */
 @media (max-width: 700px) {
   .hdr { padding-left: 16px; padding-right: 16px; padding-top: 52px; }
   .view { padding-left: 16px; padding-right: 16px; }
   .htitle { font-size: 21px; }
   .rgrid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .blk-form-row { grid-template-columns: 1fr; }
+  .blk-form-actions { flex-direction: column; }
+  .blk-form-actions button { width: 100%; }
 }

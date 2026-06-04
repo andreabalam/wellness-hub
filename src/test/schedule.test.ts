@@ -1,9 +1,46 @@
 import { describe, it, expect } from 'vitest'
 import {
   SCHEDULE_BLOCKS, BLOCK_COLORS,
-  colorDef, customToScheduleBlock, defaultToCustomBlock,
+  colorDef, customToScheduleBlock, defaultToCustomBlock, normalizeTime,
 } from '../data/schedule'
 import type { CustomBlock } from '../data/schedule'
+
+// ── normalizeTime ────────────────────────────────────────────────
+
+describe('normalizeTime', () => {
+  it('leaves already-normalized HH:MM unchanged', () => {
+    expect(normalizeTime('09:00')).toBe('09:00')
+    expect(normalizeTime('16:30')).toBe('16:30')
+  })
+
+  it('pads single-digit hour to HH:MM', () => {
+    expect(normalizeTime('8:00')).toBe('08:00')
+    expect(normalizeTime('9:15')).toBe('09:15')
+  })
+
+  it('converts PM times to 24-hour', () => {
+    expect(normalizeTime('4:00 PM')).toBe('16:00')
+    expect(normalizeTime('9:00 PM')).toBe('21:00')
+    expect(normalizeTime('9:30 PM')).toBe('21:30')
+    expect(normalizeTime('10:30 PM')).toBe('22:30')
+    expect(normalizeTime('12:00 PM')).toBe('12:00')
+  })
+
+  it('converts AM times correctly (12 AM → 00:xx)', () => {
+    expect(normalizeTime('12:00 AM')).toBe('00:00')
+    expect(normalizeTime('8:00 AM')).toBe('08:00')
+  })
+
+  it('is case-insensitive for AM/PM', () => {
+    expect(normalizeTime('4:00 pm')).toBe('16:00')
+    expect(normalizeTime('8:00 am')).toBe('08:00')
+  })
+
+  it('falls back to 09:00 for unrecognized input', () => {
+    expect(normalizeTime('invalid')).toBe('09:00')
+    expect(normalizeTime('')).toBe('09:00')
+  })
+})
 
 // ── SCHEDULE_BLOCKS ──────────────────────────────────────────────
 
@@ -260,5 +297,11 @@ describe('defaultToCustomBlock', () => {
   it('falls back to 09:00 for time without colon', () => {
     const cb = defaultToCustomBlock({ ...SCHEDULE_BLOCKS[0], time: 'invalid' }, 0)
     expect(cb.time).toBe('09:00')
+  })
+
+  it('converts PM time strings to 24-hour HH:MM', () => {
+    expect(defaultToCustomBlock({ ...SCHEDULE_BLOCKS[0], time: '4:00 PM' }, 0).time).toBe('16:00')
+    expect(defaultToCustomBlock({ ...SCHEDULE_BLOCKS[0], time: '9:30 PM' }, 0).time).toBe('21:30')
+    expect(defaultToCustomBlock({ ...SCHEDULE_BLOCKS[0], time: '10:30 PM' }, 0).time).toBe('22:30')
   })
 })
