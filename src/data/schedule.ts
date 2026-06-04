@@ -59,6 +59,23 @@ export function customToScheduleBlock(b: CustomBlock): ScheduleBlock {
   }
 }
 
+/** Normalize any time string to HH:MM 24-hour format for use in <input type="time"> */
+export function normalizeTime(time: string): string {
+  if (/^\d{2}:\d{2}$/.test(time)) return time
+  const withAmPm = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (withAmPm) {
+    let h = parseInt(withAmPm[1], 10)
+    const min = withAmPm[2]
+    const ampm = withAmPm[3].toUpperCase()
+    if (ampm === 'PM' && h !== 12) h += 12
+    if (ampm === 'AM' && h === 12) h = 0
+    return `${h.toString().padStart(2, '0')}:${min}`
+  }
+  const simple = time.match(/^(\d{1,2}):(\d{2})$/)
+  if (simple) return `${simple[1].padStart(2, '0')}:${simple[2]}`
+  return '09:00'
+}
+
 /** Convert a default ScheduleBlock to CustomBlock (for seeding the editor) */
 function dotToColorKey(dot: string): string {
   const map: Record<string, string> = {
@@ -70,7 +87,7 @@ function dotToColorKey(dot: string): string {
 export function defaultToCustomBlock(b: ScheduleBlock, idx: number): CustomBlock {
   return {
     id:      b.id ?? `default-${idx}`,
-    time:    b.time.includes(':') ? b.time.padStart(5, '0') : '09:00',
+    time:    normalizeTime(b.time),
     title:   b.title,
     dur:     b.dur === '—' ? '' : b.dur,
     color:   dotToColorKey(b.dot),
