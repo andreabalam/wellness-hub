@@ -121,14 +121,12 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
 
   if (!user) {
     return (
-      <div style={{ textAlign: 'center', padding: '52px 24px' }}>
-        <div style={{ fontSize: 40, marginBottom: 14 }}>🗓</div>
-        <div style={{ fontFamily: '"DM Serif Display",serif', fontSize: 22, fontWeight: 400, color: 'var(--text)', marginBottom: 8 }}>
-          Your <em style={{ fontStyle: 'italic', color: 'var(--teal-light)' }}>Schedule</em>
+      <div className="guest-gate">
+        <div className="guest-gate-icon">🗓</div>
+        <div className="guest-gate-title">
+          Your <em style={{ color: 'var(--teal-light)' }}>Schedule</em>
         </div>
-        <div style={{ fontSize: 13, color: 'var(--muted)', maxWidth: 300, margin: '0 auto', lineHeight: 1.6 }}>
-          Sign in to save your schedule.
-        </div>
+        <div className="guest-gate-body">Sign in to save your schedule.</div>
       </div>
     )
   }

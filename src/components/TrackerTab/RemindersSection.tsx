@@ -31,10 +31,10 @@ async function tryDelete(user: User | null | undefined, id: string) {
 
 export default function RemindersSection({ user }: Props) {
   const store = useRemindersStore()
-  const [items, setItems]       = useState<Reminder[]>(() => store.getAll())
-  const [inputText, setInput]   = useState('')
+  const [items, setItems]         = useState<Reminder[]>(() => store.getAll())
+  const [inputText, setInput]     = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editText, setEditText] = useState('')
+  const [editText, setEditText]   = useState('')
 
   const commit = useCallback((next: Reminder[]) => {
     store.save(next)
@@ -85,12 +85,11 @@ export default function RemindersSection({ user }: Props) {
   }, [])
 
   const handleDelete = useCallback((id: string) => {
-    if (editingId === id) setEditingId(null)
+    if (editingId === id) { setEditingId(null); setEditText('') }
     commit(items.filter(r => r.id !== id))
     tryDelete(user, id)
   }, [items, commit, user, editingId])
 
-  // Sort: unchecked (oldest first) then checked (most recently checked first)
   const unchecked = items
     .filter(r => !r.checked)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
@@ -119,7 +118,7 @@ export default function RemindersSection({ user }: Props) {
 
   return (
     <div className="tcard" style={{ marginBottom: 16 }}>
-      <div className="tlabel" style={{ color: 'var(--muted2)', marginBottom: 10 }}>Reminders</div>
+      <div className="tlabel" style={{ color: 'var(--muted2)' }}>Reminders</div>
 
       {unchecked.map(renderRow)}
 
@@ -135,27 +134,19 @@ export default function RemindersSection({ user }: Props) {
         </div>
       )}
 
-      {/* Add input */}
-      <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+      <div className="rem-add-row">
         <input
           className="tinput"
           value={inputText}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
           placeholder="New reminder…"
-          style={{ flex: 1, padding: '7px 10px', fontSize: 13 }}
+          style={{ flex: 1 }}
         />
         <button
+          className="rem-add-btn"
           onClick={handleAdd}
           disabled={!inputText.trim()}
-          style={{
-            background: inputText.trim() ? 'var(--teal)' : 'var(--bg3)',
-            border: '1px solid var(--border2)',
-            color: inputText.trim() ? '#fff' : 'var(--muted)',
-            borderRadius: 8, padding: '7px 14px', fontSize: 13,
-            cursor: inputText.trim() ? 'pointer' : 'default',
-            transition: 'all .15s', flexShrink: 0,
-          }}
         >
           Add
         </button>
@@ -175,41 +166,30 @@ function EditRow({ text, onChange, onSave, onCancel }: {
   useEffect(() => { ref.current?.focus() }, [])
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+    <div className="rem-edit-row">
       <input
         ref={ref}
+        className="rem-edit-input"
         value={text}
         onChange={e => onChange(e.target.value)}
         onKeyDown={e => {
           if (e.key === 'Enter') onSave()
           if (e.key === 'Escape') onCancel()
         }}
-        style={{
-          flex: 1, background: 'var(--bg3)', border: '1px solid var(--teal)',
-          borderRadius: 6, padding: '4px 8px', color: 'var(--text)',
-          fontSize: 13, fontFamily: '"DM Sans", sans-serif', outline: 'none',
-        }}
       />
       <button
+        className="rem-save-btn"
         onClick={onSave}
         disabled={!text.trim()}
         aria-label="Save edit"
-        style={{
-          background: 'var(--teal)', border: 'none', borderRadius: 6,
-          color: '#fff', fontSize: 11, padding: '4px 10px',
-          cursor: text.trim() ? 'pointer' : 'default',
-          opacity: text.trim() ? 1 : 0.5,
-        }}
       >
         Save
       </button>
       <button
+        className="rem-icon-btn"
         onClick={onCancel}
         aria-label="Cancel edit"
-        style={{
-          background: 'none', border: 'none', color: 'var(--muted2)',
-          cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 2px',
-        }}
+        style={{ fontSize: 16 }}
       >
         ×
       </button>
@@ -225,69 +205,38 @@ function ReminderRow({ reminder: r, onToggle, onDelete, onEdit }: {
   onEdit:   (id: string, text: string) => void
 }) {
   return (
-    <div
-      style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '6px 0',
-        borderBottom: '1px solid var(--border)',
-      }}
-    >
-      {/* Checkbox */}
+    <div className="rem-row">
       <button
+        className={`rem-check${r.checked ? ' checked' : ''}`}
         onClick={() => onToggle(r.id)}
         aria-label={r.checked ? 'Uncheck reminder' : 'Check reminder'}
-        style={{
-          width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-          border: `2px solid ${r.checked ? 'var(--teal)' : 'var(--border2)'}`,
-          background: r.checked ? 'var(--teal)' : 'transparent',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, color: '#fff', transition: 'all .15s',
-        }}
       >
         {r.checked ? '✓' : ''}
       </button>
 
-      {/* Text */}
       <span
+        className={`rem-text${r.checked ? ' checked' : ''}`}
         onClick={() => onToggle(r.id)}
-        style={{
-          flex: 1, fontSize: 13, cursor: 'pointer',
-          color: r.checked ? 'var(--muted2)' : 'var(--text)',
-          textDecoration: r.checked ? 'line-through' : 'none',
-          userSelect: 'none',
-        }}
       >
         {r.text}
       </span>
 
-      {/* Edit */}
       {!r.checked && (
         <button
+          className="rem-icon-btn"
           onClick={() => onEdit(r.id, r.text)}
           aria-label="Edit reminder"
-          style={{
-            background: 'none', border: 'none', color: 'var(--muted2)',
-            cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: '0 2px',
-            opacity: 0.6, transition: 'opacity .15s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-          onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+          style={{ fontSize: 13 }}
         >
           ✎
         </button>
       )}
 
-      {/* Delete */}
       <button
+        className="rem-icon-btn"
         onClick={() => onDelete(r.id)}
         aria-label="Delete reminder"
-        style={{
-          background: 'none', border: 'none', color: 'var(--muted2)',
-          cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 2px',
-          opacity: 0.6, transition: 'opacity .15s',
-        }}
-        onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-        onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+        style={{ fontSize: 16 }}
       >
         ×
       </button>

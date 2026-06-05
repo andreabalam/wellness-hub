@@ -2842,8 +2842,8 @@ describe('RemindersSection', () => {
     fireEvent.click(screen.getByRole('button', { name: /add/i }))
 
     fireEvent.click(screen.getByRole('button', { name: /check reminder/i }))
-    const text = screen.getByText('Meditate')
-    expect(text.style.textDecoration).toBe('line-through')
+    // text-decoration is now applied via the .rem-text.checked CSS class
+    expect(screen.getByText('Meditate')).toHaveClass('checked')
   })
 
   it('unchecks a reminder when its checkbox is clicked again', () => {
@@ -2853,8 +2853,7 @@ describe('RemindersSection', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /check reminder/i }))
     fireEvent.click(screen.getByRole('button', { name: /uncheck reminder/i }))
-    const text = screen.getByText('Stretch')
-    expect(text.style.textDecoration).toBe('none')
+    expect(screen.getByText('Stretch')).not.toHaveClass('checked')
   })
 
   it('clicking the text also toggles the check state', () => {
@@ -2863,7 +2862,7 @@ describe('RemindersSection', () => {
     fireEvent.click(screen.getByRole('button', { name: /add/i }))
 
     fireEvent.click(screen.getByText('Journal'))
-    expect(screen.getByText('Journal').style.textDecoration).toBe('line-through')
+    expect(screen.getByText('Journal')).toHaveClass('checked')
   })
 
   it('removes a reminder when × is clicked', () => {
@@ -3113,7 +3112,7 @@ describe('GroceryPanel — nutrition lookup', () => {
     openAddForm()
     typeName('Tempeh')   // not in seeded catalog
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
-    const row = screen.getByText('Tempeh').closest('.gitem')!
+    const row = screen.getByText('Tempeh').closest('.gitem') as HTMLElement
     // This specific item has no nutrition sub-line
     expect(within(row).queryByText(/kcal/)).not.toBeInTheDocument()
   })
@@ -3128,7 +3127,7 @@ describe('GroceryPanel — nutrition lookup', () => {
     fireEvent.change(screen.getByLabelText('Carbs'),        { target: { value: '12' } })
     fireEvent.change(screen.getByLabelText('Fat'),          { target: { value: '10' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
-    const row = screen.getByText('Natto').closest('.gitem')!
+    const row = screen.getByText('Natto').closest('.gitem') as HTMLElement
     expect(within(row).getByText(/187 kcal/)).toBeInTheDocument()
   })
 
