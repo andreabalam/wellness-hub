@@ -1,13 +1,33 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { GROCERY_DATA, GROCERY_CATEGORIES } from '../../data/grocery'
-import type { GroceryCatalogItem } from '../../data/grocery'
+import type { GroceryCatalogItem, NutriInfo } from '../../data/grocery'
 import { useGroceryStore, useGroceryCatalogStore } from '../../hooks/useStore'
+import { searchUSDA } from '../../lib/foodSearch'
 
 const SEEDED_KEY = 'whub_grocery_initialized_v1'
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
+type LookupState = 'idle' | 'loading' | 'found' | 'not-found' | 'error'
+
+function buildNutri(srv: string, cal: string, p: string, c: string, f: string, fi: string): NutriInfo | undefined {
+  const calN = parseFloat(cal)
+  const pN   = parseFloat(p)
+  const cN   = parseFloat(c)
+  const fN   = parseFloat(f)
+  if (isNaN(calN) || isNaN(pN) || isNaN(cN) || isNaN(fN)) return undefined
+  const fiN = parseFloat(fi)
+  return {
+    srv: srv.trim() || '100g',
+    cal: Math.round(calN),
+    p:   Math.round(pN * 10) / 10,
+    c:   Math.round(cN * 10) / 10,
+    f:   Math.round(fN * 10) / 10,
+    fi:  !isNaN(fiN) ? Math.round(fiN * 10) / 10 : undefined,
+  }
 }
 
 // ── Row component ────────────────────────────────────────────────
@@ -46,23 +66,11 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
           autoFocus
           style={{ flex: 1, fontSize: 13, padding: '3px 7px' }}
         />
-        <button
-          aria-label="Save"
-          onClick={commitEdit}
-          style={{
-            background: 'var(--green)', border: 'none', borderRadius: 5,
-            color: '#fff', cursor: 'pointer', fontSize: 12, padding: '3px 8px',
-            fontFamily: 'sans-serif', flexShrink: 0,
-          }}
-        >✓</button>
+        <button aria-label="Save" onClick={commitEdit} className="edit-confirm-btn">✓</button>
         <button
           aria-label="Cancel edit"
           onClick={() => { setEditing(false); setEditVal(item.n) }}
-          style={{
-            background: 'none', border: '1px solid var(--border2)', borderRadius: 5,
-            color: 'var(--muted)', cursor: 'pointer', fontSize: 12, padding: '3px 7px',
-            fontFamily: 'sans-serif', flexShrink: 0,
-          }}
+          className="edit-discard-btn"
         >✕</button>
       </div>
     )
@@ -77,11 +85,7 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
       <span style={{ flex: 1 }}>
         {item.n}
         {item.nutri && (
-          <span style={{
-            display: 'block', fontSize: 10,
-            fontFamily: '"DM Mono", monospace',
-            color: 'var(--muted2)', marginTop: 1, lineHeight: 1.4,
-          }}>
+          <span className="item-nutri">
             {item.nutri.srv} · {item.nutri.cal} kcal · {item.nutri.p}g P · {item.nutri.c}g C · {item.nutri.f}g F
             {item.nutri.fi != null ? ` · ${item.nutri.fi}g fi` : ''}
           </span>
@@ -91,20 +95,14 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
         aria-label={`Edit ${item.n}`}
         title="Edit"
         onClick={e => { e.stopPropagation(); startEdit() }}
-        style={{
-          background: 'none', border: 'none', color: 'var(--muted2)',
-          cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: '0 3px',
-          flexShrink: 0, opacity: 0.7,
-        }}
+        className="item-icon-btn"
+        style={{ fontSize: 12 }}
       >✎</button>
       <button
         aria-label={`Remove ${item.n}`}
         onClick={e => { e.stopPropagation(); onRemove(item.id) }}
-        style={{
-          background: 'none', border: 'none', color: 'var(--muted2)',
-          cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px',
-          flexShrink: 0,
-        }}
+        className="item-icon-btn"
+        style={{ fontSize: 14, padding: '0 2px' }}
       >×</button>
     </div>
   )
@@ -120,11 +118,30 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
   const [userItems, setUserItems] = useState<GroceryCatalogItem[]>(() => catalogStore.getAll())
 
   // Add-item form state
-  const [addName,      setAddName]      = useState('')
-  const [addCat,       setAddCat]       = useState<string>(GROCERY_CATEGORIES[0])
-  const [showAddForm,  setShowAddForm]  = useState(false)
+  const [addName,     setAddName]     = useState('')
+  const [addCat,      setAddCat]      = useState<string>(GROCERY_CATEGORIES[0])
+  const [showAddForm, setShowAddForm] = useState(false)
 
-  // Seed default items on first load for signed-in users
+  // Nutrition lookup state
+  const [lookupState, setLookupState] = useState<LookupState>('idle')
+  const [nutSrv, setNutSrv] = useState('')
+  const [nutCal, setNutCal] = useState('')
+  const [nutP,   setNutP]   = useState('')
+  const [nutC,   setNutC]   = useState('')
+  const [nutF,   setNutF]   = useState('')
+  const [nutFi,  setNutFi]  = useState('')
+  const abortRef = useRef<AbortController | null>(null)
+
+  const resetForm = useCallback(() => {
+    setAddName('')
+    setAddCat(GROCERY_CATEGORIES[0])
+    setShowAddForm(false)
+    setLookupState('idle')
+    setNutSrv(''); setNutCal(''); setNutP(''); setNutC(''); setNutF(''); setNutFi('')
+    abortRef.current?.abort()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     if (!user) return
     if (localStorage.getItem(SEEDED_KEY)) return
@@ -137,7 +154,6 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
     localStorage.setItem(SEEDED_KEY, '1')
   }, [user, catalogStore])
 
-  // Group items by category in GROCERY_CATEGORIES order, plus any custom categories
   const { orderedCats, byCategory } = useMemo(() => {
     const map: Record<string, GroceryCatalogItem[]> = {}
     for (const item of userItems) (map[item.cat] ??= []).push(item)
@@ -157,14 +173,39 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
     setChecked([])
   }
 
+  const handleLookup = useCallback(async () => {
+    const name = addName.trim()
+    if (!name) return
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    setLookupState('loading')
+    try {
+      const result = await searchUSDA(name, abortRef.current.signal)
+      if (result) {
+        setNutSrv(result.srv)
+        setNutCal(String(result.cal))
+        setNutP(String(result.p))
+        setNutC(String(result.c))
+        setNutF(String(result.f))
+        setNutFi(result.fi != null ? String(result.fi) : '')
+        setLookupState('found')
+      } else {
+        setLookupState('not-found')
+      }
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return
+      setLookupState('error')
+    }
+  }, [addName]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleAddItem = useCallback(() => {
     const name = addName.trim()
     if (!name) return
-    catalogStore.add({ id: uid(), n: name, cat: addCat })
+    const nutri = buildNutri(nutSrv, nutCal, nutP, nutC, nutF, nutFi)
+    catalogStore.add({ id: uid(), n: name, cat: addCat, nutri })
     setUserItems(catalogStore.getAll())
-    setAddName('')
-    setShowAddForm(false)
-  }, [addName, addCat, catalogStore])
+    resetForm()
+  }, [addName, addCat, nutSrv, nutCal, nutP, nutC, nutF, nutFi, catalogStore, resetForm])
 
   const handleEditItem = useCallback((id: string, newName: string) => {
     catalogStore.update(id, { n: newName })
@@ -179,12 +220,12 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
   // ── Guest gate ─────────────────────────────────────────────────
   if (!user) {
     return (
-      <div style={{ textAlign: 'center', padding: '52px 24px' }}>
-        <div style={{ fontSize: 40, marginBottom: 14 }}>🛒</div>
-        <div style={{ fontFamily: '"DM Serif Display",serif', fontSize: 22, fontWeight: 400, color: 'var(--text)', marginBottom: 8 }}>
-          Your <em style={{ fontStyle: 'italic', color: 'var(--green-light)' }}>Grocery List</em>
+      <div className="guest-gate">
+        <div className="guest-gate-icon">🛒</div>
+        <div className="guest-gate-title">
+          Your <em style={{ color: 'var(--green-light)' }}>Grocery List</em>
         </div>
-        <div style={{ fontSize: 13, color: 'var(--muted)', maxWidth: 300, margin: '0 auto', lineHeight: 1.6 }}>
+        <div className="guest-gate-body">
           Sign in to manage your personalised grocery list.
         </div>
       </div>
@@ -194,25 +235,15 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
   // ── Authenticated view ─────────────────────────────────────────
   return (
     <div>
-      <div style={{ fontFamily: '"DM Serif Display",serif', fontSize: 22, fontWeight: 400, color: 'var(--text)', marginBottom: 4 }}>
-        Your <em style={{ fontStyle: 'italic', color: 'var(--green-light)' }}>Grocery List</em>
+      <div className="guest-gate-title" style={{ marginBottom: 4 }}>
+        Your <em style={{ color: 'var(--green-light)' }}>Grocery List</em>
       </div>
       <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>
         Tap an item to check it off. Use ✎ to rename or × to remove.
       </div>
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
-        <button
-          onClick={clearAll}
-          style={{
-            marginLeft: 'auto', background: 'var(--bg3)',
-            border: '1px solid var(--border2)', borderRadius: 7,
-            padding: '4px 12px', fontSize: 12, color: 'var(--muted)',
-            cursor: 'pointer', fontFamily: 'sans-serif',
-          }}
-        >
-          Clear all
-        </button>
+      <div className="grocery-toolbar">
+        <button className="grocery-clear-btn" onClick={clearAll}>Clear all</button>
       </div>
 
       {/* Add item */}
@@ -220,25 +251,15 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
         {!showAddForm ? (
           <button
             aria-label="Add grocery item"
+            className="add-trigger"
             onClick={() => setShowAddForm(true)}
-            style={{
-              background: 'var(--bg3)', border: '1px dashed var(--border2)',
-              borderRadius: 8, padding: '8px 16px', fontSize: 13,
-              color: 'var(--muted)', cursor: 'pointer', fontFamily: 'sans-serif',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}
           >
             <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Add item to my list
           </button>
         ) : (
-          <div
-            style={{
-              background: 'var(--bg2)', border: '1px solid var(--border2)',
-              borderRadius: 10, padding: 16,
-              display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 420,
-            }}
-          >
-            <div style={{ fontSize: 12, color: 'var(--muted)', fontFamily: '"DM Mono",monospace' }}>Add item to grocery list</div>
+          <div className="add-form">
+            <div className="add-form-hdr">Add item to grocery list</div>
+
             <input
               className="tinput"
               placeholder="Item name (e.g. Kimchi)"
@@ -247,41 +268,85 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
               onKeyDown={e => e.key === 'Enter' && handleAddItem()}
               autoFocus
             />
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ fontSize: 11, color: 'var(--muted2)' }}>Category</div>
               <select
+                className="form-select"
                 value={addCat}
                 onChange={e => setAddCat(e.target.value)}
-                style={{
-                  background: 'var(--bg3)', border: '1px solid var(--border2)',
-                  borderRadius: 7, padding: '7px 10px', fontSize: 13,
-                  color: 'var(--text)', fontFamily: '"DM Sans",sans-serif',
-                  cursor: 'pointer', outline: 'none',
-                }}
               >
                 {GROCERY_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 <option value="My Custom Items">My Custom Items</option>
               </select>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+
+            {/* ── Nutrition section ── */}
+            <div className="nutri-section">
+              <div className="nutri-header">
+                <div className="nutri-label">
+                  Nutrition <span style={{ opacity: 0.6 }}>(optional)</span>
+                </div>
+                <button
+                  className="nutri-lookup-btn"
+                  onClick={handleLookup}
+                  disabled={!addName.trim() || lookupState === 'loading'}
+                  aria-label="Look up nutrition from USDA"
+                >
+                  {lookupState === 'loading' ? 'Looking up…' : '↻ USDA lookup'}
+                </button>
+              </div>
+
+              {lookupState === 'found' && (
+                <div className="nutri-status found">✓ Found — edit if needed</div>
+              )}
+              {lookupState === 'not-found' && (
+                <div className="nutri-status not-found">No match found — enter manually</div>
+              )}
+              {lookupState === 'error' && (
+                <div className="nutri-status error">Lookup failed — enter manually</div>
+              )}
+
+              <input
+                className="tinput"
+                placeholder="Serving size (e.g. 100g, 1 cup)"
+                value={nutSrv}
+                onChange={e => setNutSrv(e.target.value)}
+                aria-label="Serving size"
+                style={{ fontSize: 12, marginBottom: 6 }}
+              />
+
+              <div className="nutri-grid">
+                {([
+                  ['kcal', nutCal, setNutCal, 'Calories'],
+                  ['P g',  nutP,   setNutP,   'Protein'],
+                  ['C g',  nutC,   setNutC,   'Carbs'],
+                  ['F g',  nutF,   setNutF,   'Fat'],
+                  ['Fi g', nutFi,  setNutFi,  'Fiber'],
+                ] as const).map(([label, val, setter, ariaLabel]) => (
+                  <label key={label} className="nutri-field">
+                    {label}
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      value={val}
+                      onChange={e => (setter as (v: string) => void)(e.target.value)}
+                      aria-label={ariaLabel}
+                      className="nutri-input"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="add-actions">
               <button
+                className="add-submit"
                 onClick={handleAddItem}
                 disabled={!addName.trim()}
-                style={{
-                  flex: 1, background: 'var(--green)', border: 'none',
-                  borderRadius: 7, padding: '8px 0', fontSize: 13,
-                  fontFamily: 'sans-serif', color: '#fff', cursor: 'pointer',
-                  opacity: addName.trim() ? 1 : 0.5,
-                }}
               >Add item</button>
-              <button
-                onClick={() => { setShowAddForm(false); setAddName('') }}
-                style={{
-                  background: 'var(--bg3)', border: '1px solid var(--border2)',
-                  borderRadius: 7, padding: '8px 14px', fontSize: 13,
-                  fontFamily: 'sans-serif', color: 'var(--muted)', cursor: 'pointer',
-                }}
-              >Cancel</button>
+              <button className="add-cancel" onClick={resetForm}>Cancel</button>
             </div>
           </div>
         )}
@@ -289,11 +354,9 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
 
       {/* Item grid */}
       {orderedCats.length === 0 ? (
-        <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--muted)', fontSize: 13, fontStyle: 'italic' }}>
-          Your list is empty. Add items above.
-        </div>
+        <div className="grocery-empty">Your list is empty. Add items above.</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 12 }}>
+        <div className="grocery-grid">
           {orderedCats.map(cat => (
             <div key={cat} className="gcat">
               <div className="gcatlbl">{cat}</div>

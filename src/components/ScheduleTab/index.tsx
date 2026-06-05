@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
+import type { User } from '@supabase/supabase-js'
 import { customToScheduleBlock, DAY_KEYS, DAY_LABELS, sortByTime } from '../../data/schedule'
 import type { CustomBlock, DayKey, WeekSchedule } from '../../data/schedule'
 import { scheduleStore, useUserSettingsStore } from '../../hooks/useStore'
@@ -38,7 +39,7 @@ function rebrandForDay(blocks: CustomBlock[], day: DayKey): CustomBlock[] {
 
 // ── Component ────────────────────────────────────────────────────
 
-export default function ScheduleTab() {
+export default function ScheduleTab({ user }: { user?: User | null }) {
   const settingsStore = useUserSettingsStore()
 
   const todayKey = (['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()]) as DayKey
@@ -117,6 +118,18 @@ export default function ScheduleTab() {
     const majorityFp = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
     return Object.fromEntries(DAY_KEYS.map(d => [d, fp(d) !== majorityFp])) as Record<DayKey, boolean>
   }, [weekSchedule])
+
+  if (!user) {
+    return (
+      <div className="guest-gate">
+        <div className="guest-gate-icon">🗓</div>
+        <div className="guest-gate-title">
+          Your <em style={{ color: 'var(--teal-light)' }}>Schedule</em>
+        </div>
+        <div className="guest-gate-body">Sign in to save your schedule.</div>
+      </div>
+    )
+  }
 
   return (
     <>

@@ -215,7 +215,7 @@ export default function App() {
 
       <ErrorBoundary name="Schedule">
         <div className={`view${active === 'schedule' ? ' active' : ''}`}>
-          <ScheduleTab />
+          <ScheduleTab user={user} />
         </div>
       </ErrorBoundary>
       <ErrorBoundary name="Workouts">
