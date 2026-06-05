@@ -2,7 +2,16 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Schedule tab', () => {
   test.beforeEach(async ({ page }) => {
+    // Inject mock user so the schedule is shown instead of the sign-in gate
+    await page.addInitScript(() => {
+      sessionStorage.setItem('__e2e_user__', JSON.stringify({
+        id: 'e2e-test-id', email: 'test@e2e.com',
+        app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
+      }))
+    })
     await page.goto('/')
+    await page.evaluate(() => { localStorage.clear() })
+    await page.reload()
     // Use the tab bar to avoid matching the in-page "✎ Edit schedule" button
     await page.locator('nav.tabs').getByRole('button', { name: /Schedule/i }).click()
   })

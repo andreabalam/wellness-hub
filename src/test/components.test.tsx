@@ -50,6 +50,8 @@ import type { CustomBlock } from '../data/schedule'
 import type { Recipe } from '../data/recipes'
 import type { User } from '@supabase/supabase-js'
 import { hiddenRecipeStore } from '../hooks/useStore'
+import RemindersSection from '../components/TrackerTab/RemindersSection'
+import * as foodSearch from '../lib/foodSearch'
 
 const FAKE_USER = { id: 'test-user-1' } as User
 
@@ -1460,25 +1462,31 @@ describe('ErrorBoundary', () => {
 // ScheduleTab
 // ═════════════════════════════════════════════════════════════════
 describe('ScheduleTab', () => {
-  it('renders the cognitive peak banner', () => {
+  it('guest: shows sign-in prompt instead of schedule', () => {
     render(<ScheduleTab />)
+    expect(screen.getByText(/Sign in to save your schedule/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Cognitive peak/)).not.toBeInTheDocument()
+  })
+
+  it('renders the cognitive peak banner', () => {
+    render(<ScheduleTab user={FAKE_USER} />)
     expect(screen.getByText(/Cognitive peak/)).toBeInTheDocument()
   })
 
   it('renders schedule blocks from defaults', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     expect(screen.getByText('Wake + no-phone rule')).toBeInTheDocument()
     expect(screen.getByText('Deep work block')).toBeInTheDocument()
   })
 
   it('renders Edit schedule and Export ICS buttons', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     expect(screen.getByText('✎ Edit schedule')).toBeInTheDocument()
     expect(screen.getByText('📅 Export .ics')).toBeInTheDocument()
   })
 
   it('clicking a timeline row reveals the block description', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     const title = screen.getByText('Wake + no-phone rule')
     fireEvent.click(title.closest('.trow')!)
     // tdet div is conditionally rendered (JSX) — unique phrase only in desc, not in whyTxt
@@ -1486,7 +1494,7 @@ describe('ScheduleTab', () => {
   })
 
   it('clicking the same row again collapses it', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     const title = screen.getByText('Wake + no-phone rule')
     const row = title.closest('.trow')!
     fireEvent.click(row)
@@ -1496,13 +1504,13 @@ describe('ScheduleTab', () => {
   })
 
   it('clicking Export ICS toggles the export panel', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('📅 Export .ics'))
     expect(screen.getByText('Download .ics')).toBeInTheDocument()
   })
 
   it('clicking Export ICS again closes the panel', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('📅 Export .ics'))
     fireEvent.click(screen.getByText('📅 Export .ics'))
     expect(screen.queryByText('Download .ics')).not.toBeInTheDocument()
@@ -1511,21 +1519,21 @@ describe('ScheduleTab', () => {
   it('clicking Download .ics triggers file download', () => {
     const click = vi.fn()
     spyCreateLink(click)  // safe spy that passes through non-'a' elements
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('📅 Export .ics'))
     fireEvent.click(screen.getByText('Download .ics'))
     expect(click).toHaveBeenCalledOnce()
   })
 
   it('renders day selector tabs (Mon through Sun)', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     expect(screen.getByText('Mon')).toBeInTheDocument()
     expect(screen.getByText('Sat')).toBeInTheDocument()
     expect(screen.getByText('Sun')).toBeInTheDocument()
   })
 
   it('clicking a different day tab changes the selected day', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     // Click Sat tab
     fireEvent.click(screen.getByText('Sat'))
     // Mon and Sat buttons should both be present
@@ -1534,14 +1542,14 @@ describe('ScheduleTab', () => {
   })
 
   it('editing blocks on one day does not affect another day', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     // Switch to Sat, blocks should be independent (both days have default blocks)
     fireEvent.click(screen.getByText('Sat'))
     expect(screen.getByText('Wake + no-phone rule')).toBeInTheDocument()
   })
 
   it('opens ScheduleEditor on Edit schedule click', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('✎ Edit schedule'))
     // ScheduleEditor renders an "Edit Schedule" heading
     const heading = document.querySelector('[style*="DM Serif Display"]')
@@ -1549,7 +1557,7 @@ describe('ScheduleTab', () => {
   })
 
   it('closing editor returns to the timeline view', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('✎ Edit schedule'))
     // Click the Done button to close
     fireEvent.click(screen.getByText('Done'))
@@ -1557,7 +1565,7 @@ describe('ScheduleTab', () => {
   })
 
   it('saving an edited block via the editor updates the schedule (handleBlocksChange)', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('✎ Edit schedule'))
     // Edit the first block
     fireEvent.click(screen.getAllByTitle('Edit')[0])
@@ -1570,7 +1578,7 @@ describe('ScheduleTab', () => {
   })
 
   it('changing the From date in export panel updates it', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('📅 Export .ics'))
     const [fromInput] = document.querySelectorAll('input[type="date"]')
     fireEvent.change(fromInput, { target: { value: '2026-07-01' } })
@@ -1578,7 +1586,7 @@ describe('ScheduleTab', () => {
   })
 
   it('changing the To date in export panel updates it', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('📅 Export .ics'))
     const dateInputs = document.querySelectorAll('input[type="date"]')
     const toInput = dateInputs[1]
@@ -1587,28 +1595,28 @@ describe('ScheduleTab', () => {
   })
 
   it('cognitive peak displays stored times and has an edit button', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     // Default times from USER_SETTINGS_DEFAULTS: 11:00 and 13:00
     expect(screen.getByText(/Cognitive peak/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Edit cognitive peak/i })).toBeInTheDocument()
   })
 
   it('clicking edit cognitive peak shows time inputs', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /Edit cognitive peak/i }))
     expect(screen.getByLabelText(/Peak start time/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Peak end time/i)).toBeInTheDocument()
   })
 
   it('editor opened from ScheduleTab has both scope buttons', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('✎ Edit schedule'))
     expect(screen.getByText('This day only')).toBeInTheDocument()
     expect(screen.getByText('All 7 days')).toBeInTheDocument()
   })
 
   it('Reset to default in "All 7 days" scope resets all days (handleResetAll)', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     // Open editor, customise current day
     fireEvent.click(screen.getByText('✎ Edit schedule'))
     fireEvent.click(screen.getAllByTitle('Delete')[0])
@@ -1620,7 +1628,7 @@ describe('ScheduleTab', () => {
   })
 
   it('saving in "All 7 days" scope propagates to all days (handleSaveAll)', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('✎ Edit schedule'))
     // Switch to All 7 days and delete a block
     fireEvent.click(screen.getByText('All 7 days'))
@@ -1632,7 +1640,7 @@ describe('ScheduleTab', () => {
   })
 
   it('no day-modified dots when all days have the same schedule', () => {
-    render(<ScheduleTab />)
+    render(<ScheduleTab user={FAKE_USER} />)
     // All days start from the same default template — no dots expected
     // (dots are <span> siblings inside the day tab buttons; aria is not set on them,
     //  so we check that none of the day tab buttons have a dot child)
@@ -2740,9 +2748,11 @@ describe('App', () => {
     expect(screen.getByText(/Sign in to use/i)).toBeInTheDocument()
   })
 
-  it('ScheduleTab is always rendered (cognitive peak banner visible)', () => {
+  it('ScheduleTab shows sign-in gate when not authenticated', () => {
     render(<App />)
-    expect(screen.getByText(/Cognitive peak/)).toBeInTheDocument()
+    fireEvent.click(screen.getByText('📅 Schedule'))
+    expect(screen.getByText(/Sign in to save your schedule/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Cognitive peak/)).not.toBeInTheDocument()
   })
 
   it('WorkoutsTab is always rendered (guest template heading visible)', () => {
@@ -2754,7 +2764,7 @@ describe('App', () => {
   it('clicking Recipes tab shows sign-in gate when not authenticated', () => {
     render(<App />)
     fireEvent.click(screen.getByText('🍽 Recipes'))
-    expect(screen.getByText(/Sign in to save/)).toBeInTheDocument()
+    expect(screen.getByText(/Create, save and organise your personal recipes/i)).toBeInTheDocument()
     expect(screen.queryByPlaceholderText('Search recipes, ingredients…')).not.toBeInTheDocument()
   })
 
@@ -2764,10 +2774,10 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Week 1' })).toBeInTheDocument()
   })
 
-  it('clicking Schedule tab shows Edit schedule button', () => {
+  it('clicking Schedule tab shows sign-in gate when not authenticated', () => {
     render(<App />)
     fireEvent.click(screen.getByText('📅 Schedule'))
-    expect(screen.getByText('✎ Edit schedule')).toBeInTheDocument()
+    expect(screen.getByText(/Sign in to save your schedule/i)).toBeInTheDocument()
   })
 
   it('clicking back to Tracker tab shows auth gate when not signed in', () => {
@@ -2780,5 +2790,366 @@ describe('App', () => {
   it('UpdatePrompt renders nothing when no SW update pending', () => {
     render(<App />)
     expect(screen.queryByText('New version available')).not.toBeInTheDocument()
+  })
+})
+
+// ── RemindersSection ─────────────────────────────────────────────
+describe('RemindersSection', () => {
+  it('renders the empty state message when no reminders exist', () => {
+    render(<RemindersSection />)
+    expect(screen.getByText(/No reminders yet/i)).toBeInTheDocument()
+  })
+
+  it('Add button is present alongside a usable input', () => {
+    render(<RemindersSection />)
+    expect(screen.getByPlaceholderText('New reminder…')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add/i })).toBeInTheDocument()
+  })
+
+  it('Add button does nothing when input is empty', () => {
+    render(<RemindersSection />)
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+    expect(screen.getByText(/No reminders yet/i)).toBeInTheDocument()
+  })
+
+  it('adds a reminder when text is typed and Add is clicked', () => {
+    render(<RemindersSection />)
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Buy oat milk' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+    expect(screen.getByText('Buy oat milk')).toBeInTheDocument()
+    expect(screen.queryByText(/No reminders yet/i)).not.toBeInTheDocument()
+  })
+
+  it('clears the input after adding', () => {
+    render(<RemindersSection />)
+    const input = screen.getByPlaceholderText('New reminder…')
+    fireEvent.change(input, { target: { value: 'Take vitamins' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+    expect((input as HTMLInputElement).value).toBe('')
+  })
+
+  it('adds a reminder when Enter is pressed in the input', () => {
+    render(<RemindersSection />)
+    const input = screen.getByPlaceholderText('New reminder…')
+    fireEvent.change(input, { target: { value: 'Drink water' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByText('Drink water')).toBeInTheDocument()
+  })
+
+  it('checks (strikes through) a reminder when its checkbox is clicked', () => {
+    render(<RemindersSection />)
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Meditate' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+
+    fireEvent.click(screen.getByRole('button', { name: /check reminder/i }))
+    const text = screen.getByText('Meditate')
+    expect(text.style.textDecoration).toBe('line-through')
+  })
+
+  it('unchecks a reminder when its checkbox is clicked again', () => {
+    render(<RemindersSection />)
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Stretch' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+
+    fireEvent.click(screen.getByRole('button', { name: /check reminder/i }))
+    fireEvent.click(screen.getByRole('button', { name: /uncheck reminder/i }))
+    const text = screen.getByText('Stretch')
+    expect(text.style.textDecoration).toBe('none')
+  })
+
+  it('clicking the text also toggles the check state', () => {
+    render(<RemindersSection />)
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Journal' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+
+    fireEvent.click(screen.getByText('Journal'))
+    expect(screen.getByText('Journal').style.textDecoration).toBe('line-through')
+  })
+
+  it('removes a reminder when × is clicked', () => {
+    render(<RemindersSection />)
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Call mom' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+    expect(screen.getByText('Call mom')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /delete reminder/i }))
+    expect(screen.queryByText('Call mom')).not.toBeInTheDocument()
+    expect(screen.getByText(/No reminders yet/i)).toBeInTheDocument()
+  })
+
+  it('shows the edit button (✎) only on unchecked reminders', () => {
+    render(<RemindersSection />)
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Read 10 pages' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+
+    expect(screen.getByRole('button', { name: /edit reminder/i })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /check reminder/i }))
+    expect(screen.queryByRole('button', { name: /edit reminder/i })).not.toBeInTheDocument()
+  })
+
+  it('clicking ✎ opens an inline edit input pre-filled with the current text', () => {
+    render(<RemindersSection />)
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Walk the dog' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+
+    fireEvent.click(screen.getByRole('button', { name: /edit reminder/i }))
+    const editInput = screen.getByDisplayValue('Walk the dog')
+    expect(editInput).toBeInTheDocument()
+  })
+
+  it('saves the edited text when Save is clicked', () => {
+    render(<RemindersSection />)
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Old text' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+
+    fireEvent.click(screen.getByRole('button', { name: /edit reminder/i }))
+    const editInput = screen.getByDisplayValue('Old text')
+    fireEvent.change(editInput, { target: { value: 'New text' } })
+    fireEvent.click(screen.getByRole('button', { name: /save edit/i }))
+
+    expect(screen.getByText('New text')).toBeInTheDocument()
+    expect(screen.queryByText('Old text')).not.toBeInTheDocument()
+    expect(screen.queryByDisplayValue('New text')).not.toBeInTheDocument()
+  })
+
+  it('saves the edit when Enter is pressed in the edit input', () => {
+    render(<RemindersSection />)
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Original' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+
+    fireEvent.click(screen.getByRole('button', { name: /edit reminder/i }))
+    const editInput = screen.getByDisplayValue('Original')
+    fireEvent.change(editInput, { target: { value: 'Updated' } })
+    fireEvent.keyDown(editInput, { key: 'Enter' })
+
+    expect(screen.getByText('Updated')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('Updated')).not.toBeInTheDocument()
+  })
+
+  it('cancels the edit when × (cancel) is clicked, restoring original text', () => {
+    render(<RemindersSection />)
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Keep this' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+
+    fireEvent.click(screen.getByRole('button', { name: /edit reminder/i }))
+    const editInput = screen.getByDisplayValue('Keep this')
+    fireEvent.change(editInput, { target: { value: 'Discard this' } })
+    fireEvent.click(screen.getByRole('button', { name: /cancel edit/i }))
+
+    expect(screen.getByText('Keep this')).toBeInTheDocument()
+    expect(screen.queryByText('Discard this')).not.toBeInTheDocument()
+  })
+
+  it('cancels the edit when Escape is pressed', () => {
+    render(<RemindersSection />)
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Stay' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+
+    fireEvent.click(screen.getByRole('button', { name: /edit reminder/i }))
+    const editInput = screen.getByDisplayValue('Stay')
+    fireEvent.keyDown(editInput, { key: 'Escape' })
+
+    expect(screen.getByText('Stay')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('Stay')).not.toBeInTheDocument()
+  })
+
+  it('Save edit button is disabled when the edit text is blank', () => {
+    render(<RemindersSection />)
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Non-blank' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+
+    fireEvent.click(screen.getByRole('button', { name: /edit reminder/i }))
+    const editInput = screen.getByDisplayValue('Non-blank')
+    fireEvent.change(editInput, { target: { value: '   ' } })
+
+    expect(screen.getByRole('button', { name: /save edit/i })).toBeDisabled()
+  })
+
+  it('persists reminders in localStorage so they survive a remount', () => {
+    const { unmount } = render(<RemindersSection />)
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Persisted item' } })
+    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+    unmount()
+
+    render(<RemindersSection />)
+    expect(screen.getByText('Persisted item')).toBeInTheDocument()
+  })
+})
+
+// ── GroceryPanel — nutrition lookup ─────────────────────────────
+// Helpers shared across tests in this block
+const USDA_HIT = {
+  foods: [{
+    servingSize: 100,
+    servingSizeUnit: 'g',
+    foodNutrients: [
+      { nutrientId: 1008, value: 23 },   // kcal
+      { nutrientId: 1003, value: 1.8 },  // protein
+      { nutrientId: 1005, value: 3.6 },  // carbs
+      { nutrientId: 1004, value: 0.5 },  // fat
+      { nutrientId: 1079, value: 1.6 },  // fiber
+    ],
+  }],
+}
+const USDA_MISS = { foods: [] }
+
+function mockUSDA(payload: object) {
+  vi.spyOn(foodSearch, 'searchUSDA').mockResolvedValue(
+    payload === USDA_MISS
+      ? null
+      : { srv: '100g', cal: 23, p: 1.8, c: 3.6, f: 0.5, fi: 1.6 }
+  )
+}
+
+function openAddForm() {
+  fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+}
+
+function typeName(name: string) {
+  fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: name } })
+}
+
+describe('GroceryPanel — nutrition lookup', () => {
+  it('shows a "USDA lookup" button inside the add-item form', () => {
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    expect(screen.getByRole('button', { name: /look up nutrition from usda/i })).toBeInTheDocument()
+  })
+
+  it('USDA lookup button is disabled when the name field is empty', () => {
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    expect(screen.getByRole('button', { name: /look up nutrition from usda/i })).toBeDisabled()
+  })
+
+  it('USDA lookup button is enabled once a name is typed', () => {
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    typeName('Kimchi')
+    expect(screen.getByRole('button', { name: /look up nutrition from usda/i })).not.toBeDisabled()
+  })
+
+  it('calls searchUSDA with the typed item name', async () => {
+    const spy = vi.spyOn(foodSearch, 'searchUSDA').mockResolvedValue(null)
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    typeName('Kimchi')
+    fireEvent.click(screen.getByRole('button', { name: /look up nutrition from usda/i }))
+    await waitFor(() => expect(spy).toHaveBeenCalledWith('Kimchi', expect.anything()))
+  })
+
+  it('pre-fills nutrition fields when USDA returns a result', async () => {
+    mockUSDA(USDA_HIT)
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    typeName('Kimchi')
+    fireEvent.click(screen.getByRole('button', { name: /look up nutrition from usda/i }))
+    await waitFor(() => expect(screen.getByDisplayValue('23')).toBeInTheDocument())
+    expect(screen.getByDisplayValue('1.8')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('3.6')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('0.5')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('1.6')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('100g')).toBeInTheDocument()
+  })
+
+  it('shows "Found — edit if needed" status after a successful lookup', async () => {
+    mockUSDA(USDA_HIT)
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    typeName('Kimchi')
+    fireEvent.click(screen.getByRole('button', { name: /look up nutrition from usda/i }))
+    await waitFor(() => expect(screen.getByText(/found.*edit/i)).toBeInTheDocument())
+  })
+
+  it('allows editing pre-filled nutrition values before saving', async () => {
+    mockUSDA(USDA_HIT)
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    typeName('Kimchi')
+    fireEvent.click(screen.getByRole('button', { name: /look up nutrition from usda/i }))
+    await waitFor(() => expect(screen.getByDisplayValue('23')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByLabelText('Calories'), { target: { value: '30' } })
+    expect(screen.getByDisplayValue('30')).toBeInTheDocument()
+  })
+
+  it('saves item with nutrition data and shows it in the list', async () => {
+    mockUSDA(USDA_HIT)
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    typeName('Kimchi')
+    fireEvent.click(screen.getByRole('button', { name: /look up nutrition from usda/i }))
+    await waitFor(() => expect(screen.getByDisplayValue('23')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    expect(screen.getByText('Kimchi')).toBeInTheDocument()
+    // Nutrition line is rendered below the name
+    expect(screen.getByText(/23 kcal/)).toBeInTheDocument()
+  })
+
+  it('shows "No match found" when USDA returns no results', async () => {
+    vi.spyOn(foodSearch, 'searchUSDA').mockResolvedValue(null)
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    typeName('xyzzy123nonsense')
+    fireEvent.click(screen.getByRole('button', { name: /look up nutrition from usda/i }))
+    await waitFor(() => expect(screen.getByText(/no match found/i)).toBeInTheDocument())
+    // Fields remain empty and editable
+    expect(screen.getByLabelText('Calories')).toHaveValue(null)
+  })
+
+  it('shows "Lookup failed" when searchUSDA throws', async () => {
+    vi.spyOn(foodSearch, 'searchUSDA').mockRejectedValue(new Error('USDA 500'))
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    typeName('Chicken')
+    fireEvent.click(screen.getByRole('button', { name: /look up nutrition from usda/i }))
+    await waitFor(() => expect(screen.getByText(/lookup failed/i)).toBeInTheDocument())
+  })
+
+  it('can add an item without running a lookup (no nutrition data)', () => {
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    typeName('Tempeh')   // not in seeded catalog
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    const row = screen.getByText('Tempeh').closest('.gitem')!
+    // This specific item has no nutrition sub-line
+    expect(within(row).queryByText(/kcal/)).not.toBeInTheDocument()
+  })
+
+  it('can add an item with manually entered nutrition (no lookup)', () => {
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    typeName('Natto')    // not in seeded catalog
+    fireEvent.change(screen.getByLabelText('Serving size'), { target: { value: '1 cup' } })
+    fireEvent.change(screen.getByLabelText('Calories'),     { target: { value: '187' } })
+    fireEvent.change(screen.getByLabelText('Protein'),      { target: { value: '18' } })
+    fireEvent.change(screen.getByLabelText('Carbs'),        { target: { value: '12' } })
+    fireEvent.change(screen.getByLabelText('Fat'),          { target: { value: '10' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    const row = screen.getByText('Natto').closest('.gitem')!
+    expect(within(row).getByText(/187 kcal/)).toBeInTheDocument()
+  })
+
+  it('nutrition fields are empty inputs (not pre-filled) before any lookup', () => {
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    expect(screen.getByLabelText('Calories')).toHaveValue(null)
+    expect(screen.getByLabelText('Protein')).toHaveValue(null)
+  })
+
+  it('resets nutrition fields when Cancel is clicked', async () => {
+    mockUSDA(USDA_HIT)
+    render(<GroceryPanel user={FAKE_USER} />)
+    openAddForm()
+    typeName('Kimchi')
+    fireEvent.click(screen.getByRole('button', { name: /look up nutrition from usda/i }))
+    await waitFor(() => expect(screen.getByDisplayValue('23')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    // Form is gone; re-open and fields should be empty again
+    openAddForm()
+    expect(screen.getByLabelText('Calories')).toHaveValue(null)
   })
 })

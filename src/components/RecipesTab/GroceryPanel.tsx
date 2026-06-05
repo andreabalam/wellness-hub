@@ -1,13 +1,33 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { GROCERY_DATA, GROCERY_CATEGORIES } from '../../data/grocery'
-import type { GroceryCatalogItem } from '../../data/grocery'
+import type { GroceryCatalogItem, NutriInfo } from '../../data/grocery'
 import { useGroceryStore, useGroceryCatalogStore } from '../../hooks/useStore'
+import { searchUSDA } from '../../lib/foodSearch'
 
 const SEEDED_KEY = 'whub_grocery_initialized_v1'
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
+type LookupState = 'idle' | 'loading' | 'found' | 'not-found' | 'error'
+
+function buildNutri(srv: string, cal: string, p: string, c: string, f: string, fi: string): NutriInfo | undefined {
+  const calN = parseFloat(cal)
+  const pN   = parseFloat(p)
+  const cN   = parseFloat(c)
+  const fN   = parseFloat(f)
+  if (isNaN(calN) || isNaN(pN) || isNaN(cN) || isNaN(fN)) return undefined
+  const fiN = parseFloat(fi)
+  return {
+    srv: srv.trim() || '100g',
+    cal: Math.round(calN),
+    p:   Math.round(pN * 10) / 10,
+    c:   Math.round(cN * 10) / 10,
+    f:   Math.round(fN * 10) / 10,
+    fi:  !isNaN(fiN) ? Math.round(fiN * 10) / 10 : undefined,
+  }
 }
 
 // ── Row component ────────────────────────────────────────────────
@@ -120,9 +140,28 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
   const [userItems, setUserItems] = useState<GroceryCatalogItem[]>(() => catalogStore.getAll())
 
   // Add-item form state
-  const [addName,      setAddName]      = useState('')
-  const [addCat,       setAddCat]       = useState<string>(GROCERY_CATEGORIES[0])
-  const [showAddForm,  setShowAddForm]  = useState(false)
+  const [addName,     setAddName]     = useState('')
+  const [addCat,      setAddCat]      = useState<string>(GROCERY_CATEGORIES[0])
+  const [showAddForm, setShowAddForm] = useState(false)
+
+  // Nutrition lookup state
+  const [lookupState, setLookupState] = useState<LookupState>('idle')
+  const [nutSrv, setNutSrv] = useState('')
+  const [nutCal, setNutCal] = useState('')
+  const [nutP,   setNutP]   = useState('')
+  const [nutC,   setNutC]   = useState('')
+  const [nutF,   setNutF]   = useState('')
+  const [nutFi,  setNutFi]  = useState('')
+  const abortRef = useRef<AbortController | null>(null)
+
+  const resetForm = useCallback(() => {
+    setAddName('')
+    setAddCat(GROCERY_CATEGORIES[0])
+    setShowAddForm(false)
+    setLookupState('idle')
+    setNutSrv(''); setNutCal(''); setNutP(''); setNutC(''); setNutF(''); setNutFi('')
+    abortRef.current?.abort()
+  }, [])
 
   // Seed default items on first load for signed-in users
   useEffect(() => {
@@ -157,14 +196,39 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
     setChecked([])
   }
 
+  const handleLookup = useCallback(async () => {
+    const name = addName.trim()
+    if (!name) return
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    setLookupState('loading')
+    try {
+      const result = await searchUSDA(name, abortRef.current.signal)
+      if (result) {
+        setNutSrv(result.srv)
+        setNutCal(String(result.cal))
+        setNutP(String(result.p))
+        setNutC(String(result.c))
+        setNutF(String(result.f))
+        setNutFi(result.fi != null ? String(result.fi) : '')
+        setLookupState('found')
+      } else {
+        setLookupState('not-found')
+      }
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return
+      setLookupState('error')
+    }
+  }, [addName])
+
   const handleAddItem = useCallback(() => {
     const name = addName.trim()
     if (!name) return
-    catalogStore.add({ id: uid(), n: name, cat: addCat })
+    const nutri = buildNutri(nutSrv, nutCal, nutP, nutC, nutF, nutFi)
+    catalogStore.add({ id: uid(), n: name, cat: addCat, nutri })
     setUserItems(catalogStore.getAll())
-    setAddName('')
-    setShowAddForm(false)
-  }, [addName, addCat, catalogStore])
+    resetForm()
+  }, [addName, addCat, nutSrv, nutCal, nutP, nutC, nutF, nutFi, catalogStore, resetForm])
 
   const handleEditItem = useCallback((id: string, newName: string) => {
     catalogStore.update(id, { n: newName })
@@ -239,6 +303,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
             }}
           >
             <div style={{ fontSize: 12, color: 'var(--muted)', fontFamily: '"DM Mono",monospace' }}>Add item to grocery list</div>
+
             <input
               className="tinput"
               placeholder="Item name (e.g. Kimchi)"
@@ -247,6 +312,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
               onKeyDown={e => e.key === 'Enter' && handleAddItem()}
               autoFocus
             />
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ fontSize: 11, color: 'var(--muted2)' }}>Category</div>
               <select
@@ -263,6 +329,84 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
                 <option value="My Custom Items">My Custom Items</option>
               </select>
             </div>
+
+            {/* ── Nutrition section ── */}
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: 'var(--muted2)', fontFamily: '"DM Mono",monospace' }}>
+                  Nutrition <span style={{ opacity: 0.6 }}>(optional)</span>
+                </div>
+                <button
+                  onClick={handleLookup}
+                  disabled={!addName.trim() || lookupState === 'loading'}
+                  aria-label="Look up nutrition from USDA"
+                  style={{
+                    background: 'var(--bg3)', border: '1px solid var(--border2)',
+                    borderRadius: 6, padding: '3px 10px', fontSize: 11,
+                    color: 'var(--muted)', cursor: !addName.trim() || lookupState === 'loading' ? 'default' : 'pointer',
+                    fontFamily: 'sans-serif', flexShrink: 0,
+                    opacity: !addName.trim() ? 0.5 : 1,
+                    transition: 'opacity .15s',
+                  }}
+                >
+                  {lookupState === 'loading' ? 'Looking up…' : '↻ USDA lookup'}
+                </button>
+              </div>
+
+              {lookupState === 'found' && (
+                <div style={{ fontSize: 11, color: 'var(--teal-light)', marginBottom: 6 }}>
+                  ✓ Found — edit if needed
+                </div>
+              )}
+              {lookupState === 'not-found' && (
+                <div style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 6 }}>
+                  No match found — enter manually
+                </div>
+              )}
+              {lookupState === 'error' && (
+                <div style={{ fontSize: 11, color: 'var(--coral-light)', marginBottom: 6 }}>
+                  Lookup failed — enter manually
+                </div>
+              )}
+
+              <input
+                className="tinput"
+                placeholder="Serving size (e.g. 100g, 1 cup)"
+                value={nutSrv}
+                onChange={e => setNutSrv(e.target.value)}
+                aria-label="Serving size"
+                style={{ fontSize: 12, marginBottom: 6 }}
+              />
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5 }}>
+                {([
+                  ['kcal', nutCal, setNutCal, 'Calories'],
+                  ['P g',  nutP,   setNutP,   'Protein'],
+                  ['C g',  nutC,   setNutC,   'Carbs'],
+                  ['F g',  nutF,   setNutF,   'Fat'],
+                  ['Fi g', nutFi,  setNutFi,  'Fiber'],
+                ] as const).map(([label, val, setter, ariaLabel]) => (
+                  <label key={label} style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: 'var(--muted2)', fontFamily: '"DM Mono",monospace', textAlign: 'center' }}>
+                    {label}
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      value={val}
+                      onChange={e => (setter as (v: string) => void)(e.target.value)}
+                      aria-label={ariaLabel}
+                      style={{
+                        background: 'var(--bg3)', border: '1px solid var(--border)',
+                        borderRadius: 5, padding: '4px 2px',
+                        color: 'var(--text)', fontSize: 12, textAlign: 'center',
+                        fontFamily: '"DM Mono",monospace', outline: 'none', width: '100%',
+                      }}
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 onClick={handleAddItem}
@@ -275,7 +419,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
                 }}
               >Add item</button>
               <button
-                onClick={() => { setShowAddForm(false); setAddName('') }}
+                onClick={resetForm}
                 style={{
                   background: 'var(--bg3)', border: '1px solid var(--border2)',
                   borderRadius: 7, padding: '8px 14px', fontSize: 13,

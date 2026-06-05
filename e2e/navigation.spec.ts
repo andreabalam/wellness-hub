@@ -19,8 +19,8 @@ test.describe('Tab navigation', () => {
   test('switches to Schedule tab', async ({ page }) => {
     await tabBar(page).getByRole('button', { name: /Schedule/i }).click()
     await expect(tabBar(page).getByRole('button', { name: /Schedule/i })).toHaveClass(/active/)
-    // Cognitive peak banner is the schedule's landmark element
-    await expect(page.locator('.pbanner').first()).toBeVisible()
+    // Unauthenticated users see the sign-in gate
+    await expect(page.getByText(/Sign in to save your schedule/i)).toBeVisible()
   })
 
   test('switches to Workouts tab', async ({ page }) => {
@@ -33,8 +33,8 @@ test.describe('Tab navigation', () => {
   test('switches to Recipes tab', async ({ page }) => {
     await page.getByRole('button', { name: /Recipes/i }).click()
     // Unauthenticated users see the sign-in gate (no filter bar)
-    await expect(page.getByText(/Sign in to save/i)).toBeVisible()
-    await expect(page.getByText(/Recipes/i).first()).toBeVisible()
+    await expect(page.getByText(/Create, save and organise your personal recipes/i)).toBeVisible()
+    await expect(page.locator('input[placeholder*="Search recipes"]')).not.toBeVisible()
   })
 
   test('switches to Tracker tab', async ({ page }) => {
