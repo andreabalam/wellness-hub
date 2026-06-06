@@ -6,6 +6,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import type { User } from '@supabase/supabase-js'
 
+// ── Mock Supabase as non-null so the !supabase guard in OuraTab doesn't
+//    short-circuit to the connect screen before fetchAll can run ────
+vi.mock('../lib/supabase', () => ({
+  supabase: {},
+}))
+
 // ── Mock Oura API layer ───────────────────────────────────────────
 vi.mock('../lib/oura', async (importOriginal) => {
   const orig = await importOriginal<typeof import('../lib/oura')>()
