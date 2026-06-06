@@ -40,6 +40,9 @@ vi.mock('../lib/sync', () => ({
   pushWeekSchedule:         vi.fn(),
   pushMedGuides:            vi.fn(),
   pushUserGroceryCatalog:   vi.fn(),
+  fetchReminders:           vi.fn(),
+  upsertReminder:           vi.fn(),
+  deleteReminder:           vi.fn(),
   fetchUserSettings:        vi.fn(),
   upsertUserSettings:       vi.fn(),
   fetchUserBodyStats:       vi.fn(),
@@ -100,6 +103,9 @@ beforeEach(() => {
   mockSync['pushWeekSchedule'].mockResolvedValue(undefined)
   mockSync['pushMedGuides'].mockResolvedValue(undefined)
   mockSync['pushUserGroceryCatalog'].mockResolvedValue(undefined)
+  mockSync['fetchReminders'].mockResolvedValue([])
+  mockSync['upsertReminder'].mockResolvedValue(undefined)
+  mockSync['deleteReminder'].mockResolvedValue(undefined)
   mockSync['fetchUserSettings'].mockResolvedValue(null)
   mockSync['upsertUserSettings'].mockResolvedValue(undefined)
   mockSync['fetchUserBodyStats'].mockResolvedValue(null)

@@ -236,9 +236,9 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
   return (
     <div>
       <div className="guest-gate-title" style={{ marginBottom: 4 }}>
-        Your <em style={{ color: 'var(--green-light)' }}>Grocery List</em>
+        Your <em className="text-green">Grocery List</em>
       </div>
-      <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>
+      <div className="text-base text-muted mb-14">
         Tap an item to check it off. Use ✎ to rename or × to remove.
       </div>
 
@@ -247,7 +247,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
       </div>
 
       {/* Add item */}
-      <div style={{ marginBottom: 20 }}>
+      <div className="mb-20">
         {!showAddForm ? (
           <button
             aria-label="Add grocery item"
@@ -269,8 +269,8 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
               autoFocus
             />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ fontSize: 11, color: 'var(--muted2)' }}>Category</div>
+            <div className="flex flex-col" style={{ gap: 4 }}>
+              <div className="text-xs text-muted2">Category</div>
               <select
                 className="form-select"
                 value={addCat}

@@ -137,4 +137,88 @@ test.describe('Tracker tab', () => {
     const strip = page.locator('#root').getByText('M').first()
     await expect(strip).toBeVisible()
   })
+
+  // ── Reminders ─────────────────────────────────────────────────
+  // RemindersSection lives inside the Meditation inner-tab of TrackerTab.
+
+  async function goToMeditation(page: import('@playwright/test').Page) {
+    await page.getByRole('button', { name: 'Meditation' }).click()
+    await expect(page.getByPlaceholder('New reminder…')).toBeVisible()
+  }
+
+  test('Reminders section is visible in the Meditation inner-tab', async ({ page }) => {
+    await goToMeditation(page)
+    await expect(page.getByPlaceholder('New reminder…')).toBeVisible()
+  })
+
+  test('can add a reminder', async ({ page }) => {
+    await goToMeditation(page)
+    await page.getByPlaceholder('New reminder…').fill('Drink water')
+    await page.locator('.rem-add-btn').click()
+    await expect(page.getByText('Drink water')).toBeVisible()
+    // Input is cleared after adding
+    await expect(page.getByPlaceholder('New reminder…')).toHaveValue('')
+  })
+
+  test('pressing Enter adds a reminder', async ({ page }) => {
+    await goToMeditation(page)
+    await page.getByPlaceholder('New reminder…').fill('Take vitamins')
+    await page.getByPlaceholder('New reminder…').press('Enter')
+    await expect(page.getByText('Take vitamins')).toBeVisible()
+  })
+
+  test('checking a reminder marks it done', async ({ page }) => {
+    await goToMeditation(page)
+    await page.getByPlaceholder('New reminder…').fill('Morning walk')
+    await page.locator('.rem-add-btn').click()
+    const checkBtn = page.getByRole('button', { name: 'Check reminder' })
+    await checkBtn.click()
+    await expect(page.getByRole('button', { name: 'Uncheck reminder' })).toBeVisible()
+  })
+
+  test('unchecking a reminder marks it undone', async ({ page }) => {
+    await goToMeditation(page)
+    await page.getByPlaceholder('New reminder…').fill('Stretching')
+    await page.locator('.rem-add-btn').click()
+    await page.getByRole('button', { name: 'Check reminder' }).click()
+    await page.getByRole('button', { name: 'Uncheck reminder' }).click()
+    await expect(page.getByRole('button', { name: 'Check reminder' })).toBeVisible()
+  })
+
+  test('can delete a reminder', async ({ page }) => {
+    await goToMeditation(page)
+    await page.getByPlaceholder('New reminder…').fill('Delete me')
+    await page.locator('.rem-add-btn').click()
+    await expect(page.getByText('Delete me')).toBeVisible()
+    await page.getByRole('button', { name: 'Delete reminder' }).click()
+    await expect(page.getByText('Delete me')).not.toBeVisible()
+  })
+
+  test('reminders persist after page reload', async ({ page }) => {
+    await goToMeditation(page)
+    await page.getByPlaceholder('New reminder…').fill('Persistent reminder')
+    await page.locator('.rem-add-btn').click()
+    await expect(page.getByText('Persistent reminder')).toBeVisible()
+
+    await page.reload()
+    // After reload, navigate back to Meditation tab to see the persisted reminder
+    await page.getByRole('button', { name: 'Meditation' }).click()
+    await expect(page.getByText('Persistent reminder')).toBeVisible()
+  })
+
+  test('empty input does not add a reminder', async ({ page }) => {
+    await goToMeditation(page)
+    const countBefore = await page.locator('[aria-label="Check reminder"]').count()
+    // Button is disabled when input is empty — verify it's disabled, not just that click is a no-op
+    await expect(page.locator('.rem-add-btn')).toBeDisabled()
+    // Pressing Enter on the empty input should also be a no-op
+    await page.getByPlaceholder('New reminder…').press('Enter')
+    const countAfter = await page.locator('[aria-label="Check reminder"]').count()
+    expect(countAfter).toBe(countBefore)
+  })
+
+  test('shows empty state when no reminders exist', async ({ page }) => {
+    await goToMeditation(page)
+    await expect(page.getByText(/No reminders yet/i)).toBeVisible()
+  })
 })

@@ -134,78 +134,63 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
   return (
     <>
       {/* ── Toolbar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+      <div className="flex items-center gap-8 mb-18 flex-wrap">
         <button
           onClick={() => setShowEditor(true)}
-          style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 8, padding: '6px 14px', fontSize: 12, color: 'var(--muted)', cursor: 'pointer', fontFamily: '"DM Mono",monospace' }}
+          className="auth-panel-btn"
+          style={{ width: 'auto', padding: '6px 14px', marginBottom: 0 }}
         >
           ✎ Edit schedule
         </button>
         <button
           onClick={() => setShowExport(s => !s)}
-          style={{ background: showExport ? 'rgba(58,144,144,0.12)' : 'var(--bg2)', border: `1px solid ${showExport ? 'var(--teal)' : 'var(--border2)'}`, borderRadius: 8, padding: '6px 14px', fontSize: 12, color: showExport ? 'var(--teal-light)' : 'var(--muted)', cursor: 'pointer', fontFamily: '"DM Mono",monospace' }}
+          className="auth-panel-btn"
+          style={{
+            width: 'auto', padding: '6px 14px', marginBottom: 0,
+            background: showExport ? 'rgba(58,144,144,0.12)' : undefined,
+            border: `1px solid ${showExport ? 'var(--teal)' : 'var(--border2)'}`,
+            color: showExport ? 'var(--teal-light)' : undefined,
+          }}
         >
           📅 Export .ics
         </button>
       </div>
 
       {/* ── Day selector ── */}
-      <div style={{ display: 'flex', gap: 2, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
+      <div className="flex gap-4 mb-16" style={{ borderBottom: '1px solid var(--border)' }}>
         {DAY_KEYS.map(day => (
           <button
             key={day}
             onClick={() => { setSelectedDay(day); setShowEditor(false); setOpenRows(new Set()) }}
+            className="inner-tab"
             style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '8px 14px', marginBottom: -1,
-              fontSize: 13, fontFamily: '"DM Mono",monospace',
+              padding: '8px 14px',
               color: selectedDay === day ? 'var(--teal-light)' : 'var(--muted)',
               borderBottom: `2px solid ${selectedDay === day ? 'var(--teal)' : 'transparent'}`,
-              transition: 'color .15s, border-color .15s',
-              position: 'relative',
             }}
           >
             {DAY_LABELS[day]}
-            {dayModified[day] && (
-              <span style={{
-                display: 'inline-block', width: 5, height: 5, borderRadius: '50%',
-                background: 'var(--amber)', marginLeft: 4,
-                verticalAlign: 'middle', flexShrink: 0,
-              }} />
-            )}
+            {dayModified[day] && <span className="day-tab-indicator" />}
           </button>
         ))}
       </div>
 
       {/* ── ICS export panel ── */}
       {showExport && (
-        <div style={{ background: 'var(--bg2)', border: '1px solid var(--teal)', borderRadius: 12, padding: '16px 18px', marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
+        <div className="sched-export-panel flex flex-wrap gap-12 items-start">
           <div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 5 }}>From</div>
-            <input
-              type="date"
-              value={startDate}
-              onChange={e => setStartDate(e.target.value)}
-              style={dateInputStyle}
-            />
+            <div className="sched-export-lbl">From</div>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="blk-form-input" style={{ width: 'auto' }} />
           </div>
           <div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 5 }}>To</div>
-            <input
-              type="date"
-              value={endDate}
-              min={startDate}
-              onChange={e => setEndDate(e.target.value)}
-              style={dateInputStyle}
-            />
+            <div className="sched-export-lbl">To</div>
+            <input type="date" value={endDate} min={startDate} onChange={e => setEndDate(e.target.value)} className="blk-form-input" style={{ width: 'auto' }} />
           </div>
-          <div>
-            <button onClick={handleExport} style={{ background: 'var(--teal)', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 13, color: '#fff', cursor: 'pointer', fontFamily: 'sans-serif', fontWeight: 500 }}>
-              Download .ics
-            </button>
-          </div>
-          <div style={{ flexBasis: '100%', fontSize: 11, color: 'var(--muted2)', lineHeight: 1.5 }}>
-            Exports the full week schedule as <strong style={{ color: 'var(--muted)' }}>recurring weekly events</strong>, one per day. Import the file into Apple Calendar, Google Calendar, or Outlook.
+          <button onClick={handleExport} className="action-btn" style={{ background: 'var(--teal)', color: '#fff' }}>
+            Download .ics
+          </button>
+          <div className="text-xs text-muted2 w-full" style={{ lineHeight: 1.5 }}>
+            Exports the full week schedule as <strong className="text-muted">recurring weekly events</strong>, one per day. Import the file into Apple Calendar, Google Calendar, or Outlook.
           </div>
         </div>
       )}
@@ -300,10 +285,3 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
   )
 }
 
-const dateInputStyle: React.CSSProperties = {
-  background: 'var(--bg3)', border: '1px solid var(--border2)',
-  borderRadius: 7, padding: '7px 10px',
-  color: 'var(--text)', fontSize: 13,
-  fontFamily: '"DM Sans", sans-serif', outline: 'none',
-  colorScheme: 'dark',
-}

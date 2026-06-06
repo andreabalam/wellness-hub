@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import {
   readinessColor, readinessLabel, sleepScoreToStars, roundToMedMin,
   OURA_ACTIVITY_MAP, OURA_SESSION_MAP,
-  getOuraPat, saveOuraPat, clearOuraPat, testOuraConnection,
+  isOuraConnected, disconnectOura,
+  consumeOAuthCallback, startOuraOAuth,
 } from '../lib/oura'
 
 // ── readinessColor ────────────────────────────────────────────────
@@ -131,30 +132,86 @@ describe('OURA_SESSION_MAP', () => {
 // .env.local provides real env vars so supabase is non-null, but there is
 // no authenticated session — each function's "no user" guard is exercised.
 
-describe('getOuraPat', () => {
-  it('returns null when no user is signed in', async () => {
-    expect(await getOuraPat()).toBeNull()
+describe('isOuraConnected', () => {
+  it('returns false when Supabase is not configured or no session', async () => {
+    // CI has no .env.local → supabase is null → returns false immediately
+    // Locally supabase is non-null but no session → returns false
+    expect(await isOuraConnected()).toBe(false)
   })
 })
 
-describe('saveOuraPat', () => {
-  it('rejects when not authenticated (no session or Supabase not configured)', async () => {
-    // CI has no .env.local so supabase is null → "Supabase not configured"
-    // Locally supabase is non-null but there is no session → "Not signed in"
-    await expect(saveOuraPat('tok')).rejects.toThrow(
-      /Not signed in|Supabase not configured/
-    )
+describe('disconnectOura', () => {
+  it('resolves without error when no session is present', async () => {
+    await expect(disconnectOura()).resolves.toBeUndefined()
   })
 })
 
-describe('clearOuraPat', () => {
-  it('resolves without error when no user is signed in', async () => {
-    await expect(clearOuraPat()).resolves.toBeUndefined()
+// ── consumeOAuthCallback ──────────────────────────────────────────
+
+describe('consumeOAuthCallback', () => {
+  beforeEach(() => {
+    sessionStorage.clear()
+    window.history.pushState({}, '', '/')
+  })
+
+  it('returns false when URL has no code or state', () => {
+    expect(consumeOAuthCallback()).toBe(false)
+  })
+
+  it('returns false when state param does not match sessionStorage', () => {
+    sessionStorage.setItem('oura_oauth_state', 'expected')
+    window.history.pushState({}, '', '/?code=abc&state=wrong')
+    expect(consumeOAuthCallback()).toBe(false)
+    // stored state must NOT be consumed on mismatch
+    expect(sessionStorage.getItem('oura_oauth_state')).toBe('expected')
+  })
+
+  it('returns false when code is absent but state is present', () => {
+    sessionStorage.setItem('oura_oauth_state', 'some-state')
+    window.history.pushState({}, '', '/?state=some-state')
+    expect(consumeOAuthCallback()).toBe(false)
+  })
+
+  it('returns true, stores pending code, and clears URL when state matches', () => {
+    sessionStorage.setItem('oura_oauth_state', 'correct')
+    window.history.pushState({}, '', '/?code=auth-code-123&state=correct')
+    expect(consumeOAuthCallback()).toBe(true)
+    expect(sessionStorage.getItem('oura_oauth_pending_code')).toBe('auth-code-123')
+    expect(sessionStorage.getItem('oura_oauth_state')).toBeNull()
+    expect(window.location.search).toBe('')
+  })
+
+  it('preserves an existing pending_uri in sessionStorage', () => {
+    sessionStorage.setItem('oura_oauth_state', 's')
+    sessionStorage.setItem('oura_oauth_pending_uri', 'https://example.com/')
+    window.history.pushState({}, '', '/?code=c&state=s')
+    consumeOAuthCallback()
+    expect(sessionStorage.getItem('oura_oauth_pending_uri')).toBe('https://example.com/')
   })
 })
 
-describe('testOuraConnection', () => {
-  it('returns false when no session exists', async () => {
-    expect(await testOuraConnection()).toBe(false)
+// ── startOuraOAuth ────────────────────────────────────────────────
+
+describe('startOuraOAuth', () => {
+  beforeEach(() => sessionStorage.clear())
+
+  it('stores a random OAuth state and redirect URI in sessionStorage', () => {
+    // May throw in jsdom when trying to navigate cross-origin — that's fine:
+    // sessionStorage writes happen before the navigation line.
+    try { startOuraOAuth() } catch { /* jsdom navigation not implemented */ }
+    const state = sessionStorage.getItem('oura_oauth_state')
+    const uri   = sessionStorage.getItem('oura_oauth_pending_uri')
+    expect(state).not.toBeNull()
+    expect(state).toHaveLength(36)   // UUID format
+    expect(uri).not.toBeNull()
+  })
+
+  it('generates a unique state on each call', () => {
+    try { startOuraOAuth() } catch { /* ignore navigation */ }
+    const first = sessionStorage.getItem('oura_oauth_state')
+    sessionStorage.clear()
+    try { startOuraOAuth() } catch { /* ignore navigation */ }
+    const second = sessionStorage.getItem('oura_oauth_state')
+    expect(first).not.toBe(second)
   })
 })

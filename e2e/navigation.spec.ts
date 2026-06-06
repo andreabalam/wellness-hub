@@ -45,6 +45,12 @@ test.describe('Tab navigation', () => {
     await expect(page.getByText(/Sign in to use/i)).toBeVisible()
   })
 
+  test('switches to Oura tab showing sign-in gate when unauthenticated', async ({ page }) => {
+    await tabBar(page).getByRole('button', { name: /Oura/i }).click()
+    await expect(tabBar(page).getByRole('button', { name: /Oura/i })).toHaveClass(/active/)
+    await expect(page.getByText(/Sign in to view your Oura dashboard/i)).toBeVisible()
+  })
+
   test('tabs retain their state when switching away and back', async ({ page }) => {
     // Go to Workouts, click Week 2
     await page.getByRole('button', { name: /Workouts/i }).click()
