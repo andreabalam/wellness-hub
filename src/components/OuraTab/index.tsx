@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { User } from '@supabase/supabase-js'
+import { supabase } from '../../lib/supabase'
 import {
   fetchOuraDailyActivity,
   fetchOuraReadiness,
@@ -360,6 +361,11 @@ export default function OuraTab({ user }: Props) {
   useEffect(() => {
     if (!user) {
       Promise.resolve().then(() => setLoading(false))
+      return
+    }
+    // Without Supabase there can't be a stored token — show connect screen directly
+    if (!supabase) {
+      Promise.resolve().then(() => { setNoToken(true); setLoading(false) })
       return
     }
     // Skip the initial fetch if an OAuth exchange is in flight — the exchange

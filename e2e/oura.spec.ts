@@ -77,8 +77,13 @@ test.describe('Oura tab — authenticated, no token', () => {
 
 test.describe('Oura tab — OAuth callback handling', () => {
   test.beforeEach(async ({ page }) => {
+    // Both __e2e_user__ and oura_oauth_state must be in sessionStorage before
+    // any navigation so consumeOAuthCallback() (which now runs at state-init
+    // time) can validate them. oura_oauth_state is harmless during the initial
+    // goto('/') because consumeOAuthCallback() returns early when ?code= is absent.
     await page.addInitScript((user) => {
       sessionStorage.setItem('__e2e_user__', user)
+      sessionStorage.setItem('oura_oauth_state', 'test-state-value')
     }, MOCK_USER)
     await page.goto('/')
     await page.evaluate(() => { localStorage.clear() })
@@ -86,12 +91,6 @@ test.describe('Oura tab — OAuth callback handling', () => {
   })
 
   test('app detects ?code=&state= params on load and switches to Oura tab', async ({ page }) => {
-    // Use addInitScript so oura_oauth_state is in sessionStorage *before* the
-    // app's mount effect runs consumeOAuthCallback(). page.evaluate() on the
-    // existing page wouldn't survive the upcoming goto() navigation.
-    await page.addInitScript(() => {
-      sessionStorage.setItem('oura_oauth_state', 'test-state-value')
-    })
     await page.goto('?code=fake-auth-code&state=test-state-value')
 
     // consumeOAuthCallback() should switch the app to the Oura tab
