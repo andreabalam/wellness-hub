@@ -17,12 +17,17 @@ interface Props {
 
 // ── Form state ────────────────────────────────────────────────────
 
+const CM_PER_IN = 2.54
+
 type FormFields = {
   weight:     string
   height:     string
   age:        string
   sex:        UserBodyStats['biologicalSex']
   bodyFat:    string
+  waist:      string
+  glutes:     string
+  unit:       UserBodyStats['measurementUnit']
   equipment:  string
   cycleType:  UserBodyStats['cycleType']
   chronotype: UserBodyStats['chronotype']
@@ -35,12 +40,18 @@ type FormFields = {
 function fieldsFromStore(): FormFields {
   const s = bodyStatsStore.get()
   const autoKcal = s.tdeeKcal ? kcalFromTdee(s.tdeeKcal, s.fatLossRateKg ?? 0) : 0
+  const unit = s.measurementUnit ?? 'cm'
+  const toDisplay = (cm: number) =>
+    cm > 0 ? String(unit === 'in' ? +(cm / CM_PER_IN).toFixed(1) : cm) : ''
   return {
     weight:    s.weightKg   ? String(s.weightKg)  : '',
     height:    s.heightM    ? String(s.heightM)    : '',
     age:       s.age        ? String(s.age)        : '',
     sex:       (s.biologicalSex as UserBodyStats['biologicalSex']) ?? '',
     bodyFat:   s.bodyFatPct ? String(s.bodyFatPct) : '',
+    waist:     toDisplay(s.waistCm  ?? 0),
+    glutes:    toDisplay(s.glutesCm ?? 0),
+    unit,
     equipment: s.equipment  ?? '',
     cycleType: s.cycleType  ?? 'none',
     chronotype: normaliseChronotype(s.chronotype ?? '') as UserBodyStats['chronotype'],
@@ -104,21 +115,28 @@ function EditForm({ user, onClose, onSaved }: EditFormProps) {
   const save = () => {
     setSaving(true)
     const prot = macros?.prot ?? 0
+    const toCm = (v: string) => {
+      const n = parseFloat(v) || 0
+      return f.unit === 'in' ? +(n * CM_PER_IN).toFixed(1) : n
+    }
     bodyStatsStore.set({
-      weightKg:      parseFloat(f.weight)    || 0,
-      heightM:       parseFloat(f.height)    || 0,
-      age:           parseInt(f.age)         || 0,
-      biologicalSex: f.sex,
-      bodyFatPct:    parseFloat(f.bodyFat)   || 0,
-      cycleType:     f.cycleType,
-      equipment:     f.equipment.trim(),
-      chronotype:    f.chronotype,
-      fatLossRateKg: parseFloat(f.lossRate)  || 0,
-      macroSplit:    f.split,
-      tdeeKcal:      parseInt(f.tdee)        || 0,
-      kcalTarget:    finalKcal,
-      protRange:     protRangeStr(prot),
-      fatLossGoal:   fatLossGoalStr(parseFloat(f.lossRate) || 0),
+      weightKg:        parseFloat(f.weight)    || 0,
+      heightM:         parseFloat(f.height)    || 0,
+      age:             parseInt(f.age)         || 0,
+      biologicalSex:   f.sex,
+      bodyFatPct:      parseFloat(f.bodyFat)   || 0,
+      waistCm:         toCm(f.waist),
+      glutesCm:        toCm(f.glutes),
+      measurementUnit: f.unit,
+      cycleType:       f.cycleType,
+      equipment:       f.equipment.trim(),
+      chronotype:      f.chronotype,
+      fatLossRateKg:   parseFloat(f.lossRate)  || 0,
+      macroSplit:      f.split,
+      tdeeKcal:        parseInt(f.tdee)        || 0,
+      kcalTarget:      finalKcal,
+      protRange:       protRangeStr(prot),
+      fatLossGoal:     fatLossGoalStr(parseFloat(f.lossRate) || 0),
     })
     setSaving(false)
     onClose()
@@ -163,6 +181,51 @@ function EditForm({ user, onClose, onSaved }: EditFormProps) {
           </label>
           <label className="profile-form-lbl"><span className="profile-form-lspan">Body fat %</span>
             <input className="tnum" type="number" step="0.1" value={f.bodyFat} onChange={set('bodyFat')} placeholder="22" />
+          </label>
+        </div>
+      </div>
+
+      {/* ── Measurements ─────────────────────── */}
+      <div>
+        <div className="flex-between mb-8">
+          <div className="tlabel text-muted2">Measurements</div>
+          <div className="flex gap-6">
+            <button
+              type="button"
+              onClick={() => setF(prev => {
+                if (prev.unit === 'cm') return prev
+                return {
+                  ...prev,
+                  unit:   'cm',
+                  waist:  prev.waist  ? String(+(parseFloat(prev.waist)  * CM_PER_IN).toFixed(1)) : '',
+                  glutes: prev.glutes ? String(+(parseFloat(prev.glutes) * CM_PER_IN).toFixed(1)) : '',
+                }
+              })}
+              className={`med-style-btn ${f.unit === 'cm' ? 'active' : ''}`}
+            >cm</button>
+            <button
+              type="button"
+              onClick={() => setF(prev => {
+                if (prev.unit === 'in') return prev
+                return {
+                  ...prev,
+                  unit:   'in',
+                  waist:  prev.waist  ? String(+(parseFloat(prev.waist)  / CM_PER_IN).toFixed(1)) : '',
+                  glutes: prev.glutes ? String(+(parseFloat(prev.glutes) / CM_PER_IN).toFixed(1)) : '',
+                }
+              })}
+              className={`med-style-btn ${f.unit === 'in' ? 'active' : ''}`}
+            >in</button>
+          </div>
+        </div>
+        <div className="profile-grid">
+          <label className="profile-form-lbl">
+            <span className="profile-form-lspan">Waist ({f.unit})</span>
+            <input className="tnum" type="number" step="0.1" value={f.waist}  onChange={set('waist')}  placeholder={f.unit === 'cm' ? '75' : '30'} />
+          </label>
+          <label className="profile-form-lbl">
+            <span className="profile-form-lspan">Glutes ({f.unit})</span>
+            <input className="tnum" type="number" step="0.1" value={f.glutes} onChange={set('glutes')} placeholder={f.unit === 'cm' ? '95' : '37'} />
           </label>
         </div>
       </div>
@@ -292,12 +355,17 @@ export default function ProfileStatsCard({ user, defaultOpen = false, onSaved }:
 
   const fatMass  = s.weightKg > 0 && s.bodyFatPct > 0 ? +(s.weightKg * s.bodyFatPct / 100).toFixed(1) : null
   const leanMass = fatMass !== null ? +(s.weightKg - fatMass).toFixed(1) : null
+  const unit = s.measurementUnit ?? 'cm'
+  const displayMeasure = (cm: number) =>
+    unit === 'in' ? `${+(cm / CM_PER_IN).toFixed(1)} in` : `${cm} cm`
   const STATS = hasData ? ([
     s.weightKg > 0   && { l: 'Weight',         v: `${s.weightKg} kg`,                       c: 'var(--text)' },
     s.bodyFatPct > 0 && { l: 'Body fat',        v: `${s.bodyFatPct}%`,                       c: 'var(--coral-light)' },
     fatMass !== null && { l: 'Fat mass',         v: `~${fatMass} kg`,                         c: 'var(--coral)' },
     leanMass !== null&& { l: 'Lean mass',        v: `~${leanMass} kg`,                        c: 'var(--green-light)' },
     s.heightM > 0    && { l: 'Height',           v: `${s.heightM} m`,                         c: 'var(--text)' },
+    (s.waistCm  ?? 0) > 0 && { l: 'Waist',      v: displayMeasure(s.waistCm!),               c: 'var(--amber)' },
+    (s.glutesCm ?? 0) > 0 && { l: 'Glutes',     v: displayMeasure(s.glutesCm!),              c: 'var(--teal)' },
     s.tdeeKcal > 0   && { l: 'TDEE',             v: `~${s.tdeeKcal.toLocaleString()} kcal`,   c: 'var(--amber-light)' },
     s.kcalTarget > 0 && { l: 'Daily target',     v: `~${s.kcalTarget.toLocaleString()} kcal`, c: 'var(--green)' },
     !!s.protRange    && { l: 'Protein target',   v: s.protRange,                              c: 'var(--blue-light)' },

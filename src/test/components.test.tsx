@@ -1497,6 +1497,113 @@ describe('WorkoutsTab', () => {
 })
 
 // ═════════════════════════════════════════════════════════════════
+// ProfileStatsCard — Measurements (waist / glutes)
+// ═════════════════════════════════════════════════════════════════
+describe('ProfileStatsCard — measurements', () => {
+  it('form shows Measurements section with Waist and Glutes labels', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    expect(screen.getByText('Measurements')).toBeInTheDocument()
+    expect(screen.getByText(/Waist/)).toBeInTheDocument()
+    expect(screen.getByText(/Glutes/)).toBeInTheDocument()
+  })
+
+  it('form defaults to cm unit and shows cm placeholders', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    expect(screen.getByPlaceholderText('75')).toBeInTheDocument()  // waist cm
+    expect(screen.getByPlaceholderText('95')).toBeInTheDocument()  // glutes cm
+  })
+
+  it('switching to inches updates placeholders to inch values', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'in' }))
+    expect(screen.getByPlaceholderText('30')).toBeInTheDocument()  // waist in
+    expect(screen.getByPlaceholderText('37')).toBeInTheDocument()  // glutes in
+  })
+
+  it('saves waist and glutes in cm to localStorage', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    fireEvent.change(screen.getByPlaceholderText('75'), { target: { value: '80' } })
+    fireEvent.change(screen.getByPlaceholderText('95'), { target: { value: '100' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }))
+    const saved = JSON.parse(ls['whub_body_stats_v1'] ?? '{}')
+    expect(saved.waistCm).toBe(80)
+    expect(saved.glutesCm).toBe(100)
+    expect(saved.measurementUnit).toBe('cm')
+  })
+
+  it('saves measurements in inches and converts to cm in localStorage', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'in' }))
+    fireEvent.change(screen.getByPlaceholderText('30'), { target: { value: '30' } })
+    fireEvent.change(screen.getByPlaceholderText('37'), { target: { value: '37' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }))
+    const saved = JSON.parse(ls['whub_body_stats_v1'] ?? '{}')
+    // 30 in × 2.54 = 76.2 cm, 37 in × 2.54 = 93.98 → 94.0 cm
+    expect(saved.waistCm).toBeCloseTo(76.2, 0)
+    expect(saved.glutesCm).toBeCloseTo(94.0, 0)
+    expect(saved.measurementUnit).toBe('in')
+  })
+
+  it('shows waist and glutes tiles in collapsed stats grid after save', () => {
+    ls['whub_body_stats_v1'] = JSON.stringify({
+      weightKg: 60, waistCm: 75, glutesCm: 95, measurementUnit: 'cm',
+      heightM: 1.65, bodyFatPct: 0, age: 0, biologicalSex: '',
+      cycleType: 'none', equipment: '', chronotype: '',
+      fatLossRateKg: 0, macroSplit: 'balanced',
+      tdeeKcal: 0, kcalTarget: 0, protRange: '', fatLossGoal: '',
+    })
+    render(<WorkoutsTab user={FAKE_USER} />)
+    expect(screen.getByText('Waist')).toBeInTheDocument()
+    expect(screen.getByText('75 cm')).toBeInTheDocument()
+    expect(screen.getByText('Glutes')).toBeInTheDocument()
+    expect(screen.getByText('95 cm')).toBeInTheDocument()
+  })
+
+  it('collapsed stats grid shows measurements in inches when unit is in', () => {
+    ls['whub_body_stats_v1'] = JSON.stringify({
+      weightKg: 60, waistCm: 76.2, glutesCm: 93.98, measurementUnit: 'in',
+      heightM: 0, bodyFatPct: 0, age: 0, biologicalSex: '',
+      cycleType: 'none', equipment: '', chronotype: '',
+      fatLossRateKg: 0, macroSplit: 'balanced',
+      tdeeKcal: 0, kcalTarget: 0, protRange: '', fatLossGoal: '',
+    })
+    render(<WorkoutsTab user={FAKE_USER} />)
+    expect(screen.getByText('30 in')).toBeInTheDocument()   // 76.2 / 2.54 = 30.0
+    expect(screen.getByText('37 in')).toBeInTheDocument()   // 93.98 / 2.54 ≈ 37.0
+  })
+
+  it('toggling cm → in converts existing input values', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    // Enter a value in cm
+    fireEvent.change(screen.getByPlaceholderText('75'), { target: { value: '76.2' } })
+    // Switch to inches — should convert 76.2 cm → 30.0 in
+    fireEvent.click(screen.getByRole('button', { name: 'in' }))
+    const waistInput = screen.getByPlaceholderText('30') as HTMLInputElement
+    expect(parseFloat(waistInput.value)).toBeCloseTo(30, 0)
+  })
+
+  it('pre-fills measurements from localStorage when editing', () => {
+    ls['whub_body_stats_v1'] = JSON.stringify({
+      weightKg: 60, waistCm: 80, glutesCm: 100, measurementUnit: 'cm',
+      heightM: 0, bodyFatPct: 0, age: 0, biologicalSex: '',
+      cycleType: 'none', equipment: '', chronotype: '',
+      fatLossRateKg: 0, macroSplit: 'balanced',
+      tdeeKcal: 0, kcalTarget: 0, protRange: '', fatLossGoal: '',
+    })
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /✎ Edit/i }))
+    expect((screen.getByPlaceholderText('75') as HTMLInputElement).value).toBe('80')
+    expect((screen.getByPlaceholderText('95') as HTMLInputElement).value).toBe('100')
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
 // ErrorBoundary
 // ═════════════════════════════════════════════════════════════════
 describe('ErrorBoundary', () => {
