@@ -1,13 +1,10 @@
 /**
  * src/lib/oura.ts
  *
- * Typed helpers for the Oura Ring integration (Plan B — Edge Function proxy).
- * All requests go through /functions/v1/oura-proxy; the PAT never touches
- * the browser after the initial save.
- *
- * Plan C migration note:
- *   Only the Edge Function changes (PAT → OAuth tokens).
- *   This file and all UI components stay the same.
+ * Typed helpers for the Oura Ring integration (OAuth / Plan C).
+ * All data requests go through /functions/v1/oura-proxy.
+ * OAuth token exchange and lifecycle go through /functions/v1/oura-exchange.
+ * No Oura credential ever lives in the browser after the initial redirect.
  */
 
 import { supabase } from './supabase'
@@ -28,29 +25,119 @@ export interface OuraWorkout {
 export interface OuraReadiness {
   day: string
   score: number               // 0–100
-  hrv_balance_score: number
-  recovery_index_score: number
+  contributors: {
+    activity_balance:     number | null
+    body_temperature:     number | null
+    hrv_balance:          number | null
+    previous_day_activity:number | null
+    previous_night:       number | null
+    recovery_index:       number | null
+    resting_heart_rate:   number | null
+    sleep_balance:        number | null
+  }
   temperature_deviation: number | null
 }
 
+/** daily_sleep endpoint — score + contributor sub-scores (0-100, no durations) */
 export interface OuraSleep {
   day: string
   score: number               // 0–100
-  total_sleep_duration: number  // seconds
+  contributors: {
+    deep_sleep:   number | null
+    efficiency:   number | null
+    latency:      number | null
+    rem_sleep:    number | null
+    restfulness:  number | null
+    timing:       number | null
+    total_sleep:  number | null
+  }
+}
+
+/** sleep endpoint — individual session with actual durations */
+export interface OuraSleepSession {
+  id: string
+  day: string
+  period: number              // 0 = main night sleep, >0 = nap
+  total_sleep_duration: number // seconds
   deep_sleep_duration: number
   rem_sleep_duration: number
+  light_sleep_duration: number
+  awake_time: number
+  time_in_bed: number
   efficiency: number          // percentage
   average_hrv: number | null
+  average_heart_rate: number | null
+  lowest_heart_rate: number | null
+  bedtime_start: string
+  bedtime_end: string
 }
 
 export interface OuraSession {
   id: string
+  day: string
   type: 'meditation' | 'breathing' | 'body_status' | 'nap'
   start_datetime: string
   end_datetime: string
   average_heart_rate: number | null
   average_hrv: number | null
-  mood: string | null         // e.g. "good", "relieved", "bad"
+  mood: string | null         // e.g. "good", "relieved", "bad", "great", "neutral"
+}
+
+export interface OuraDailyActivity {
+  day: string
+  score: number | null
+  active_calories: number
+  steps: number
+  total_calories: number
+  high_activity_time: number    // seconds
+  medium_activity_time: number
+  low_activity_time: number
+  sedentary_time: number
+  equivalent_walking_distance: number  // meters
+  target_calories: number | null
+  target_meters: number | null
+}
+
+export interface OuraCardiovascularAge {
+  day: string
+  vascular_age: number | null
+}
+
+export interface OuraSpo2 {
+  day: string
+  spo2_percentage: { average: number } | null
+}
+
+export interface OuraStress {
+  day: string
+  stress_high: number | null     // seconds of high stress
+  recovery_high: number | null   // seconds of high recovery
+  day_summary: 'restored' | 'normal' | 'stressful' | 'no_data' | null
+}
+
+export interface OuraResilience {
+  day: string
+  contributors: {
+    sleep_recovery: number | null
+    daytime_recovery: number | null
+    stress_impact: number | null
+  }
+  level: 'exceptional' | 'strong' | 'adequate' | 'limited' | 'low' | null
+}
+
+export interface OuraPersonalInfo {
+  age:            number | null
+  weight:         number | null  // kg
+  height:         number | null  // m
+  biological_sex: string | null  // 'male' | 'female' | null
+}
+
+export interface OuraWorkoutRoute {
+  id: string
+  start_datetime: string
+  end_datetime: string
+  source: string
+  polyline: string | null
 }
 
 // ── Oura activity → app session-type mapping ──────────────────────
@@ -114,35 +201,119 @@ export function sleepScoreToStars(score: number): number {
   return 1
 }
 
-// ── PAT management (reads/writes public.user_settings) ───────────
+// ── OAuth management ──────────────────────────────────────────────
 
-export async function saveOuraPat(pat: string): Promise<void> {
+const OURA_AUTH_URL   = 'https://cloud.ouraring.com/oauth/authorize'
+const OURA_SCOPES     = 'daily sleep heartrate workout session personal spo2 stress heart_health'
+const STATE_KEY       = 'oura_oauth_state'
+const PENDING_CODE_KEY = 'oura_oauth_pending_code'
+const PENDING_URI_KEY  = 'oura_oauth_pending_uri'
+
+/** Redirect the browser to Oura's OAuth consent screen. */
+export function startOuraOAuth(): void {
+  const clientId = import.meta.env.VITE_OURA_CLIENT_ID as string
+  if (!clientId) throw new Error('VITE_OURA_CLIENT_ID is not set')
+
+  const state = crypto.randomUUID()
+  const redirectUri = window.location.origin + (import.meta.env.BASE_URL as string)
+
+  sessionStorage.setItem(STATE_KEY, state)
+  sessionStorage.setItem(PENDING_URI_KEY, redirectUri)
+
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id:     clientId,
+    redirect_uri:  redirectUri,
+    scope:         OURA_SCOPES,
+    state,
+  })
+  window.location.href = `${OURA_AUTH_URL}?${params}`
+}
+
+/**
+ * Called by App.tsx on mount when it detects ?code= + ?state= in the URL.
+ * Validates state, stashes the pending code in sessionStorage, and returns
+ * true so the caller can switch to the Oura tab.
+ */
+export function consumeOAuthCallback(): boolean {
+  const params = new URLSearchParams(window.location.search)
+  const code  = params.get('code')
+  const state = params.get('state')
+  if (!code || !state) return false
+
+  const stored = sessionStorage.getItem(STATE_KEY)
+  if (state !== stored) return false   // CSRF mismatch — ignore
+
+  sessionStorage.removeItem(STATE_KEY)
+  sessionStorage.setItem(PENDING_CODE_KEY, code)
+  // Redirect URI used during authorize must be echoed to the token endpoint
+  const uri = sessionStorage.getItem(PENDING_URI_KEY)
+    ?? (window.location.origin + (import.meta.env.BASE_URL as string))
+  sessionStorage.setItem(PENDING_URI_KEY, uri)
+
+  // Clean the URL so the code can't be reused on a refresh
+  window.history.replaceState({}, '', window.location.pathname)
+  return true
+}
+
+/**
+ * Exchange the pending auth code (from sessionStorage) for OAuth tokens.
+ * The code and redirect_uri are sent to the oura-exchange Edge Function,
+ * which performs the actual exchange and stores encrypted tokens in the DB.
+ */
+export async function exchangePendingCode(): Promise<void> {
   if (!supabase) throw new Error('Supabase not configured')
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not signed in')
-  const { error } = await supabase
-    .from('user_settings')
-    .upsert({ user_id: user.id, oura_pat: pat, updated_at: new Date().toISOString() })
-  if (error) throw error
+  const code        = sessionStorage.getItem(PENDING_CODE_KEY)
+  const redirectUri = sessionStorage.getItem(PENDING_URI_KEY)
+  if (!code) throw new Error('No pending Oura auth code')
+
+  sessionStorage.removeItem(PENDING_CODE_KEY)
+  sessionStorage.removeItem(PENDING_URI_KEY)
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Not signed in')
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+  const res = await fetch(`${supabaseUrl}/functions/v1/oura-exchange`, {
+    method: 'POST',
+    headers: {
+      Authorization:  `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ code, redirect_uri: redirectUri }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error ?? 'Token exchange failed')
+  }
 }
 
-export async function getOuraPat(): Promise<string | null> {
-  if (!supabase) return null
-  const { data, error } = await supabase
-    .from('user_settings')
-    .select('oura_pat')
-    .maybeSingle()
-  if (error || !data) return null
-  return data.oura_pat ?? null
+/** Returns true if this user has a connected Oura account. */
+export async function isOuraConnected(): Promise<boolean> {
+  if (!supabase) return false
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return false
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+  const res = await fetch(`${supabaseUrl}/functions/v1/oura-exchange`, {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  })
+  if (!res.ok) return false
+  const body = await res.json().catch(() => ({}))
+  return body.connected === true
 }
 
-export async function clearOuraPat(): Promise<void> {
+/** Revoke the Oura token and clear it from the database. */
+export async function disconnectOura(): Promise<void> {
   if (!supabase) return
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-  await supabase
-    .from('user_settings')
-    .upsert({ user_id: user.id, oura_pat: null, updated_at: new Date().toISOString() })
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+  await fetch(`${supabaseUrl}/functions/v1/oura-exchange`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  })
 }
 
 // ── Internal: call the Edge Function proxy ────────────────────────
@@ -170,6 +341,53 @@ async function proxyFetch<T>(endpoint: string, date: string): Promise<T[]> {
   return (json.data ?? []) as T[]
 }
 
+// For collection endpoints with an explicit date range (start ≠ end)
+async function proxyFetchRange<T>(endpoint: string, startDate: string, endDate: string): Promise<T[]> {
+  if (!supabase) throw new Error('Supabase not configured')
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Not signed in')
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+  const url = `${supabaseUrl}/functions/v1/oura-proxy?endpoint=${endpoint}&start_date=${startDate}&end_date=${endDate}`
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error ?? err.detail ?? err.message ?? `Oura error ${res.status}`)
+  }
+
+  const json = await res.json()
+  return (json.data ?? []) as T[]
+}
+
+// For single-object endpoints (e.g. workout routes) that don't return a data array
+async function proxyFetchSingle<T>(endpoint: string, extra: Record<string, string>): Promise<T | null> {
+  if (!supabase) throw new Error('Supabase not configured')
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Not signed in')
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+  const qs = new URLSearchParams({ endpoint, ...extra })
+  const url = `${supabaseUrl}/functions/v1/oura-proxy?${qs}`
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  })
+
+  if (res.status === 404) return null
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error ?? err.detail ?? err.message ?? `Oura error ${res.status}`)
+  }
+
+  return await res.json() as T
+}
+
 // ── Public fetch functions ────────────────────────────────────────
 
 export async function fetchOuraWorkouts(date: string): Promise<OuraWorkout[]> {
@@ -186,28 +404,79 @@ export async function fetchOuraSleep(date: string): Promise<OuraSleep | null> {
   return items.find(s => s.day === date) ?? null
 }
 
+/** Fetches the main sleep session (period === 0) from the sleep endpoint for actual durations. */
+export async function fetchOuraSleepSession(date: string): Promise<OuraSleepSession | null> {
+  const sessions = await proxyFetch<OuraSleepSession>('sleep', date)
+  // Prefer main night sleep (period 0); fall back to first session for the day
+  return sessions.find(s => s.day === date && s.period === 0)
+    ?? sessions.find(s => s.day === date)
+    ?? null
+}
+
 export async function fetchOuraSessions(date: string): Promise<OuraSession[]> {
   return proxyFetch<OuraSession>('session', date)
 }
 
-/** Calls personal_info endpoint — used by "Test connection" button.
- *  Returns true on success. Returns false if Supabase is unconfigured or
- *  no session exists. Throws with the API error message for all other failures
- *  (bad token, RLS error, network error, etc.) so callers can surface the cause. */
-export async function testOuraConnection(): Promise<boolean> {
-  if (!supabase) return false
+export async function fetchOuraDailyActivity(date: string): Promise<OuraDailyActivity | null> {
+  const items = await proxyFetch<OuraDailyActivity>('daily_activity', date)
+  return items.find(a => a.day === date) ?? null
+}
+
+export async function fetchOuraCardiovascularAge(date: string): Promise<OuraCardiovascularAge | null> {
+  const items = await proxyFetch<OuraCardiovascularAge>('daily_cardiovascular_age', date)
+  return items.find(c => c.day === date) ?? null
+}
+
+export async function fetchOuraSpo2(date: string): Promise<OuraSpo2 | null> {
+  const items = await proxyFetch<OuraSpo2>('daily_spo2', date)
+  return items.find(s => s.day === date) ?? null
+}
+
+export async function fetchOuraStress(date: string): Promise<OuraStress | null> {
+  const items = await proxyFetch<OuraStress>('daily_stress', date)
+  return items.find(s => s.day === date) ?? null
+}
+
+export async function fetchOuraResilience(date: string): Promise<OuraResilience | null> {
+  const items = await proxyFetch<OuraResilience>('daily_resilience', date)
+  return items.find(r => r.day === date) ?? null
+}
+
+export async function fetchOuraWorkoutRoute(workoutId: string): Promise<OuraWorkoutRoute | null> {
+  try {
+    return await proxyFetchSingle<OuraWorkoutRoute>('workout_route', { id: workoutId })
+  } catch {
+    return null
+  }
+}
+
+/** Returns weight/height/age/sex from the user's Oura profile. */
+export async function fetchOuraPersonalInfo(): Promise<OuraPersonalInfo | null> {
+  if (!supabase) return null
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return false
+  if (!session) return null
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
   const res = await fetch(
     `${supabaseUrl}/functions/v1/oura-proxy?endpoint=personal_info`,
     { headers: { Authorization: `Bearer ${session.access_token}` } },
   )
-  if (!res.ok) {
-    const body = await res.json().catch(() => null)
-    const msg = body?.error ?? body?.detail ?? body?.message ?? `Oura connection failed (HTTP ${res.status})`
-    throw new Error(msg)
-  }
-  return true
+  if (!res.ok) return null
+  return await res.json() as OuraPersonalInfo
 }
+
+/**
+ * Returns the N-day average of total_calories from daily_activity.
+ * Uses the last `days` days ending today. Returns null if no data available.
+ */
+export async function fetchOuraTdeeAvg(days = 7): Promise<number | null> {
+  const end   = new Date()
+  const start = new Date(end.getTime() - (days - 1) * 86_400_000)
+  const fmt   = (d: Date) => d.toISOString().split('T')[0]
+
+  const items = await proxyFetchRange<OuraDailyActivity>('daily_activity', fmt(start), fmt(end))
+  const cals  = items.map(d => d.total_calories).filter(c => c > 500)  // skip ring-off days
+  if (cals.length === 0) return null
+  return Math.round(cals.reduce((a, b) => a + b, 0) / cals.length)
+}
+

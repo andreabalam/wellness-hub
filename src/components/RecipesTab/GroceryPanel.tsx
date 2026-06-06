@@ -54,9 +54,9 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
 
   if (editing) {
     return (
-      <div className="gitem" style={{ gap: 6 }} onClick={e => e.stopPropagation()}>
+      <div className="gitem gap-6" onClick={e => e.stopPropagation()}>
         <input
-          className="tinput"
+          className="tinput gitem-edit-input"
           value={editVal}
           onChange={e => setEditVal(e.target.value)}
           onKeyDown={e => {
@@ -64,7 +64,6 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
             if (e.key === 'Escape') { setEditing(false); setEditVal(item.n) }
           }}
           autoFocus
-          style={{ flex: 1, fontSize: 13, padding: '3px 7px' }}
         />
         <button aria-label="Save" onClick={commitEdit} className="edit-confirm-btn">✓</button>
         <button
@@ -82,7 +81,7 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
       onClick={() => onToggle(item.n)}
     >
       <div className="gcheck">✓</div>
-      <span style={{ flex: 1 }}>
+      <span className="flex-1">
         {item.n}
         {item.nutri && (
           <span className="item-nutri">
@@ -139,7 +138,6 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
     setLookupState('idle')
     setNutSrv(''); setNutCal(''); setNutP(''); setNutC(''); setNutF(''); setNutFi('')
     abortRef.current?.abort()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -196,7 +194,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
       if ((e as Error).name === 'AbortError') return
       setLookupState('error')
     }
-  }, [addName]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [addName])
 
   const handleAddItem = useCallback(() => {
     const name = addName.trim()
@@ -223,7 +221,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
       <div className="guest-gate">
         <div className="guest-gate-icon">🛒</div>
         <div className="guest-gate-title">
-          Your <em style={{ color: 'var(--green-light)' }}>Grocery List</em>
+          Your <em className="text-green">Grocery List</em>
         </div>
         <div className="guest-gate-body">
           Sign in to manage your personalised grocery list.
@@ -235,10 +233,10 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
   // ── Authenticated view ─────────────────────────────────────────
   return (
     <div>
-      <div className="guest-gate-title" style={{ marginBottom: 4 }}>
-        Your <em style={{ color: 'var(--green-light)' }}>Grocery List</em>
+      <div className="guest-gate-title mb-4">
+        Your <em className="text-green">Grocery List</em>
       </div>
-      <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>
+      <div className="text-base text-muted mb-14">
         Tap an item to check it off. Use ✎ to rename or × to remove.
       </div>
 
@@ -247,14 +245,14 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
       </div>
 
       {/* Add item */}
-      <div style={{ marginBottom: 20 }}>
+      <div className="mb-20">
         {!showAddForm ? (
           <button
             aria-label="Add grocery item"
             className="add-trigger"
             onClick={() => setShowAddForm(true)}
           >
-            <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Add item to my list
+            <span className="text-lg" style={{ lineHeight: 1 }}>+</span> Add item to my list
           </button>
         ) : (
           <div className="add-form">
@@ -269,8 +267,8 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
               autoFocus
             />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ fontSize: 11, color: 'var(--muted2)' }}>Category</div>
+            <div className="flex flex-col gap-4">
+              <div className="text-xs text-muted2">Category</div>
               <select
                 className="form-select"
                 value={addCat}

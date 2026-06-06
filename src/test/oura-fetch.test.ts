@@ -24,15 +24,14 @@ vi.mock('../lib/supabase', () => {
 import { supabase } from '../lib/supabase'
 import {
   fetchOuraWorkouts, fetchOuraReadiness, fetchOuraSleep, fetchOuraSessions,
-  testOuraConnection, getOuraPat, saveOuraPat, clearOuraPat,
+  fetchOuraSpo2, fetchOuraStress, fetchOuraResilience,
+  fetchOuraWorkoutRoute, fetchOuraPersonalInfo, fetchOuraTdeeAvg,
+  isOuraConnected, exchangePendingCode, disconnectOura,
 } from '../lib/oura'
 
 const mockGetSession = vi.mocked((supabase as NonNullable<typeof supabase>).auth.getSession)
-const mockGetUser    = vi.mocked((supabase as NonNullable<typeof supabase>).auth.getUser)
-const mockFrom       = vi.mocked((supabase as NonNullable<typeof supabase>).from)
 
 const FAKE_SESSION = { access_token: 'fake-token' }
-const FAKE_USER    = { id: 'user-123' }
 
 // ── helpers ───────────────────────────────────────────────────────
 
@@ -51,7 +50,6 @@ beforeEach(() => {
   vi.unstubAllGlobals()
   // Default: no session (proxyFetch throws 'Not signed in')
   mockGetSession.mockResolvedValue({ data: { session: null } } as never)
-  mockGetUser.mockResolvedValue({ data: { user: null } } as never)
 })
 
 // ── proxyFetch — no session guard ────────────────────────────────
@@ -177,115 +175,235 @@ describe('fetchOuraSessions', () => {
   })
 })
 
-describe('testOuraConnection', () => {
+describe('isOuraConnected (mocked supabase)', () => {
   it('returns false when no session', async () => {
-    expect(await testOuraConnection()).toBe(false)
+    mockGetSession.mockResolvedValue({ data: { session: null } } as never)
+    expect(await isOuraConnected()).toBe(false)
   })
 
-  it('returns true when fetch succeeds with session', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
-    expect(await testOuraConnection()).toBe(true)
-  })
-
-  it('throws with error message when fetch fails', async () => {
+  it('returns true when exchange endpoint reports connected', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 422,
-      json: async () => ({ error: 'No Oura Personal Access Token configured.' }),
+      ok: true,
+      json: async () => ({ connected: true }),
     }))
-    await expect(testOuraConnection()).rejects.toThrow('No Oura Personal Access Token configured.')
+    expect(await isOuraConnected()).toBe(true)
   })
 
-  it('throws with detail field when Oura returns detail instead of error', async () => {
+  it('returns false when exchange endpoint reports not connected', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 401,
-      json: async () => ({ detail: 'Token is invalid or expired.' }),
+      ok: true,
+      json: async () => ({ connected: false }),
     }))
-    await expect(testOuraConnection()).rejects.toThrow('Token is invalid or expired.')
+    expect(await isOuraConnected()).toBe(false)
   })
 
-  it('throws with message field when body has message but no error or detail', async () => {
+  it('returns false when fetch fails', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 403,
-      json: async () => ({ message: 'Forbidden' }),
-    }))
-    await expect(testOuraConnection()).rejects.toThrow('Forbidden')
-  })
-
-  it('throws with fallback message when error body is unparseable', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 502,
-      json: async () => { throw new Error('not json') },
-    }))
-    await expect(testOuraConnection()).rejects.toThrow('HTTP 502')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }))
+    expect(await isOuraConnected()).toBe(false)
   })
 })
 
-describe('getOuraPat (mocked supabase)', () => {
-  it('returns null when query returns no data', async () => {
-    const mockMaybySingle = vi.fn().mockResolvedValue({ data: null, error: null })
-    const mockSelectFn = vi.fn(() => ({ maybeSingle: mockMaybySingle }))
-    mockFrom.mockReturnValue({ select: mockSelectFn } as never)
-    expect(await getOuraPat()).toBeNull()
+describe('exchangePendingCode (mocked supabase)', () => {
+  it('throws "No pending Oura auth code" when sessionStorage is empty', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    await expect(exchangePendingCode()).rejects.toThrow('No pending Oura auth code')
   })
 
-  it('returns pat string when user_settings has one', async () => {
-    const mockMaybySingle = vi.fn().mockResolvedValue({ data: { oura_pat: 'my-pat' }, error: null })
-    const mockSelectFn = vi.fn(() => ({ maybeSingle: mockMaybySingle }))
-    mockFrom.mockReturnValue({ select: mockSelectFn } as never)
-    expect(await getOuraPat()).toBe('my-pat')
+  it('calls oura-exchange with code and redirect_uri from sessionStorage', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    sessionStorage.setItem('oura_oauth_pending_code', 'test-code')
+    sessionStorage.setItem('oura_oauth_pending_uri', 'https://example.com/wellness-hub/')
+    const mockFetchFn = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', mockFetchFn)
+    await exchangePendingCode()
+    expect(mockFetchFn).toHaveBeenCalledWith(
+      expect.stringContaining('oura-exchange'),
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(sessionStorage.getItem('oura_oauth_pending_code')).toBeNull()
   })
 
-  it('returns null on query error', async () => {
-    const mockMaybySingle = vi.fn().mockResolvedValue({ data: null, error: new Error('db error') })
-    const mockSelectFn = vi.fn(() => ({ maybeSingle: mockMaybySingle }))
-    mockFrom.mockReturnValue({ select: mockSelectFn } as never)
-    expect(await getOuraPat()).toBeNull()
-  })
-})
-
-describe('saveOuraPat (mocked supabase)', () => {
-  it('throws "Not signed in" when user is null', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } } as never)
-    await expect(saveOuraPat('tok')).rejects.toThrow('Not signed in')
-  })
-
-  it('saves PAT successfully when user exists', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: FAKE_USER } } as never)
-    const mockUpsertFn = vi.fn().mockResolvedValue({ error: null })
-    mockFrom.mockReturnValue({ upsert: mockUpsertFn } as never)
-    await expect(saveOuraPat('tok')).resolves.toBeUndefined()
-    expect(mockUpsertFn).toHaveBeenCalledWith(expect.objectContaining({ oura_pat: 'tok' }))
-  })
-
-  it('throws when upsert returns an error', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: FAKE_USER } } as never)
-    const dbError = { message: 'constraint violation' }
-    const mockUpsertFn = vi.fn().mockResolvedValue({ error: dbError })
-    mockFrom.mockReturnValue({ upsert: mockUpsertFn } as never)
-    await expect(saveOuraPat('tok')).rejects.toEqual(dbError)
+  it('throws when the exchange endpoint returns an error', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    sessionStorage.setItem('oura_oauth_pending_code', 'bad-code')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'invalid_grant' }),
+    }))
+    await expect(exchangePendingCode()).rejects.toThrow('invalid_grant')
   })
 })
 
-describe('clearOuraPat (mocked supabase)', () => {
-  it('does nothing when user is null', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } } as never)
-    await expect(clearOuraPat()).resolves.toBeUndefined()
+describe('disconnectOura (mocked supabase)', () => {
+  it('resolves without error when no session', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null } } as never)
+    await expect(disconnectOura()).resolves.toBeUndefined()
   })
 
-  it('upserts oura_pat: null when user exists', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: FAKE_USER } } as never)
-    const mockUpsertFn = vi.fn().mockResolvedValue({ error: null })
-    mockFrom.mockReturnValue({ upsert: mockUpsertFn } as never)
-    await clearOuraPat()
-    expect(mockUpsertFn).toHaveBeenCalledWith(expect.objectContaining({ oura_pat: null }))
+  it('sends DELETE to oura-exchange when session exists', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    const mockFetchFn = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', mockFetchFn)
+    await disconnectOura()
+    expect(mockFetchFn).toHaveBeenCalledWith(
+      expect.stringContaining('oura-exchange'),
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+})
+
+// ── fetchOuraSpo2 ────────────────────────────────────────────────
+
+describe('fetchOuraSpo2', () => {
+  it('returns null when no SpO2 data for the date', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ data: [] })
+    expect(await fetchOuraSpo2('2024-01-01')).toBeNull()
+  })
+
+  it('returns SpO2 record matching the requested date', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    const item = { day: '2024-01-01', spo2_percentage: { average: 96.5 } }
+    mockFetch({ data: [item, { day: '2024-01-02', spo2_percentage: { average: 95 } }] })
+    expect(await fetchOuraSpo2('2024-01-01')).toEqual(item)
+  })
+
+  it('throws when no session', async () => {
+    await expect(fetchOuraSpo2('2024-01-01')).rejects.toThrow()
+  })
+})
+
+// ── fetchOuraStress ───────────────────────────────────────────────
+
+describe('fetchOuraStress', () => {
+  it('returns null when no stress data for the date', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ data: [] })
+    expect(await fetchOuraStress('2024-01-01')).toBeNull()
+  })
+
+  it('returns stress record matching the requested date', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    const item = { day: '2024-01-01', stress_high: 3600, recovery_high: 7200, day_summary: 'normal' }
+    mockFetch({ data: [item] })
+    expect(await fetchOuraStress('2024-01-01')).toEqual(item)
+  })
+})
+
+// ── fetchOuraResilience ───────────────────────────────────────────
+
+describe('fetchOuraResilience', () => {
+  it('returns null when no resilience data for the date', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ data: [] })
+    expect(await fetchOuraResilience('2024-01-01')).toBeNull()
+  })
+
+  it('returns resilience record matching the requested date', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    const item = {
+      day: '2024-01-01',
+      level: 'strong',
+      contributors: { sleep_recovery: 85, daytime_recovery: 72, stress_impact: 68 },
+    }
+    mockFetch({ data: [item] })
+    expect(await fetchOuraResilience('2024-01-01')).toEqual(item)
+  })
+})
+
+// ── fetchOuraWorkoutRoute ─────────────────────────────────────────
+
+describe('fetchOuraWorkoutRoute', () => {
+  it('returns null when route returns 404', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: vi.fn() }))
+    expect(await fetchOuraWorkoutRoute('workout-id')).toBeNull()
+  })
+
+  it('returns route data when found', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    const route = {
+      id: 'w1', start_datetime: '2024-01-01T08:00:00', end_datetime: '2024-01-01T09:00:00',
+      source: 'oura', polyline: 'encoded_polyline',
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: vi.fn().mockResolvedValue(route),
+    }))
+    expect(await fetchOuraWorkoutRoute('w1')).toEqual(route)
+  })
+
+  it('returns null when fetch throws (network error)', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')))
+    expect(await fetchOuraWorkoutRoute('w1')).toBeNull()
+  })
+})
+
+// ── fetchOuraPersonalInfo ─────────────────────────────────────────
+
+describe('fetchOuraPersonalInfo', () => {
+  it('returns null when no session', async () => {
+    expect(await fetchOuraPersonalInfo()).toBeNull()
+  })
+
+  it('returns personal info when fetch succeeds', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    const info = { age: 30, weight: 65, height: 1.68, biological_sex: 'female' }
+    mockFetch(info)
+    expect(await fetchOuraPersonalInfo()).toEqual(info)
+  })
+
+  it('returns null when the proxy returns an error', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ error: 'No Oura account connected' }, false)
+    expect(await fetchOuraPersonalInfo()).toBeNull()
+  })
+})
+
+// ── fetchOuraTdeeAvg ──────────────────────────────────────────────
+
+describe('fetchOuraTdeeAvg', () => {
+  it('returns null when no activity data', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ data: [] })
+    expect(await fetchOuraTdeeAvg(7)).toBeNull()
+  })
+
+  it('returns rounded average of total_calories across valid days', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ data: [
+      { day: '2024-01-01', total_calories: 2200 },
+      { day: '2024-01-02', total_calories: 2400 },
+      { day: '2024-01-03', total_calories: 2000 },
+    ]})
+    // (2200 + 2400 + 2000) / 3 = 2200
+    expect(await fetchOuraTdeeAvg(3)).toBe(2200)
+  })
+
+  it('skips ring-off days (total_calories <= 500)', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ data: [
+      { day: '2024-01-01', total_calories: 2400 },
+      { day: '2024-01-02', total_calories: 300 },  // ring off
+      { day: '2024-01-03', total_calories: 2200 },
+    ]})
+    // average only the valid days: (2400 + 2200) / 2 = 2300
+    expect(await fetchOuraTdeeAvg(3)).toBe(2300)
+  })
+
+  it('returns null when all days are ring-off', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ data: [
+      { day: '2024-01-01', total_calories: 100 },
+      { day: '2024-01-02', total_calories: 50 },
+    ]})
+    expect(await fetchOuraTdeeAvg(2)).toBeNull()
+  })
+
+  it('throws when no session', async () => {
+    await expect(fetchOuraTdeeAvg(7)).rejects.toThrow()
   })
 })

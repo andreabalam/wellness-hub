@@ -339,53 +339,84 @@ export async function upsertUserSettings(userId: string, s: UserSettings): Promi
 // ── User body stats ─────────────────────────────────────────────────
 
 export interface UserBodyStats {
-  weightKg:    number
-  bodyFatPct:  number
-  heightM:     number
-  cycleType:   'regular' | 'irregular' | 'none'
-  equipment:   string
-  tdeeKcal:    number
-  kcalTarget:  number
-  protRange:   string
-  fatLossGoal: string
-  chronotype:  'early' | 'intermediate' | 'late'
+  // Measurements — auto-filled from Oura personal_info, user-editable
+  weightKg:      number
+  heightM:       number
+  age:           number
+  biologicalSex: string   // 'male' | 'female' | 'other' | ''
+
+  // Composition + lifestyle — user-entered
+  bodyFatPct:    number
+  cycleType:     'regular' | 'irregular' | 'none'
+  equipment:     string
+  chronotype:    'lion' | 'bear' | 'wolf' | 'dolphin' | ''
+
+  // Goals — user-entered
+  fatLossRateKg: number   // kg/week: 0 | 0.25 | 0.5 | 0.75 | 1.0
+  macroSplit:    'balanced' | 'high_protein' | 'low_carb' | 'custom'
+
+  // Computed / cached
+  tdeeKcal:      number   // 7-day avg from Oura daily_activity.total_calories
+  kcalTarget:    number   // = kcalFromTdee(tdee, fatLossRate) or user override
+
+  // Computed display strings (for WorkoutsTab stats strip)
+  protRange:     string
+  fatLossGoal:   string
 }
+
+/*
+ * Supabase migration — run once in the SQL editor:
+ *
+ * ALTER TABLE user_body_stats
+ *   ADD COLUMN IF NOT EXISTS age             INTEGER DEFAULT 0,
+ *   ADD COLUMN IF NOT EXISTS biological_sex  TEXT    DEFAULT '',
+ *   ADD COLUMN IF NOT EXISTS fat_loss_rate_kg NUMERIC DEFAULT 0,
+ *   ADD COLUMN IF NOT EXISTS macro_split     TEXT    DEFAULT 'balanced';
+ */
 
 export async function fetchUserBodyStats(userId: string): Promise<UserBodyStats | null> {
   const { data, error } = await supabase!
     .from('user_body_stats')
-    .select('weight_kg, body_fat_pct, height_m, cycle_type, equipment, tdee_kcal, kcal_target, prot_range, fat_loss_goal, chronotype')
+    .select('weight_kg, body_fat_pct, height_m, age, biological_sex, cycle_type, equipment, tdee_kcal, kcal_target, prot_range, fat_loss_goal, chronotype, fat_loss_rate_kg, macro_split')
     .eq('user_id', userId)
     .single()
   if (error || !data) return null
   return {
-    weightKg:    data.weight_kg     as number,
-    bodyFatPct:  data.body_fat_pct  as number,
-    heightM:     data.height_m      as number,
-    cycleType:   data.cycle_type    as UserBodyStats['cycleType'],
-    equipment:   data.equipment     as string,
-    tdeeKcal:    data.tdee_kcal     as number,
-    kcalTarget:  data.kcal_target   as number,
-    protRange:   data.prot_range    as string,
-    fatLossGoal: data.fat_loss_goal as string,
-    chronotype:  data.chronotype    as UserBodyStats['chronotype'],
+    weightKg:      (data.weight_kg      as number) ?? 0,
+    heightM:       (data.height_m       as number) ?? 0,
+    age:           (data.age            as number) ?? 0,
+    biologicalSex: (data.biological_sex as string) ?? '',
+    bodyFatPct:    (data.body_fat_pct   as number) ?? 0,
+    cycleType:     (data.cycle_type     as UserBodyStats['cycleType'])  ?? 'none',
+    equipment:     (data.equipment      as string) ?? '',
+    chronotype:    (data.chronotype     as UserBodyStats['chronotype']) ?? '',
+    fatLossRateKg: (data.fat_loss_rate_kg as number) ?? 0,
+    macroSplit:    (data.macro_split    as UserBodyStats['macroSplit']) ?? 'balanced',
+    tdeeKcal:      (data.tdee_kcal      as number) ?? 0,
+    kcalTarget:    (data.kcal_target    as number) ?? 0,
+    protRange:     (data.prot_range     as string) ?? '',
+    fatLossGoal:   (data.fat_loss_goal  as string) ?? '',
   }
 }
 
 export async function upsertUserBodyStats(userId: string, s: UserBodyStats): Promise<void> {
   await supabase!.from('user_body_stats').upsert({
-    user_id:       userId,
-    weight_kg:     s.weightKg,
-    body_fat_pct:  s.bodyFatPct,
-    height_m:      s.heightM,
-    cycle_type:    s.cycleType,
-    equipment:     s.equipment,
-    tdee_kcal:     s.tdeeKcal,
-    kcal_target:   s.kcalTarget,
-    prot_range:    s.protRange,
-    fat_loss_goal: s.fatLossGoal,
-    chronotype:    s.chronotype,
-    updated_at:    new Date().toISOString(),
+    user_id:          userId,
+    weight_kg:        s.weightKg,
+    height_m:         s.heightM,
+    age:              s.age,
+    biological_sex:   s.biologicalSex,
+    body_fat_pct:     s.bodyFatPct,
+    cycle_type:       s.cycleType,
+    equipment:        s.equipment,
+    chronotype:       s.chronotype,
+    fat_loss_rate_kg: s.fatLossRateKg,
+    macro_split:      s.macroSplit,
+    tdee_kcal:        s.tdeeKcal,
+    kcal_target:      s.kcalTarget,
+    prot_range:       s.protRange,
+    fat_loss_goal:    s.fatLossGoal,
+    updated_at:       new Date().toISOString(),
   }, { onConflict: 'user_id' })
 }
 

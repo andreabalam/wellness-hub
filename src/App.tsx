@@ -4,26 +4,29 @@ import ScheduleTab from './components/ScheduleTab'
 import WorkoutsTab from './components/WorkoutsTab'
 import RecipesTab from './components/RecipesTab'
 import TrackerTab from './components/TrackerTab'
+import OuraTab from './components/OuraTab'
 import UpdatePrompt from './components/UpdatePrompt'
 import AuthButton from './components/AuthButton'
 import ErrorBoundary from './components/ErrorBoundary'
 import { supabase } from './lib/supabase'
+import { consumeOAuthCallback } from './lib/oura'
 import * as sync from './lib/sync'
 import type { MedGuide } from './lib/sync'
 import { safeGet } from './lib/storage'
-import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStore, groceryCatalogStore, importRemoteData, MED_GUIDES_KEY, exportAllData, importAllData, userSettingsStore, bodyStatsStore, workoutPlanStore } from './hooks/useStore'
+import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStore, groceryCatalogStore, remindersStore, importRemoteData, MED_GUIDES_KEY, exportAllData, importAllData, userSettingsStore, bodyStatsStore, workoutPlanStore } from './hooks/useStore'
 
-type Tab = 'tracker' | 'recipes' | 'workouts' | 'schedule'
+type Tab = 'tracker' | 'recipes' | 'workouts' | 'schedule' | 'oura'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'tracker',  label: '📊 Tracker' },
   { id: 'recipes',  label: '🍽 Recipes' },
   { id: 'workouts', label: '💪 Workouts' },
   { id: 'schedule', label: '📅 Schedule' },
+  { id: 'oura',     label: '🫀 Oura' },
 ]
 
 export default function App() {
-  const [active, setActive]       = useState<Tab>('tracker')
+  const [active, setActive]       = useState<Tab>(() => consumeOAuthCallback() ? 'oura' : 'tracker')
   // Lazy-init from window so we avoid setState inside the effect below
   const [swUpdate, setSwUpdate]   = useState<(() => void) | null>(
     () => window.__swPendingUpdate ?? null
@@ -69,7 +72,7 @@ export default function App() {
     setSyncing(true)
     try {
       // Pull remote data
-      const [remoteDays, remoteTags, remoteGrocery, remoteFoodLib, remoteWeekSchedule, remoteMedGuides, remoteGroceryCatalog] = await Promise.all([
+      const [remoteDays, remoteTags, remoteGrocery, remoteFoodLib, remoteWeekSchedule, remoteMedGuides, remoteGroceryCatalog, remoteReminders] = await Promise.all([
         sync.pullAllDays(userId),
         sync.pullTags(userId),
         sync.pullGrocery(userId),
@@ -77,6 +80,7 @@ export default function App() {
         sync.pullWeekSchedule(userId),
         sync.pullMedGuides(userId),
         sync.pullUserGroceryCatalog(userId),
+        sync.fetchReminders(userId),
       ])
 
       // Merge: remote wins for tracker day conflicts (another device is authoritative);
@@ -103,6 +107,14 @@ export default function App() {
       const localMedGuides = safeGet<MedGuide[] | null>(MED_GUIDES_KEY, null)
       const mergedMedGuides = remoteMedGuides ?? localMedGuides
 
+      // Reminders: union by id — remote wins per id, local-only reminders are kept
+      const localReminders = remindersStore.getAll()
+      const remoteReminderIds = new Set(remoteReminders.map(r => r.id))
+      const mergedReminders = [
+        ...remoteReminders,
+        ...localReminders.filter(r => !remoteReminderIds.has(r.id)),
+      ]
+
       // Grocery catalog: remote wins per id; local-only items are kept
       const localCatalog = groceryCatalogStore.getAll()
       const remoteIds = new Set((remoteGroceryCatalog ?? []).map(i => i.id))
@@ -119,6 +131,7 @@ export default function App() {
         ...(mergedWeekSchedule  ? { weekSchedule:  mergedWeekSchedule  } : {}),
         ...(mergedMedGuides     ? { medGuides:     mergedMedGuides     } : {}),
         ...(mergedGroceryCatalog.length ? { groceryCatalog: mergedGroceryCatalog } : {}),
+        reminders: mergedReminders,
       })
 
       // Push merged data back so any local-only items reach Supabase
@@ -132,6 +145,7 @@ export default function App() {
         ...(mergedWeekSchedule      ? [sync.pushWeekSchedule(userId, mergedWeekSchedule)]           : []),
         ...(mergedMedGuides         ? [sync.pushMedGuides(userId, mergedMedGuides)]                 : []),
         ...(mergedGroceryCatalog.length ? [sync.pushUserGroceryCatalog(userId, mergedGroceryCatalog)] : []),
+        ...mergedReminders.map(r => sync.upsertReminder(userId, r)),
       ])
 
       // User settings: remote wins; push local if no remote copy
@@ -231,6 +245,12 @@ export default function App() {
       <ErrorBoundary name="Tracker">
         <div className={`view${active === 'tracker' ? ' active' : ''}`}>
           {active === 'tracker' && <TrackerTab user={user} />}
+        </div>
+      </ErrorBoundary>
+
+      <ErrorBoundary name="Oura">
+        <div className={`view${active === 'oura' ? ' active' : ''}`}>
+          <OuraTab user={user} />
         </div>
       </ErrorBoundary>
 

@@ -220,10 +220,10 @@ export default function RecipesTab({ user }: { user?: User | null }) {
 
   if (!user) {
     return (
-      <div className="guest-gate" style={{ paddingTop: 64, paddingBottom: 32 }}>
-        <div className="guest-gate-icon" style={{ fontSize: 44 }}>📖</div>
+      <div className="guest-gate-cta">
+        <div className="guest-gate-cta__icon">📖</div>
         <div className="guest-gate-title">
-          Sign in to save <em style={{ color: 'var(--purple-light)' }}>Recipes</em>
+          Sign in to save <em className="text-purple">Recipes</em>
         </div>
         <div className="guest-gate-body">
           Create, save and organise your personal recipes. Your collection stays private and syncs across devices.
@@ -235,7 +235,7 @@ export default function RecipesTab({ user }: { user?: User | null }) {
   return (
     <>
       {/* Filter bar */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
+      <div className="flex flex-wrap gap-6 mb-12 items-center">
         {FILTER_BTNS.map(btn => (
           <button
             key={btn.id}
@@ -246,8 +246,7 @@ export default function RecipesTab({ user }: { user?: User | null }) {
           </button>
         ))}
         <button
-          className={`rfbtn${activeFilter === 'grocery' ? ' active' : ''}`}
-          style={{ borderColor: activeFilter === 'grocery' ? undefined : 'var(--green2)', color: activeFilter === 'grocery' ? undefined : 'var(--green-light)' }}
+          className={`rfbtn${activeFilter === 'grocery' ? ' active' : ' rfbtn--green'}`}
           onClick={() => setFilter('grocery')}
         >
           🛒 Grocery
@@ -256,11 +255,11 @@ export default function RecipesTab({ user }: { user?: User | null }) {
 
       {/* Search */}
       {activeFilter !== 'grocery' && (
-        <div style={{ position: 'relative', marginBottom: 14 }}>
+        <div className="recipe-search-wrap">
           <svg
             width="14" height="14" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-            style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted2)', pointerEvents: 'none' }}
+            className="recipe-search-icon"
           >
             <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
@@ -269,39 +268,18 @@ export default function RecipesTab({ user }: { user?: User | null }) {
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search recipes, ingredients…"
-            style={{
-              width: '100%',
-              background: 'var(--bg2)', border: '1px solid var(--border2)',
-              borderRadius: 9, padding: '9px 36px 9px 34px',
-              color: 'var(--text)', fontSize: 13,
-              fontFamily: '"DM Sans", sans-serif', outline: 'none',
-              transition: 'border-color .2s',
-            }}
-            onFocus={e => (e.target.style.borderColor = 'var(--green)')}
-            onBlur={e  => (e.target.style.borderColor = 'var(--border2)')}
+            className="recipe-search-input"
           />
           {query && (
-            <button
-              onClick={() => setQuery('')}
-              style={{
-                position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)',
-                background: 'none', border: 'none', color: 'var(--muted2)',
-                cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 2px',
-              }}
-            >
-              ×
-            </button>
+            <button onClick={() => setQuery('')} className="recipe-search-clear">×</button>
           )}
         </div>
       )}
 
       {/* Action bar — only visible to signed-in users and not on the grocery view */}
       {isAuth && activeFilter !== 'grocery' && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18, alignItems: 'center' }}>
-          <button
-            onClick={() => setShowModal(true)}
-            style={{ background: 'var(--purple)', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontFamily: 'sans-serif', color: '#fff', cursor: 'pointer', fontWeight: 500 }}
-          >
+        <div className="flex flex-wrap gap-8 mb-18 items-center">
+          <button onClick={() => setShowModal(true)} className="btn btn--secondary btn--md">
             + Add my recipe
           </button>
         </div>
@@ -312,25 +290,9 @@ export default function RecipesTab({ user }: { user?: User | null }) {
 
       {/* Restore hidden banner — shown when the user has hidden built-in recipes */}
       {hiddenIds.length > 0 && activeFilter !== 'grocery' && (
-        <div
-          role="status"
-          aria-label="restore hidden recipes"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '9px 14px', marginBottom: 14,
-            background: 'rgba(138,106,184,0.08)', border: '1px solid var(--purple)',
-            borderRadius: 9, fontSize: 12, color: 'var(--purple-light)',
-          }}
-        >
+        <div role="status" aria-label="restore hidden recipes" className="ai-badge mb-14">
           <span>{hiddenIds.length} suggestion{hiddenIds.length !== 1 ? 's' : ''} hidden</span>
-          <button
-            onClick={handleRestoreAll}
-            style={{
-              background: 'none', border: '1px solid var(--purple)', borderRadius: 6,
-              padding: '3px 10px', fontSize: 11, color: 'var(--purple-light)',
-              cursor: 'pointer', fontFamily: 'sans-serif',
-            }}
-          >
+          <button onClick={handleRestoreAll} className="ai-badge__dismiss">
             Restore all
           </button>
         </div>
@@ -340,19 +302,17 @@ export default function RecipesTab({ user }: { user?: User | null }) {
       {activeFilter !== 'grocery' && (
         <div className="rgrid">
           {loading ? (
-            <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted2)', fontSize: 13, gridColumn: '1/-1' }}>
-              Loading recipes…
-            </div>
+            <div className="empty-state">Loading recipes…</div>
           ) : loadError && !query.trim() ? (
-            <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted2)', fontSize: 13, fontStyle: 'italic', gridColumn: '1/-1' }}>
+            <div className="empty-state">
               Could not load recipes — check your connection and refresh.
             </div>
           ) : visibleRecipes.length === 0 ? (
-            <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted2)', fontSize: 13, fontStyle: 'italic', gridColumn: '1/-1' }}>
+            <div className="empty-state">
               {query.trim()
-                ? <>No recipes found for <strong style={{ color: 'var(--text)' }}>"{query.trim()}"</strong>.</>
+                ? <>No recipes found for <strong className="text-default">"{query.trim()}"</strong>.</>
                 : isAuth
-                  ? <>No recipes yet. Tap <strong style={{ color: 'var(--purple-light)' }}>+ Add my recipe</strong> to create your first one.</>
+                  ? <>No recipes yet. Tap <strong className="text-purple">+ Add my recipe</strong> to create your first one.</>
                   : <>Sign in to add and view your recipes.</>
               }
             </div>

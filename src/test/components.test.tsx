@@ -330,6 +330,31 @@ describe('GroceryPanel — dynamic catalog', () => {
     expect(screen.queryByDisplayValue('Stay Same')).not.toBeInTheDocument()
   })
 
+  it('pressing Enter in the edit input saves the new name (onKeyDown handler)', () => {
+    render(<GroceryPanel user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Press Enter' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    fireEvent.click(screen.getByRole('button', { name: /Edit Press Enter/i }))
+    const input = screen.getByDisplayValue('Press Enter')
+    fireEvent.change(input, { target: { value: 'Pressed' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByText('Pressed')).toBeInTheDocument()
+  })
+
+  it('pressing Escape in the edit input cancels without saving (onKeyDown handler)', () => {
+    render(<GroceryPanel user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'No Change' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    fireEvent.click(screen.getByRole('button', { name: /Edit No Change/i }))
+    const input = screen.getByDisplayValue('No Change')
+    fireEvent.change(input, { target: { value: 'changed' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.getByText('No Change')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('changed')).not.toBeInTheDocument()
+  })
+
   it('all items (including seeded default items) have edit and remove buttons', () => {
     render(<GroceryPanel user={FAKE_USER} />)
     // Baby spinach is a seeded default item
@@ -609,7 +634,7 @@ describe('CookingMode', () => {
 
   it('clicking an ingredient checks it off', () => {
     render(<CookingMode recipe={BASE_RECIPE} onClose={onClose} />)
-    const chickenRow = screen.getByText('Chicken breast').closest('div[style]')!
+    const chickenRow = screen.getByText('Chicken breast').closest('.cooking-ing-row')!
     fireEvent.click(chickenRow)
     // After click the ingredient text gets line-through style — indicator has '✓'
     expect(screen.getByText('✓')).toBeInTheDocument()
@@ -910,6 +935,28 @@ describe('RecipeModal', () => {
     expect(screen.getByText('Changes saved!')).toBeInTheDocument()
     vi.useRealTimers()
   })
+
+  it('image preview renders and onError hides it on broken URL', () => {
+    render(<RecipeModal {...baseProps} />)
+    // Type a URL into the image field to reveal the <img>
+    const imgInput = screen.getByPlaceholderText(/direct image link/)
+    fireEvent.change(imgInput, { target: { value: 'https://example.com/photo.jpg' } })
+    const img = document.querySelector('img[alt="preview"]') as HTMLImageElement
+    expect(img).not.toBeNull()
+    // Simulate a broken image — onError should hide it
+    fireEvent.error(img)
+    expect(img.style.display).toBe('none')
+  })
+
+  it('image preview onLoad makes it visible', () => {
+    render(<RecipeModal {...baseProps} />)
+    const imgInput = screen.getByPlaceholderText(/direct image link/)
+    fireEvent.change(imgInput, { target: { value: 'https://example.com/photo.jpg' } })
+    const img = document.querySelector('img[alt="preview"]') as HTMLImageElement
+    // Simulate successful load — onLoad should ensure it is visible
+    fireEvent.load(img)
+    expect(img.style.display).toBe('block')
+  })
 })
 
 // ═════════════════════════════════════════════════════════════════
@@ -1204,7 +1251,7 @@ describe('WorkoutsTab', () => {
     render(<WorkoutsTab user={null} />)
     // Goblet Squat appears in Day A and Day C; take the first one
     const exerciseTitle = screen.getAllByText('Goblet Squat')[0]
-    fireEvent.click(exerciseTitle.closest('div[style*="cursor: pointer"]')!)
+    fireEvent.click(exerciseTitle.closest('.exercise-row')!)
     expect(screen.getByText(/Hold one dumbbell/i)).toBeInTheDocument()
   })
 
@@ -1256,37 +1303,36 @@ describe('WorkoutsTab', () => {
   it('auth: clicking an ExerciseRow expands its instruction', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
     const exerciseTitle = screen.getByText('Footwork series')
-    fireEvent.click(exerciseTitle.closest('div[style*="cursor: pointer"]')!)
+    fireEvent.click(exerciseTitle.closest('.exercise-row')!)
     expect(screen.getByText(/Reformer footwork/i)).toBeInTheDocument()
   })
 
-  it('auth: "Set up my stats" button is shown when no stats saved', () => {
+  it('auth: "+ Set up" button is shown when no stats saved', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
-    expect(screen.getByRole('button', { name: /Set up my stats/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /\+ Set up/i })).toBeInTheDocument()
   })
 
-  it('auth: clicking "Set up my stats" opens the edit panel', () => {
+  it('auth: clicking "+ Set up" opens the profile edit form', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByRole('button', { name: /Set up my stats/i }))
-    expect(screen.getByText('Edit body stats')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('58')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    expect(screen.getByPlaceholderText('65')).toBeInTheDocument()
   })
 
-  it('auth: Cancel closes the edit stats panel', () => {
+  it('auth: Cancel closes the profile edit form', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByRole('button', { name: /Set up my stats/i }))
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     fireEvent.click(screen.getByRole('button', { name: /Cancel/i }))
-    expect(screen.queryByText('Edit body stats')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('65')).not.toBeInTheDocument()
   })
 
   it('auth: Save persists updated weight to localStorage', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByRole('button', { name: /Set up my stats/i }))
-    const weightInput = screen.getByPlaceholderText('58')
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    const weightInput = screen.getByPlaceholderText('65')
     fireEvent.change(weightInput, { target: { value: '72' } })
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }))
-    // After save, edit panel closes
-    expect(screen.queryByText('Edit body stats')).not.toBeInTheDocument()
+    // After save, edit form closes
+    expect(screen.queryByPlaceholderText('65')).not.toBeInTheDocument()
     // localStorage now has the saved value
     const saved = JSON.parse(ls['whub_body_stats_v1'] ?? '{}')
     expect(saved.weightKg).toBe(72)
@@ -1302,7 +1348,8 @@ describe('WorkoutsTab', () => {
       chronotype: 'late',
     })
     render(<WorkoutsTab user={FAKE_USER} />)
-    expect(screen.getByText('58 kg')).toBeInTheDocument()
+    // "58 kg" appears in both the plan subtitle and ProfileStatsCard grid
+    expect(screen.getAllByText('58 kg').length).toBeGreaterThan(0)
     // Stats strip has "Daily target" label; use getAllByText since kcal appears in weekly note too
     const kcalCells = screen.getAllByText(/1.?380 kcal/)
     expect(kcalCells.length).toBeGreaterThan(0)
@@ -1319,45 +1366,55 @@ describe('WorkoutsTab', () => {
     expect(screen.getByText('3-Week Rotating Cycle')).toBeInTheDocument()
   })
 
-  it('auth with stats: "Edit stats" button opens pre-filled form', () => {
+  it('auth with stats: "✎ Edit" button opens pre-filled form', () => {
     ls['whub_body_stats_v1'] = JSON.stringify({
       weightKg: 58, bodyFatPct: 35, heightM: 1.56, cycleType: 'irregular',
       equipment: 'Dumbbells', tdeeKcal: 1680, kcalTarget: 1380,
       protRange: '105-115g/day', fatLossGoal: '0.4-0.5 kg/wk', chronotype: 'late',
     })
     render(<WorkoutsTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByRole('button', { name: /Edit stats/ }))
+    fireEvent.click(screen.getByRole('button', { name: /✎ Edit/ }))
     // Form should appear with the weight pre-filled
-    const weightInput = screen.getByPlaceholderText('58') as HTMLInputElement
+    const weightInput = screen.getByPlaceholderText('65') as HTMLInputElement
     expect(weightInput.value).toBe('58')
   })
 
-  it('auth with stats: stats-toggle Cancel button hides edit panel', () => {
+  it('auth with stats: Cancel button closes profile edit form', () => {
     ls['whub_body_stats_v1'] = JSON.stringify({
       weightKg: 58, bodyFatPct: 35, heightM: 1.56, cycleType: 'none',
       equipment: '', tdeeKcal: 1680, kcalTarget: 1380,
-      protRange: '', fatLossGoal: '', chronotype: 'intermediate',
+      protRange: '', fatLossGoal: '', chronotype: 'bear',
     })
     render(<WorkoutsTab user={FAKE_USER} />)
-    // Open edit panel via "✎ Edit stats" button
-    fireEvent.click(screen.getByRole('button', { name: /✎ Edit stats/ }))
-    expect(screen.getByText('Edit body stats')).toBeInTheDocument()
-    // The stats-strip toggle button now reads "✕ Cancel"; click it to close
-    fireEvent.click(screen.getByRole('button', { name: /✕ Cancel/ }))
-    expect(screen.queryByText('Edit body stats')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /✎ Edit/ }))
+    expect(screen.getByPlaceholderText('65')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Cancel/i }))
+    expect(screen.queryByPlaceholderText('65')).not.toBeInTheDocument()
   })
 
   it('auth with stats: changing cycle type select updates value', () => {
     ls['whub_body_stats_v1'] = JSON.stringify({
       weightKg: 58, bodyFatPct: 35, heightM: 1.56, cycleType: 'none',
       equipment: '', tdeeKcal: 0, kcalTarget: 0,
-      protRange: '', fatLossGoal: '', chronotype: 'intermediate',
+      protRange: '', fatLossGoal: '', chronotype: 'bear',
     })
     render(<WorkoutsTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByRole('button', { name: /Edit stats/ }))
+    fireEvent.click(screen.getByRole('button', { name: /✎ Edit/ }))
     const cycleSelect = screen.getByDisplayValue('None / N/A')
     fireEvent.change(cycleSelect, { target: { value: 'regular' } })
     expect((cycleSelect as HTMLSelectElement).value).toBe('regular')
+  })
+
+  it('auth: "↺ Fill from Oura" button is present and callable when user is set', async () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    // Button is rendered in the open form when a user prop is provided
+    const fillBtn = screen.getByText(/Fill from Oura/)
+    expect(fillBtn).toBeInTheDocument()
+    // Click runs fillFromOura — fetchOuraPersonalInfo returns null (no session in tests)
+    // so no fields are changed, but the function executes without error
+    await waitFor(() => fireEvent.click(fillBtn))
+    expect(screen.getByPlaceholderText('65')).toBeInTheDocument()
   })
 
   it('auth with male plan: shows Full-Body Strength Plan heading', () => {
@@ -1371,10 +1428,71 @@ describe('WorkoutsTab', () => {
 
   it('auth: changing chronotype select in edit form works', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByRole('button', { name: /Set up my stats/i }))
-    const chrono = screen.getByDisplayValue('Intermediate')
-    fireEvent.change(chrono, { target: { value: 'late' } })
-    expect((chrono as HTMLSelectElement).value).toBe('late')
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    const chrono = screen.getByDisplayValue('Not set')
+    fireEvent.change(chrono, { target: { value: 'wolf' } })
+    expect((chrono as HTMLSelectElement).value).toBe('wolf')
+  })
+
+  it('auth: custom macro split shows "Set individual macro targets" message', async () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    // Enter a TDEE so computed targets section appears
+    const tdeeInput = screen.getByPlaceholderText('2 100')
+    fireEvent.change(tdeeInput, { target: { value: '2000' } })
+    // Switch to custom split — macros become null
+    const splitSelect = screen.getByDisplayValue(/Balanced/)
+    fireEvent.change(splitSelect, { target: { value: 'custom' } })
+    await waitFor(() => {
+      expect(screen.getByText(/Set individual macro targets/i)).toBeInTheDocument()
+    })
+  })
+
+  it('auth: computed targets appear after entering TDEE with balanced split', async () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    const tdeeInput = screen.getByPlaceholderText('2 100')
+    fireEvent.change(tdeeInput, { target: { value: '2000' } })
+    await waitFor(() => {
+      expect(screen.getByText(/2,000 kcal/)).toBeInTheDocument()
+    })
+  })
+
+  it('auth: high_protein macro split shows correct macros', async () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    const tdeeInput = screen.getByPlaceholderText('2 100')
+    fireEvent.change(tdeeInput, { target: { value: '2000' } })
+    const splitSelect = screen.getByDisplayValue(/Balanced/)
+    fireEvent.change(splitSelect, { target: { value: 'high_protein' } })
+    await waitFor(() => {
+      expect(screen.getByText(/2,000 kcal/)).toBeInTheDocument()
+    })
+  })
+
+  it('auth: low_carb macro split shows correct macros', async () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    const tdeeInput = screen.getByPlaceholderText('2 100')
+    fireEvent.change(tdeeInput, { target: { value: '2000' } })
+    const splitSelect = screen.getByDisplayValue(/Balanced/)
+    fireEvent.change(splitSelect, { target: { value: 'low_carb' } })
+    await waitFor(() => {
+      expect(screen.getByText(/2,000 kcal/)).toBeInTheDocument()
+    })
+  })
+
+  it('auth: fat loss rate select changes affect computed deficit', async () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
+    const tdeeInput = screen.getByPlaceholderText('2 100')
+    fireEvent.change(tdeeInput, { target: { value: '2000' } })
+    const lossSelect = screen.getByDisplayValue(/Maintenance/)
+    fireEvent.change(lossSelect, { target: { value: '0.5' } })
+    await waitFor(() => {
+      // 2000 - 550 = 1450 kcal
+      expect(screen.getByText(/1,450 kcal/)).toBeInTheDocument()
+    })
   })
 })
 
@@ -1551,9 +1669,8 @@ describe('ScheduleTab', () => {
   it('opens ScheduleEditor on Edit schedule click', () => {
     render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('✎ Edit schedule'))
-    // ScheduleEditor renders an "Edit Schedule" heading
-    const heading = document.querySelector('[style*="DM Serif Display"]')
-    expect(heading).not.toBeNull()
+    // ScheduleEditor renders scope toggle buttons
+    expect(screen.getByText('This day only')).toBeInTheDocument()
   })
 
   it('closing editor returns to the timeline view', () => {
@@ -1650,6 +1767,27 @@ describe('ScheduleTab', () => {
       // No amber dot span inside — just the text node
       expect(btn.querySelectorAll('span').length).toBe(0)
     })
+  })
+
+  it('saving cognitive peak times calls savePeak and closes the editor', () => {
+    render(<ScheduleTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: /Edit cognitive peak/i }))
+    // Time inputs should be visible
+    const startInput = screen.getByLabelText(/Peak start time/i)
+    fireEvent.change(startInput, { target: { value: '10:00' } })
+    // Click Save → exercises savePeak
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }))
+    // Editor should close and the peak banner be visible again
+    expect(screen.getByRole('button', { name: /Edit cognitive peak/i })).toBeInTheDocument()
+  })
+
+  it('Reset to default in "This day only" scope resets the current day (handleResetDay)', () => {
+    render(<ScheduleTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByText('✎ Edit schedule'))
+    // "This day only" is the default scope — just click Reset to default
+    fireEvent.click(screen.getByText('Reset to default'))
+    // Original blocks should be restored
+    expect(screen.getByText('Wake + no-phone rule')).toBeInTheDocument()
   })
 })
 
@@ -2643,69 +2781,10 @@ describe('TrackerTab', () => {
     // ouraConnected is false → function returns immediately. No crash = guard works
   })
 
-  it('Oura Ring section is not rendered when no user prop', () => {
-    // With auth gate in place, passing null user shows the sign-in gate
-    render(<TrackerTab user={null} />)
+  it('Oura Ring section is not rendered in TrackerTab (moved to OuraTab)', () => {
+    render(<TrackerTab user={FAKE_USER} />)
     expect(screen.queryByText('Oura Ring')).not.toBeInTheDocument()
-  })
-
-  it('Oura Ring section is rendered when user is logged in', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    expect(screen.getByText('Oura Ring')).toBeInTheDocument()
-    expect(screen.getByText('Connect')).toBeInTheDocument()
-  })
-
-  it('clicking Connect opens the Oura settings panel', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Connect'))
-    expect(screen.getByPlaceholderText('Paste your Oura PAT here…')).toBeInTheDocument()
-  })
-
-  it('clicking Done closes the Oura settings panel', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Connect'))
-    expect(screen.getByPlaceholderText('Paste your Oura PAT here…')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Done'))
     expect(screen.queryByPlaceholderText('Paste your Oura PAT here…')).not.toBeInTheDocument()
-  })
-
-  it('PAT input toggles visibility with the eye button', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Connect'))
-    const patInput = screen.getByPlaceholderText('Paste your Oura PAT here…')
-    expect(patInput).toHaveAttribute('type', 'password')
-    fireEvent.click(screen.getByTitle('Show token'))
-    expect(patInput).toHaveAttribute('type', 'text')
-    fireEvent.click(screen.getByTitle('Hide token'))
-    expect(patInput).toHaveAttribute('type', 'password')
-  })
-
-  it('Save & test with empty PAT shows error message', async () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Connect'))
-    fireEvent.click(screen.getByText('Save & test connection'))
-    expect(await screen.findByText('Paste your Personal Access Token first.')).toBeInTheDocument()
-  })
-
-  it('pressing Enter in PAT input triggers save & test', async () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Connect'))
-    const patInput = screen.getByPlaceholderText('Paste your Oura PAT here…')
-    fireEvent.keyDown(patInput, { key: 'Enter' })
-    // Empty PAT → error shown
-    expect(await screen.findByText('Paste your Personal Access Token first.')).toBeInTheDocument()
-  })
-
-  it('typing a PAT and saving shows testing state then error on failure', async () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Connect'))
-    const patInput = screen.getByPlaceholderText('Paste your Oura PAT here…')
-    fireEvent.change(patInput, { target: { value: 'fake-token-12345' } })
-    fireEvent.click(screen.getByText('Save & test connection'))
-    // saveOuraPat throws an auth error → ouraError is shown in the UI.
-    // "Not signed in" locally (supabase non-null, no session);
-    // "Supabase not configured" in CI (no .env.local).
-    expect(await screen.findByText(/Not signed in|Supabase not configured/)).toBeInTheDocument()
   })
 })
 

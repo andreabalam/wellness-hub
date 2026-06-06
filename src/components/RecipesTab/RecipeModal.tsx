@@ -120,18 +120,18 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
 
   return (
     <div
-      style={{ display: 'block', position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', overflowY: 'auto', padding: '24px 16px' }}
+      className="modal-overlay"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 16, maxWidth: 600, margin: '0 auto', padding: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div style={{ fontFamily: '"DM Serif Display",serif', fontSize: 22, fontWeight: 400, color: 'var(--text)' }}>
+      <div className="modal-panel">
+        <div className="modal-header modal-header--center">
+          <div className="modal-title">
             {isEdit
-              ? <>Edit my <em style={{ fontStyle: 'italic', color: 'var(--purple-light)' }}>Recipe</em></>
-              : <>Add my <em style={{ fontStyle: 'italic', color: 'var(--purple-light)' }}>Recipe</em></>
+              ? <>Edit my <em className="italic text-purple">Recipe</em></>
+              : <>Add my <em className="italic text-purple">Recipe</em></>
             }
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, color: 'var(--muted)', cursor: 'pointer' }}>×</button>
+          <button onClick={onClose} className="modal-close">×</button>
         </div>
 
         {/* Name */}
@@ -146,22 +146,22 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
 
         {/* Category */}
         <FieldRow label="Category (pick one or create your own)">
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+          <div className="flex flex-wrap gap-6 mb-8">
             {allTags.map(tag => (
               <button key={tag} onClick={() => setCat(tag)} style={chipStyle(cat === tag, 'var(--purple)')}>
                 {tag.charAt(0).toUpperCase() + tag.slice(1)}
               </button>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input className="tinput" value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="New tag (e.g. Sauce, Side...)" style={{ flex: 1 }} />
-            <button onClick={addTag} style={{ background: 'var(--purple)', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>Add tag</button>
+          <div className="flex gap-6">
+            <input className="tinput flex-1" value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="New tag (e.g. Sauce, Side...)" />
+            <button onClick={addTag} className="btn-add-tag">Add tag</button>
           </div>
         </FieldRow>
 
         {/* Prep time */}
         <FieldRow label="Prep time">
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+          <div className="flex flex-wrap gap-6 mb-6">
             {PREP_TIME_PRESETS.map(t => (
               <button key={t} onClick={() => setPrepTime(prepTime === t ? '' : t)} style={chipStyle(prepTime === t, 'var(--teal)')}>
                 {t}
@@ -169,15 +169,14 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
             ))}
           </div>
           <input
-            className="tinput" value={prepTime} onChange={e => setPrepTime(e.target.value)}
+            className="tinput mt-4" value={prepTime} onChange={e => setPrepTime(e.target.value)}
             placeholder="Or type custom time, e.g. 25 min"
-            style={{ marginTop: 2 }}
           />
         </FieldRow>
 
         {/* Health tag */}
         <FieldRow label="Health tag">
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex gap-8">
             <button onClick={() => setHealthTag(healthTag === 'healthy' ? '' : 'healthy')} style={chipStyle(healthTag === 'healthy', 'var(--green)')}>
               ✦ Healthy
             </button>
@@ -189,7 +188,7 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
 
         {/* Macros — single set per serving */}
         <FieldRow label="Macros per serving (optional)">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 6 }}>
+          <div className="macro-grid-5">
             {([['kcal', kcal, setKcal], ['prot g', prot, setProt], ['carb g', carb, setCarb], ['fat g', fat, setFat], ['fiber g', fib, setFib]] as [string, string, (v: string) => void][]).map(([ph, val, set]) => (
               <input key={ph} className="tnum" type="number" min="0" placeholder={ph} value={val} onChange={e => set(e.target.value)} />
             ))}
@@ -199,40 +198,40 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
         {/* Ingredients */}
         <FieldRow label="Ingredients">
           {ings.map(([n, a], i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', background: 'var(--bg3)', borderRadius: 6, marginBottom: 4 }}>
-              <span style={{ flex: 2, fontSize: 13, color: 'var(--text)' }}>{n}</span>
-              <span style={{ flex: 1, fontSize: 12, color: 'var(--muted)', fontFamily: 'monospace' }}>{a}</span>
-              <button onClick={() => setIngs(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--muted2)', cursor: 'pointer', fontSize: 16 }}>×</button>
+            <div key={i} className="ing-row">
+              <span className="flex-1 text-base text-default">{n}</span>
+              <span className="text-sm text-muted font-mono">{a}</span>
+              <button onClick={() => setIngs(prev => prev.filter((_, j) => j !== i))} className="icon-delete">×</button>
             </div>
           ))}
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input className="tinput" value={ingName} onChange={e => setIngName(e.target.value)} placeholder="Ingredient" style={{ flex: 2 }}
-              onKeyDown={e => e.key === 'Enter' && addIng()} />
-            <input className="tinput" value={ingAmt} onChange={e => setIngAmt(e.target.value)} placeholder="Amount" style={{ flex: 1 }}
-              onKeyDown={e => e.key === 'Enter' && addIng()} />
-            <button onClick={addIng} style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, padding: '7px 12px', fontSize: 12, color: 'var(--muted)', cursor: 'pointer' }}>+</button>
+          <div className="flex gap-6">
+            <input className="tinput flex-1" value={ingName} onChange={e => setIngName(e.target.value)} placeholder="Ingredient"
+              onKeyDown={e => e.key === 'Enter' && addIng()} style={{ flex: 2 }} />
+            <input className="tinput" value={ingAmt} onChange={e => setIngAmt(e.target.value)} placeholder="Amount"
+              onKeyDown={e => e.key === 'Enter' && addIng()} style={{ flex: 1 }} />
+            <button onClick={addIng} className="icon-add-btn">+</button>
           </div>
         </FieldRow>
 
         {/* Steps */}
         <FieldRow label="Steps">
           {steps.map((s, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 8px', background: 'var(--bg3)', borderRadius: 6, marginBottom: 4 }}>
-              <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--purple)', color: '#fff', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
-              <span style={{ flex: 1, fontSize: 13, color: 'var(--text)', lineHeight: 1.4 }}>{s}</span>
-              <button onClick={() => setSteps(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--muted2)', cursor: 'pointer', fontSize: 16 }}>×</button>
+            <div key={i} className="step-row">
+              <div className="step-num">{i + 1}</div>
+              <span className="flex-1 text-base text-default lh-16">{s}</span>
+              <button onClick={() => setSteps(prev => prev.filter((_, j) => j !== i))} className="icon-delete">×</button>
             </div>
           ))}
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input className="tinput" value={stepTxt} onChange={e => setStepTxt(e.target.value)} placeholder="Add a step..." style={{ flex: 1 }}
+          <div className="flex gap-6">
+            <input className="tinput flex-1" value={stepTxt} onChange={e => setStepTxt(e.target.value)} placeholder="Add a step..."
               onKeyDown={e => e.key === 'Enter' && addStep()} />
-            <button onClick={addStep} style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, padding: '7px 12px', fontSize: 12, color: 'var(--muted)', cursor: 'pointer' }}>+</button>
+            <button onClick={addStep} className="icon-add-btn">+</button>
           </div>
         </FieldRow>
 
         {/* Tip */}
         <FieldRow label="Tip / notes (optional)">
-          <textarea className="tinput" rows={2} value={tip} onChange={e => setTip(e.target.value)} placeholder="Any notes, variations, or tips..." style={{ resize: 'vertical' }} />
+          <textarea className="tinput resize-vertical" rows={2} value={tip} onChange={e => setTip(e.target.value)} placeholder="Any notes, variations, or tips..." />
         </FieldRow>
 
         {/* Link */}
@@ -246,20 +245,20 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
           {image.trim() && (
             <img
               src={image.trim()} alt="preview"
-              style={{ marginTop: 8, width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border2)' }}
+              className="recipe-preview-img"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
               onLoad={e => { (e.target as HTMLImageElement).style.display = 'block' }}
             />
           )}
         </FieldRow>
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-          <button onClick={save} className="tbtn" style={{ flex: 1, background: 'var(--purple)', color: '#fff' }}>
+        <div className="flex gap-8 mt-4">
+          <button onClick={save} className="tbtn flex-1" style={{ background: 'var(--purple)', color: '#fff' }}>
             {isEdit ? 'Save changes' : 'Save recipe'}
           </button>
-          <button onClick={onClose} style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontFamily: 'sans-serif', color: 'var(--muted)', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={onClose} className="cancel-btn">Cancel</button>
         </div>
-        {msg && <div style={{ marginTop: 10, fontSize: 13, textAlign: 'center', color: msgOk ? 'var(--green-light)' : 'var(--coral-light)' }}>{msg}</div>}
+        {msg && <div className={`mt-10 text-base text-center ${msgOk ? 'text-green' : 'text-coral'}`}>{msg}</div>}
       </div>
     </div>
   )
@@ -267,8 +266,8 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 7 }}>{label}</div>
+    <div className="field-row">
+      <div className="field-label">{label}</div>
       {children}
     </div>
   )

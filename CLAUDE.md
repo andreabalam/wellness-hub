@@ -57,7 +57,7 @@ Secrets are set in Supabase Dashboard → Edge Functions → Secrets (never in c
 
 `App.tsx` owns the tab switcher and auth/sync state. Four tabs: `TrackerTab`, `RecipesTab`, `WorkoutsTab`, `ScheduleTab`. Each tab is a directory under `src/components/`. Tabs are always mounted (except `TrackerTab` which lazy-mounts on active to avoid expensive date calculations on load).
 
-Styling is plain CSS in `src/index.css`. CSS custom properties (`--teal`, `--amber`, `--coral`, etc.) are the design tokens. No CSS framework, no CSS modules — all styles are global.
+Styling is in less in `src/index.less`. CSS custom properties (`--teal`, `--amber`, `--coral`, etc.) are the design tokens. No CSS framework, no CSS modules — all styles are global.
 
 ### PWA
 
@@ -85,9 +85,24 @@ Requires `.env.local` for local development:
 ```
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
+VITE_OURA_CLIENT_ID=...   # Oura OAuth app client_id (public — safe to embed in JS)
 ```
 
 The app degrades gracefully without these — auth and sync are disabled, everything else works.
+
+### Oura OAuth — Edge Function secrets
+
+Three secrets must be set in Supabase Dashboard → Edge Functions → Secrets
+(required by both `oura-exchange` and `oura-proxy`):
+
+| Secret | Description |
+|---|---|
+| `OURA_CLIENT_ID` | OAuth client ID from cloud.ouraring.com/oauth/applications |
+| `OURA_CLIENT_SECRET` | OAuth client secret — never in client code |
+| `OURA_ENCRYPT_KEY` | 32-byte AES key, base64-encoded. Generate: `openssl rand -base64 32` |
+
+The `OURA_ENCRYPT_KEY` encrypts access and refresh tokens at rest in `user_settings`.
+Only the Edge Functions can decrypt them; the database and browser never see plaintext tokens.
 
 ## Plans
 

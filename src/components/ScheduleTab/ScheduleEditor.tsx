@@ -57,32 +57,32 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
   const canSave = form.title.trim() !== '' && durNum > 0
 
   return (
-    <div style={{ background: 'var(--bg)', border: '1px solid var(--teal)', borderRadius: 10, padding: 14, marginTop: 6 }}>
-      <div className="blk-form-row">
-        <label style={labelStyle}>
+    <div className="blk-inline-form">
+      <div className="blk-form-row mb-8">
+        <label className="blk-form-label flex-1">
           Time
           <input
             type="time"
             value={form.time}
             onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
-            style={inputStyle}
+            className="blk-form-input"
           />
         </label>
-        <label style={labelStyle}>
+        <label className="blk-form-label flex-1">
           Duration
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div className="flex gap-6">
             <input
               type="number"
               min={0}
               max={durUnit === 'hr' ? 24 : undefined}
               value={durNum}
               onChange={e => applyNum(e.target.value)}
-              style={{ ...inputStyle, width: 64, flex: 'none' }}
+              className="blk-form-input form-num-sm"
             />
             <select
               value={durUnit}
               onChange={e => applyUnit(e.target.value as 'min' | 'hr')}
-              style={{ ...inputStyle, flex: 1 }}
+              className="blk-form-input flex-1"
             >
               <option value="min">minutes</option>
               <option value="hr">hours</option>
@@ -91,75 +91,81 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
         </label>
       </div>
 
-      <label style={labelStyle}>
+      <label className="blk-form-label w-full">
         Title *
         <input
           value={form.title}
           onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
           placeholder="Block name"
-          style={inputStyle}
+          className="blk-form-input"
         />
       </label>
 
-      <div className="blk-form-row" style={{ margin: '8px 0' }}>
-        <label style={labelStyle}>
+      <div className="blk-form-row my-8">
+        <label className="blk-form-label flex-1">
           Section header
           <input
             value={form.phase}
             onChange={e => setForm(f => ({ ...f, phase: e.target.value }))}
             placeholder="e.g. Morning routine"
-            style={inputStyle}
+            className="blk-form-input"
           />
         </label>
-        <label style={labelStyle}>
+        <label className="blk-form-label flex-1">
           Badge label
           <input
             value={form.whyTxt}
             onChange={e => setForm(f => ({ ...f, whyTxt: e.target.value }))}
             placeholder="e.g. focus, nutrition"
-            style={inputStyle}
+            className="blk-form-input"
           />
         </label>
       </div>
 
       {/* Color picker */}
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 5 }}>Color</div>
-        <div style={{ display: 'flex', gap: 7 }}>
+      <div className="mb-8">
+        <div className="text-xs text-muted mb-6">Color</div>
+        <div className="flex gap-8">
           {BLOCK_COLORS.map(c => (
             <button
               key={c.key}
               onClick={() => setForm(f => ({ ...f, color: c.key }))}
               title={c.label}
+              className={`color-swatch ${form.color === c.key ? 'active' : ''}`}
               style={{
-                width: 24, height: 24, borderRadius: '50%',
-                background: c.hex, border: 'none', cursor: 'pointer',
-                outline: form.color === c.key ? `2px solid ${c.hex}` : 'none',
-                outlineOffset: 2,
-                transform: form.color === c.key ? 'scale(1.2)' : 'scale(1)',
-                transition: 'transform .15s',
+                background: c.hex,
+                ...(form.color === c.key ? { outline: `2px solid ${c.hex}`, outlineOffset: 2 } : {}),
               }}
             />
           ))}
         </div>
       </div>
 
-      <label style={labelStyle}>
+      <label className="blk-form-label w-full">
         Description
         <textarea
           value={form.desc}
           onChange={e => setForm(f => ({ ...f, desc: e.target.value }))}
           placeholder="Why this block matters…"
           rows={3}
-          style={{ ...inputStyle, resize: 'vertical' }}
+          className="blk-form-input resize-vertical"
         />
       </label>
 
       <div className="blk-form-actions">
-        <button onClick={onSave} disabled={!canSave} style={{ ...actionBtn, background: 'var(--teal)', color: '#fff', opacity: canSave ? 1 : 0.5 }}>
+        <button
+          onClick={onSave}
+          disabled={!canSave}
+          className="action-btn"
+          style={{ background: 'var(--teal)', color: '#fff' }}
+        >
           Save block
         </button>
-        <button onClick={onCancel} style={{ ...actionBtn, background: 'var(--bg3)', color: 'var(--muted)' }}>
+        <button
+          onClick={onCancel}
+          className="action-btn"
+          style={{ background: 'var(--bg3)', color: 'var(--muted)' }}
+        >
           Cancel
         </button>
       </div>
@@ -233,21 +239,21 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', overflowY: 'auto', padding: '24px 16px' }}
+      className="modal-overlay"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 16, maxWidth: 620, margin: '0 auto', padding: 26 }}>
+      <div className="modal-panel modal-panel--lg">
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div style={{ fontFamily: '"DM Serif Display",serif', fontSize: 22, fontWeight: 400, color: 'var(--text)' }}>
-            Edit <em style={{ fontStyle: 'italic', color: 'var(--teal-light)' }}>Schedule</em>
+        <div className="modal-header modal-header--center">
+          <div className="modal-title">
+            Edit <em className="italic text-teal">Schedule</em>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, color: 'var(--muted)', cursor: 'pointer' }}>×</button>
+          <button onClick={onClose} className="modal-close">×</button>
         </div>
 
         {/* Scope toggle */}
-        <div style={{ display: 'flex', background: 'var(--bg3)', borderRadius: 8, padding: 3, border: '1px solid var(--border)', marginBottom: 14 }}>
+        <div className="scope-toggle">
           {(['day', 'all'] as const).map(s => (
             <button
               key={s}
@@ -265,7 +271,7 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
             </button>
           ))}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.5 }}>
+        <div className="text-xs text-muted mb-16 lh-15">
           {scope === 'day'
             ? 'Changes apply to this day only.'
             : 'Changes will overwrite the schedule for all 7 days.'}
@@ -279,27 +285,27 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
             <div key={b.id} style={{ marginBottom: 4 }}>
               {/* Phase header */}
               {b.phase && (
-                <div style={{ fontSize: 10, color: 'var(--muted2)', fontFamily: '"DM Mono",monospace', letterSpacing: '.1em', textTransform: 'uppercase', margin: '10px 0 4px', paddingLeft: 4 }}>
+                <div className="font-mono text-muted2 uppercase text-2xs" style={{ letterSpacing: '.1em', margin: '10px 0 4px', paddingLeft: 4 }}>
                   {b.phase}
                 </div>
               )}
 
               {/* Block row */}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '8px 10px',
-                background: isEditing ? 'var(--bg)' : 'var(--bg3)',
-                border: `1px solid ${isEditing ? 'var(--teal)' : 'var(--border)'}`,
-                borderRadius: 9, transition: 'border-color .15s',
-              }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: c.hex, flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>{b.title}</span>
-                  <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 8, fontFamily: '"DM Mono",monospace' }}>{b.time}</span>
-                  {b.dur && <span style={{ fontSize: 11, color: 'var(--muted2)', marginLeft: 6 }}>{b.dur}</span>}
+              <div
+                className="block-list-item"
+                style={{
+                  background: isEditing ? 'var(--bg)' : 'var(--bg3)',
+                  border: `1px solid ${isEditing ? 'var(--teal)' : 'var(--border)'}`,
+                }}
+              >
+                <div className="block-list-dot" style={{ background: c.hex }} />
+                <div className="block-list-info">
+                  <span className="block-list-title">{b.title}</span>
+                  <span className="block-list-meta">{b.time}</span>
+                  {b.dur && <span className="text-muted2" style={{ fontSize: 11, marginLeft: 6 }}>{b.dur}</span>}
                 </div>
                 {/* Actions */}
-                <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                <div className="block-list-actions">
                   <IconBtn title="Move up"   onClick={() => move(i, -1)} disabled={i === 0}>↑</IconBtn>
                   <IconBtn title="Move down" onClick={() => move(i, 1)}  disabled={i === blocks.length - 1}>↓</IconBtn>
                   <IconBtn title="Edit"      onClick={() => isEditing ? cancelForm() : startEdit(b)}>✎</IconBtn>
@@ -315,30 +321,28 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
 
         {/* Add new block form */}
         {addingNew && (
-          <div style={{ marginTop: 8 }}>
+          <div className="mt-8">
             <BlockForm key="new" form={form} setForm={setForm} onSave={commitAdd} onCancel={cancelForm} />
           </div>
         )}
 
         {/* Add block button */}
         {!addingNew && (
-          <button
-            onClick={startAdd}
-            style={{ width: '100%', marginTop: 12, padding: '10px 0', background: 'var(--bg3)', border: '1px dashed var(--border2)', borderRadius: 9, color: 'var(--muted)', fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif' }}
-          >
+          <button onClick={startAdd} className="add-block-btn">
             + Add block
           </button>
         )}
 
         {/* Footer */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-          <button
-            onClick={resetToDefault}
-            style={{ background: 'none', border: 'none', color: 'var(--muted2)', fontSize: 12, cursor: 'pointer', fontFamily: '"DM Mono",monospace', textDecoration: 'underline' }}
-          >
+        <div className="editor-footer">
+          <button onClick={resetToDefault} className="editor-reset-btn">
             Reset to default
           </button>
-          <button onClick={onClose} style={{ ...actionBtn, background: 'var(--teal)', color: '#fff' }}>
+          <button
+            onClick={onClose}
+            className="action-btn"
+            style={{ background: 'var(--teal)', color: '#fff' }}
+          >
             Done
           </button>
         </div>
@@ -361,35 +365,9 @@ function IconBtn({ children, onClick, disabled, danger, title }: {
       onClick={onClick}
       disabled={disabled}
       title={title}
-      style={{
-        width: 26, height: 26, borderRadius: 6,
-        border: '1px solid var(--border)',
-        background: 'var(--bg2)',
-        color: danger ? 'var(--coral-light)' : 'var(--muted)',
-        cursor: disabled ? 'default' : 'pointer',
-        opacity: disabled ? 0.3 : 1,
-        fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'opacity .15s',
-      }}
+      className={`icon-btn${danger ? ' icon-btn--danger' : ''}`}
     >
       {children}
     </button>
   )
-}
-
-const labelStyle: React.CSSProperties = {
-  display: 'flex', flexDirection: 'column', gap: 4,
-  fontSize: 11, color: 'var(--muted)', marginBottom: 4,
-}
-
-const inputStyle: React.CSSProperties = {
-  background: 'var(--bg2)', border: '1px solid var(--border2)',
-  borderRadius: 7, padding: '7px 10px',
-  color: 'var(--text)', fontSize: 13,
-  fontFamily: '"DM Sans", sans-serif', outline: 'none', width: '100%',
-}
-
-const actionBtn: React.CSSProperties = {
-  padding: '8px 20px', borderRadius: 8, border: 'none',
-  fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif', fontWeight: 500,
 }

@@ -75,7 +75,7 @@ export default memo(function RecipeCard({
           </span>
 
           {/* Badge cluster — all chips sit together in the top-right corner */}
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginLeft: 'auto', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div className="badge-cluster">
             {/* Prep time / custom badge */}
             <span className="rcbadge" style={{ color: timeBadgeColor, borderColor: timeBadgeColor, margin: 0 }}>
               {r.custom ? 'Custom' : timeBadgeLabel}
@@ -83,12 +83,7 @@ export default memo(function RecipeCard({
 
             {/* Health tag badge */}
             {healthBadge && (
-              <span style={{
-                fontSize: 10, padding: '2px 7px', borderRadius: 5,
-                border: `1px solid ${healthBadge.color}`,
-                color: healthBadge.color, fontFamily: '"DM Mono",monospace',
-                whiteSpace: 'nowrap',
-              }}>
+              <span className="dyn-badge" style={{ border: `1px solid ${healthBadge.color}`, color: healthBadge.color }}>
                 {healthBadge.label === 'Healthy' ? '✦ ' : healthBadge.label === 'Indulgent' ? '✧ ' : '⚠ '}
                 {healthBadge.label}
               </span>
@@ -96,11 +91,7 @@ export default memo(function RecipeCard({
 
             {/* Cook counter */}
             {cookCount > 0 && (
-              <span title={`Cooked ${cookCount} time${cookCount !== 1 ? 's' : ''}`} style={{
-                fontSize: 10, padding: '2px 7px', borderRadius: 5,
-                border: '1px solid var(--teal)', color: 'var(--teal-light)',
-                fontFamily: '"DM Mono",monospace', whiteSpace: 'nowrap',
-              }}>
+              <span title={`Cooked ${cookCount} time${cookCount !== 1 ? 's' : ''}`} className="dyn-badge" style={{ border: '1px solid var(--teal)', color: 'var(--teal-light)' }}>
                 🍳 ×{cookCount}
               </span>
             )}
@@ -112,31 +103,31 @@ export default memo(function RecipeCard({
 
         <div className="mrow">
           <div className="mv">
-            <span className="mvv" style={{ color: 'var(--green-light)' }}>{r.hk}</span>
+            <span className="mvv text-green">{r.hk}</span>
             <span className="mvl">kcal</span>
           </div>
           <div className="mv">
-            <span className="mvv" style={{ color: 'var(--blue-light)' }}>{r.hp}</span>
+            <span className="mvv text-blue">{r.hp}</span>
             <span className="mvl">protein</span>
           </div>
           <div className="mv">
-            <span className="mvv" style={{ color: 'var(--amber-light)' }}>{r.hc}</span>
+            <span className="mvv text-amber">{r.hc}</span>
             <span className="mvl">carbs</span>
           </div>
           <div className="mv">
-            <span className="mvv" style={{ color: 'var(--coral-light)' }}>{r.hf}</span>
+            <span className="mvv text-coral">{r.hf}</span>
             <span className="mvl">fat</span>
           </div>
           {r.hfi && r.hfi !== '0g' && (
             <div className="mv">
-              <span className="mvv" style={{ color: 'var(--teal-light)' }}>{r.hfi}</span>
+              <span className="mvv text-teal">{r.hfi}</span>
               <span className="mvl">fiber</span>
             </div>
           )}
         </div>
 
         {isFerment && (
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5, fontStyle: 'italic' }}>
+          <div className="text-xs text-muted italic mt-6">
             Per serving. Probiotic benefit is the primary value.
           </div>
         )}
@@ -147,12 +138,7 @@ export default memo(function RecipeCard({
       <div className="rcbody">
         {/* Image */}
         {r.image && (
-          <img
-            src={r.image}
-            alt={r.name}
-            style={{ width: '100%', borderRadius: 8, marginBottom: 14, objectFit: 'cover', maxHeight: 220 }}
-            onClick={stop}
-          />
+          <img src={r.image} alt={r.name} className="recipe-card-img" onClick={stop} />
         )}
 
         {r.ings.length > 0 && (
@@ -190,27 +176,14 @@ export default memo(function RecipeCard({
             target="_blank"
             rel="noopener noreferrer"
             onClick={stop}
-            style={{
-              display: 'block', marginTop: 10, fontSize: 12,
-              color: 'var(--blue-light)', textDecoration: 'none',
-              borderTop: '1px solid var(--border)', paddingTop: 10,
-              wordBreak: 'break-all',
-            }}
+            className="recipe-link"
           >
             🔗 {r.link}
           </a>
         )}
 
         {/* ── Action bar ────────────────────────────────────────── */}
-        <div
-          className="rcard-actions"
-          onClick={stop}
-          style={{
-            display: 'flex', gap: 6, flexWrap: 'wrap',
-            marginTop: 14, paddingTop: 12,
-            borderTop: '1px solid var(--border)',
-          }}
-        >
+        <div className="rcard-actions" onClick={stop}>
           {/* Primary actions */}
           {onEdit && (
             <button
@@ -243,7 +216,7 @@ export default memo(function RecipeCard({
           )}
 
           {/* Destructive actions pushed to the right */}
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+          <div className="rcard-actions__right">
             {r.custom && onDelete && r.id != null && (
               <button
                 className="btn btn--danger btn--sm"

@@ -117,31 +117,30 @@ export default function RemindersSection({ user }: Props) {
     )
 
   return (
-    <div className="tcard" style={{ marginBottom: 16 }}>
-      <div className="tlabel" style={{ color: 'var(--muted2)' }}>Reminders</div>
+    <div className="tcard mb-16">
+      <div className="tlabel text-muted2">Reminders</div>
 
       {unchecked.map(renderRow)}
 
       {unchecked.length > 0 && checked.length > 0 && (
-        <div style={{ borderTop: '1px dashed var(--border2)', margin: '8px 0' }} />
+        <div className="divider-dashed" />
       )}
 
       {checked.map(renderRow)}
 
       {items.length === 0 && (
-        <div style={{ fontSize: 12, color: 'var(--muted2)', fontStyle: 'italic', marginBottom: 10 }}>
+        <div className="text-sm text-muted2 italic mb-10">
           No reminders yet — add one below.
         </div>
       )}
 
       <div className="rem-add-row">
         <input
-          className="tinput"
+          className="tinput flex-1"
           value={inputText}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
           placeholder="New reminder…"
-          style={{ flex: 1 }}
         />
         <button
           className="rem-add-btn"

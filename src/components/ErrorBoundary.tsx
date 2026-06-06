@@ -34,31 +34,19 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (!this.state.error) return this.props.children
 
     return (
-      <div style={{
-        padding: '40px 24px',
-        textAlign: 'center',
-        color: 'var(--muted2)',
-        maxWidth: 400,
-        margin: '0 auto',
-      }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
+      <div className="error-boundary">
+        <div className="error-boundary__icon">⚠️</div>
+        <div className="error-boundary__title">
           Something went wrong{this.props.name ? ` in ${this.props.name}` : ''}
         </div>
-        <div style={{ fontSize: 12, fontFamily: '"DM Mono", monospace', color: 'var(--muted2)', marginBottom: 20, wordBreak: 'break-word' }}>
+        <div className="error-boundary__msg">
           {this.state.error.message}
         </div>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button
-            onClick={this.reset}
-            style={{ background: 'var(--green)', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 13, color: '#fff', cursor: 'pointer', fontFamily: 'sans-serif' }}
-          >
+        <div className="error-boundary__actions">
+          <button onClick={this.reset} className="btn btn--primary btn--md">
             Try again
           </button>
-          <button
-            onClick={this.resetStorage}
-            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 18px', fontSize: 13, color: 'var(--muted)', cursor: 'pointer', fontFamily: 'sans-serif' }}
-          >
+          <button onClick={this.resetStorage} className="btn btn--ghost btn--md">
             Reset all data
           </button>
         </div>

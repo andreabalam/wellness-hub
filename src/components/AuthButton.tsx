@@ -56,44 +56,29 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
   // minimal settings button so Export / Import are still accessible everywhere.
   if (!isConfigured) {
     return (
-      <div style={{ position: 'relative' }}>
+      <div className="auth-wrap">
         <button
           ref={btnRef}
           aria-label="Settings"
           onClick={() => setOpen(o => !o)}
           title="Data backup"
-          style={{
-            width: 32, height: 32, borderRadius: '50%',
-            border: '1px solid var(--border2)', background: 'var(--bg3)',
-            color: 'var(--muted)', cursor: 'pointer', fontSize: 14,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all .2s', flexShrink: 0,
-          }}
+          className="auth-avatar"
         >
           ⚙
         </button>
         {open && (
-          <div
-            ref={panelRef}
-            style={{
-              position: 'absolute', top: 40, right: 0, zIndex: 200,
-              width: 200, background: 'var(--bg2)',
-              border: '1px solid var(--border2)', borderRadius: 12,
-              padding: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-              fontFamily: '"DM Sans", sans-serif',
-            }}
-          >
-            <div style={{ fontSize: 11, color: 'var(--muted2)', fontFamily: '"DM Mono",monospace', marginBottom: 10 }}>Data backup</div>
-            <div style={{ display: 'flex', gap: 6 }}>
+          <div ref={panelRef} className="auth-panel auth-panel--narrow">
+            <div className="auth-panel-label">Data backup</div>
+            <div className="auth-panel-btn-row">
               <button
                 onClick={() => { onExport(); setOpen(false) }}
-                style={{ flex: 1, padding: '7px 0', background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, color: 'var(--muted)', fontSize: 12, cursor: 'pointer', fontFamily: '"DM Mono",monospace' }}
+                className="auth-panel-btn"
               >
                 ↓ Export
               </button>
-              <label style={{ flex: 1, padding: '7px 0', background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, color: 'var(--muted)', fontSize: 12, cursor: 'pointer', fontFamily: '"DM Mono",monospace', textAlign: 'center', display: 'block' }}>
+              <label className="auth-panel-btn">
                 ↑ Import
-                <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => { onImportFile(e); setOpen(false) }} />
+                <input type="file" accept=".json" className="hidden" onChange={e => { onImportFile(e); setOpen(false) }} />
               </label>
             </div>
           </div>
@@ -141,22 +126,13 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
   const initials = user?.email?.slice(0, 2).toUpperCase() ?? ''
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="auth-wrap">
       {/* ── Trigger button ── */}
       <button
         ref={btnRef}
         onClick={() => setOpen(o => !o)}
         title={user ? user.email : 'Sign in to sync'}
-        style={{
-          width: 32, height: 32, borderRadius: '50%',
-          border: `1px solid ${user ? 'var(--teal)' : 'var(--border2)'}`,
-          background: user ? 'rgba(58,144,144,0.15)' : 'var(--bg3)',
-          color: user ? 'var(--teal-light)' : 'var(--muted)',
-          cursor: 'pointer', fontSize: 11,
-          fontFamily: '"DM Mono", monospace', fontWeight: 500,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'all .2s', flexShrink: 0, position: 'relative',
-        }}
+        className={`auth-avatar${user ? ' auth-avatar--signed-in' : ''}`}
       >
         {user ? initials : (
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -164,37 +140,19 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
             <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
           </svg>
         )}
-        {syncing && (
-          <span style={{
-            position: 'absolute', top: -2, right: -2,
-            width: 8, height: 8, borderRadius: '50%',
-            background: 'var(--amber)', border: '1.5px solid var(--bg)',
-            animation: 'pulse 1s infinite',
-          }} />
-        )}
+        {syncing && <span className="auth-avatar__badge" />}
       </button>
 
       {/* ── Panel ── */}
       {open && (
-        <div
-          ref={panelRef}
-          style={{
-            position: 'absolute', top: 40, right: 0, zIndex: 200,
-            width: 278, background: 'var(--bg2)',
-            border: '1px solid var(--border2)', borderRadius: 12,
-            padding: 18, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            fontFamily: '"DM Sans", sans-serif',
-          }}
-        >
+        <div ref={panelRef} className="auth-panel">
           {!user ? (
             <>
               {/* ── Step 1: email entry ── */}
               {(panelState === 'idle' || panelState === 'sending') && (
                 <>
-                  <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500, marginBottom: 4 }}>
-                    Sync across devices
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
+                  <div className="auth-panel-heading">Sync across devices</div>
+                  <div className="auth-panel-sub">
                     Enter your email — we'll send an 8-digit code.
                   </div>
                   <input
@@ -204,16 +162,13 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
                     onKeyDown={e => e.key === 'Enter' && sendOtp()}
                     placeholder="your@email.com"
                     autoComplete="email"
-                    style={inputStyle}
+                    className="tinput mb-8"
                   />
-                  {error && <div style={errorStyle}>{error}</div>}
+                  {error && <div className="auth-panel-error">{error}</div>}
                   <button
                     onClick={sendOtp}
                     disabled={panelState === 'sending' || !email.trim()}
-                    style={{
-                      ...primaryBtn,
-                      opacity: panelState === 'sending' || !email.trim() ? 0.6 : 1,
-                    }}
+                    className="auth-panel-btn auth-panel-btn--primary"
                   >
                     {panelState === 'sending' ? 'Sending…' : 'Send code'}
                   </button>
@@ -223,11 +178,9 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
               {/* ── Step 2: code verification ── */}
               {(panelState === 'sent' || panelState === 'verifying') && (
                 <>
-                  <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500, marginBottom: 4 }}>
-                    Enter your code
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
-                    Check <strong style={{ color: 'var(--teal-light)' }}>{email}</strong> for a
+                  <div className="auth-panel-heading">Enter your code</div>
+                  <div className="auth-panel-sub">
+                    Check <strong className="text-teal">{email}</strong> for a
                     8-digit code and enter it below.
                   </div>
                   <input
@@ -245,27 +198,17 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
                     onKeyDown={e => e.key === 'Enter' && verifyCode()}
                     placeholder="12345678"
                     autoComplete="one-time-code"
-                    style={{
-                      ...inputStyle,
-                      letterSpacing: '0.25em',
-                      fontSize: 20,
-                      textAlign: 'center',
-                      fontFamily: '"DM Mono", monospace',
-                    }}
+                    className="tinput mb-8 otp-input"
                   />
-                  {error && <div style={errorStyle}>{error}</div>}
+                  {error && <div className="auth-panel-error">{error}</div>}
                   <button
                     onClick={verifyCode}
                     disabled={panelState === 'verifying' || code.length < 8}
-                    style={{
-                      ...primaryBtn,
-                      opacity: panelState === 'verifying' || code.length < 8 ? 0.6 : 1,
-                      marginBottom: 8,
-                    }}
+                    className="auth-panel-btn auth-panel-btn--primary"
                   >
                     {panelState === 'verifying' ? 'Verifying…' : 'Verify code'}
                   </button>
-                  <button onClick={reset} style={linkBtn}>
+                  <button onClick={reset} className="link-btn">
                     Use a different email
                   </button>
                 </>
@@ -274,24 +217,14 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
           ) : (
             // ── Signed-in panel ─────────────────────────────────
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <div style={{
-                  width: 34, height: 34, borderRadius: '50%',
-                  background: 'rgba(58,144,144,0.2)', border: '1px solid var(--teal)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 12, color: 'var(--teal-light)',
-                  fontFamily: '"DM Mono", monospace', flexShrink: 0,
-                }}>
-                  {initials}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {user.email}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--muted)', fontFamily: '"DM Mono", monospace', marginTop: 2 }}>
+              <div className="auth-user-row">
+                <div className="auth-user-avatar">{initials}</div>
+                <div className="auth-user-info">
+                  <div className="auth-user-email">{user.email}</div>
+                  <div className="auth-user-status">
                     {syncing
-                      ? <span style={{ color: 'var(--amber-light)' }}>syncing…</span>
-                      : <span>synced: <span style={{ color: 'var(--teal-light)' }}>{lastSyncedLabel}</span></span>
+                      ? <span className="text-amber">syncing…</span>
+                      : <span>synced: <span className="text-teal">{lastSyncedLabel}</span></span>
                     }
                   </div>
                 </div>
@@ -300,41 +233,26 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
               <button
                 onClick={() => { onSynced(); setOpen(false) }}
                 disabled={syncing}
-                style={{
-                  width: '100%', padding: '7px 0', marginBottom: 6,
-                  background: 'var(--bg3)', border: '1px solid var(--border2)',
-                  borderRadius: 7, color: syncing ? 'var(--muted2)' : 'var(--muted)',
-                  fontSize: 12, cursor: syncing ? 'default' : 'pointer',
-                  fontFamily: '"DM Mono", monospace',
-                }}
+                className={`auth-panel-btn ${syncing ? 'syncing' : ''}`}
               >
                 {syncing ? 'syncing…' : '↻ Sync now'}
               </button>
 
               {/* Data backup */}
-              <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+              <div className="auth-panel-btn-row">
                 <button
                   onClick={() => { onExport(); setOpen(false) }}
-                  style={{ flex: 1, padding: '7px 0', background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, color: 'var(--muted)', fontSize: 12, cursor: 'pointer', fontFamily: '"DM Mono",monospace' }}
+                  className="auth-panel-btn"
                 >
                   ↓ Export
                 </button>
-                <label style={{ flex: 1, padding: '7px 0', background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, color: 'var(--muted)', fontSize: 12, cursor: 'pointer', fontFamily: '"DM Mono",monospace', textAlign: 'center', display: 'block' }}>
+                <label className="auth-panel-btn">
                   ↑ Import
-                  <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => { onImportFile(e); setOpen(false) }} />
+                  <input type="file" accept=".json" className="hidden" onChange={e => { onImportFile(e); setOpen(false) }} />
                 </label>
               </div>
 
-              <button
-                onClick={signOut}
-                style={{
-                  width: '100%', padding: '7px 0',
-                  background: 'none', border: '1px solid var(--border)',
-                  borderRadius: 7, color: 'var(--muted)',
-                  fontSize: 12, cursor: 'pointer',
-                  fontFamily: '"DM Mono", monospace',
-                }}
-              >
+              <button onClick={signOut} className="auth-panel-btn auth-panel-btn--ghost">
                 Sign out
               </button>
             </>
@@ -343,33 +261,4 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
       )}
     </div>
   )
-}
-
-// ── Shared styles ─────────────────────────────────────────────────
-const inputStyle: React.CSSProperties = {
-  width: '100%', marginBottom: 8,
-  background: 'var(--bg3)', border: '1px solid var(--border2)',
-  borderRadius: 7, padding: '9px 10px',
-  color: 'var(--text)', fontSize: 14,
-  fontFamily: '"DM Sans", sans-serif', outline: 'none',
-}
-
-const primaryBtn: React.CSSProperties = {
-  width: '100%', padding: '9px 0',
-  background: 'var(--teal)', border: '1px solid var(--teal)',
-  borderRadius: 7, color: '#fff',
-  fontSize: 13, cursor: 'pointer',
-  fontFamily: '"DM Mono", monospace',
-}
-
-const errorStyle: React.CSSProperties = {
-  fontSize: 11, color: 'var(--coral-light)', marginBottom: 8, lineHeight: 1.4,
-}
-
-const linkBtn: React.CSSProperties = {
-  display: 'block', width: '100%',
-  background: 'none', border: 'none', color: 'var(--muted)',
-  fontSize: 11, cursor: 'pointer', textAlign: 'center',
-  fontFamily: '"DM Sans", sans-serif', textDecoration: 'underline',
-  padding: '4px 0',
 }

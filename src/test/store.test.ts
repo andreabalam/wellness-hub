@@ -531,11 +531,11 @@ describe('load() error handling', () => {
 // ── bodyStatsStore ────────────────────────────────────────────────
 describe('bodyStatsStore', () => {
   const sampleStats: UserBodyStats = {
-    weightKg: 70, bodyFatPct: 18, heightM: 1.78,
-    cycleType: 'none', equipment: 'Barbell + dumbbells',
-    tdeeKcal: 2400, kcalTarget: 2000,
+    weightKg: 70, bodyFatPct: 18, heightM: 1.78, age: 30, biologicalSex: 'male',
+    cycleType: 'none', equipment: 'Barbell + dumbbells', fatLossRateKg: 0.5,
+    macroSplit: 'high_protein', tdeeKcal: 2400, kcalTarget: 2000,
     protRange: '140-160g/day', fatLossGoal: '0.5 kg/wk',
-    chronotype: 'intermediate',
+    chronotype: 'bear',
   }
 
   it('get returns defaults when nothing is saved', () => {
@@ -543,7 +543,7 @@ describe('bodyStatsStore', () => {
     expect(s.weightKg).toBe(0)
     expect(s.bodyFatPct).toBe(0)
     expect(s.cycleType).toBe('none')
-    expect(s.chronotype).toBe('intermediate')
+    expect(s.chronotype).toBe('')
   })
 
   it('set persists a partial patch and is retrievable via get', () => {
@@ -577,7 +577,7 @@ describe('bodyStatsStore', () => {
     bodyStatsStore.importFromRemote(sampleStats)
     const s = bodyStatsStore.get()
     expect(s.weightKg).toBe(70)
-    expect(s.chronotype).toBe('intermediate')
+    expect(s.chronotype).toBe('bear')
   })
 
   it('importFromRemote overwrites existing local data', () => {

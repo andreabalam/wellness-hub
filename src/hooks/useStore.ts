@@ -225,11 +225,10 @@ export function useUserSettingsStore() { return userSettingsStore }
 // ── Body stats (weight, body fat, TDEE etc.) ─────────────────────
 
 const BODY_STATS_DEFAULTS: UserBodyStats = {
-  weightKg: 0, bodyFatPct: 0, heightM: 0,
-  cycleType: 'none', equipment: '',
-  tdeeKcal: 0, kcalTarget: 0,
-  protRange: '', fatLossGoal: '',
-  chronotype: 'intermediate',
+  weightKg: 0, heightM: 0, age: 0, biologicalSex: '',
+  bodyFatPct: 0, cycleType: 'none', equipment: '',
+  chronotype: '', fatLossRateKg: 0, macroSplit: 'balanced',
+  tdeeKcal: 0, kcalTarget: 0, protRange: '', fatLossGoal: '',
 }
 
 export const bodyStatsStore = {
@@ -300,6 +299,7 @@ export function importRemoteData(remote: {
   weekSchedule?: WeekSchedule
   medGuides?: MedGuide[]
   groceryCatalog?: GroceryCatalogItem[]
+  reminders?: Reminder[]
 }) {
   if (remote.tracker        !== undefined) safeSet(TRACKER_KEY,         remote.tracker)
   if (remote.recipes        !== undefined) safeSet(RECIPES_KEY,         remote.recipes)
@@ -310,6 +310,7 @@ export function importRemoteData(remote: {
   if (remote.weekSchedule   !== undefined) safeSet(WEEK_SCHEDULE_KEY,   remote.weekSchedule)
   if (remote.medGuides      !== undefined) safeSet(MED_GUIDES_KEY,      remote.medGuides)
   if (remote.groceryCatalog !== undefined) safeSet(GROCERY_CATALOG_KEY, remote.groceryCatalog)
+  if (remote.reminders      !== undefined) safeSet(REMINDERS_KEY,       remote.reminders)
 }
 
 // ── Full export / import (JSON backup) ───────────────────────────

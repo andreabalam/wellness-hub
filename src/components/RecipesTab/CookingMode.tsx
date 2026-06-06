@@ -48,54 +48,24 @@ export default function CookingMode({ recipe: r, onClose }: Props) {
   const stepCount = r.steps.length
 
   return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 600,
-        background: 'var(--bg)', overflowY: 'auto',
-      }}
-    >
+    <div className="cooking-overlay">
       {/* ── Top bar ─────────────────────────────────────────── */}
-      <div style={{
-        position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 1,
-        padding: '14px 20px', borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-      }}>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'none', border: 'none', color: 'var(--muted)',
-            fontSize: 13, cursor: 'pointer', fontFamily: 'sans-serif',
-            display: 'flex', alignItems: 'center', gap: 5, padding: 0,
-          }}
-        >
+      <div className="cooking-topbar">
+        <button onClick={onClose} className="cooking-topbar__back">
           ✕ Exit cooking mode
         </button>
-        <span style={{
-          fontFamily: '"DM Serif Display", serif', fontSize: 18,
-          color: 'var(--text)', textAlign: 'right', flex: 1,
-        }}>
-          {r.name}
-        </span>
+        <span className="cooking-topbar__title">{r.name}</span>
       </div>
 
-      <div style={{ padding: '20px 20px 80px' }}>
+      <div className="cooking-body">
 
         {/* ── Ingredients ──────────────────────────────────────── */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            marginBottom: ingsOpen ? 10 : 0,
-          }}>
-            <div className="tlabel" style={{ color: 'var(--muted2)', margin: 0 }}>
+        <div className="mb-24">
+          <div className={`flex-between ${ingsOpen ? 'mb-10' : ''}`}>
+            <div className="tlabel text-muted2" style={{ margin: 0 }}>
               INGREDIENTS ({r.ings.length})
             </div>
-            <button
-              onClick={() => setIngsOpen(o => !o)}
-              style={{
-                background: 'none', border: 'none', color: 'var(--muted)',
-                fontSize: 12, cursor: 'pointer', fontFamily: 'sans-serif',
-              }}
-            >
+            <button onClick={() => setIngsOpen(o => !o)} className="hide-toggle-btn">
               {ingsOpen ? '↑ Hide' : '↓ Show'}
             </button>
           </div>
@@ -104,67 +74,36 @@ export default function CookingMode({ recipe: r, onClose }: Props) {
             <div
               key={i}
               onClick={() => toggleIng(i)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 0', borderBottom: '1px solid var(--border)',
-                cursor: 'pointer', userSelect: 'none',
-              }}
+              className="cooking-ing-row"
             >
               {/* circle indicator */}
-              <div style={{
-                width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-                border: `2px solid ${checkedIngs.has(i) ? 'var(--teal)' : 'var(--border2)'}`,
-                background: checkedIngs.has(i) ? 'var(--teal)' : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, color: '#fff', transition: 'all .15s',
-              }}>
+              <div className={`cooking-ing-check ${checkedIngs.has(i) ? 'checked' : ''}`}>
                 {checkedIngs.has(i) ? '✓' : ''}
               </div>
-              <span style={{
-                flex: 1, fontSize: 15,
-                color: checkedIngs.has(i) ? 'var(--muted2)' : 'var(--text)',
-                textDecoration: checkedIngs.has(i) ? 'line-through' : 'none',
-              }}>
+              <span className={`cooking-ing-text ${checkedIngs.has(i) ? 'checked' : ''}`}>
                 {ing}
               </span>
-              <span style={{ fontSize: 13, color: 'var(--muted)', fontFamily: '"DM Mono", monospace' }}>
-                {amt}
-              </span>
+              <span className="cooking-ing-amt">{amt}</span>
             </div>
           ))}
         </div>
 
         {/* ── Steps ────────────────────────────────────────────── */}
         <div>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            marginBottom: 14,
-          }}>
-            <div className="tlabel" style={{ color: 'var(--muted2)', margin: 0 }}>
+          <div className="flex-between mb-14">
+            <div className="tlabel text-muted2" style={{ margin: 0 }}>
               STEPS ({stepCount})
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div className="flex gap-6">
               <button
                 onClick={() => setStepMode(false)}
-                style={{
-                  padding: '4px 10px', borderRadius: 6, fontSize: 11,
-                  border: `1px solid ${!stepMode ? 'var(--teal)' : 'var(--border)'}`,
-                  background: !stepMode ? 'rgba(58,125,90,0.15)' : 'var(--bg3)',
-                  color: !stepMode ? 'var(--teal-light)' : 'var(--muted)',
-                  cursor: 'pointer', fontFamily: 'sans-serif',
-                }}
+                className={`step-mode-btn ${!stepMode ? 'active' : ''}`}
               >
                 ≡ All steps
               </button>
               <button
                 onClick={() => { setStepMode(true); setCurrentStep(0) }}
-                style={{
-                  padding: '4px 10px', borderRadius: 6, fontSize: 11,
-                  border: `1px solid ${stepMode ? 'var(--teal)' : 'var(--border)'}`,
-                  background: stepMode ? 'rgba(58,125,90,0.15)' : 'var(--bg3)',
-                  color: stepMode ? 'var(--teal-light)' : 'var(--muted)',
-                  cursor: 'pointer', fontFamily: 'sans-serif',
-                }}
+                className={`step-mode-btn ${stepMode ? 'active' : ''}`}
               >
                 → Step by step
               </button>
@@ -176,29 +115,12 @@ export default function CookingMode({ recipe: r, onClose }: Props) {
             <div
               key={i}
               onClick={() => setCurrentStep(i)}
-              style={{
-                display: 'flex', gap: 12, alignItems: 'flex-start',
-                padding: '12px 14px', marginBottom: 6, borderRadius: 8,
-                background: currentStep === i ? 'rgba(58,125,90,0.10)' : 'transparent',
-                borderLeft: `3px solid ${currentStep === i ? 'var(--teal)' : 'transparent'}`,
-                cursor: 'pointer', transition: 'all .2s',
-              }}
+              className={`cooking-step-row ${currentStep === i ? 'active' : ''}`}
             >
-              <div style={{
-                width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
-                background: currentStep === i ? 'var(--teal)' : 'var(--bg3)',
-                border: `1px solid ${currentStep === i ? 'var(--teal)' : 'var(--border)'}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontFamily: '"DM Mono", monospace',
-                color: currentStep === i ? '#fff' : 'var(--muted)',
-                transition: 'all .2s',
-              }}>
+              <div className={`cooking-step-num ${currentStep === i ? 'active' : ''}`}>
                 {i + 1}
               </div>
-              <p style={{
-                margin: 0, fontSize: 15, lineHeight: 1.7,
-                color: currentStep === i ? 'var(--text)' : 'var(--muted)',
-              }}>
+              <p className={`cooking-step-text ${currentStep === i ? 'active' : ''}`}>
                 {step}
               </p>
             </div>
@@ -206,40 +128,23 @@ export default function CookingMode({ recipe: r, onClose }: Props) {
 
           {/* Step-by-step mode */}
           {stepMode && (
-            <div style={{ padding: '24px 0' }}>
-              <p style={{
-                fontSize: 20, lineHeight: 1.7, color: 'var(--text)',
-                margin: '0 0 32px',
-              }}>
-                {r.steps[currentStep]}
-              </p>
+            <div className="step-solo">
+              <p className="step-solo__text">{r.steps[currentStep]}</p>
             </div>
           )}
         </div>
 
         {/* ── Tip ──────────────────────────────────────────────── */}
         {r.tip && (
-          <div style={{
-            padding: '12px 16px', borderRadius: 8,
-            borderLeft: '3px solid var(--amber)',
-            background: 'rgba(201,145,58,0.08)',
-            marginTop: 8,
-          }}>
-            <div style={{ fontSize: 11, color: 'var(--amber-light)', fontFamily: '"DM Mono",monospace', marginBottom: 4 }}>
-              TIP
-            </div>
-            <p style={{ margin: 0, fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>{r.tip}</p>
+          <div className="cooking-tip">
+            <div className="cooking-tip__label">TIP</div>
+            <p className="cooking-tip__text">{r.tip}</p>
           </div>
         )}
       </div>
 
       {/* ── Step navigator (always visible at bottom) ─────────── */}
-      <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
-        background: 'var(--bg2)', borderTop: '1px solid var(--border)',
-        padding: '12px 20px', display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', gap: 12,
-      }}>
+      <div className="cooking-footer">
         <button
           onClick={() => setCurrentStep(s => Math.max(s - 1, 0))}
           disabled={currentStep === 0}
@@ -254,7 +159,7 @@ export default function CookingMode({ recipe: r, onClose }: Props) {
           ◀ Prev
         </button>
 
-        <span style={{ fontSize: 13, color: 'var(--muted)', fontFamily: '"DM Mono",monospace' }}>
+        <span className="cooking-step-counter">
           Step {currentStep + 1} of {stepCount}
         </span>
 
