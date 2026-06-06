@@ -26,7 +26,7 @@ const TABS: { id: Tab; label: string }[] = [
 ]
 
 export default function App() {
-  const [active, setActive]       = useState<Tab>('tracker')
+  const [active, setActive]       = useState<Tab>(() => consumeOAuthCallback() ? 'oura' : 'tracker')
   // Lazy-init from window so we avoid setState inside the effect below
   const [swUpdate, setSwUpdate]   = useState<(() => void) | null>(
     () => window.__swPendingUpdate ?? null
@@ -41,13 +41,6 @@ export default function App() {
   const [user, setUser]           = useState<User | null>(e2eUser)
   const [syncing, setSyncing]     = useState(false)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
-
-  // Handle Oura OAuth callback: ?code=&state= lands here after the redirect.
-  // consumeOAuthCallback validates the state, stashes the code in sessionStorage,
-  // and cleans the URL — OuraTab picks up the pending code on its next render.
-  useEffect(() => {
-    if (consumeOAuthCallback()) setActive('oura')
-  }, [])  // runs once on mount, before any auth state is set
 
   // Data export / import
   const handleExport = () => {

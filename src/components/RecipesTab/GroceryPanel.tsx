@@ -138,7 +138,6 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
     setLookupState('idle')
     setNutSrv(''); setNutCal(''); setNutP(''); setNutC(''); setNutF(''); setNutFi('')
     abortRef.current?.abort()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -195,7 +194,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
       if ((e as Error).name === 'AbortError') return
       setLookupState('error')
     }
-  }, [addName]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [addName])
 
   const handleAddItem = useCallback(() => {
     const name = addName.trim()

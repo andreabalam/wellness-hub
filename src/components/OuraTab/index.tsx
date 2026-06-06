@@ -232,13 +232,19 @@ export default function OuraTab({ user }: Props) {
   useEffect(() => {
     const pending = sessionStorage.getItem('oura_oauth_pending_code')
     if (!pending || !user) return
-    setConnecting(true)
-    setConnError(null)
-    setNoToken(true)   // show connect screen (with spinner) while exchange runs
-    exchangePendingCode()
-      .then(() => { setNoToken(false); fetchAll(date) })
-      .catch(err => setConnError(err instanceof Error ? err.message : 'Connection failed'))
-      .finally(() => setConnecting(false))
+    const ctrl = { cancelled: false }
+    // Defer setState out of the synchronous effect body so React doesn't cascade renders
+    Promise.resolve().then(() => {
+      if (ctrl.cancelled) return
+      setConnecting(true)
+      setConnError(null)
+      setNoToken(true)
+      exchangePendingCode()
+        .then(() => { if (!ctrl.cancelled) { setNoToken(false); fetchAll(date) } })
+        .catch(err => { if (!ctrl.cancelled) setConnError(err instanceof Error ? err.message : 'Connection failed') })
+        .finally(() => { if (!ctrl.cancelled) setConnecting(false) })
+    })
+    return () => { ctrl.cancelled = true }
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function disconnect() {
@@ -352,12 +358,15 @@ export default function OuraTab({ user }: Props) {
   }, [workouts])
 
   useEffect(() => {
-    if (!user) { setLoading(false); return }
+    if (!user) {
+      Promise.resolve().then(() => setLoading(false))
+      return
+    }
     // Skip the initial fetch if an OAuth exchange is in flight — the exchange
     // effect will call fetchAll once the tokens are safely stored.
     if (sessionStorage.getItem('oura_oauth_pending_code')) return
     fetchAll(date)
-  }, [date, user])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [date, user])
 
   // ── Guest gate ────────────────────────────────────────────────────
   if (!user) {
