@@ -345,6 +345,11 @@ export interface UserBodyStats {
   age:           number
   biologicalSex: string   // 'male' | 'female' | 'other' | ''
 
+  // Circumference measurements — user-entered
+  waistCm:          number
+  glutesCm:         number
+  measurementUnit:  'cm' | 'in'
+
   // Composition + lifestyle — user-entered
   bodyFatPct:    number
   cycleType:     'regular' | 'irregular' | 'none'
@@ -368,34 +373,40 @@ export interface UserBodyStats {
  * Supabase migration — run once in the SQL editor:
  *
  * ALTER TABLE user_body_stats
- *   ADD COLUMN IF NOT EXISTS age             INTEGER DEFAULT 0,
- *   ADD COLUMN IF NOT EXISTS biological_sex  TEXT    DEFAULT '',
+ *   ADD COLUMN IF NOT EXISTS age              INTEGER DEFAULT 0,
+ *   ADD COLUMN IF NOT EXISTS biological_sex   TEXT    DEFAULT '',
  *   ADD COLUMN IF NOT EXISTS fat_loss_rate_kg NUMERIC DEFAULT 0,
- *   ADD COLUMN IF NOT EXISTS macro_split     TEXT    DEFAULT 'balanced';
+ *   ADD COLUMN IF NOT EXISTS macro_split      TEXT    DEFAULT 'balanced',
+ *   ADD COLUMN IF NOT EXISTS waist_cm         NUMERIC DEFAULT 0,
+ *   ADD COLUMN IF NOT EXISTS glutes_cm        NUMERIC DEFAULT 0,
+ *   ADD COLUMN IF NOT EXISTS measurement_unit TEXT    DEFAULT 'cm';
  */
 
 export async function fetchUserBodyStats(userId: string): Promise<UserBodyStats | null> {
   const { data, error } = await supabase!
     .from('user_body_stats')
-    .select('weight_kg, body_fat_pct, height_m, age, biological_sex, cycle_type, equipment, tdee_kcal, kcal_target, prot_range, fat_loss_goal, chronotype, fat_loss_rate_kg, macro_split')
+    .select('weight_kg, body_fat_pct, height_m, age, biological_sex, cycle_type, equipment, tdee_kcal, kcal_target, prot_range, fat_loss_goal, chronotype, fat_loss_rate_kg, macro_split, waist_cm, glutes_cm, measurement_unit')
     .eq('user_id', userId)
     .single()
   if (error || !data) return null
   return {
-    weightKg:      (data.weight_kg      as number) ?? 0,
-    heightM:       (data.height_m       as number) ?? 0,
-    age:           (data.age            as number) ?? 0,
-    biologicalSex: (data.biological_sex as string) ?? '',
-    bodyFatPct:    (data.body_fat_pct   as number) ?? 0,
-    cycleType:     (data.cycle_type     as UserBodyStats['cycleType'])  ?? 'none',
-    equipment:     (data.equipment      as string) ?? '',
-    chronotype:    (data.chronotype     as UserBodyStats['chronotype']) ?? '',
-    fatLossRateKg: (data.fat_loss_rate_kg as number) ?? 0,
-    macroSplit:    (data.macro_split    as UserBodyStats['macroSplit']) ?? 'balanced',
-    tdeeKcal:      (data.tdee_kcal      as number) ?? 0,
-    kcalTarget:    (data.kcal_target    as number) ?? 0,
-    protRange:     (data.prot_range     as string) ?? '',
-    fatLossGoal:   (data.fat_loss_goal  as string) ?? '',
+    weightKg:        (data.weight_kg        as number) ?? 0,
+    heightM:         (data.height_m         as number) ?? 0,
+    age:             (data.age              as number) ?? 0,
+    biologicalSex:   (data.biological_sex   as string) ?? '',
+    waistCm:         (data.waist_cm         as number) ?? 0,
+    glutesCm:        (data.glutes_cm        as number) ?? 0,
+    measurementUnit: ((data.measurement_unit as string) || 'cm') as UserBodyStats['measurementUnit'],
+    bodyFatPct:      (data.body_fat_pct     as number) ?? 0,
+    cycleType:       (data.cycle_type       as UserBodyStats['cycleType'])  ?? 'none',
+    equipment:       (data.equipment        as string) ?? '',
+    chronotype:      (data.chronotype       as UserBodyStats['chronotype']) ?? '',
+    fatLossRateKg:   (data.fat_loss_rate_kg as number) ?? 0,
+    macroSplit:      (data.macro_split      as UserBodyStats['macroSplit']) ?? 'balanced',
+    tdeeKcal:        (data.tdee_kcal        as number) ?? 0,
+    kcalTarget:      (data.kcal_target      as number) ?? 0,
+    protRange:       (data.prot_range       as string) ?? '',
+    fatLossGoal:     (data.fat_loss_goal    as string) ?? '',
   }
 }
 
@@ -406,6 +417,9 @@ export async function upsertUserBodyStats(userId: string, s: UserBodyStats): Pro
     height_m:         s.heightM,
     age:              s.age,
     biological_sex:   s.biologicalSex,
+    waist_cm:         s.waistCm,
+    glutes_cm:        s.glutesCm,
+    measurement_unit: s.measurementUnit,
     body_fat_pct:     s.bodyFatPct,
     cycle_type:       s.cycleType,
     equipment:        s.equipment,

@@ -226,6 +226,7 @@ export function useUserSettingsStore() { return userSettingsStore }
 
 const BODY_STATS_DEFAULTS: UserBodyStats = {
   weightKg: 0, heightM: 0, age: 0, biologicalSex: '',
+  waistCm: 0, glutesCm: 0, measurementUnit: 'cm',
   bodyFatPct: 0, cycleType: 'none', equipment: '',
   chronotype: '', fatLossRateKg: 0, macroSplit: 'balanced',
   tdeeKcal: 0, kcalTarget: 0, protRange: '', fatLossGoal: '',

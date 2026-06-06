@@ -532,6 +532,7 @@ describe('load() error handling', () => {
 describe('bodyStatsStore', () => {
   const sampleStats: UserBodyStats = {
     weightKg: 70, bodyFatPct: 18, heightM: 1.78, age: 30, biologicalSex: 'male',
+    waistCm: 80, glutesCm: 95, measurementUnit: 'cm',
     cycleType: 'none', equipment: 'Barbell + dumbbells', fatLossRateKg: 0.5,
     macroSplit: 'high_protein', tdeeKcal: 2400, kcalTarget: 2000,
     protRange: '140-160g/day', fatLossGoal: '0.5 kg/wk',

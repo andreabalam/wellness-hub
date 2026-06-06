@@ -182,4 +182,84 @@ test.describe('ProfileStatsCard', () => {
     await activeView(page).getByRole('button', { name: '+ Set up' }).click()
     await expect(activeView(page).getByRole('button', { name: /Fill from Oura/i })).toBeVisible()
   })
+
+  // ── Measurements section ───────────────────────────────────────
+
+  test('form shows Measurements section', async ({ page }) => {
+    await goToTrackerStats(page)
+    await activeView(page).getByRole('button', { name: '+ Set up' }).click()
+    await expect(activeView(page).getByText('Measurements', { exact: true })).toBeVisible()
+  })
+
+  test('form shows cm and in toggle buttons, defaulting to cm', async ({ page }) => {
+    await goToTrackerStats(page)
+    await activeView(page).getByRole('button', { name: '+ Set up' }).click()
+    await expect(activeView(page).getByRole('button', { name: 'cm' })).toBeVisible()
+    await expect(activeView(page).getByRole('button', { name: 'in' })).toBeVisible()
+    // cm placeholder appears (75 for waist)
+    await expect(activeView(page).getByPlaceholder('75')).toBeVisible()
+  })
+
+  test('switching to inches updates placeholders', async ({ page }) => {
+    await goToTrackerStats(page)
+    await activeView(page).getByRole('button', { name: '+ Set up' }).click()
+    await activeView(page).getByRole('button', { name: 'in' }).click()
+    await expect(activeView(page).getByPlaceholder('30')).toBeVisible()
+    await expect(activeView(page).getByPlaceholder('37')).toBeVisible()
+  })
+
+  test('saving waist and glutes in cm shows tiles in collapsed grid', async ({ page }) => {
+    await goToTrackerStats(page)
+    await activeView(page).getByRole('button', { name: '+ Set up' }).click()
+    await activeView(page).getByPlaceholder('65').fill('65')      // weight (required for hasData)
+    await activeView(page).getByPlaceholder('75').fill('80')      // waist
+    await activeView(page).getByPlaceholder('95').fill('100')     // glutes
+    await activeView(page).getByRole('button', { name: 'Save' }).click()
+    await expect(activeView(page).getByText('Waist', { exact: true })).toBeVisible()
+    await expect(activeView(page).getByText('80 cm', { exact: true })).toBeVisible()
+    await expect(activeView(page).getByText('Glutes', { exact: true })).toBeVisible()
+    await expect(activeView(page).getByText('100 cm', { exact: true })).toBeVisible()
+  })
+
+  test('saving measurements in inches shows tiles with "in" suffix', async ({ page }) => {
+    await goToTrackerStats(page)
+    await activeView(page).getByRole('button', { name: '+ Set up' }).click()
+    await activeView(page).getByPlaceholder('65').fill('65')
+    await activeView(page).getByRole('button', { name: 'in' }).click()
+    await activeView(page).getByPlaceholder('30').fill('30')
+    await activeView(page).getByPlaceholder('37').fill('37')
+    await activeView(page).getByRole('button', { name: 'Save' }).click()
+    await expect(activeView(page).getByText('30 in', { exact: true })).toBeVisible()
+    await expect(activeView(page).getByText('37 in', { exact: true })).toBeVisible()
+  })
+
+  test('measurements persist after page reload', async ({ page }) => {
+    await goToTrackerStats(page)
+    await activeView(page).getByRole('button', { name: '+ Set up' }).click()
+    await activeView(page).getByPlaceholder('65').fill('65')
+    await activeView(page).getByPlaceholder('75').fill('78')
+    await activeView(page).getByPlaceholder('95').fill('97')
+    await activeView(page).getByRole('button', { name: 'Save' }).click()
+    await expect(activeView(page).getByText('78 cm', { exact: true })).toBeVisible()
+    await page.reload()
+    await expect(activeView(page).getByText('78 cm', { exact: true })).toBeVisible()
+    await expect(activeView(page).getByText('97 cm', { exact: true })).toBeVisible()
+  })
+
+  test('editing re-opens form with previously saved measurements', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('whub_body_stats_v1', JSON.stringify({
+        weightKg: 65, waistCm: 82, glutesCm: 98, measurementUnit: 'cm',
+        heightM: 1.65, bodyFatPct: 0, age: 0, biologicalSex: '',
+        cycleType: 'none', equipment: '', chronotype: '',
+        fatLossRateKg: 0, macroSplit: 'balanced',
+        tdeeKcal: 0, kcalTarget: 0, protRange: '', fatLossGoal: '',
+      }))
+    })
+    await page.reload()
+    await goToTrackerStats(page)
+    await activeView(page).getByRole('button', { name: '✎ Edit' }).click()
+    await expect(activeView(page).getByPlaceholder('75')).toHaveValue('82')
+    await expect(activeView(page).getByPlaceholder('95')).toHaveValue('98')
+  })
 })
