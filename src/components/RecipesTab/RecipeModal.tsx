@@ -155,7 +155,7 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
           </div>
           <div className="flex gap-6">
             <input className="tinput flex-1" value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="New tag (e.g. Sauce, Side...)" />
-            <button onClick={addTag} style={{ background: 'var(--purple)', border: 'none', borderRadius: 7, padding: '7px 14px', fontSize: 12, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>Add tag</button>
+            <button onClick={addTag} className="btn-add-tag">Add tag</button>
           </div>
         </FieldRow>
 
@@ -188,7 +188,7 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
 
         {/* Macros — single set per serving */}
         <FieldRow label="Macros per serving (optional)">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 6 }}>
+          <div className="macro-grid-5">
             {([['kcal', kcal, setKcal], ['prot g', prot, setProt], ['carb g', carb, setCarb], ['fat g', fat, setFat], ['fiber g', fib, setFib]] as [string, string, (v: string) => void][]).map(([ph, val, set]) => (
               <input key={ph} className="tnum" type="number" min="0" placeholder={ph} value={val} onChange={e => set(e.target.value)} />
             ))}
@@ -209,7 +209,7 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
               onKeyDown={e => e.key === 'Enter' && addIng()} style={{ flex: 2 }} />
             <input className="tinput" value={ingAmt} onChange={e => setIngAmt(e.target.value)} placeholder="Amount"
               onKeyDown={e => e.key === 'Enter' && addIng()} style={{ flex: 1 }} />
-            <button onClick={addIng} style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, padding: '7px 12px', fontSize: 12, color: 'var(--muted)', cursor: 'pointer' }}>+</button>
+            <button onClick={addIng} className="icon-add-btn">+</button>
           </div>
         </FieldRow>
 
@@ -218,20 +218,20 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
           {steps.map((s, i) => (
             <div key={i} className="step-row">
               <div className="step-num">{i + 1}</div>
-              <span className="flex-1 text-base text-default" style={{ lineHeight: 1.4 }}>{s}</span>
+              <span className="flex-1 text-base text-default lh-16">{s}</span>
               <button onClick={() => setSteps(prev => prev.filter((_, j) => j !== i))} className="icon-delete">×</button>
             </div>
           ))}
           <div className="flex gap-6">
             <input className="tinput flex-1" value={stepTxt} onChange={e => setStepTxt(e.target.value)} placeholder="Add a step..."
               onKeyDown={e => e.key === 'Enter' && addStep()} />
-            <button onClick={addStep} style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 7, padding: '7px 12px', fontSize: 12, color: 'var(--muted)', cursor: 'pointer' }}>+</button>
+            <button onClick={addStep} className="icon-add-btn">+</button>
           </div>
         </FieldRow>
 
         {/* Tip */}
         <FieldRow label="Tip / notes (optional)">
-          <textarea className="tinput" rows={2} value={tip} onChange={e => setTip(e.target.value)} placeholder="Any notes, variations, or tips..." style={{ resize: 'vertical' }} />
+          <textarea className="tinput resize-vertical" rows={2} value={tip} onChange={e => setTip(e.target.value)} placeholder="Any notes, variations, or tips..." />
         </FieldRow>
 
         {/* Link */}
@@ -245,7 +245,7 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
           {image.trim() && (
             <img
               src={image.trim()} alt="preview"
-              style={{ marginTop: 8, width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border2)' }}
+              className="recipe-preview-img"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
               onLoad={e => { (e.target as HTMLImageElement).style.display = 'block' }}
             />
@@ -256,9 +256,9 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
           <button onClick={save} className="tbtn flex-1" style={{ background: 'var(--purple)', color: '#fff' }}>
             {isEdit ? 'Save changes' : 'Save recipe'}
           </button>
-          <button onClick={onClose} style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontFamily: 'sans-serif', color: 'var(--muted)', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={onClose} className="cancel-btn">Cancel</button>
         </div>
-        {msg && <div className="mt-10 text-base text-center" style={{ color: msgOk ? 'var(--green-light)' : 'var(--coral-light)' }}>{msg}</div>}
+        {msg && <div className={`mt-10 text-base text-center ${msgOk ? 'text-green' : 'text-coral'}`}>{msg}</div>}
       </div>
     </div>
   )

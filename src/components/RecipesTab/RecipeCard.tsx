@@ -138,12 +138,7 @@ export default memo(function RecipeCard({
       <div className="rcbody">
         {/* Image */}
         {r.image && (
-          <img
-            src={r.image}
-            alt={r.name}
-            style={{ width: '100%', borderRadius: 8, marginBottom: 14, objectFit: 'cover', maxHeight: 220 }}
-            onClick={stop}
-          />
+          <img src={r.image} alt={r.name} className="recipe-card-img" onClick={stop} />
         )}
 
         {r.ings.length > 0 && (

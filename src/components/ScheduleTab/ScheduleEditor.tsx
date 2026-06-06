@@ -77,8 +77,7 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
               max={durUnit === 'hr' ? 24 : undefined}
               value={durNum}
               onChange={e => applyNum(e.target.value)}
-              className="blk-form-input"
-              style={{ width: 64, flex: 'none' }}
+              className="blk-form-input form-num-sm"
             />
             <select
               value={durUnit}
@@ -102,7 +101,7 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
         />
       </label>
 
-      <div className="blk-form-row" style={{ margin: '8px 0' }}>
+      <div className="blk-form-row my-8">
         <label className="blk-form-label flex-1">
           Section header
           <input
@@ -132,13 +131,10 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
               key={c.key}
               onClick={() => setForm(f => ({ ...f, color: c.key }))}
               title={c.label}
+              className={`color-swatch ${form.color === c.key ? 'active' : ''}`}
               style={{
-                width: 24, height: 24, borderRadius: '50%',
-                background: c.hex, border: 'none', cursor: 'pointer',
-                outline: form.color === c.key ? `2px solid ${c.hex}` : 'none',
-                outlineOffset: 2,
-                transform: form.color === c.key ? 'scale(1.2)' : 'scale(1)',
-                transition: 'transform .15s',
+                background: c.hex,
+                ...(form.color === c.key ? { outline: `2px solid ${c.hex}`, outlineOffset: 2 } : {}),
               }}
             />
           ))}
@@ -152,8 +148,7 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
           onChange={e => setForm(f => ({ ...f, desc: e.target.value }))}
           placeholder="Why this block matters…"
           rows={3}
-          className="blk-form-input"
-          style={{ resize: 'vertical' }}
+          className="blk-form-input resize-vertical"
         />
       </label>
 
@@ -162,7 +157,7 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
           onClick={onSave}
           disabled={!canSave}
           className="action-btn"
-          style={{ background: 'var(--teal)', color: '#fff', opacity: canSave ? 1 : 0.5 }}
+          style={{ background: 'var(--teal)', color: '#fff' }}
         >
           Save block
         </button>
@@ -276,7 +271,7 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
             </button>
           ))}
         </div>
-        <div className="text-xs text-muted mb-16" style={{ lineHeight: 1.5 }}>
+        <div className="text-xs text-muted mb-16 lh-15">
           {scope === 'day'
             ? 'Changes apply to this day only.'
             : 'Changes will overwrite the schedule for all 7 days.'}
@@ -290,7 +285,7 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
             <div key={b.id} style={{ marginBottom: 4 }}>
               {/* Phase header */}
               {b.phase && (
-                <div className="font-mono text-muted2 uppercase" style={{ fontSize: 10, letterSpacing: '.1em', margin: '10px 0 4px', paddingLeft: 4 }}>
+                <div className="font-mono text-muted2 uppercase text-2xs" style={{ letterSpacing: '.1em', margin: '10px 0 4px', paddingLeft: 4 }}>
                   {b.phase}
                 </div>
               )}
@@ -326,7 +321,7 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
 
         {/* Add new block form */}
         {addingNew && (
-          <div style={{ marginTop: 8 }}>
+          <div className="mt-8">
             <BlockForm key="new" form={form} setForm={setForm} onSave={commitAdd} onCancel={cancelForm} />
           </div>
         )}

@@ -144,12 +144,11 @@ const WeekStrip = memo(function WeekStrip({ currentDate, onSelect, getDay }: {
             <div
               key={i}
               onClick={() => onSelect(new Date(d))}
-              className="week-strip-cell"
-              style={{ border: `1px solid ${isCur ? 'var(--teal)' : isToday ? 'var(--border2)' : 'var(--border)'}` }}
+              className={`week-strip-cell ${isCur ? 'week-strip-cell--cur' : isToday ? 'week-strip-cell--today' : ''}`}
             >
-              <div className="font-mono" style={{ fontSize: 10, color: isToday ? 'var(--teal-light)' : 'var(--muted2)', marginBottom: 2 }}>{lbl}</div>
+              <div className={`font-mono ${isToday ? 'text-teal' : 'text-muted2'}`} style={{ fontSize: 10, marginBottom: 2 }}>{lbl}</div>
               <div className="text-muted2" style={{ fontSize: 10, marginBottom: 3 }}>{d.getDate()}</div>
-              <div className="font-mono" style={{ fontSize: 10, color: kcal > 0 ? 'var(--green-light)' : 'var(--muted2)' }}>{kcal > 0 ? kcal : '-'}</div>
+              <div className={`font-mono ${kcal > 0 ? 'text-green' : 'text-muted2'}`} style={{ fontSize: 10 }}>{kcal > 0 ? kcal : '-'}</div>
               <div style={{ fontSize: 11, marginTop: 2 }}>
                 {hasW && <span className="text-coral">W</span>}
                 {hasM && <span className="text-gold">M</span>}
@@ -542,7 +541,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
     return (
       <div className="guest-gate-cta">
         <div className="guest-gate-cta__icon">🔒</div>
-        <div className="font-serif mb-8" style={{ fontSize: 22, fontWeight: 400, color: 'var(--text)' }}>
+        <div className="section-title mb-8">
           Sign in to use <em className="text-teal">Tracker</em>
         </div>
         <div className="guest-gate-cta__body">
@@ -556,7 +555,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
     <>
       {/* Header */}
       <div className="mb-16">
-        <div className="font-serif" style={{ fontSize: 26, fontWeight: 400, color: 'var(--text)' }}>
+        <div className="page-title">
           My <em className="italic text-teal">Daily Tracker</em>
         </div>
       </div>
@@ -579,7 +578,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
       />
 
       {/* Inner tabs */}
-      <div className="flex" style={{ borderBottom: '1px solid var(--border)', marginTop: 20, marginBottom: 16 }}>
+      <div className="flex inner-tab-bar">
         {(['food', 'workout', 'meditation'] as const).map(t => (
           <button
             key={t}
@@ -611,24 +610,20 @@ export default function TrackerTab({ user }: { user?: User | null }) {
           {/* Food log */}
           <div className="tcard">
             <div className="tlabel text-muted2">Meals logged</div>
-            <div style={{ marginBottom: 12, minHeight: 30 }}>
+            <div className="mb-12" style={{ minHeight: 30 }}>
               {day.foods.length === 0 ? (
                 <div className="text-base text-muted2 italic" style={{ padding: '3px 0' }}>No meals logged yet.</div>
               ) : day.foods.map((f, i) => (
-                <div key={i} style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0',
-                  borderBottom: '1px solid var(--border)',
-                  background: editIndex === i ? 'rgba(184,150,58,0.06)' : 'none',
-                  borderRadius: editIndex === i ? 6 : 0,
-                }}>
+                <div
+                  key={i}
+                  className={`food-log-item ${editIndex === i ? 'food-log-item--editing' : ''}`}
+                >
                   <div className="flex-1">
-                    <div className="text-base text-default">{f.n}{f.s && f.s !== 1 ? <span className="text-muted2" style={{ fontSize: 10, marginLeft: 5 }}>×{f.s} srv</span> : null}</div>
-                    <div className="font-mono text-muted" style={{ fontSize: 10 }}>
-                      {f.k} kcal · {f.p}g P · {f.c}g C · {f.f}g F{f.fi ? ` · ${f.fi}g fiber` : ''}
-                    </div>
+                    <div className="text-base text-default">{f.n}{f.s && f.s !== 1 ? <span className="text-muted2 text-2xs" style={{ marginLeft: 5 }}>×{f.s} srv</span> : null}</div>
+                    <div className="food-log-meta">{f.k} kcal · {f.p}g P · {f.c}g C · {f.f}g F{f.fi ? ` · ${f.fi}g fiber` : ''}</div>
                   </div>
-                  <button onClick={() => startEdit(i)} title="Edit" style={{ background: 'none', border: 'none', color: editIndex === i ? 'var(--amber-light)' : 'var(--muted2)', cursor: 'pointer', fontSize: 14, padding: '0 3px', lineHeight: 1 }}>✏</button>
-                  <button onClick={() => removeFood(i)} style={{ background: 'none', border: 'none', color: 'var(--muted2)', cursor: 'pointer', fontSize: 19, padding: '0 4px', lineHeight: 1 }}>×</button>
+                  <button onClick={() => startEdit(i)} title="Edit" className={`food-edit-btn ${editIndex === i ? 'active' : ''}`}>✏</button>
+                  <button onClick={() => removeFood(i)} className="food-remove-btn">×</button>
                 </div>
               ))}
             </div>
@@ -639,7 +634,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
                 type="file"
                 accept="image/*"
                 capture="environment"
-                style={{ display: 'none' }}
+                className="hidden"
                 onChange={handlePhotoSelect}
               />
 
@@ -664,9 +659,9 @@ export default function TrackerTab({ user }: { user?: User | null }) {
               )}
 
               {editIndex !== null && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', background: 'rgba(184,150,58,0.1)', border: '1px solid var(--amber)', borderRadius: 7, marginBottom: 8, fontSize: 11 }}>
+                <div className="edit-indicator">
                   <span className="text-amber font-mono">Editing: {day.foods[editIndex]?.n}</span>
-                  <button onClick={cancelEdit} style={{ background: 'none', border: 'none', color: 'var(--muted2)', cursor: 'pointer', fontSize: 11 }}>Cancel</button>
+                  <button onClick={cancelEdit} className="item-icon-btn text-xs">Cancel</button>
                 </div>
               )}
               <div className="flex gap-6 mb-8 items-center">
@@ -693,7 +688,6 @@ export default function TrackerTab({ user }: { user?: User | null }) {
                     onFocus={() => setShowSugg(true)}
                     onBlur={() => setTimeout(() => setShowSugg(false), 150)}
                     placeholder="Meal name (e.g. Berry Oats)"
-                    style={{ marginBottom: 0 }}
                   />
                   {showSugg && suggestions.length > 0 && (
                     <div className="autocomplete-dropdown">
@@ -712,31 +706,29 @@ export default function TrackerTab({ user }: { user?: User | null }) {
                     </div>
                   )}
                 </div>
-                <span className="font-mono text-muted2" style={{ fontSize: 9, letterSpacing: '.08em', whiteSpace: 'nowrap' }}>SRV</span>
-                <input className="tnum" type="number" min="0.5" step="0.5" placeholder="1" value={fServings} onChange={e => setFServings(e.target.value)} style={{ width: 36, padding: '7px 4px', textAlign: 'center' }} />
+                <span className="font-mono text-muted2 text-2xs tracking-8 no-wrap">SRV</span>
+                <input className="tnum" type="number" min="0.5" step="0.5" placeholder="1" value={fServings} onChange={e => setFServings(e.target.value)} style={{ width: 36, textAlign: 'center' }} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 5, marginBottom: 3 }}>
+              <div className="macro-inputs-grid">
                 {([['kcal', fKcal, setFKcal], ['prot', fPro, setFPro], ['carb', fCarb, setFCarb], ['fat', fFat, setFat], ['fiber', fFiber, setFFiber]] as [string, string, (v: string) => void][]).map(([ph, val, set]) => (
                   <input
-                    key={ph} className="tnum" type="number" min="0"
+                    key={ph} className={`tnum ${photoConfidence === 'low' || photoConfidence === 'medium' ? 'input-warn' : ''}`} type="number" min="0"
                     placeholder={ph} value={val} onChange={e => set(e.target.value)}
-                    style={photoConfidence === 'low' || photoConfidence === 'medium'
-                      ? { borderColor: 'var(--amber)' } : undefined}
                   />
                 ))}
               </div>
-              <div className="font-mono text-muted2 mb-8" style={{ fontSize: 9 }}>per serving</div>
+              <div className="font-mono text-muted2 text-2xs mb-8">per serving</div>
               <div className="text-xs text-muted2 mb-6">Quick-add from recent meals:</div>
               <div className="flex flex-wrap gap-6 mb-8">
                 {recentMeals.length === 0 ? (
-                  <span className="text-muted2 italic" style={{ fontSize: 10 }}>Meals you log will appear here.</span>
+                  <span className="text-muted2 italic text-2xs">Meals you log will appear here.</span>
                 ) : recentMeals.map((f, i) => (
-                  <button key={i} onClick={() => quickAdd(f)} style={{ fontSize: 10, padding: '3px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--muted)', cursor: 'pointer', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                  <button key={i} onClick={() => quickAdd(f)} className="quick-food-btn">
                     {f.n} ({f.k}{f.s && f.s !== 1 ? ` ×${f.s}srv` : ''})
                   </button>
                 ))}
               </div>
-              <button onClick={addFood} className="tbtn" style={{ background: editIndex !== null ? 'var(--amber)' : 'var(--teal)', color: '#fff' }}>
+              <button onClick={addFood} className={`tbtn ${editIndex !== null ? 'tbtn--amber' : 'tbtn--teal'}`}>
                 {editIndex !== null ? '✓ Save changes' : '+ Log food'}
               </button>
             </div>
@@ -761,8 +753,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
               <button
                 onClick={syncWorkoutFromOura}
                 disabled={wkSyncing}
-                className="oura-sync-btn oura-sync-btn--teal"
-                style={{ opacity: wkSyncing ? 0.6 : 1, cursor: wkSyncing ? 'default' : 'pointer' }}
+                className={`oura-sync-btn oura-sync-btn--teal ${wkSyncing ? 'loading' : ''}`}
               >
                 {wkSyncing ? 'Syncing…' : '⟳ Sync Oura'}
               </button>
@@ -771,46 +762,40 @@ export default function TrackerTab({ user }: { user?: User | null }) {
 
           {/* Readiness badge */}
           {readiness && (
-            <div className="flex items-center gap-8 mb-10" style={{ padding: '8px 11px', background: 'var(--bg3)', borderRadius: 8, border: `1px solid ${readinessColor(readiness.score)}40` }}>
-              <div className="flex-center flex-shrink-0" style={{
-                width: 36, height: 36, borderRadius: '50%',
-                background: `${readinessColor(readiness.score)}20`,
-                border: `2px solid ${readinessColor(readiness.score)}`,
-                fontFamily: '"DM Mono",monospace', fontSize: 12, fontWeight: 700,
-                color: readinessColor(readiness.score),
-              }}>{readiness.score}</div>
+            <div className="readiness-badge" style={{ border: `1px solid ${readinessColor(readiness.score)}40` }}>
+              <div
+                className="readiness-score flex-center"
+                style={{
+                  background: `${readinessColor(readiness.score)}20`,
+                  border: `2px solid ${readinessColor(readiness.score)}`,
+                  color: readinessColor(readiness.score),
+                }}
+              >{readiness.score}</div>
               <div>
-                <div className="text-sm font-600" style={{ color: readinessColor(readiness.score) }}>
-                  {readinessLabel(readiness.score)}
-                </div>
-                <div className="font-mono text-muted2" style={{ fontSize: 10 }}>
-                  HRV balance {readiness.contributors.hrv_balance} · Recovery {readiness.contributors.recovery_index}
-                </div>
+                <div className="text-sm font-600" style={{ color: readinessColor(readiness.score) }}>{readinessLabel(readiness.score)}</div>
+                <div className="font-mono text-muted2 text-2xs">HRV balance {readiness.contributors.hrv_balance} · Recovery {readiness.contributors.recovery_index}</div>
               </div>
             </div>
           )}
 
-          <div className="text-sm text-muted mb-12" style={{ padding: '8px 10px', background: 'var(--bg3)', borderRadius: 7, lineHeight: 1.5 }}>
-            {phaseNote}
-          </div>
+          <div className="phase-note">{phaseNote}</div>
           <div className="text-sm text-muted mb-8">Session type:</div>
           <div className="flex flex-wrap gap-6 mb-10">
             {SESSION_OPTS.map(s => (
               <button
                 key={s.id}
                 onClick={() => setSess(selSession === s.id ? null : s.id)}
+                className="session-type-btn"
                 style={{
-                  fontSize: 12, padding: '5px 11px', borderRadius: 7,
                   border: `1px solid ${selSession === s.id ? s.color : 'var(--border)'}`,
                   background: selSession === s.id ? `${s.color}20` : 'var(--bg3)',
                   color: selSession === s.id ? s.color : 'var(--muted)',
-                  cursor: 'pointer', fontFamily: 'sans-serif', transition: 'all .15s',
                 }}
               >{s.label}</button>
             ))}
           </div>
           {wkSaved && day.workout && (
-            <div style={{ padding: '10px 12px', background: 'rgba(76,175,125,0.06)', border: '1px solid var(--green2)', borderRadius: 8, marginBottom: 10 }}>
+            <div className="workout-saved">
               <div className="text-base text-green font-500 mb-4">✓ Session logged</div>
               <div className="text-sm text-muted">
                 {SESSION_OPTS.find(s => s.id === day.workout)?.label ?? day.workout}
@@ -818,8 +803,8 @@ export default function TrackerTab({ user }: { user?: User | null }) {
               </div>
             </div>
           )}
-          <textarea className="tinput" value={wkNotes} onChange={e => setWkNotes(e.target.value)} placeholder="How did it feel? PRs? Modifications?" rows={3} style={{ resize: 'vertical', marginBottom: 8 }} />
-          <button onClick={logWorkout} className="tbtn" style={{ background: 'var(--coral)', color: '#fff' }}>+ Log workout</button>
+          <textarea className="tinput resize-vertical mb-8" value={wkNotes} onChange={e => setWkNotes(e.target.value)} placeholder="How did it feel? PRs? Modifications?" rows={3} />
+          <button onClick={logWorkout} className="tbtn tbtn--coral">+ Log workout</button>
         </div>
       )}
 
@@ -835,8 +820,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
                 <button
                   onClick={syncMedFromOura}
                   disabled={medSyncing}
-                  className="oura-sync-btn oura-sync-btn--gold"
-                  style={{ opacity: medSyncing ? 0.6 : 1, cursor: medSyncing ? 'default' : 'pointer' }}
+                  className={`oura-sync-btn oura-sync-btn--gold ${medSyncing ? 'loading' : ''}`}
                 >
                   {medSyncing ? 'Syncing…' : '⟳ Sync Oura'}
                 </button>
@@ -846,58 +830,34 @@ export default function TrackerTab({ user }: { user?: User | null }) {
             {/* Oura meditation data badges */}
             {ouraHRV !== null && (
               <div className="flex flex-wrap gap-8 mb-10">
-                <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'rgba(58,144,144,0.1)', border: '1px solid var(--teal)', color: 'var(--teal-light)', fontFamily: '"DM Mono",monospace' }}>
-                  HRV {ouraHRV}
-                </span>
-                {ouraHR !== null && (
-                  <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'rgba(76,175,125,0.1)', border: '1px solid var(--green2)', color: 'var(--green-light)', fontFamily: '"DM Mono",monospace' }}>
-                    HR {ouraHR} bpm
-                  </span>
-                )}
+                <span className="oura-badge oura-badge--teal">HRV {ouraHRV}</span>
+                {ouraHR !== null && <span className="oura-badge oura-badge--green">HR {ouraHR} bpm</span>}
                 {ouraActualMin !== null && ouraActualMin !== medMin && (
-                  <span title={`Actual: ${ouraActualMin} min — rounded to nearest option`} style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--muted2)', fontFamily: '"DM Mono",monospace', cursor: 'help' }}>
+                  <span className="oura-badge oura-badge--muted" title={`Actual: ${ouraActualMin} min — rounded to nearest option`}>
                     actual {ouraActualMin} min
                   </span>
                 )}
-                {ouraMood && (
-                  <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'rgba(138,106,184,0.1)', border: '1px solid var(--purple)', color: 'var(--purple)', fontFamily: 'sans-serif' }}>
-                    feeling: {ouraMood}
-                  </span>
-                )}
+                {ouraMood && <span className="oura-badge oura-badge--purple">feeling: {ouraMood}</span>}
               </div>
             )}
 
-            <div className="text-sm text-muted mb-10" style={{ lineHeight: 1.5 }}>Optimal post-CAR window. Even 13 minutes measurably improves focus and working memory for hours.</div>
+            <div className="text-sm text-muted mb-10 lh-15">Optimal post-CAR window. Even 13 minutes measurably improves focus and working memory for hours.</div>
             <div className="text-sm text-muted mb-6">Duration:</div>
             <div className="flex flex-wrap gap-6 mb-10">
               {MED_MINS.map(m => (
-                <button key={m} onClick={() => setMedMin(medMin === m ? 0 : m)} style={{
-                  fontSize: 12, padding: '5px 12px', borderRadius: 7,
-                  border: `1px solid ${medMin === m ? 'var(--gold)' : 'var(--border)'}`,
-                  background: medMin === m ? 'rgba(184,150,58,0.15)' : 'var(--bg3)',
-                  color: medMin === m ? 'var(--gold-light)' : 'var(--muted)',
-                  cursor: 'pointer', fontFamily: 'monospace', transition: 'all .15s',
-                }}>{m} min</button>
+                <button key={m} onClick={() => setMedMin(medMin === m ? 0 : m)} className={`med-min-btn ${medMin === m ? 'active' : ''}`}>{m} min</button>
               ))}
             </div>
             <div className="text-sm text-muted mb-6">Style:</div>
             <div className="flex flex-wrap gap-6 mb-10">
               {MED_STYLES.map(s => (
-                <button key={s} onClick={() => setMedStyle(medStyle === s ? '' : s)} style={{
-                  fontSize: 11, padding: '4px 10px', borderRadius: 6,
-                  border: `1px solid ${medStyle === s ? 'var(--gold)' : 'var(--border)'}`,
-                  background: medStyle === s ? 'rgba(184,150,58,0.1)' : 'var(--bg3)',
-                  color: medStyle === s ? 'var(--gold-light)' : 'var(--muted)',
-                  cursor: 'pointer', fontFamily: 'sans-serif', transition: 'all .15s',
-                }}>{s}</button>
+                <button key={s} onClick={() => setMedStyle(medStyle === s ? '' : s)} className={`med-style-btn ${medStyle === s ? 'active' : ''}`}>{s}</button>
               ))}
             </div>
             {day.medMin > 0 && (
-              <div style={{ display: 'block', padding: '8px 10px', background: 'rgba(184,150,58,0.08)', border: '1px solid var(--gold)', borderRadius: 7, fontSize: 12, color: 'var(--gold-light)', marginBottom: 8 }}>
-                Done: {day.medMin} min{day.medStyle ? ` - ${day.medStyle}` : ''}
-              </div>
+              <div className="med-done">Done: {day.medMin} min{day.medStyle ? ` - ${day.medStyle}` : ''}</div>
             )}
-            <button onClick={logMed} className="tbtn" style={{ background: medSaved ? 'rgba(184,150,58,0.2)' : 'var(--bg3)', border: '1px solid var(--gold)', color: 'var(--gold-light)' }}>
+            <button onClick={logMed} className={`tbtn btn-gold ${medSaved ? 'saved' : ''}`}>
               {medSaved ? 'Saved!' : 'Log meditation'}
             </button>
           </div>
@@ -908,7 +868,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
               <div className="tlabel" style={{ color: 'var(--gold)', marginBottom: 0 }}>Favorite Guides</div>
               <button
                 onClick={() => setShowAddGuide(v => !v)}
-                style={{ fontSize: 11, background: 'none', border: 'none', color: showAddGuide ? 'var(--muted2)' : 'var(--teal-light)', cursor: 'pointer', fontFamily: 'sans-serif', padding: 0 }}
+                className={`open-toggle-btn ${showAddGuide ? 'text-muted2' : 'text-teal'}`}
               >
                 {showAddGuide ? 'Cancel' : '+ Add'}
               </button>
@@ -918,49 +878,21 @@ export default function TrackerTab({ user }: { user?: User | null }) {
               <div className="text-sm text-muted2 italic mb-6">No guides saved yet.</div>
             )}
 
-            <div className="flex flex-col gap-6" style={{ marginBottom: showAddGuide ? 10 : 0 }}>
+            <div className={`flex flex-col gap-6 ${showAddGuide ? 'mb-10' : ''}`}>
               {guides.map((g, i) => (
-                <div key={i} className="flex items-center gap-8" style={{ padding: '8px 10px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 9 }}>
-                  <span style={{ fontSize: 13, color: 'var(--gold)' }}>▶</span>
-                  <a
-                    href={g.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 text-base text-teal"
-                    style={{ textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                  >
-                    {g.title}
-                  </a>
-                  <button
-                    onClick={() => removeGuide(i)}
-                    title="Remove"
-                    className="item-icon-btn"
-                    style={{ fontSize: 18 }}
-                  >×</button>
+                <div key={i} className="guide-row">
+                  <span className="text-base" style={{ color: 'var(--gold)' }}>▶</span>
+                  <a href={g.url} target="_blank" rel="noopener noreferrer" className="guide-link">{g.title}</a>
+                  <button onClick={() => removeGuide(i)} title="Remove" className="item-icon-btn text-lg">×</button>
                 </div>
               ))}
             </div>
 
             {showAddGuide && (
               <div className="flex flex-col gap-6">
-                <input
-                  className="tinput"
-                  value={newGuideTitle}
-                  onChange={e => setNewGuideTitle(e.target.value)}
-                  placeholder="Title (e.g. Morning Calm · 13 min)"
-                  style={{ marginBottom: 0 }}
-                />
-                <input
-                  className="tinput"
-                  value={newGuideUrl}
-                  onChange={e => setNewGuideUrl(e.target.value)}
-                  placeholder="URL"
-                  style={{ marginBottom: 0 }}
-                  onKeyDown={e => e.key === 'Enter' && addGuide()}
-                />
-                <button onClick={addGuide} className="tbtn" style={{ background: 'rgba(184,150,58,0.15)', border: '1px solid var(--gold)', color: 'var(--gold-light)' }}>
-                  Add guide
-                </button>
+                <input className="tinput" value={newGuideTitle} onChange={e => setNewGuideTitle(e.target.value)} placeholder="Title (e.g. Morning Calm · 13 min)" />
+                <input className="tinput" value={newGuideUrl} onChange={e => setNewGuideUrl(e.target.value)} placeholder="URL" onKeyDown={e => e.key === 'Enter' && addGuide()} />
+                <button onClick={addGuide} className="tbtn btn-gold">Add guide</button>
               </div>
             )}
           </div>
@@ -988,18 +920,16 @@ export default function TrackerTab({ user }: { user?: User | null }) {
                     const colors = ['var(--purple)', 'var(--green)', 'var(--teal)', 'var(--amber)', 'var(--muted2)']
                     const active = phase === p
                     return (
-                      <button key={p} onClick={() => setPhase(active ? '' : p)} style={{
-                        fontSize: 11, padding: '4px 10px', borderRadius: 6,
+                      <button key={p} onClick={() => setPhase(active ? '' : p)} className="phase-btn" style={{
                         border: `1px solid ${active ? colors[i] : 'var(--border)'}`,
                         background: active ? `${colors[i]}20` : 'var(--bg3)',
                         color: active ? colors[i] : 'var(--muted)',
-                        cursor: 'pointer', fontFamily: 'sans-serif', transition: 'all .15s',
                       }}>{p}</button>
                     )
                   })}
                 </div>
               </div>
-              <button onClick={saveCheckIn} className="tbtn" style={{ background: checkInSaved ? 'var(--green)' : 'var(--purple)', color: '#fff' }}>
+              <button onClick={saveCheckIn} className={`tbtn ${checkInSaved ? 'tbtn--green' : 'tbtn--secondary'}`}>
                 {checkInSaved ? 'Saved!' : 'Save check-in'}
               </button>
             </div>
@@ -1011,8 +941,8 @@ export default function TrackerTab({ user }: { user?: User | null }) {
           {/* Day notes */}
           <div className="tcard">
             <div className="tlabel text-muted2">Day notes</div>
-            <textarea className="tinput" value={dayNotes} onChange={e => setDayNotes(e.target.value)} placeholder="Cravings, how the workout felt, anything worth noting..." rows={4} style={{ resize: 'vertical', marginBottom: 8 }} />
-            <button onClick={saveNotes} className="tbtn" style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', color: notesSaved ? 'var(--green-light)' : 'var(--muted)' }}>
+            <textarea className="tinput resize-vertical mb-8" value={dayNotes} onChange={e => setDayNotes(e.target.value)} placeholder="Cravings, how the workout felt, anything worth noting..." rows={4} />
+            <button onClick={saveNotes} className={`tbtn tbtn-ghost ${notesSaved ? 'saved' : ''}`}>
               {notesSaved ? 'Saved!' : 'Save notes'}
             </button>
           </div>

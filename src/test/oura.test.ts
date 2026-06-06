@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   readinessColor, readinessLabel, sleepScoreToStars, roundToMedMin,
   OURA_ACTIVITY_MAP, OURA_SESSION_MAP,
@@ -193,7 +193,13 @@ describe('consumeOAuthCallback', () => {
 // ── startOuraOAuth ────────────────────────────────────────────────
 
 describe('startOuraOAuth', () => {
-  beforeEach(() => sessionStorage.clear())
+  beforeEach(() => {
+    sessionStorage.clear()
+    // startOuraOAuth guards against a missing client ID before writing to
+    // sessionStorage, so the env var must be set for the writes to happen.
+    vi.stubEnv('VITE_OURA_CLIENT_ID', 'test-client-id')
+  })
+  afterEach(() => vi.unstubAllEnvs())
 
   it('stores a random OAuth state and redirect URI in sessionStorage', () => {
     // May throw in jsdom when trying to navigate cross-origin — that's fine:

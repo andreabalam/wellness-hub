@@ -123,7 +123,7 @@ export default function RemindersSection({ user }: Props) {
       {unchecked.map(renderRow)}
 
       {unchecked.length > 0 && checked.length > 0 && (
-        <div style={{ borderTop: '1px dashed var(--border2)', margin: '8px 0' }} />
+        <div className="divider-dashed" />
       )}
 
       {checked.map(renderRow)}

@@ -78,7 +78,7 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
               </button>
               <label className="auth-panel-btn">
                 ↑ Import
-                <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => { onImportFile(e); setOpen(false) }} />
+                <input type="file" accept=".json" className="hidden" onChange={e => { onImportFile(e); setOpen(false) }} />
               </label>
             </div>
           </div>
@@ -169,7 +169,6 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
                     onClick={sendOtp}
                     disabled={panelState === 'sending' || !email.trim()}
                     className="auth-panel-btn auth-panel-btn--primary"
-                    style={{ opacity: panelState === 'sending' || !email.trim() ? 0.6 : 1 }}
                   >
                     {panelState === 'sending' ? 'Sending…' : 'Send code'}
                   </button>
@@ -199,19 +198,17 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
                     onKeyDown={e => e.key === 'Enter' && verifyCode()}
                     placeholder="12345678"
                     autoComplete="one-time-code"
-                    className="tinput mb-8"
-                    style={{ letterSpacing: '0.25em', fontSize: 20, textAlign: 'center', fontFamily: '"DM Mono", monospace' }}
+                    className="tinput mb-8 otp-input"
                   />
                   {error && <div className="auth-panel-error">{error}</div>}
                   <button
                     onClick={verifyCode}
                     disabled={panelState === 'verifying' || code.length < 8}
                     className="auth-panel-btn auth-panel-btn--primary"
-                    style={{ opacity: panelState === 'verifying' || code.length < 8 ? 0.6 : 1 }}
                   >
                     {panelState === 'verifying' ? 'Verifying…' : 'Verify code'}
                   </button>
-                  <button onClick={reset} className="auth-panel-btn auth-panel-btn--ghost" style={{ textDecoration: 'underline', border: 'none', background: 'none', fontSize: 11 }}>
+                  <button onClick={reset} className="link-btn">
                     Use a different email
                   </button>
                 </>
@@ -236,8 +233,7 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
               <button
                 onClick={() => { onSynced(); setOpen(false) }}
                 disabled={syncing}
-                className="auth-panel-btn"
-                style={{ color: syncing ? 'var(--muted2)' : undefined, cursor: syncing ? 'default' : undefined }}
+                className={`auth-panel-btn ${syncing ? 'syncing' : ''}`}
               >
                 {syncing ? 'syncing…' : '↻ Sync now'}
               </button>
@@ -252,7 +248,7 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
                 </button>
                 <label className="auth-panel-btn">
                   ↑ Import
-                  <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => { onImportFile(e); setOpen(false) }} />
+                  <input type="file" accept=".json" className="hidden" onChange={e => { onImportFile(e); setOpen(false) }} />
                 </label>
               </div>
 

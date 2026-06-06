@@ -124,7 +124,7 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
       <div className="guest-gate">
         <div className="guest-gate-icon">🗓</div>
         <div className="guest-gate-title">
-          Your <em style={{ color: 'var(--teal-light)' }}>Schedule</em>
+          Your <em className="text-teal">Schedule</em>
         </div>
         <div className="guest-gate-body">Sign in to save your schedule.</div>
       </div>
@@ -135,18 +135,11 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
     <>
       {/* ── Toolbar ── */}
       <div className="flex items-center gap-8 mb-18 flex-wrap">
-        <button
-          onClick={() => setShowEditor(true)}
-          className="auth-panel-btn"
-          style={{ width: 'auto', padding: '6px 14px', marginBottom: 0 }}
-        >
-          ✎ Edit schedule
-        </button>
+        <button onClick={() => setShowEditor(true)} className="toolbar-btn">✎ Edit schedule</button>
         <button
           onClick={() => setShowExport(s => !s)}
-          className="auth-panel-btn"
+          className="toolbar-btn"
           style={{
-            width: 'auto', padding: '6px 14px', marginBottom: 0,
             background: showExport ? 'rgba(58,144,144,0.12)' : undefined,
             border: `1px solid ${showExport ? 'var(--teal)' : 'var(--border2)'}`,
             color: showExport ? 'var(--teal-light)' : undefined,
@@ -157,7 +150,9 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
       </div>
 
       {/* ── Day selector ── */}
-      <div className="flex gap-4 mb-16" style={{ borderBottom: '1px solid var(--border)' }}>
+
+      {/* ── Day selector ── */}
+      <div className="flex gap-4 mb-16 inner-tab-bar" style={{ marginTop: 0 }}>
         {DAY_KEYS.map(day => (
           <button
             key={day}
@@ -189,51 +184,31 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
           <button onClick={handleExport} className="action-btn" style={{ background: 'var(--teal)', color: '#fff' }}>
             Download .ics
           </button>
-          <div className="text-xs text-muted2 w-full" style={{ lineHeight: 1.5 }}>
+          <div className="text-xs text-muted2 w-full lh-15">
             Exports the full week schedule as <strong className="text-muted">recurring weekly events</strong>, one per day. Import the file into Apple Calendar, Google Calendar, or Outlook.
           </div>
         </div>
       )}
 
       {/* ── Timeline ── */}
-      <div className="pbanner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="pbanner flex-between gap-8">
+        <div className="flex items-center gap-8">
           <span>○</span>
           {editingPeak ? (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span className="flex items-center gap-6 flex-wrap">
               <strong>Cognitive peak:</strong>
-              <input
-                aria-label="Peak start time"
-                type="time"
-                value={peakStart}
-                onChange={e => setPeakStart(e.target.value)}
-                style={{ background: 'var(--bg3)', border: '1px solid var(--teal)', borderRadius: 5, padding: '2px 6px', color: 'var(--text)', fontSize: 12, fontFamily: '"DM Mono",monospace', outline: 'none', colorScheme: 'dark' }}
-              />
+              <input aria-label="Peak start time" type="time" value={peakStart} onChange={e => setPeakStart(e.target.value)} className="peak-time-input" />
               <span>–</span>
-              <input
-                aria-label="Peak end time"
-                type="time"
-                value={peakEnd}
-                onChange={e => setPeakEnd(e.target.value)}
-                style={{ background: 'var(--bg3)', border: '1px solid var(--teal)', borderRadius: 5, padding: '2px 6px', color: 'var(--text)', fontSize: 12, fontFamily: '"DM Mono",monospace', outline: 'none', colorScheme: 'dark' }}
-              />
-              <button onClick={savePeak} style={{ background: 'var(--teal)', border: 'none', borderRadius: 5, padding: '3px 10px', fontSize: 11, color: '#fff', cursor: 'pointer', fontFamily: 'sans-serif' }}>Save</button>
-              <button onClick={() => setEditingPeak(false)} style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--muted)', cursor: 'pointer', fontFamily: 'sans-serif' }}>Cancel</button>
+              <input aria-label="Peak end time" type="time" value={peakEnd} onChange={e => setPeakEnd(e.target.value)} className="peak-time-input" />
+              <button onClick={savePeak} className="peak-save-btn">Save</button>
+              <button onClick={() => setEditingPeak(false)} className="peak-cancel-btn">Cancel</button>
             </span>
           ) : (
-            <span>
-              <strong>Cognitive peak: {formatPeakTime(peakStart)} – {formatPeakTime(peakEnd)}.</strong>
-            </span>
+            <span><strong>Cognitive peak: {formatPeakTime(peakStart)} – {formatPeakTime(peakEnd)}.</strong></span>
           )}
         </div>
         {!editingPeak && (
-          <button
-            aria-label="Edit cognitive peak"
-            onClick={() => setEditingPeak(true)}
-            style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--muted)', cursor: 'pointer', fontFamily: '"DM Mono",monospace', padding: '2px 4px', flexShrink: 0 }}
-          >
-            ✎
-          </button>
+          <button aria-label="Edit cognitive peak" onClick={() => setEditingPeak(true)} className="peak-edit-btn">✎</button>
         )}
       </div>
 

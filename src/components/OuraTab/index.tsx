@@ -120,7 +120,7 @@ function moodColor(mood: string | null): string {
 
 function CardHeader({ icon, title }: { icon: string; title: string }) {
   return (
-    <div className="flex items-center gap-6 mb-10 font-600 uppercase text-muted" style={{ fontSize: 11, letterSpacing: '0.07em' }}>
+    <div className="oura-card-header">
       <span>{icon}</span><span>{title}</span>
     </div>
   )
@@ -129,9 +129,7 @@ function CardHeader({ icon, title }: { icon: string; title: string }) {
 function BigStat({ value, color, unit }: { value: string | number; color: string; unit?: string }) {
   return (
     <div className="flex items-baseline gap-4 mb-8">
-      <span className="font-mono" style={{ fontSize: 32, fontWeight: 700, color, lineHeight: 1 }}>
-        {value}
-      </span>
+      <span className="metric-val" style={{ color }}>{value}</span>
       {unit && <span className="text-sm text-muted">{unit}</span>}
     </div>
   )
@@ -139,23 +137,16 @@ function BigStat({ value, color, unit }: { value: string | number; color: string
 
 function Row({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="flex-between text-sm" style={{ padding: '3px 0', borderBottom: '1px solid var(--border)' }}>
-      <span className="text-muted">{label}</span>
-      <span className="font-mono text-default" style={{ fontSize: 11 }}>{value}</span>
+    <div className="oura-metric-row">
+      <span className="text-muted text-sm">{label}</span>
+      <span className="oura-metric-row__val">{value}</span>
     </div>
   )
 }
 
 function Chip({ value, teal }: { value: string; teal?: boolean }) {
   return (
-    <span
-      className="font-mono"
-      style={{
-        fontSize: 11, color: teal ? 'var(--teal-light)' : 'var(--muted)',
-        padding: '2px 7px', border: `1px solid ${teal ? 'var(--teal)' : 'var(--border)'}`,
-        borderRadius: 5, background: teal ? 'rgba(58,144,144,0.1)' : 'var(--bg3)',
-      }}
-    >
+    <span className={`oura-badge font-mono ${teal ? 'oura-badge--teal' : 'oura-badge--default'}`}>
       {value}
     </span>
   )
@@ -174,8 +165,8 @@ function SessionRow({ session: s }: { session: OuraSession }) {
     (new Date(s.end_datetime).getTime() - new Date(s.start_datetime).getTime()) / 1000
   )
   return (
-    <div className="flex flex-wrap items-center gap-10" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-      <span className="flex-shrink-0" style={{ fontSize: 18, lineHeight: 1 }}>
+    <div className="oura-session-row flex flex-wrap items-center gap-10">
+      <span className="flex-shrink-0 text-xl" style={{ lineHeight: 1 }}>
         {SESSION_ICON[s.type] ?? '🧘'}
       </span>
       <div className="flex-1 min-w-0" style={{ minWidth: 100 }}>
@@ -187,7 +178,7 @@ function SessionRow({ session: s }: { session: OuraSession }) {
         {s.average_hrv != null && <Chip value={`HRV ${s.average_hrv}`} />}
         {s.average_heart_rate != null && <Chip value={`${s.average_heart_rate} bpm`} />}
         {s.mood && (
-          <span className="font-mono uppercase" style={{ fontSize: 11, color: moodColor(s.mood) }}>
+          <span className="font-mono uppercase text-xs" style={{ color: moodColor(s.mood) }}>
             ♥ {s.mood}
           </span>
         )}
@@ -201,7 +192,7 @@ function WorkoutRow({ workout, hasRoute }: { workout: OuraWorkout; hasRoute: boo
     (new Date(workout.end_datetime).getTime() - new Date(workout.start_datetime).getTime()) / 1000
   )
   return (
-    <div className="flex flex-wrap items-start gap-10" style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+    <div className="oura-workout-row flex flex-wrap items-start gap-10">
       <div className="flex-1 min-w-0" style={{ minWidth: 130 }}>
         <div className="text-base text-default font-500">{fmtActivity(workout.activity)}</div>
         <div className="text-xs text-muted mt-4">
@@ -214,12 +205,8 @@ function WorkoutRow({ workout, hasRoute }: { workout: OuraWorkout; hasRoute: boo
         {workout.distance != null && workout.distance > 0 && (
           <Chip value={`${(workout.distance / 1000).toFixed(2)} km`} />
         )}
-        {workout.average_heart_rate != null && (
-          <Chip value={`${workout.average_heart_rate} bpm avg`} />
-        )}
-        {workout.max_heart_rate != null && (
-          <Chip value={`${workout.max_heart_rate} bpm max`} />
-        )}
+        {workout.average_heart_rate != null && <Chip value={`${workout.average_heart_rate} bpm avg`} />}
+        {workout.max_heart_rate != null && <Chip value={`${workout.max_heart_rate} bpm max`} />}
         {hasRoute && <Chip value="🗺 Route" teal />}
       </div>
     </div>
@@ -375,9 +362,9 @@ export default function OuraTab({ user }: Props) {
   // ── Guest gate ────────────────────────────────────────────────────
   if (!user) {
     return (
-      <div className="flex flex-col items-center text-muted gap-10" style={{ padding: 48 }}>
+      <div className="oura-guest">
         <div style={{ fontSize: 36 }}>🫀</div>
-        <p style={{ margin: 0, fontSize: 14 }}>Sign in to view your Oura dashboard.</p>
+        <p className="text-md text-muted" style={{ margin: 0 }}>Sign in to view your Oura dashboard.</p>
       </div>
     )
   }
@@ -385,26 +372,15 @@ export default function OuraTab({ user }: Props) {
   // ── Connect screen ────────────────────────────────────────────────
   if (noToken) {
     return (
-      <div className="text-center" style={{ padding: '48px 24px', maxWidth: 440, margin: '0 auto' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🫀</div>
-        <div className="font-serif mb-10" style={{ fontSize: 22, fontWeight: 400, color: 'var(--text)' }}>
-          Connect Oura Ring
-        </div>
-        <p className="text-base text-muted" style={{ margin: '0 0 28px', lineHeight: 1.6 }}>
+      <div className="oura-connect">
+        <div className="oura-connect__icon">🫀</div>
+        <div className="section-title oura-connect__title">Connect Oura Ring</div>
+        <p className="oura-connect__body">
           Authorise this app to read your Oura data. You'll be redirected to Oura's
           sign-in page and sent back here automatically.
         </p>
-
-        {connecting && (
-          <p className="text-base text-teal mb-16">Completing connection…</p>
-        )}
-
-        {connError && (
-          <div className="text-sm text-coral mb-16" style={{ padding: '8px 12px', background: 'rgba(255,107,91,0.08)', border: '1px solid var(--coral)', borderRadius: 8 }}>
-            {connError}
-          </div>
-        )}
-
+        {connecting && <p className="text-base text-teal mb-16">Completing connection…</p>}
+        {connError && <div className="oura-connect-error mb-16">{connError}</div>}
         <button
           onClick={() => {
             setConnError(null)
@@ -413,12 +389,11 @@ export default function OuraTab({ user }: Props) {
           }}
           disabled={connecting}
           className="tbtn"
-          style={{ background: 'var(--teal)', color: '#fff', fontSize: 14, padding: '10px 28px', opacity: connecting ? 0.6 : 1 }}
+          style={{ background: 'var(--teal)', color: '#fff', fontSize: 14, padding: '10px 28px' }}
         >
           Connect with Oura
         </button>
-
-        <p className="text-muted2 mt-16" style={{ fontSize: 10, lineHeight: 1.6 }}>
+        <p className="oura-connect__legal">
           Tokens are stored AES-256 encrypted — your credentials never touch the browser.
         </p>
       </div>
@@ -428,55 +403,40 @@ export default function OuraTab({ user }: Props) {
   const isToday = date === todayStr()
 
   return (
-    <div style={{ padding: '16px 16px 80px', maxWidth: 920, margin: '0 auto' }}>
+    <div className="oura-dashboard">
 
       {/* ── Date navigation ── */}
       <div className="flex items-center flex-wrap gap-8 mb-20">
         <button className="date-nav-btn" onClick={() => setDate(d => addDays(d, -1))}>←</button>
-        <span className="flex-1 text-center font-600 text-default" style={{ fontSize: 15, minWidth: 120 }}>
+        <span className="oura-date-label">
           {fmtDate(date)}
-          <span className="text-xs text-muted" style={{ marginLeft: 8, fontWeight: 400 }}>{date}</span>
+          <span className="oura-date-sub">{date}</span>
         </span>
         <button
           className="date-nav-btn"
-          style={{ opacity: isToday ? 0.3 : 1, cursor: isToday ? 'default' : 'pointer' }}
           onClick={() => !isToday && setDate(d => addDays(d, 1))}
           disabled={isToday}
         >→</button>
-        {!isToday && (
-          <button className="date-nav-btn text-sm" onClick={() => setDate(todayStr())}>Today</button>
-        )}
+        {!isToday && <button className="date-nav-btn text-sm" onClick={() => setDate(todayStr())}>Today</button>}
         <button
           className="date-nav-btn"
-          style={{ opacity: loading ? 0.45 : 1, minWidth: 32 }}
+          style={{ minWidth: 32 }}
           onClick={() => fetchAll(date)}
           disabled={loading}
           title="Refresh"
         >↺</button>
-        <button
-          onClick={disconnect}
-          className="text-xs text-muted2"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: '"DM Sans", sans-serif', padding: '0 2px' }}
-        >
-          Disconnect
-        </button>
+        <button onClick={disconnect} className="disconnect-btn text-xs text-muted2">Disconnect</button>
       </div>
 
-      {error && (
-        <div className="banner banner--error mb-16">{error}</div>
-      )}
+      {error && <div className="banner banner--error mb-16">{error}</div>}
 
       {/* ── Row 1: Activity · Readiness · Sleep ── */}
       <div className="flex flex-wrap gap-12 mb-12">
-
-        {/* Activity */}
         <div className="metric-card" style={{ flex: '1 1 200px' }}>
           <CardHeader icon="🏃" title="Activity" />
           {loading ? <Skeleton /> : !activity ? <Empty /> : (
             <>
-              {activity.score != null && (
-                <BigStat value={activity.score} color={scoreColor(activity.score)} unit="/100" />
-              )}
+              {activity.score != null && <BigStat value={activity.score} color={scoreColor(activity.score)} unit="/100" />}
               <Row label="Steps"         value={activity.steps.toLocaleString()} />
               <Row label="Active kcal"   value={activity.active_calories} />
               <Row label="Total kcal"    value={activity.total_calories} />
@@ -488,45 +448,28 @@ export default function OuraTab({ user }: Props) {
           )}
         </div>
 
-        {/* Readiness */}
         <div className="metric-card" style={{ flex: '1 1 200px' }}>
           <CardHeader icon="💚" title="Readiness" />
           {loading ? <Skeleton /> : !readiness ? <Empty /> : (
             <>
               <BigStat value={readiness.score} color={readinessColor(readiness.score)} unit="/100" />
-              <div className="text-sm font-600 mb-8" style={{ color: readinessColor(readiness.score) }}>
-                {readinessLabel(readiness.score)}
-              </div>
-              {readiness.contributors.hrv_balance != null && (
-                <Row label="HRV balance"    value={readiness.contributors.hrv_balance} />
-              )}
-              {readiness.contributors.recovery_index != null && (
-                <Row label="Recovery index" value={readiness.contributors.recovery_index} />
-              )}
-              {readiness.contributors.sleep_balance != null && (
-                <Row label="Sleep balance"  value={readiness.contributors.sleep_balance} />
-              )}
-              {readiness.contributors.resting_heart_rate != null && (
-                <Row label="Resting HR"     value={readiness.contributors.resting_heart_rate} />
-              )}
+              <div className="text-sm font-600 mb-8" style={{ color: readinessColor(readiness.score) }}>{readinessLabel(readiness.score)}</div>
+              {readiness.contributors.hrv_balance != null     && <Row label="HRV balance"    value={readiness.contributors.hrv_balance} />}
+              {readiness.contributors.recovery_index != null  && <Row label="Recovery index" value={readiness.contributors.recovery_index} />}
+              {readiness.contributors.sleep_balance != null   && <Row label="Sleep balance"  value={readiness.contributors.sleep_balance} />}
+              {readiness.contributors.resting_heart_rate != null && <Row label="Resting HR"  value={readiness.contributors.resting_heart_rate} />}
               {readiness.temperature_deviation != null && (
-                <Row
-                  label="Temp deviation"
-                  value={`${readiness.temperature_deviation >= 0 ? '+' : ''}${readiness.temperature_deviation.toFixed(2)}°C`}
-                />
+                <Row label="Temp deviation" value={`${readiness.temperature_deviation >= 0 ? '+' : ''}${readiness.temperature_deviation.toFixed(2)}°C`} />
               )}
             </>
           )}
         </div>
 
-        {/* Sleep — uses session durations when available, falls back to daily_sleep scores */}
         <div className="metric-card" style={{ flex: '1 1 200px' }}>
           <CardHeader icon="😴" title="Sleep" />
           {loading ? <Skeleton /> : (!sleep && !sleepSession) ? <Empty /> : (
             <>
-              {sleep?.score != null && (
-                <BigStat value={sleep.score} color={scoreColor(sleep.score)} unit="/100" />
-              )}
+              {sleep?.score != null && <BigStat value={sleep.score} color={scoreColor(sleep.score)} unit="/100" />}
               {sleepSession ? (
                 <>
                   <Row label="Total"       value={fmtDuration(sleepSession.total_sleep_duration)} />
@@ -534,15 +477,10 @@ export default function OuraTab({ user }: Props) {
                   <Row label="REM"         value={fmtDuration(sleepSession.rem_sleep_duration)} />
                   <Row label="Light"       value={fmtDuration(sleepSession.light_sleep_duration)} />
                   <Row label="Efficiency"  value={`${sleepSession.efficiency}%`} />
-                  {sleepSession.average_hrv != null && (
-                    <Row label="Avg HRV"   value={`${sleepSession.average_hrv} ms`} />
-                  )}
-                  {sleepSession.lowest_heart_rate != null && (
-                    <Row label="Lowest HR" value={`${sleepSession.lowest_heart_rate} bpm`} />
-                  )}
+                  {sleepSession.average_hrv != null       && <Row label="Avg HRV"   value={`${sleepSession.average_hrv} ms`} />}
+                  {sleepSession.lowest_heart_rate != null && <Row label="Lowest HR" value={`${sleepSession.lowest_heart_rate} bpm`} />}
                 </>
               ) : sleep?.contributors ? (
-                // Fallback: show sub-scores from daily_sleep until sleep endpoint is deployed
                 <>
                   {sleep.contributors.total_sleep != null && <Row label="Total quality"  value={`${sleep.contributors.total_sleep}/100`} />}
                   {sleep.contributors.deep_sleep  != null && <Row label="Deep quality"   value={`${sleep.contributors.deep_sleep}/100`} />}
@@ -554,12 +492,10 @@ export default function OuraTab({ user }: Props) {
             </>
           )}
         </div>
-
       </div>
 
       {/* ── Row 2: Cardio Age · SpO2 · Stress · Resilience ── */}
       <div className="flex flex-wrap gap-12 mb-12">
-
         <div className="metric-card" style={{ flex: '1 1 155px' }}>
           <CardHeader icon="💗" title="Cardio Age" />
           {loading ? <Skeleton /> : !cardioAge || cardioAge.vascular_age == null ? <Empty /> : (
@@ -571,14 +507,9 @@ export default function OuraTab({ user }: Props) {
           <CardHeader icon="🩸" title="SpO2" />
           {loading ? <Skeleton /> : !spo2 || spo2.spo2_percentage == null ? <Empty /> : (
             <>
-              <BigStat
-                value={spo2.spo2_percentage.average.toFixed(1)}
-                color={spo2Color(spo2.spo2_percentage.average)}
-                unit="%"
-              />
+              <BigStat value={spo2.spo2_percentage.average.toFixed(1)} color={spo2Color(spo2.spo2_percentage.average)} unit="%" />
               <div className="text-xs text-muted">
-                {spo2.spo2_percentage.average >= 95 ? 'Normal' :
-                 spo2.spo2_percentage.average >= 91 ? 'Mild low' : 'Low'}
+                {spo2.spo2_percentage.average >= 95 ? 'Normal' : spo2.spo2_percentage.average >= 91 ? 'Mild low' : 'Low'}
               </div>
             </>
           )}
@@ -589,16 +520,10 @@ export default function OuraTab({ user }: Props) {
           {loading ? <Skeleton /> : !stress ? <Empty /> : (
             <>
               {stress.day_summary && stress.day_summary !== 'no_data' && (
-                <div className="text-md font-600 uppercase mb-8" style={{ color: stressColor(stress.day_summary) }}>
-                  {stress.day_summary}
-                </div>
+                <div className="text-md font-600 uppercase mb-8" style={{ color: stressColor(stress.day_summary) }}>{stress.day_summary}</div>
               )}
-              {stress.stress_high != null && (
-                <Row label="Stress"   value={fmtDuration(stress.stress_high)} />
-              )}
-              {stress.recovery_high != null && (
-                <Row label="Recovery" value={fmtDuration(stress.recovery_high)} />
-              )}
+              {stress.stress_high   != null && <Row label="Stress"   value={fmtDuration(stress.stress_high)} />}
+              {stress.recovery_high != null && <Row label="Recovery" value={fmtDuration(stress.recovery_high)} />}
             </>
           )}
         </div>
@@ -608,66 +533,37 @@ export default function OuraTab({ user }: Props) {
           {loading ? <Skeleton /> : !resilience ? <Empty /> : (
             <>
               {resilience.level && (
-                <div className="text-md font-600 uppercase mb-8" style={{ color: resilienceColor(resilience.level) }}>
-                  {resilience.level}
-                </div>
+                <div className="text-md font-600 uppercase mb-8" style={{ color: resilienceColor(resilience.level) }}>{resilience.level}</div>
               )}
-              {resilience.contributors.sleep_recovery != null && (
-                <Row label="Sleep rec."  value={resilience.contributors.sleep_recovery} />
-              )}
-              {resilience.contributors.daytime_recovery != null && (
-                <Row label="Day rec."    value={resilience.contributors.daytime_recovery} />
-              )}
-              {resilience.contributors.stress_impact != null && (
-                <Row label="Stress imp." value={resilience.contributors.stress_impact} />
-              )}
+              {resilience.contributors.sleep_recovery    != null && <Row label="Sleep rec."  value={resilience.contributors.sleep_recovery} />}
+              {resilience.contributors.daytime_recovery  != null && <Row label="Day rec."    value={resilience.contributors.daytime_recovery} />}
+              {resilience.contributors.stress_impact     != null && <Row label="Stress imp." value={resilience.contributors.stress_impact} />}
             </>
           )}
         </div>
-
       </div>
 
       {/* ── Workouts & Mindfulness ── */}
       <div className="flex flex-wrap gap-12">
-
         <div className="metric-card" style={{ flex: '1 1 300px' }}>
-          <CardHeader
-            icon="🏋️"
-            title={loading ? 'Workouts' : `Workouts (${workouts.length})`}
-          />
+          <CardHeader icon="🏋️" title={loading ? 'Workouts' : `Workouts (${workouts.length})`} />
           {loading ? <Skeleton /> : workouts.length === 0 ? (
             <div className="text-base text-muted">No workouts recorded</div>
-          ) : (
-            <div>
-              {workouts.map(w => (
-                <WorkoutRow key={w.id} workout={w} hasRoute={routeIds.has(w.id)} />
-              ))}
-            </div>
-          )}
+          ) : workouts.map(w => <WorkoutRow key={w.id} workout={w} hasRoute={routeIds.has(w.id)} />)}
         </div>
 
-        {/* Only render the mindfulness card when not loading or there are sessions */}
         {(!loading || sessions.length > 0) && (() => {
           const mindful = sessions.filter(s => s.type !== 'nap')
           return (
             <div className="metric-card" style={{ flex: '1 1 280px' }}>
-              <CardHeader
-                icon="🧘"
-                title={loading ? 'Mindfulness' : `Mindfulness (${mindful.length})`}
-              />
+              <CardHeader icon="🧘" title={loading ? 'Mindfulness' : `Mindfulness (${mindful.length})`} />
               {loading ? <Skeleton /> : mindful.length === 0 ? (
                 <div className="text-base text-muted">No sessions recorded</div>
-              ) : (
-                <div>
-                  {mindful.map(s => <SessionRow key={s.id} session={s} />)}
-                </div>
-              )}
+              ) : mindful.map(s => <SessionRow key={s.id} session={s} />)}
             </div>
           )
         })()}
-
       </div>
-
     </div>
   )
 }

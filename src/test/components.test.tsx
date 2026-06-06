@@ -1251,7 +1251,7 @@ describe('WorkoutsTab', () => {
     render(<WorkoutsTab user={null} />)
     // Goblet Squat appears in Day A and Day C; take the first one
     const exerciseTitle = screen.getAllByText('Goblet Squat')[0]
-    fireEvent.click(exerciseTitle.closest('div[style*="cursor: pointer"]')!)
+    fireEvent.click(exerciseTitle.closest('.exercise-row')!)
     expect(screen.getByText(/Hold one dumbbell/i)).toBeInTheDocument()
   })
 
@@ -1303,7 +1303,7 @@ describe('WorkoutsTab', () => {
   it('auth: clicking an ExerciseRow expands its instruction', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
     const exerciseTitle = screen.getByText('Footwork series')
-    fireEvent.click(exerciseTitle.closest('div[style*="cursor: pointer"]')!)
+    fireEvent.click(exerciseTitle.closest('.exercise-row')!)
     expect(screen.getByText(/Reformer footwork/i)).toBeInTheDocument()
   })
 

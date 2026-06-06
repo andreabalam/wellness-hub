@@ -93,7 +93,7 @@ export default function GroceryIngredientModal({ recipe, onAdd, onClose }: Props
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => toggle(i)}
-                  style={{ accentColor: 'var(--green)', width: 15, height: 15, flexShrink: 0 }}
+                  className="ingredient-checkbox"
                 />
                 <span className="flex-1 text-base text-default">{name}</span>
                 <span className="text-sm text-muted font-mono">{amt}</span>
@@ -119,7 +119,7 @@ export default function GroceryIngredientModal({ recipe, onAdd, onClose }: Props
 
         {/* Actions */}
         {done ? (
-          <div className="text-md text-green text-center" style={{ padding: '8px 0' }}>
+          <div className="text-md text-green text-center p-8">
             ✓ {selected.size} item{selected.size !== 1 ? 's' : ''} added to grocery list!
           </div>
         ) : (
@@ -128,7 +128,6 @@ export default function GroceryIngredientModal({ recipe, onAdd, onClose }: Props
               onClick={handleAdd}
               disabled={noneSelected}
               className="btn btn--primary btn--md flex-1"
-              style={{ opacity: noneSelected ? 0.5 : 1, cursor: noneSelected ? 'default' : 'pointer' }}
             >
               Add {selected.size > 0 ? `${selected.size} ` : ''}item{selected.size !== 1 ? 's' : ''} to grocery
             </button>

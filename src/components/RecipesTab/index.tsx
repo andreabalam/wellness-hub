@@ -220,10 +220,10 @@ export default function RecipesTab({ user }: { user?: User | null }) {
 
   if (!user) {
     return (
-      <div className="guest-gate" style={{ paddingTop: 64, paddingBottom: 32 }}>
-        <div className="guest-gate-icon" style={{ fontSize: 44 }}>📖</div>
+      <div className="guest-gate-cta">
+        <div className="guest-gate-cta__icon">📖</div>
         <div className="guest-gate-title">
-          Sign in to save <em style={{ color: 'var(--purple-light)' }}>Recipes</em>
+          Sign in to save <em className="text-purple">Recipes</em>
         </div>
         <div className="guest-gate-body">
           Create, save and organise your personal recipes. Your collection stays private and syncs across devices.
@@ -246,8 +246,7 @@ export default function RecipesTab({ user }: { user?: User | null }) {
           </button>
         ))}
         <button
-          className={`rfbtn${activeFilter === 'grocery' ? ' active' : ''}`}
-          style={{ borderColor: activeFilter === 'grocery' ? undefined : 'var(--green2)', color: activeFilter === 'grocery' ? undefined : 'var(--green-light)' }}
+          className={`rfbtn${activeFilter === 'grocery' ? ' active' : ' rfbtn--green'}`}
           onClick={() => setFilter('grocery')}
         >
           🛒 Grocery
