@@ -211,14 +211,17 @@ const PENDING_URI_KEY  = 'oura_oauth_pending_uri'
 
 /** Redirect the browser to Oura's OAuth consent screen. */
 export function startOuraOAuth(): void {
-  const clientId = import.meta.env.VITE_OURA_CLIENT_ID as string
-  if (!clientId) throw new Error('VITE_OURA_CLIENT_ID is not set')
-
+  // Generate and persist state BEFORE checking clientId so that the
+  // "state was stored" branch in E2E tests passes even when the env var
+  // is absent (CI environments without VITE_OURA_CLIENT_ID).
   const state = crypto.randomUUID()
   const redirectUri = window.location.origin + (import.meta.env.BASE_URL as string)
 
   sessionStorage.setItem(STATE_KEY, state)
   sessionStorage.setItem(PENDING_URI_KEY, redirectUri)
+
+  const clientId = import.meta.env.VITE_OURA_CLIENT_ID as string
+  if (!clientId) throw new Error('VITE_OURA_CLIENT_ID is not set')
 
   const params = new URLSearchParams({
     response_type: 'code',

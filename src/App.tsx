@@ -17,6 +17,12 @@ import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStor
 
 type Tab = 'tracker' | 'recipes' | 'workouts' | 'schedule' | 'oura'
 
+// Consume the OAuth callback once at module load — before React mounts.
+// Must live outside any component: React StrictMode calls useState lazy
+// initializers twice in development, which would remove oura_oauth_state
+// on the first invocation so the second invocation fails the CSRF check.
+const _initialTab: Tab = consumeOAuthCallback() ? 'oura' : 'tracker'
+
 const TABS: { id: Tab; label: string }[] = [
   { id: 'tracker',  label: '📊 Tracker' },
   { id: 'recipes',  label: '🍽 Recipes' },
@@ -26,7 +32,7 @@ const TABS: { id: Tab; label: string }[] = [
 ]
 
 export default function App() {
-  const [active, setActive]       = useState<Tab>(() => consumeOAuthCallback() ? 'oura' : 'tracker')
+  const [active, setActive]       = useState<Tab>(_initialTab)
   // Lazy-init from window so we avoid setState inside the effect below
   const [swUpdate, setSwUpdate]   = useState<(() => void) | null>(
     () => window.__swPendingUpdate ?? null
