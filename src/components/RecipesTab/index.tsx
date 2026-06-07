@@ -82,7 +82,12 @@ export default function RecipesTab({ user }: { user?: User | null }) {
       }
       // If fetch failed we silently keep the static fallback — no error banner
       if (user.length) {
-        setCustomRecipes(user)
+        // Merge: keep any localStorage-only recipes (not yet synced or failed to sync)
+        setCustomRecipes(prev => {
+          const dbIds = new Set(user.map(r => r.id))
+          const localOnly = prev.filter(r => r.id != null && !dbIds.has(r.id))
+          return [...user, ...localOnly]
+        })
       }
       setLoading(false)
     })()
@@ -91,22 +96,20 @@ export default function RecipesTab({ user }: { user?: User | null }) {
 
   const activeFilter: Filter = filter
 
-  const refreshCustom = useCallback(() => {
-    setCustomRecipes(store.getRecipes())
-    setCustomTags(store.getTags())
-  }, [store])
-
   const handleSave = async (r: Recipe) => {
     const existing = store.getRecipes()
     const isUpdate = r.id != null && existing.some(x => x.id === r.id)
 
     if (isUpdate) {
-      // Replace the existing recipe in-place
       store.saveRecipes(existing.map(x => x.id === r.id ? r : x))
+      // Replace in React state directly — preserves Supabase-loaded recipes not in localStorage
+      setCustomRecipes(prev => prev.map(x => x.id === r.id ? r : x))
     } else {
       store.addRecipe(r)
+      // Prepend to React state — preserves all existing recipes
+      setCustomRecipes(prev => [r, ...prev])
     }
-    refreshCustom()
+    setCustomTags(store.getTags())
 
     // Sync to Supabase when logged in
     if (supabase) {
@@ -115,10 +118,10 @@ export default function RecipesTab({ user }: { user?: User | null }) {
         if (user) {
           const dbId = await sync.upsertUserRecipe(user.id, r)
           if (dbId && !isUpdate) {
-            // For new recipes: update the id to the DB-assigned one
+            // Swap the local-generated id for the DB-assigned one
             store.deleteRecipe(r.id!)
             store.addRecipe({ ...r, id: dbId })
-            refreshCustom()
+            setCustomRecipes(prev => prev.map(x => x.id === r.id ? { ...r, id: dbId } : x))
           }
         }
       } catch { /* offline — localStorage copy is sufficient */ }
@@ -128,7 +131,7 @@ export default function RecipesTab({ user }: { user?: User | null }) {
   const handleDelete = async (id: number) => {
     if (!window.confirm('Delete this recipe?')) return
     store.deleteRecipe(id)
-    refreshCustom()
+    setCustomRecipes(prev => prev.filter(r => r.id !== id))
     if (supabase) {
       try {
         const { data: { user } } = await supabase.auth.getUser()
@@ -139,7 +142,7 @@ export default function RecipesTab({ user }: { user?: User | null }) {
 
   const handleAddTag = (tag: string) => {
     store.addTag(tag)
-    refreshCustom()
+    setCustomTags(store.getTags())
   }
 
   /**

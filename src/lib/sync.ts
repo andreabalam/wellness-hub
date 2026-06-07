@@ -88,7 +88,13 @@ export async function fetchUserRecipes(userId: string): Promise<Recipe[]> {
 
 /** Insert or update a custom recipe for the logged-in user. Returns the DB id. */
 export async function upsertUserRecipe(userId: string, r: Recipe): Promise<number | null> {
-  const payload = {
+  // BIGSERIAL ids are small integers. Date.now() values (~1.7 × 10¹²) are
+  // locally-generated placeholders assigned before the first successful sync.
+  // Only include id in the payload when it's a real DB id so the upsert can
+  // find the existing row; omit it for new recipes to let Postgres auto-assign.
+  const isDbId = r.id != null && r.id < 1e12
+  const payload: Record<string, unknown> = {
+    ...(isDbId ? { id: r.id } : {}),
     cat: r.cat, type: r.type, color: r.color, sc: r.sc, name: r.name,
     tag: r.tag, prep_l: r.prepL, prep_c: r.prepC,
     prep_time: r.prepTime ?? null, health_tag: r.healthTag ?? null,
