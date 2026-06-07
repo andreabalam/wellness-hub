@@ -128,7 +128,13 @@ body {
   background: var(--bg2); border: 1px solid var(--border);
   border-radius: 8px; padding: 5px 13px; font-size: 12px;
   color: var(--muted); cursor: pointer; transition: all .2s; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px;
   &.active, &:hover { border-color: var(--amber); color: var(--amber-light); background: rgba(201,145,58,0.08); }
+}
+.rfbtn-count {
+  font-size: 10px; font-family: "DM Mono", monospace;
+  background: var(--bg3, var(--border)); color: var(--muted);
+  border-radius: 9px; padding: 0 5px; line-height: 15px; min-width: 15px; text-align: center;
 }
 .rgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
 .rcard {

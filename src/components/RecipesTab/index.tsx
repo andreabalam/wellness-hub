@@ -199,6 +199,15 @@ export default function RecipesTab({ user }: { user?: User | null }) {
     [builtinRecipes, hiddenIds]
   )
 
+  const filterCounts = useMemo<Record<string, number>>(() => {
+    const all = [...customRecipes, ...visibleBuiltins]
+    const counts: Record<string, number> = { all: all.length }
+    for (const r of all) {
+      if (r.cat) counts[r.cat] = (counts[r.cat] ?? 0) + 1
+    }
+    return counts
+  }, [customRecipes, visibleBuiltins])
+
   // Displayed recipes
   const visibleRecipes = useMemo<Recipe[]>(() => {
     const q = query.trim().toLowerCase()
@@ -243,6 +252,9 @@ export default function RecipesTab({ user }: { user?: User | null }) {
             onClick={() => setFilter(btn.id)}
           >
             {btn.label}
+            {!!filterCounts[btn.id] && (
+              <span className="rfbtn-count">{filterCounts[btn.id]}</span>
+            )}
           </button>
         ))}
         <button

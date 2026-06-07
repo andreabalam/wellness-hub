@@ -383,30 +383,39 @@ export interface UserBodyStats {
  */
 
 export async function fetchUserBodyStats(userId: string): Promise<UserBodyStats | null> {
-  const { data, error } = await supabase!
+  const fullCols = 'weight_kg, body_fat_pct, height_m, age, biological_sex, cycle_type, equipment, tdee_kcal, kcal_target, prot_range, fat_loss_goal, chronotype, fat_loss_rate_kg, macro_split, waist_cm, glutes_cm, measurement_unit'
+  const coreCols = 'weight_kg, body_fat_pct, height_m, age, biological_sex, cycle_type, equipment, tdee_kcal, kcal_target, prot_range, fat_loss_goal, chronotype, fat_loss_rate_kg, macro_split'
+  let { data, error } = await supabase!
     .from('user_body_stats')
-    .select('weight_kg, body_fat_pct, height_m, age, biological_sex, cycle_type, equipment, tdee_kcal, kcal_target, prot_range, fat_loss_goal, chronotype, fat_loss_rate_kg, macro_split, waist_cm, glutes_cm, measurement_unit')
+    .select(fullCols)
     .eq('user_id', userId)
     .single()
+  // If measurement columns don't exist yet (migration pending), retry without them
+  if (error && (error as { code?: string }).code === '42703') {
+    const fallback = await supabase!.from('user_body_stats').select(coreCols).eq('user_id', userId).single()
+    data  = fallback.data as typeof data
+    error = fallback.error
+  }
   if (error || !data) return null
+  const d = data as Record<string, unknown>
   return {
-    weightKg:        (data.weight_kg        as number) ?? 0,
-    heightM:         (data.height_m         as number) ?? 0,
-    age:             (data.age              as number) ?? 0,
-    biologicalSex:   (data.biological_sex   as string) ?? '',
-    waistCm:         (data.waist_cm         as number) ?? 0,
-    glutesCm:        (data.glutes_cm        as number) ?? 0,
-    measurementUnit: ((data.measurement_unit as string) || 'cm') as UserBodyStats['measurementUnit'],
+    weightKg:        (d.weight_kg        as number) ?? 0,
+    heightM:         (d.height_m         as number) ?? 0,
+    age:             (d.age              as number) ?? 0,
+    biologicalSex:   (d.biological_sex   as string) ?? '',
+    waistCm:         (d.waist_cm         as number) ?? 0,
+    glutesCm:        (d.glutes_cm        as number) ?? 0,
+    measurementUnit: ((d.measurement_unit as string) || 'cm') as UserBodyStats['measurementUnit'],
     bodyFatPct:      (data.body_fat_pct     as number) ?? 0,
-    cycleType:       (data.cycle_type       as UserBodyStats['cycleType'])  ?? 'none',
-    equipment:       (data.equipment        as string) ?? '',
-    chronotype:      (data.chronotype       as UserBodyStats['chronotype']) ?? '',
-    fatLossRateKg:   (data.fat_loss_rate_kg as number) ?? 0,
-    macroSplit:      (data.macro_split      as UserBodyStats['macroSplit']) ?? 'balanced',
-    tdeeKcal:        (data.tdee_kcal        as number) ?? 0,
-    kcalTarget:      (data.kcal_target      as number) ?? 0,
-    protRange:       (data.prot_range       as string) ?? '',
-    fatLossGoal:     (data.fat_loss_goal    as string) ?? '',
+    cycleType:       (d.cycle_type       as UserBodyStats['cycleType'])  ?? 'none',
+    equipment:       (d.equipment        as string) ?? '',
+    chronotype:      (d.chronotype       as UserBodyStats['chronotype']) ?? '',
+    fatLossRateKg:   (d.fat_loss_rate_kg as number) ?? 0,
+    macroSplit:      (d.macro_split      as UserBodyStats['macroSplit']) ?? 'balanced',
+    tdeeKcal:        (d.tdee_kcal        as number) ?? 0,
+    kcalTarget:      (d.kcal_target      as number) ?? 0,
+    protRange:       (d.prot_range       as string) ?? '',
+    fatLossGoal:     (d.fat_loss_goal    as string) ?? '',
   }
 }
 

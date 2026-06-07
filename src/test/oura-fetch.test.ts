@@ -27,6 +27,7 @@ import {
   fetchOuraSpo2, fetchOuraStress, fetchOuraResilience,
   fetchOuraWorkoutRoute, fetchOuraPersonalInfo, fetchOuraTdeeAvg,
   isOuraConnected, exchangePendingCode, disconnectOura,
+  fetchOuraDailyActivity,
 } from '../lib/oura'
 
 const mockGetSession = vi.mocked((supabase as NonNullable<typeof supabase>).auth.getSession)
@@ -405,5 +406,86 @@ describe('fetchOuraTdeeAvg', () => {
 
   it('throws when no session', async () => {
     await expect(fetchOuraTdeeAvg(7)).rejects.toThrow()
+  })
+})
+
+// ── fetchOuraDailyActivity — 2-day-window fallback ───────────────
+
+describe('fetchOuraDailyActivity', () => {
+  const DATE = '2026-06-06'
+  const YESTERDAY = '2026-06-05'
+
+  const makeActivity = (day: string) => ({
+    day,
+    score: 72, active_calories: 450, steps: 8200,
+    total_calories: 2100, high_activity_time: 1800,
+    medium_activity_time: 3600, low_activity_time: 7200,
+    sedentary_time: 28800, equivalent_walking_distance: 6500,
+    target_calories: 500, target_meters: 8000,
+  })
+
+  it('throws "Not signed in" when no session', async () => {
+    await expect(fetchOuraDailyActivity(DATE)).rejects.toThrow('Not signed in')
+  })
+
+  it('returns today\'s activity when the API includes today\'s record', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ data: [makeActivity(DATE)] })
+    const result = await fetchOuraDailyActivity(DATE)
+    expect(result).not.toBeNull()
+    expect(result!.day).toBe(DATE)
+    expect(result!.steps).toBe(8200)
+  })
+
+  it('falls back to yesterday when today has no data but yesterday does', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    // API only returns yesterday (today not finalised yet)
+    mockFetch({ data: [makeActivity(YESTERDAY)] })
+    const result = await fetchOuraDailyActivity(DATE)
+    expect(result).not.toBeNull()
+    expect(result!.day).toBe(YESTERDAY)
+  })
+
+  it('prefers today over yesterday when both are returned', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    const todayActivity = { ...makeActivity(DATE), steps: 9999 }
+    const yestActivity  = { ...makeActivity(YESTERDAY), steps: 1111 }
+    mockFetch({ data: [yestActivity, todayActivity] })
+    const result = await fetchOuraDailyActivity(DATE)
+    expect(result!.day).toBe(DATE)
+    expect(result!.steps).toBe(9999)
+  })
+
+  it('returns null when neither today nor yesterday is in the response', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ data: [] })
+    const result = await fetchOuraDailyActivity(DATE)
+    expect(result).toBeNull()
+  })
+
+  it('requests a 2-day window (yesterday to today)', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ data: [] }),
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+    await fetchOuraDailyActivity(DATE)
+    const calledUrl = (fetchSpy.mock.calls[0][0] as string)
+    expect(calledUrl).toContain('start_date=' + YESTERDAY)
+    expect(calledUrl).toContain('end_date=' + DATE)
+  })
+
+  it('returns null when response has no data field', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({})   // no data field → json.data ?? [] → []
+    const result = await fetchOuraDailyActivity(DATE)
+    expect(result).toBeNull()
+  })
+
+  it('throws Oura error on non-ok HTTP response', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ error: 'Oura error 403' }, false)
+    await expect(fetchOuraDailyActivity(DATE)).rejects.toThrow('Oura error 403')
   })
 })

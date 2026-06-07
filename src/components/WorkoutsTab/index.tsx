@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { WORKOUT_PLAN, PLAN_NOTES, MALE_DEFAULT_PLAN } from '../../data/workouts'
-import type { Exercise } from '../../data/workouts'
+import type { Exercise, WorkoutWeek } from '../../data/workouts'
 import { bodyStatsStore, workoutPlanStore } from '../../hooks/useStore'
 import ProfileStatsCard from '../TrackerTab/ProfileStatsCard'
 
@@ -32,6 +32,52 @@ function ExerciseRow({ ex, idx, color, size = 'normal' }: {
   )
 }
 
+// ── Edit form for one workout day ─────────────────────────────────
+
+function ExerciseEditRow({ ex, idx, onChange, onRemove }: {
+  ex: Exercise; idx: number
+  onChange: (idx: number, field: keyof Exercise, val: string) => void
+  onRemove: (idx: number) => void
+}) {
+  return (
+    <div className="ex-edit-row">
+      <div className="ex-edit-num">{idx + 1}</div>
+      <div className="flex-1">
+        <div className="flex gap-6 mb-4">
+          <input
+            className="input-sm flex-1"
+            placeholder="Exercise name"
+            value={ex.t}
+            onChange={e => onChange(idx, 't', e.target.value)}
+          />
+          <input
+            className="input-sm"
+            style={{ width: 100 }}
+            placeholder="Sets / time"
+            value={ex.d}
+            onChange={e => onChange(idx, 'd', e.target.value)}
+          />
+        </div>
+        <textarea
+          className="input-sm w-full"
+          rows={2}
+          placeholder="Instructions (optional)"
+          value={ex.i}
+          onChange={e => onChange(idx, 'i', e.target.value)}
+        />
+      </div>
+      <button
+        className="ex-edit-del"
+        onClick={() => onRemove(idx)}
+        title="Remove exercise"
+        type="button"
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────
 
 interface Props { user: User | null }
@@ -39,6 +85,10 @@ interface Props { user: User | null }
 export default function WorkoutsTab({ user }: Props) {
   const [activeWeek, setActiveWeek] = useState(0)
   const [statsSeed, setStatsSeed] = useState(0)
+
+  // editKey = "weekIdx-dayIdx" or null when not editing
+  const [editKey, setEditKey] = useState<string | null>(null)
+  const [draftExs, setDraftExs] = useState<Exercise[]>([])
 
   const storedStats   = bodyStatsStore.get()
   const storedPlan    = workoutPlanStore.get()
@@ -58,6 +108,45 @@ export default function WorkoutsTab({ user }: Props) {
     { n: 'Week 3 - Luteal',     s: 'Moderate load, glute shred',         c: 'var(--amber)'  },
     { n: 'Restart Week 1',      s: 'When next period begins',            c: 'var(--coral)'  },
   ]
+
+  const startEdit = (weekIdx: number, dayIdx: number) => {
+    const day = planData[weekIdx]?.days[dayIdx]
+    if (!day) return
+    setDraftExs(day.exs.map(e => ({ ...e })))
+    setEditKey(`${weekIdx}-${dayIdx}`)
+  }
+
+  const cancelEdit = () => { setEditKey(null); setDraftExs([]) }
+
+  const saveEdit = (weekIdx: number, dayIdx: number) => {
+    const filtered = draftExs.filter(e => e.t.trim())
+    const newPlanData: WorkoutWeek[] = planData.map((wkk, wi) => ({
+      ...wkk,
+      days: wkk.days.map((day, di) => {
+        if (wi === weekIdx && di === dayIdx) return { ...day, exs: filtered }
+        return day
+      }),
+    }))
+    workoutPlanStore.set({
+      gender:   storedPlan?.gender   ?? 'female',
+      numWeeks: storedPlan?.numWeeks ?? newPlanData.length,
+      planData: newPlanData,
+    })
+    setEditKey(null)
+    setDraftExs([])
+  }
+
+  const handleExChange = (idx: number, field: keyof Exercise, val: string) => {
+    setDraftExs(prev => prev.map((e, i) => i === idx ? { ...e, [field]: val } : e))
+  }
+
+  const handleExRemove = (idx: number) => {
+    setDraftExs(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const handleExAdd = () => {
+    setDraftExs(prev => [...prev, { t: '', d: '', i: '' }])
+  }
 
   return (
     <>
@@ -152,35 +241,85 @@ export default function WorkoutsTab({ user }: Props) {
 
         {/* Day cards */}
         <div className="day-cards-grid">
-          {wk.days.map(day => {
+          {wk.days.map((day, dayIdx) => {
             const typeIcon = { Home: '🏠', Pilates: '🧘', Rest: '😴' }[day.type] ?? '💪'
             const hasExercises = day.exs.length > 0
+            const key = `${safeWeek}-${dayIdx}`
+            const isEditing = editKey === key
+
             return (
               <div key={day.slot} className="day-card">
                 <div className="day-card__header">
                   <div className="day-card__top-row">
                     <div className="day-card__slot" style={{ color: day.color }}>{day.slot}</div>
-                    <div className="day-card__type">{typeIcon} {day.type}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div className="day-card__type">{typeIcon} {day.type}</div>
+                      {isAuth && !isEditing && (
+                        <button
+                          className="ex-edit-btn"
+                          onClick={() => startEdit(safeWeek, dayIdx)}
+                          title="Edit exercises"
+                          type="button"
+                        >
+                          ✎
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="day-card__label">{day.label}</div>
                   <div className="day-card__time">{day.time}</div>
                   <div className="day-card__solin" style={{ color: day.color, border: `1px solid ${day.color}22` }}>{day.solin}</div>
                 </div>
                 <div className="day-card__body">
-                  {hasExercises ? (
-                    <>
-                      {day.exs.map((ex, ei) => <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} />)}
-                      <div className="day-card__hint">tap any exercise to expand</div>
-                    </>
-                  ) : (
-                    <div className="day-card__empty">No exercises added yet</div>
-                  )}
-                  {day.alts && day.alts.length > 0 && (
-                    <div className="alt-block">
-                      <div className="alt-block__label">If no Pilates available</div>
-                      <div className="alt-block__title">{day.altLabel}</div>
-                      {day.alts.map((ex, ei) => <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} size="small" />)}
+                  {isEditing ? (
+                    <div className="ex-edit-panel">
+                      {draftExs.length === 0 && (
+                        <div className="text-xs text-muted mb-8">No exercises — tap "＋ Add" to add one.</div>
+                      )}
+                      {draftExs.map((ex, ei) => (
+                        <ExerciseEditRow
+                          key={ei}
+                          ex={ex}
+                          idx={ei}
+                          onChange={handleExChange}
+                          onRemove={handleExRemove}
+                        />
+                      ))}
+                      <button
+                        className="ex-add-btn"
+                        onClick={handleExAdd}
+                        type="button"
+                      >
+                        ＋ Add exercise
+                      </button>
+                      <div className="flex gap-8 mt-8">
+                        <button className="btn btn--teal btn--sm flex-1" onClick={() => saveEdit(safeWeek, dayIdx)}>Save</button>
+                        <button className="btn btn--ghost btn--sm" onClick={cancelEdit}>Cancel</button>
+                      </div>
                     </div>
+                  ) : (
+                    <>
+                      {hasExercises ? (
+                        <>
+                          {day.exs.map((ex, ei) => <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} />)}
+                          <div className="day-card__hint">tap any exercise to expand</div>
+                        </>
+                      ) : (
+                        <div className="day-card__empty">
+                          No exercises added yet
+                          {isAuth && (
+                            <button className="ex-edit-btn" style={{ marginLeft: 8 }} onClick={() => startEdit(safeWeek, dayIdx)}>＋ Add</button>
+                          )}
+                        </div>
+                      )}
+                      {day.alts && day.alts.length > 0 && (
+                        <div className="alt-block">
+                          <div className="alt-block__label">If no Pilates available</div>
+                          <div className="alt-block__title">{day.altLabel}</div>
+                          {day.alts.map((ex, ei) => <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} size="small" />)}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
