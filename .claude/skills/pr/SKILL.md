@@ -15,7 +15,7 @@ Arguments: `$ARGUMENTS` (optional base branch, e.g. `main`. Defaults to `main`.)
 
 ## Your job
 
-Read every commit on this branch, understand what actually changed, and write a PR description that a reviewer would find genuinely useful — not boilerplate. Then open the PR.
+Read every commit on this branch, understand what actually changed, and write a PR description that fills in the project's PR template. Then open the PR.
 
 ---
 
@@ -30,7 +30,7 @@ git log --oneline main..HEAD             # commits going in
 
 If the branch is already at `main`, or has no commits ahead, stop and tell the user there's nothing to open a PR for.
 
-Check whether a remote tracking branch exists and if it's up to date:
+Check whether a remote tracking branch exists and is up to date:
 ```bash
 git status -sb
 ```
@@ -58,47 +58,54 @@ Before drafting, mentally answer:
 - **What problem does this solve or what feature does it add?** (one sentence)
 - **What are the meaningful changes?** Group logically — don't just list files. E.g. "added Edge Function + client call + migration" is one coherent change, not three.
 - **Are there any risks, limitations, or things a reviewer should scrutinize?** (missing error handling, a workaround, a known rough edge)
-- **How would someone verify this works?** (what to click, what to check in the DB, what to watch for)
+- **Were tests added or updated?** Look at the diff for new or changed test files.
+- **Does the diff touch UI components?** If yes, a screenshot should be attached.
+- **Are there any secrets, credentials, or `.env` values in the diff?**
 
 ### 4. Draft the PR
 
 Title: short (≤70 chars), describes the outcome not the mechanism. E.g. "Add photo meal logging via HuggingFace + USDA" not "Update analyzeFood.ts and deploy edge function."
 
-Body structure:
+Body: use **exactly** this template — no extra sections, no reordering:
 
 ```
-## What changed
+## What changed and why
 
 <2-5 bullet points. Each bullet covers a coherent unit of change — not a file.
 Lead with the user-visible or system-visible effect. Add one clause of WHY if
-it isn't obvious. Skip anything that's obvious from the title.>
+it isn't obvious. Skip anything that's obvious from the title.
 
-## Details worth noting
+If there's something a reviewer should specifically look at (a workaround, a
+subtle side-effect, a known limitation, a migration that must run, an external
+secret required), add it as an extra bullet with a "Note:" prefix.>
 
-<Only include this section if there's something a reviewer should specifically
-look at: a workaround, a subtle side-effect, a known limitation, a dependency
-on an external secret/config, a migration that needs to run. Omit if nothing stands out.>
+## Tests
+- [x_or_space] Tests added / updated
+- [x_or_space] All tests pass (`npm test`)
 
-## How to verify
-
-<Concrete steps. What to open, what to click, what to check. Mention any
-secrets or environment setup required. If the change is infrastructure-only
-(migration, deploy), say what to check in the dashboard.>
+## Checklist
+- [x_or_space] No secrets committed
+- [x_or_space] Screenshot attached (if UI changed)
 ```
+
+**Checkbox rules** — replace `x_or_space` with the correct value:
+- `Tests added / updated`: check `[x]` if the diff contains new or modified test files (files under `src/test/`, `e2e/`, or named `*.test.*` / `*.spec.*`).
+- `All tests pass`: check `[x]` if the commit hook ran tests and they passed (pre-commit output visible in git log), or if you ran tests and they passed. Leave `[ ]` if unknown.
+- `No secrets committed`: check `[x]` if the diff contains no API keys, tokens, passwords, or `.env` values. Leave `[ ]` only if you actually see something suspicious.
+- `Screenshot attached`: check `[x]` only if the user has already attached a screenshot. Leave `[ ]` if the diff touches UI components (the reviewer needs to attach one); omit the note entirely if the diff is backend/infra only with no UI changes.
 
 Rules:
 - No filler phrases ("This PR introduces…", "In this commit…", "As part of this change…")
 - No restating the title
 - Bullets are complete sentences but tight — cut adjectives that add no information
 - If a commit message is already perfectly descriptive, reuse its language
+- Do NOT add sections beyond the three in the template
 
 ### 5. Create the PR
 
 ```bash
 gh pr create --title "<title>" --body "$(cat <<'EOF'
 <body>
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
 )"
 ```
