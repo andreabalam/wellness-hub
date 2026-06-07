@@ -957,6 +957,26 @@ describe('RecipeModal', () => {
     fireEvent.load(img)
     expect(img.style.display).toBe('block')
   })
+
+  // ── Import zone (new recipes only) ───────────────────────────────
+
+  it('import zone is visible when creating a new recipe', () => {
+    render(<RecipeModal {...baseProps} />)
+    expect(document.querySelector('.import-zone')).not.toBeNull()
+  })
+
+  it('import zone is hidden when editing an existing recipe', () => {
+    render(<RecipeModal {...baseProps} initialRecipe={CUSTOM_RECIPE} />)
+    expect(document.querySelector('.import-zone')).toBeNull()
+  })
+
+  it('hidden file input exists with correct accept attribute', () => {
+    render(<RecipeModal {...baseProps} />)
+    const input = document.querySelector('[data-testid="recipe-file-input"]') as HTMLInputElement
+    expect(input).not.toBeNull()
+    expect(input.accept).toContain('.pdf')
+    expect(input.accept).toContain('.txt')
+  })
 })
 
 // ═════════════════════════════════════════════════════════════════
@@ -1600,6 +1620,78 @@ describe('ProfileStatsCard — measurements', () => {
     fireEvent.click(screen.getByRole('button', { name: /✎ Edit/i }))
     expect((screen.getByPlaceholderText('75') as HTMLInputElement).value).toBe('80')
     expect((screen.getByPlaceholderText('95') as HTMLInputElement).value).toBe('100')
+  })
+
+  // ── Exercise editing ────────────────────────────────────────────
+
+  it('auth: each day card has an exercise edit button (✎)', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    // Week 1 has 4 day cards, each with a ✎ edit button
+    const editBtns = screen.getAllByTitle('Edit exercises')
+    expect(editBtns.length).toBe(4)
+  })
+
+  it('auth: clicking ✎ opens an edit panel with exercise inputs', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    const [firstEditBtn] = screen.getAllByTitle('Edit exercises')
+    fireEvent.click(firstEditBtn)
+    // The edit panel renders text inputs for exercise names
+    expect(screen.getAllByPlaceholderText('Exercise name').length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: '＋ Add exercise' })).toBeInTheDocument()
+  })
+
+  it('auth: cancel in edit panel closes it without saving', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    const [firstEditBtn] = screen.getAllByTitle('Edit exercises')
+    fireEvent.click(firstEditBtn)
+    // Edit panel is open
+    expect(screen.getAllByPlaceholderText('Exercise name').length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    // Edit panel closed — inputs gone, exercise rows back
+    expect(screen.queryByPlaceholderText('Exercise name')).not.toBeInTheDocument()
+    expect(screen.getAllByText('tap any exercise to expand').length).toBeGreaterThan(0)
+  })
+
+  it('auth: ＋ Add exercise appends an empty row', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    const [firstEditBtn] = screen.getAllByTitle('Edit exercises')
+    fireEvent.click(firstEditBtn)
+    const before = screen.getAllByPlaceholderText('Exercise name').length
+    fireEvent.click(screen.getByRole('button', { name: '＋ Add exercise' }))
+    expect(screen.getAllByPlaceholderText('Exercise name').length).toBe(before + 1)
+  })
+
+  it('auth: save in edit panel persists updated exercises to localStorage', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    const [firstEditBtn] = screen.getAllByTitle('Edit exercises')
+    fireEvent.click(firstEditBtn)
+    // Update the first exercise name
+    const nameInputs = screen.getAllByPlaceholderText('Exercise name')
+    fireEvent.change(nameInputs[0], { target: { value: 'My Custom Exercise' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    // Edit panel closed after save
+    expect(screen.queryByPlaceholderText('Exercise name')).not.toBeInTheDocument()
+    // Check localStorage
+    const saved = JSON.parse(ls['whub_workout_plan_v1'] ?? '{}')
+    expect(saved.planData[0].days[0].exs[0].t).toBe('My Custom Exercise')
+  })
+
+  it('auth: exercises with empty names are filtered out on save', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    const [firstEditBtn] = screen.getAllByTitle('Edit exercises')
+    fireEvent.click(firstEditBtn)
+    // Add a new blank exercise (it should be filtered out)
+    fireEvent.click(screen.getByRole('button', { name: '＋ Add exercise' }))
+    const countBefore = screen.getAllByPlaceholderText('Exercise name').length
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const saved = JSON.parse(ls['whub_workout_plan_v1'] ?? '{}')
+    // The blank exercise (empty name) must not be saved
+    expect(saved.planData[0].days[0].exs.length).toBe(countBefore - 1)
+  })
+
+  it('guest: no exercise edit buttons visible', () => {
+    render(<WorkoutsTab user={null} />)
+    expect(screen.queryAllByTitle('Edit exercises').length).toBe(0)
   })
 })
 
@@ -2396,6 +2488,49 @@ describe('RecipesTab', () => {
     const card = screen.getByText('My Smoothie').closest('.rcard') as HTMLElement
     fireEvent.click(card)
     expect(within(card).getByRole('button', { name: /edit/i })).toBeInTheDocument()
+  })
+
+  // ── Filter count badges ─────────────────────────────────────────
+
+  it('filter count badge not shown when there are no recipes', () => {
+    // supabase is null in tests → no built-ins loaded; no custom recipes → all counts 0
+    render(<RecipesTab user={FAKE_USER} />)
+    // Badge spans should not be present (counts are 0, !!0 === false)
+    expect(document.querySelectorAll('.rfbtn-count').length).toBe(0)
+  })
+
+  it('filter count badge appears when a custom recipe matches a category', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])  // cat: 'smoothie'
+    render(<RecipesTab user={FAKE_USER} />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
+    // "All" button should now have a count badge showing 1
+    const badges = document.querySelectorAll('.rfbtn-count')
+    expect(badges.length).toBeGreaterThan(0)
+    // The "All" badge should contain "1"
+    const allBadge = [...badges].find(b => b.textContent === '1')
+    expect(allBadge).toBeTruthy()
+  })
+
+  it('Smoothies filter badge reflects number of smoothie recipes', async () => {
+    const secondSmoothie = { ...CUSTOM_RECIPE, id: 9003, name: 'Green Smoothie' }
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE, secondSmoothie])
+    render(<RecipesTab user={FAKE_USER} />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
+    // "Smoothies" button badge should show 2
+    const smoothieBtn = screen.getByRole('button', { name: /Smoothies/i })
+    const badge = smoothieBtn.querySelector('.rfbtn-count')
+    expect(badge).not.toBeNull()
+    expect(badge!.textContent).toBe('2')
+  })
+
+  it('All badge count equals total custom recipe count', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE, BASE_RECIPE])
+    render(<RecipesTab user={FAKE_USER} />)
+    await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
+    const allBtn = screen.getByRole('button', { name: /^All/ })
+    const badge = allBtn.querySelector('.rfbtn-count')
+    expect(badge).not.toBeNull()
+    expect(badge!.textContent).toBe('2')
   })
 })
 

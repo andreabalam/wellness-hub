@@ -15,6 +15,7 @@
   // Variants
   &--primary   { background: var(--green);  border: none; color: #fff; }
   &--secondary { background: var(--purple); border: none; color: #fff; }
+  &--teal      { background: var(--teal);   border: none; color: #fff; }
   &--ghost     { background: none; border: 1px solid var(--border);  color: var(--muted); }
   &--danger    { background: none; border: 1px solid var(--coral);   color: var(--coral-light); }
 }
@@ -782,6 +783,40 @@
 // ── Recipe filter green variant (Grocery button non-active) ───────
 .rfbtn--green { border-color: var(--green2); color: var(--green-light); }
 
+// ── WorkoutsTab exercise editing ─────────────────────────────────
+.ex-edit-btn {
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  padding: 2px 7px; font-size: 11px; color: var(--muted); cursor: pointer;
+  font-family: "DM Mono", monospace;
+  &:hover { border-color: var(--teal); color: var(--teal-light); }
+}
+.ex-edit-panel { display: flex; flex-direction: column; gap: 10px; }
+.ex-edit-row {
+  display: flex; gap: 8px; align-items: flex-start;
+  background: var(--bg3, var(--bg)); border-radius: 8px; padding: 8px;
+}
+.ex-edit-num {
+  width: 19px; height: 19px; border-radius: 50%; background: var(--muted2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--bg2); flex-shrink: 0; margin-top: 6px;
+}
+.ex-edit-del {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 2px 4px; flex-shrink: 0; margin-top: 2px;
+  &:hover { color: var(--coral); }
+}
+.input-sm {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 5px 9px; font-size: 12px; color: var(--text); outline: none; font-family: sans-serif;
+  &:focus { border-color: var(--teal); }
+}
+.ex-add-btn {
+  background: none; border: 1px dashed var(--border2); border-radius: 7px;
+  padding: 6px 12px; font-size: 12px; color: var(--muted); cursor: pointer;
+  font-family: sans-serif; text-align: left;
+  &:hover { border-color: var(--teal); color: var(--teal-light); }
+}
+
 // ── Page / section headings ───────────────────────────────────────
 .page-title   { font-family: "DM Serif Display", serif; font-size: 26px; font-weight: 400; color: var(--text); }
 .section-title { font-family: "DM Serif Display", serif; font-size: 22px; font-weight: 400; color: var(--text); }
@@ -814,6 +849,73 @@
 .icon-add-btn    { background: var(--bg3); border: 1px solid var(--border2); border-radius: 7px; padding: 7px 12px; font-size: 12px; color: var(--muted); cursor: pointer; }
 .cancel-btn      { background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 18px; font-size: 13px; font-family: sans-serif; color: var(--muted); cursor: pointer; }
 .recipe-preview-img { margin-top: 8px; width: 100%; max-height: 160px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border2); display: block; }
+
+// ── Recipe import zone ────────────────────────────────────────────
+.import-section { margin-bottom: 18px; }
+
+.import-zone {
+  border: 1.5px dashed var(--border2);
+  border-radius: 10px;
+  padding: 18px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  background: var(--bg3);
+  user-select: none;
+
+  &:hover, &--dragging {
+    border-color: var(--purple);
+    background: rgba(138,106,184,0.06);
+  }
+
+  &__body {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+  }
+  &__icon { font-size: 22px; }
+  &__cta  { font-size: 13px; color: var(--muted); font-family: "DM Sans", sans-serif; }
+  &__link { color: var(--purple-light); text-decoration: underline; }
+  &__hint { font-size: 11px; color: var(--muted2); font-family: "DM Mono", monospace; }
+
+  &__loading {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 4px 0;
+  }
+  &__loading-text { font-size: 13px; color: var(--muted); font-family: "DM Sans", sans-serif; }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.import-spinner {
+  display: inline-block;
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--border2);
+  border-top-color: var(--purple);
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.import-success {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 9px;
+  background: rgba(58,125,90,0.1); border: 1px solid var(--green2);
+  font-size: 12px; color: var(--green-light);
+  font-family: "DM Sans", sans-serif;
+
+  &__icon { font-size: 15px; font-weight: 700; flex-shrink: 0; }
+  &__redo {
+    margin-left: auto; background: none; border: 1px solid var(--border);
+    border-radius: 6px; padding: 2px 8px; font-size: 14px;
+    color: var(--muted); cursor: pointer;
+    &:hover { border-color: var(--purple); color: var(--purple-light); }
+  }
+}
+
+.import-error {
+  margin-top: 8px; padding: 8px 12px; border-radius: 8px;
+  font-size: 12px; color: var(--coral-light);
+  background: rgba(255,107,91,0.08); border: 1px solid var(--coral);
+  font-family: "DM Mono", monospace;
+}
 
 // ── RecipeCard ────────────────────────────────────────────────────
 .recipe-card-img { width: 100%; border-radius: 8px; margin-bottom: 14px; object-fit: cover; max-height: 220px; display: block; }

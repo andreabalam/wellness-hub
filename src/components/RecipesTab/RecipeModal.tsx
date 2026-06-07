@@ -1,6 +1,12 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { PRESET_CATS } from '../../data/recipes'
 import type { Recipe } from '../../data/recipes'
+import { supabase } from '../../lib/supabase'
+import {
+  importRecipeFromFile,
+  ACCEPTED_EXT,
+  type ExtractedRecipe,
+} from '../../lib/recipeImport'
 
 interface Props {
   customTags: string[]
@@ -20,10 +26,12 @@ function stripG(s: string | undefined): string {
   return isNaN(n) || n === 0 ? '' : String(n)
 }
 
+type ImportState = 'idle' | 'loading' | 'done' | 'error'
+
 export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTag, onClose }: Props) {
   const isEdit = Boolean(initialRecipe)
 
-  // Lazy initialisers: pre-fill from initialRecipe when editing
+  // ── Recipe form state ─────────────────────────────────────────
   const [name, setName]           = useState(() => initialRecipe?.name ?? '')
   const [tagLine, setTagLine]     = useState(() => initialRecipe?.tag ?? '')
   const [cat, setCat]             = useState(() => initialRecipe?.cat ?? 'dinner')
@@ -32,7 +40,6 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
   const [healthTag, setHealthTag] = useState<'healthy' | 'indulgent' | ''>(() => initialRecipe?.healthTag ?? '')
   const [link, setLink]           = useState(() => initialRecipe?.link ?? '')
   const [image, setImage]         = useState(() => initialRecipe?.image ?? '')
-  // Single macro set: read from hk/hp/hc/hf/hfi (the "per serving" set)
   const [kcal, setKcal]           = useState(() => initialRecipe ? String(initialRecipe.hk || '') : '')
   const [prot, setProt]           = useState(() => stripG(initialRecipe?.hp))
   const [carb, setCarb]           = useState(() => stripG(initialRecipe?.hc))
@@ -47,7 +54,72 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
   const [msg, setMsg]             = useState('')
   const [msgOk, setMsgOk]         = useState(true)
 
+  // ── Import state ──────────────────────────────────────────────
+  const [importState, setImportState] = useState<ImportState>('idle')
+  const [importError, setImportError] = useState('')
+  const [dragging, setDragging]       = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const allTags = [...new Set([...PRESET_CATS, ...customTags])]
+
+  // ── Import helpers ────────────────────────────────────────────
+
+  const applyImport = useCallback((r: ExtractedRecipe) => {
+    if (r.name)     setName(r.name)
+    if (r.cat)      setCat(r.cat)
+    if (r.tag)      setTagLine(r.tag)
+    if (r.prepTime) setPrepTime(r.prepTime)
+    if (r.ings?.length)   setIngs(r.ings)
+    if (r.steps?.length)  setSteps(r.steps)
+    if (r.tip)      setTip(r.tip)
+    if (r.kcal)     setKcal(String(r.kcal))
+    if (r.protein)  setProt(r.protein.replace(/g$/i, ''))
+    if (r.carbs)    setCarb(r.carbs.replace(/g$/i, ''))
+    if (r.fat)      setFat(r.fat.replace(/g$/i, ''))
+    if (r.fiber)    setFib(r.fiber.replace(/g$/i, ''))
+    if (r.link)     setLink(r.link)
+  }, [])
+
+  const handleFile = useCallback(async (file: File) => {
+    if (!file) return
+    if (!supabase) {
+      setImportState('error')
+      setImportError('Sign in to use file import.')
+      return
+    }
+    setImportState('loading')
+    setImportError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setImportState('error')
+        setImportError('Sign in to use file import.')
+        return
+      }
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+      const recipe = await importRecipeFromFile(file, session.access_token, supabaseUrl)
+      applyImport(recipe)
+      setImportState('done')
+    } catch (err) {
+      setImportState('error')
+      setImportError(err instanceof Error ? err.message : 'Import failed — please try again.')
+    }
+  }, [applyImport])
+
+  const onFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleFile(file)
+    e.target.value = ''    // reset so the same file can be re-selected
+  }
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleFile(file)
+  }
+
+  // ── Recipe form helpers ────────────────────────────────────────
 
   const addTag = () => {
     const val = newTag.trim().toLowerCase()
@@ -74,9 +146,7 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
 
     const hkVal = parseInt(kcal) || 0
     const recipe: Recipe = {
-      // Preserve id when editing; generate a new one when creating
       id: initialRecipe?.id ?? Date.now(),
-      // Carry forward fork/source metadata
       defaultId: initialRecipe?.defaultId,
       source: initialRecipe?.source ?? 'user',
       custom: true,
@@ -92,7 +162,6 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
       healthTag: (healthTag as 'healthy' | 'indulgent') || undefined,
       link: link.trim() || undefined,
       image: image.trim() || undefined,
-      // Single macro set — both sizes share the same values
       hk: hkVal,
       hp: `${parseInt(prot) || 0}g`,
       hc: `${parseInt(carb) || 0}g`,
@@ -134,7 +203,68 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
           <button onClick={onClose} className="modal-close">×</button>
         </div>
 
-        {/* Name */}
+        {/* ── Import from file (new recipes only) ────────────────── */}
+        {!isEdit && (
+          <div className="import-section">
+            {importState === 'done' ? (
+              <div className="import-success" role="status">
+                <span className="import-success__icon">✓</span>
+                <span>Recipe extracted — review the fields below and save when ready.</span>
+                <button
+                  className="import-success__redo"
+                  onClick={() => setImportState('idle')}
+                  title="Import a different file"
+                >
+                  ↺
+                </button>
+              </div>
+            ) : (
+              <>
+                <div
+                  className={`import-zone${dragging ? ' import-zone--dragging' : ''}`}
+                  onDragOver={e => { e.preventDefault(); setDragging(true) }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={onDrop}
+                  onClick={() => importState !== 'loading' && fileInputRef.current?.click()}
+                  role="button"
+                  aria-label="Import recipe from file"
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={ACCEPTED_EXT}
+                    onChange={onFileInput}
+                    style={{ display: 'none' }}
+                    data-testid="recipe-file-input"
+                  />
+
+                  {importState === 'loading' ? (
+                    <div className="import-zone__loading">
+                      <span className="import-spinner" aria-label="Extracting recipe" />
+                      <span className="import-zone__loading-text">Extracting recipe with AI…</span>
+                    </div>
+                  ) : (
+                    <div className="import-zone__body">
+                      <span className="import-zone__icon">📎</span>
+                      <span className="import-zone__cta">
+                        Drop a file or <span className="import-zone__link">browse</span>
+                      </span>
+                      <span className="import-zone__hint">PDF · TXT · JPG · PNG · WebP</span>
+                    </div>
+                  )}
+                </div>
+
+                {importState === 'error' && (
+                  <div className="import-error" role="alert">
+                    {importError}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Recipe name ──────────────────────────────────────────── */}
         <FieldRow label="Recipe name *">
           <input className="tinput" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Mango Chia Pudding" />
         </FieldRow>
@@ -186,7 +316,7 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
           </div>
         </FieldRow>
 
-        {/* Macros — single set per serving */}
+        {/* Macros */}
         <FieldRow label="Macros per serving (optional)">
           <div className="macro-grid-5">
             {([['kcal', kcal, setKcal], ['prot g', prot, setProt], ['carb g', carb, setCarb], ['fat g', fat, setFat], ['fiber g', fib, setFib]] as [string, string, (v: string) => void][]).map(([ph, val, set]) => (
