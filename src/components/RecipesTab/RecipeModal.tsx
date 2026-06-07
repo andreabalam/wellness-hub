@@ -76,8 +76,9 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
     if (r.protein)  setProt(r.protein.replace(/g$/i, ''))
     if (r.carbs)    setCarb(r.carbs.replace(/g$/i, ''))
     if (r.fat)      setFat(r.fat.replace(/g$/i, ''))
-    if (r.fiber)    setFib(r.fiber.replace(/g$/i, ''))
-    if (r.link)     setLink(r.link)
+    if (r.fiber)     setFib(r.fiber.replace(/g$/i, ''))
+    if (r.healthTag) setHealthTag(r.healthTag)
+    if (r.link)      setLink(r.link)
   }, [])
 
   const handleFile = useCallback(async (file: File) => {
