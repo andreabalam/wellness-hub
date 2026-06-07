@@ -423,9 +423,9 @@ export async function fetchOuraSessions(date: string): Promise<OuraSession[]> {
 export async function fetchOuraDailyActivity(date: string): Promise<OuraDailyActivity | null> {
   // Oura only finalises daily_activity at end of day, so "today" is often absent.
   // Request yesterday+today in one call and prefer today, falling back to yesterday.
-  const prev = new Date(date + 'T12:00:00')
-  prev.setDate(prev.getDate() - 1)
-  const yesterday = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`
+  const prev = new Date(date + 'T00:00:00Z')
+  prev.setUTCDate(prev.getUTCDate() - 1)
+  const yesterday = prev.toISOString().split('T')[0]
   const items = await proxyFetchRange<OuraDailyActivity>('daily_activity', yesterday, date)
   return items.find(a => a.day === date) ?? items.find(a => a.day === yesterday) ?? null
 }
