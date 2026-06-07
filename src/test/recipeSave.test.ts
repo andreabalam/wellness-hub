@@ -170,15 +170,17 @@ describe('Supabase-fetch merge logic', () => {
   //     const localOnly = prev.filter(r => r.id != null && !dbIds.has(r.id))
   //     return [...user, ...localOnly]
   //   })
-  function merge(prev: { id: number }[], fromDb: { id: number }[]) {
+  type R = ReturnType<typeof makeRecipe>
+
+  function merge(prev: R[], fromDb: R[]): R[] {
     const dbIds = new Set(fromDb.map(r => r.id))
     const localOnly = prev.filter(r => r.id != null && !dbIds.has(r.id))
     return [...fromDb, ...localOnly]
   }
 
   it('keeps local-only recipes when Supabase returns other recipes', () => {
-    const prev   = [makeRecipe(1001, 'Local Only')] as { id: number; name: string }[]
-    const fromDb = [makeRecipe(1, 'DB Recipe A'), makeRecipe(2, 'DB Recipe B')] as { id: number; name: string }[]
+    const prev   = [makeRecipe(1001, 'Local Only')]
+    const fromDb = [makeRecipe(1, 'DB Recipe A'), makeRecipe(2, 'DB Recipe B')]
     const result = merge(prev, fromDb)
     expect(result).toHaveLength(3)
     const names = result.map(r => r.name)
@@ -187,23 +189,19 @@ describe('Supabase-fetch merge logic', () => {
   })
 
   it('does not duplicate a recipe that exists in both Supabase and localStorage', () => {
-    const prev   = [makeRecipe(1, 'Synced Recipe')] as { id: number }[]
-    const fromDb = [makeRecipe(1, 'Synced Recipe')] as { id: number }[]
-    const result = merge(prev, fromDb)
+    const result = merge([makeRecipe(1, 'Synced Recipe')], [makeRecipe(1, 'Synced Recipe')])
     expect(result).toHaveLength(1)
   })
 
   it('prefers Supabase version when same id exists in both', () => {
-    const prev   = [{ ...makeRecipe(1), name: 'Old Name' }] as { id: number; name: string }[]
-    const fromDb = [{ ...makeRecipe(1), name: 'Updated Name' }] as { id: number; name: string }[]
-    const result = merge(prev, fromDb) as { name: string }[]
+    const prev   = [{ ...makeRecipe(1), name: 'Old Name' }]
+    const fromDb = [{ ...makeRecipe(1), name: 'Updated Name' }]
+    const result = merge(prev, fromDb)
     expect(result[0].name).toBe('Updated Name')
   })
 
   it('returns only DB recipes when localStorage is empty', () => {
-    const prev   = [] as { id: number }[]
-    const fromDb = [makeRecipe(1), makeRecipe(2)] as { id: number }[]
-    expect(merge(prev, fromDb)).toHaveLength(2)
+    expect(merge([], [makeRecipe(1), makeRecipe(2)])).toHaveLength(2)
   })
 })
 
