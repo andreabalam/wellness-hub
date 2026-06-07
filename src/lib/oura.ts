@@ -478,11 +478,12 @@ export async function fetchOuraPersonalInfo(): Promise<OuraPersonalInfo | null> 
  * Uses the last `days` days ending today. Returns null if no data available.
  */
 export async function fetchOuraTdeeAvg(days = 7): Promise<number | null> {
+  const localFmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   const end   = new Date()
   const start = new Date(end.getTime() - (days - 1) * 86_400_000)
-  const fmt   = (d: Date) => d.toISOString().split('T')[0]
 
-  const items = await proxyFetchRange<OuraDailyActivity>('daily_activity', fmt(start), fmt(end))
+  const items = await proxyFetchRange<OuraDailyActivity>('daily_activity', localFmt(start), localFmt(end))
   const cals  = items.map(d => d.total_calories).filter(c => c > 500)  // skip ring-off days
   if (cals.length === 0) return null
   return Math.round(cals.reduce((a, b) => a + b, 0) / cals.length)
