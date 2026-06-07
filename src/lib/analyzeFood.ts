@@ -91,6 +91,15 @@ export function parseNutritionLabel(text: string): PhotoAnalysisResult {
   }
 }
 
+function fileToDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 // ── Main entry point ──────────────────────────────────────────────
 
 export async function analyzeImage(
@@ -98,7 +107,15 @@ export async function analyzeImage(
   onStatus: (msg: string) => void,
 ): Promise<PhotoAnalysisResult> {
   onStatus('Detecting…')
-  const label = await isNutritionLabel(file)
+
+  // isNutritionLabel uses canvas — can fail on formats the browser can't decode
+  // (e.g. HEIC in Chromium). If it throws, treat the image as a food photo.
+  let label = false
+  try {
+    label = await isNutritionLabel(file)
+  } catch {
+    // fall through to photo analysis
+  }
 
   if (label) {
     onStatus('Reading label…')
@@ -116,7 +133,15 @@ export async function analyzeImage(
   onStatus('Identifying food…')
   if (!supabase) throw new Error('Supabase not configured — cannot analyze food photos.')
 
-  const base64 = await resizeImage(file, 800)
+  // Try canvas resize first (smaller payload); fall back to FileReader for
+  // formats the canvas can't encode (e.g. HEIC on Chromium/Firefox).
+  let base64: string
+  try {
+    base64 = await resizeImage(file, 800)
+  } catch {
+    base64 = await fileToDataURL(file)
+  }
+
   const { data, error } = await supabase.functions.invoke('analyze-food-photo', {
     body: { mode: 'photo', image: base64, mimeType: 'image/jpeg' },
   })
