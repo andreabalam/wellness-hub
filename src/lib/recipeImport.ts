@@ -17,7 +17,7 @@ export interface ExtractedRecipe {
   carbs?:   string | null
   fat?:     string | null
   fiber?:   string | null
-  healthTag?: 'healthy' | 'indulgent' | null
+  healthTag?: 'healthy' | 'indulgent' | null | string
   link?:    string
 }
 
@@ -118,10 +118,11 @@ export async function extractPdfText(file: File): Promise<string> {
   // Lazy-load pdfjs-dist so it doesn't bloat the main bundle
   const pdfjsLib = await import('pdfjs-dist')
 
-  // Use the CDN worker to avoid Vite worker-URL complexity
   if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.min.mjs',
+      import.meta.url,
+    ).href
   }
 
   const arrayBuffer = await file.arrayBuffer()

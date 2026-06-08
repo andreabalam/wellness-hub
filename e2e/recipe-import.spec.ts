@@ -48,7 +48,7 @@ test.describe('Recipe import UI', () => {
     // Seed a custom recipe so there is something to edit
     await page.evaluate(() => {
       localStorage.setItem('whub_custom_recipes_v1', JSON.stringify([{
-        id: 1001, name: 'My Salad', cat: 'lunch', type: 'Lunch',
+        id: 1001, name: 'My Salad', cat: 'meal', type: 'Meal',
         color: 'var(--green)', sc: 'cg', tag: 'Fresh', prepL: '5 min',
         prepC: 'var(--green)', hk: 200, hp: '10g', hc: '20g', hf: '5g',
         mk: 200, mp: '10g', mc: '20g', mf: '5g',

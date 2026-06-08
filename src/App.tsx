@@ -47,6 +47,9 @@ export default function App() {
   const [user, setUser]           = useState<User | null>(e2eUser)
   const [syncing, setSyncing]     = useState(false)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
+  // Incremented after each syncAll — used as TrackerTab key so it remounts fresh
+  // and reads the synced localStorage data rather than keeping its pre-sync state.
+  const [syncVersion, setSyncVersion] = useState(0)
 
   // Data export / import
   const handleExport = () => {
@@ -168,6 +171,7 @@ export default function App() {
       if (remoteWorkoutPlan) workoutPlanStore.importFromRemote(remoteWorkoutPlan)
 
       setLastSynced(new Date())
+      setSyncVersion(v => v + 1)
     } catch (err) {
       console.warn('[sync] syncAll failed:', err)
     } finally {
@@ -250,7 +254,7 @@ export default function App() {
       </ErrorBoundary>
       <ErrorBoundary name="Tracker">
         <div className={`view${active === 'tracker' ? ' active' : ''}`}>
-          {active === 'tracker' && <TrackerTab user={user} />}
+          {active === 'tracker' && <TrackerTab key={syncVersion} user={user} />}
         </div>
       </ErrorBoundary>
 

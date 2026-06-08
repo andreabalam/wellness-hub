@@ -11,14 +11,13 @@ import GroceryPanel from './GroceryPanel'
 import CookingMode from './CookingMode'
 import GroceryIngredientModal from './GroceryIngredientModal'
 
-type Filter = 'all' | 'breakfast' | 'smoothie' | 'lunch' | 'dinner' | 'dessert' | 'snack' | 'ferments' | 'drinks' | 'grocery'
+type Filter = 'all' | 'breakfast' | 'smoothie' | 'meal' | 'dessert' | 'snack' | 'ferments' | 'drinks' | 'grocery'
 
 const FILTER_BTNS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'breakfast', label: 'Breakfast' },
   { id: 'smoothie', label: 'Smoothies' },
-  { id: 'lunch', label: 'Lunch' },
-  { id: 'dinner', label: 'Dinner' },
+  { id: 'meal', label: 'Meals' },
   { id: 'dessert', label: 'Dessert' },
   { id: 'snack', label: 'Snacks' },
   { id: 'drinks', label: 'Drinks' },
@@ -61,19 +60,15 @@ export default function RecipesTab({ user }: { user?: User | null }) {
   const [loadError]   = useState(false)
 
   // When Supabase is available, upgrade the static fallback to the full DB catalog.
+  // Re-runs when the signed-in user changes so sign-in on any device loads their recipes.
   useEffect(() => {
     if (!supabase) return
     let cancelled = false
     ;(async () => {
       setLoading(true)
-      const [remote, user] = await Promise.all([
+      const [remote, userRecipes] = await Promise.all([
         sync.fetchBuiltinRecipes().catch(() => null),
-        (async () => {
-          try {
-            const { data: { user: u } } = await supabase!.auth.getUser()
-            return u ? sync.fetchUserRecipes(u.id).catch(() => []) : []
-          } catch { return [] as Recipe[] }
-        })(),
+        user ? sync.fetchUserRecipes(user.id).catch(() => []) : Promise.resolve([] as Recipe[]),
       ])
       if (cancelled) return
       if (remote) {
@@ -81,28 +76,35 @@ export default function RecipesTab({ user }: { user?: User | null }) {
         setBuiltinRecipes(remote)
       }
       // If fetch failed we silently keep the static fallback — no error banner
-      if (user.length) {
+      if (userRecipes.length) {
         // Merge: keep any localStorage-only recipes (not yet synced or failed to sync)
         setCustomRecipes(prev => {
-          const dbIds = new Set(user.map(r => r.id))
+          const dbIds = new Set(userRecipes.map(r => r.id))
           const localOnly = prev.filter(r => r.id != null && !dbIds.has(r.id))
-          return [...user, ...localOnly]
+          return [...userRecipes, ...localOnly]
         })
       }
       setLoading(false)
     })()
     return () => { cancelled = true }
-  }, [])
+  }, [user?.id])
 
   const activeFilter: Filter = filter
 
   const handleSave = async (r: Recipe) => {
-    const existing = store.getRecipes()
-    const isUpdate = r.id != null && existing.some(x => x.id === r.id)
+    // Check React state (not just localStorage) — on a fresh device, DB-loaded recipes
+    // live in state only; using only localStorage would misidentify updates as new recipes.
+    const isUpdate = r.id != null && customRecipes.some(x => x.id === r.id)
+    const existingLocal = store.getRecipes()
 
     if (isUpdate) {
-      store.saveRecipes(existing.map(x => x.id === r.id ? r : x))
-      // Replace in React state directly — preserves Supabase-loaded recipes not in localStorage
+      // Update localStorage only if the recipe was there (it may be DB-only on a fresh device)
+      if (existingLocal.some(x => x.id === r.id)) {
+        store.saveRecipes(existingLocal.map(x => x.id === r.id ? r : x))
+      } else {
+        store.addRecipe(r)
+      }
+      // Replace in React state — preserves Supabase-loaded recipes not in localStorage
       setCustomRecipes(prev => prev.map(x => x.id === r.id ? r : x))
     } else {
       store.addRecipe(r)
@@ -352,6 +354,7 @@ export default function RecipesTab({ user }: { user?: User | null }) {
       {showModal && (
         <RecipeModal
           customTags={customTags}
+          existingNames={[...builtinRecipes, ...customRecipes].map(r => r.name)}
           initialRecipe={editRecipe ?? undefined}
           onSave={handleSave}
           onAddTag={handleAddTag}

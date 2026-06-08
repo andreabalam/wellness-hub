@@ -24,8 +24,7 @@ function autoBadge(r: Recipe): { label: string; color: string } | null {
   const tiers: Record<string, Tier> = {
     breakfast: { highCal: 500,              healthy: 400 },
     smoothie:  { highCal: 500,              healthy: 350 },
-    lunch:     { highCal: 600,              healthy: 500 },
-    dinner:    { highCal: 600,              healthy: 500 },
+    meal:      { highCal: 600,              healthy: 500 },
     snack:     { highCal: 300,              healthy: 200 },
     dessert:   { indulgent: 250                          },
   }

@@ -49,7 +49,7 @@ function makeStore() {
 
 function makeRecipe(id: number, name = `Recipe ${id}`) {
   return {
-    id, name, cat: 'dinner', type: 'Dinner', color: 'var(--purple)', sc: 'cp',
+    id, name, cat: 'meal', type: 'Meal', color: 'var(--purple)', sc: 'cp',
     tag: 'Test', prepL: '20 min', prepC: 'var(--purple)',
     hk: 400, hp: '30g', hc: '40g', hf: '10g',
     mk: 400, mp: '30g', mc: '40g', mf: '10g',
