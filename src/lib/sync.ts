@@ -13,9 +13,13 @@ import type { WorkoutWeek } from '../data/workouts'
 // ── Tracker days ─────────────────────────────────────────────────
 
 export async function pushDay(userId: string, date: string, data: DayData) {
-  await supabase!
+  const { error } = await supabase!
     .from('tracker_days')
-    .upsert({ user_id: userId, date, data, updated_at: new Date().toISOString() })
+    .upsert(
+      { user_id: userId, date, data, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,date' },
+    )
+  if (error) console.error('[sync] pushDay failed:', error)
 }
 
 export async function pullAllDays(userId: string): Promise<Record<string, DayData>> {
@@ -110,7 +114,10 @@ export async function upsertUserRecipe(userId: string, r: Recipe): Promise<numbe
     .upsert(payload, { onConflict: 'id' })
     .select('id')
     .single()
-  if (error || !data) return null
+  if (error || !data) {
+    console.error('[sync] upsertUserRecipe failed:', error, 'payload keys:', Object.keys(payload))
+    return null
+  }
   return data.id as number
 }
 

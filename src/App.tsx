@@ -173,7 +173,7 @@ export default function App() {
       setLastSynced(new Date())
       setSyncVersion(v => v + 1)
     } catch (err) {
-      console.warn('[sync] syncAll failed:', err)
+      console.error('[sync] syncAll failed:', err)
     } finally {
       setSyncing(false)
     }
