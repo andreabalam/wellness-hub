@@ -11,7 +11,7 @@ import {
 interface Props {
   customTags: string[]
   /** Names of all existing recipes — used to prevent duplicate titles */
-  existingNames: string[]
+  existingNames?: string[]
   /** When set, the modal pre-populates fields for editing an existing recipe */
   initialRecipe?: Recipe
   onSave: (r: Recipe) => void
