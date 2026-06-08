@@ -10,6 +10,8 @@ import {
 
 interface Props {
   customTags: string[]
+  /** Names of all existing recipes — used to prevent duplicate titles */
+  existingNames: string[]
   /** When set, the modal pre-populates fields for editing an existing recipe */
   initialRecipe?: Recipe
   onSave: (r: Recipe) => void
@@ -28,13 +30,13 @@ function stripG(s: string | undefined): string {
 
 type ImportState = 'idle' | 'loading' | 'done' | 'error'
 
-export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTag, onClose }: Props) {
+export default function RecipeModal({ customTags, existingNames = [], initialRecipe, onSave, onAddTag, onClose }: Props) {
   const isEdit = Boolean(initialRecipe)
 
   // ── Recipe form state ─────────────────────────────────────────
   const [name, setName]           = useState(() => initialRecipe?.name ?? '')
   const [tagLine, setTagLine]     = useState(() => initialRecipe?.tag ?? '')
-  const [cat, setCat]             = useState(() => initialRecipe?.cat ?? 'dinner')
+  const [cat, setCat]             = useState(() => initialRecipe?.cat ?? 'meal')
   const [newTag, setNewTag]       = useState('')
   const [prepTime, setPrepTime]   = useState(() => initialRecipe?.prepTime ?? initialRecipe?.prepL ?? '')
   const [healthTag, setHealthTag] = useState<'healthy' | 'indulgent' | ''>(() => initialRecipe?.healthTag ?? '')
@@ -77,7 +79,10 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
     if (r.carbs)    setCarb(r.carbs.replace(/g$/i, ''))
     if (r.fat)      setFat(r.fat.replace(/g$/i, ''))
     if (r.fiber)     setFib(r.fiber.replace(/g$/i, ''))
-    if (r.healthTag) setHealthTag(r.healthTag)
+    if (r.healthTag) {
+      const tag = String(r.healthTag).toLowerCase().trim()
+      if (tag === 'healthy' || tag === 'indulgent') setHealthTag(tag)
+    }
     if (r.link)      setLink(r.link)
   }, [])
 
@@ -144,6 +149,18 @@ export default function RecipeModal({ customTags, initialRecipe, onSave, onAddTa
 
   const save = () => {
     if (!name.trim()) { setMsg('Please enter a recipe name.'); setMsgOk(false); return }
+
+    // Duplicate title check — skip for edits where the name hasn't changed
+    const trimmedName = name.trim().toLowerCase()
+    const originalName = initialRecipe?.name.toLowerCase()
+    if (trimmedName !== originalName) {
+      const isDuplicate = existingNames.some(n => n.toLowerCase() === trimmedName)
+      if (isDuplicate) {
+        setMsg('A recipe with this name already exists. Please use a different title.')
+        setMsgOk(false)
+        return
+      }
+    }
 
     const hkVal = parseInt(kcal) || 0
     const recipe: Recipe = {

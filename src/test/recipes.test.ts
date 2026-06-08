@@ -41,7 +41,7 @@ const DR_EMILY: Recipe = {
 }
 
 const CUSTOM: Recipe = {
-  id: 4, cat: 'dinner', type: 'Dinner', color: 'var(--purple)', sc: 'cp',
+  id: 4, cat: 'meal', type: 'Meal', color: 'var(--purple)', sc: 'cp',
   name: 'My Special Bowl', tag: 'quick',
   prepL: 'Custom', prepC: 'var(--purple)',
   hk: 400, hp: '30g', hc: '40g', hf: '10g',
@@ -164,7 +164,7 @@ describe('recipe filtering', () => {
 
 describe('PRESET_CATS', () => {
   it('contains all expected filter categories', () => {
-    const expected = ['breakfast', 'smoothie', 'lunch', 'dinner', 'dessert', 'ferments', 'snack', 'drinks']
+    const expected = ['breakfast', 'smoothie', 'meal', 'dessert', 'ferments', 'snack', 'drinks']
     expected.forEach(cat => expect(PRESET_CATS).toContain(cat))
   })
 
@@ -234,7 +234,7 @@ describe('Recipe interface — Phase 1 new fields', () => {
 
   it('hidden can be set to true to suppress a default recipe', () => {
     const recipe: Recipe = {
-      cat: 'dinner', type: 'Dinner', color: '', sc: '', name: 'Boring Salmon',
+      cat: 'meal', type: 'Meal', color: '', sc: '', name: 'Boring Salmon',
       tag: '', prepL: '', prepC: '', hk: 400, hp: '35g', hc: '30g', hf: '10g',
       mk: 0, mp: '0g', mc: '0g', mf: '0g', ings: [], steps: [], tip: '',
       hidden: true,

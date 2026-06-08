@@ -43,7 +43,7 @@ export interface Recipe {
   hidden?: boolean
 }
 
-export const PRESET_CATS = ['breakfast', 'smoothie', 'lunch', 'dinner', 'dessert', 'ferments', 'snack', 'drinks', 'sauce', 'side']
+export const PRESET_CATS = ['breakfast', 'smoothie', 'meal', 'dessert', 'ferments', 'snack', 'drinks', 'sauce', 'side']
 
 /**
  * One default recipe per category, chosen by best protein-to-calorie ratio.

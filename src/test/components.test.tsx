@@ -57,7 +57,7 @@ const FAKE_USER = { id: 'test-user-1' } as User
 
 // ── Recipe fixtures ───────────────────────────────────────────────
 const BASE_RECIPE: Recipe = {
-  id: 9001, name: 'Test Dish', cat: 'dinner', type: 'Dinner',
+  id: 9001, name: 'Test Dish', cat: 'meal', type: 'Meal',
   color: 'var(--green)', sc: 'cg', tag: 'Quick · high-protein',
   prepL: '20 min', prepC: 'var(--green)',
   hk: 400, hp: '35g', hc: '30g', hf: '12g', hfi: '5g',
@@ -1022,7 +1022,7 @@ describe('hiddenRecipeStore', () => {
 
 describe('RecipesTab Phase 4 — fork / hide / restore', () => {
   const BUILTIN: Recipe = {
-    id: 5, name: 'Builtin Dinner', cat: 'dinner', type: 'Dinner',
+    id: 5, name: 'Builtin Meal', cat: 'meal', type: 'Meal',
     color: 'var(--green)', sc: 'cg', tag: 'Classic', prepL: '30 min', prepC: 'var(--green)',
     hk: 500, hp: '40g', hc: '35g', hf: '15g',
     mk: 500, mp: '40g', mc: '35g', mf: '15g',
@@ -1042,7 +1042,7 @@ describe('RecipesTab Phase 4 — fork / hide / restore', () => {
       />
     )
     // Expand card
-    fireEvent.click(screen.getByText('Builtin Dinner'))
+    fireEvent.click(screen.getByText('Builtin Meal'))
     // Click Edit
     fireEvent.click(screen.getByRole('button', { name: /edit recipe/i }))
     expect(onEdit).toHaveBeenCalledWith(BUILTIN)
@@ -1069,7 +1069,7 @@ describe('RecipesTab Phase 4 — fork / hide / restore', () => {
       />
     )
     expect(screen.getByText(/Edit my/)).toBeInTheDocument()
-    expect(screen.getByDisplayValue('Builtin Dinner')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Builtin Meal')).toBeInTheDocument()
   })
 
   it('saving a fork preserves defaultId', () => {
@@ -1106,7 +1106,7 @@ describe('RecipesTab Phase 4 — fork / hide / restore', () => {
         onHide={onHide}
       />
     )
-    fireEvent.click(screen.getByText('Builtin Dinner'))
+    fireEvent.click(screen.getByText('Builtin Meal'))
     fireEvent.click(screen.getByRole('button', { name: /hide this suggestion/i }))
     expect(onHide).toHaveBeenCalledWith(BUILTIN.id)
   })
@@ -1121,7 +1121,7 @@ describe('RecipesTab Phase 4 — fork / hide / restore', () => {
         onDelete={vi.fn()}
       />
     )
-    fireEvent.click(screen.getByText('Builtin Dinner'))
+    fireEvent.click(screen.getByText('Builtin Meal'))
     expect(screen.queryByRole('button', { name: /hide this suggestion/i })).toBeNull()
   })
 })

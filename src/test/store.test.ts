@@ -77,7 +77,7 @@ describe('trackerStore', () => {
 
 // ── recipeStore ──────────────────────────────────────────────────
 describe('recipeStore', () => {
-  const base = { cat: 'dinner', type: 'Dinner', color: '', sc: '', tag: '', prepL: '', prepC: '', hk: 0, hp: '0g', hc: '0g', hf: '0g', mk: 0, mp: '0g', mc: '0g', mf: '0g', ings: [] as [string,string][], steps: [], tip: '', custom: true }
+  const base = { cat: 'meal', type: 'Meal', color: '', sc: '', tag: '', prepL: '', prepC: '', hk: 0, hp: '0g', hc: '0g', hf: '0g', mk: 0, mp: '0g', mc: '0g', mf: '0g', ings: [] as [string,string][], steps: [], tip: '', custom: true }
 
   it('starts with empty recipes', () => {
     expect(recipeStore.getRecipes()).toEqual([])
@@ -346,7 +346,7 @@ describe('foodLibraryStore', () => {
 describe('importRemoteData', () => {
   const baseDay = { ...EMPTY_DAY, foods: [] }
   const recipeBase = {
-    cat: 'dinner', type: 'Dinner', color: '', sc: '', tag: '', prepL: '', prepC: '',
+    cat: 'meal', type: 'Meal', color: '', sc: '', tag: '', prepL: '', prepC: '',
     hk: 0, hp: '0g', hc: '0g', hf: '0g', mk: 0, mp: '0g', mc: '0g', mf: '0g',
     ings: [] as [string, string][], steps: [] as string[], tip: '', custom: true,
   }

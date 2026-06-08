@@ -54,6 +54,16 @@ export const trackerStore = {
   },
 }
 
+// ── One-time localStorage migration: lunch/dinner → meal ─────────
+;(() => {
+  const raw = safeGet<Recipe[]>(RECIPES_KEY, [])
+  if (raw.some(r => r.cat === 'lunch' || r.cat === 'dinner')) {
+    safeSet(RECIPES_KEY, raw.map(r =>
+      (r.cat === 'lunch' || r.cat === 'dinner') ? { ...r, cat: 'meal', type: 'Meal' } : r
+    ))
+  }
+})()
+
 // ── Recipes ── plain functions ───────────────────────────────────
 // Note: recipe sync to Supabase is handled explicitly in RecipesTab
 // via upsertUserRecipe / deleteUserRecipe — not through tryPush here.
