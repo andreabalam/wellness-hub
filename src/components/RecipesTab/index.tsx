@@ -76,14 +76,31 @@ export default function RecipesTab({ user }: { user?: User | null }) {
         setBuiltinRecipes(remote)
       }
       // If fetch failed we silently keep the static fallback — no error banner
-      if (userRecipes.length) {
-        // Merge: keep any localStorage-only recipes (not yet synced or failed to sync)
-        setCustomRecipes(prev => {
-          const dbIds = new Set(userRecipes.map(r => r.id))
-          const localOnly = prev.filter(r => r.id != null && !dbIds.has(r.id))
-          return [...userRecipes, ...localOnly]
-        })
+      // Merge: keep any localStorage-only recipes (not yet synced or failed to sync)
+      const dbIds = new Set(userRecipes.map(r => r.id))
+      const localRecipes = store.getRecipes()
+      // All local recipes not already in DB (for state merge)
+      const localNotInDb = localRecipes.filter(r => r.id != null && !dbIds.has(r.id))
+      // Subset that should be pushed: custom recipes with unsynced (timestamp) IDs
+      const localCustomUnsynced = localNotInDb.filter(r => r.custom)
+
+      // Push local-only custom recipes to Supabase, get DB-assigned IDs back
+      let syncedLocalOnly = localNotInDb
+      if (user && localCustomUnsynced.length) {
+        const idMap = new Map<number, number>() // old (timestamp) id → new DB id
+        await Promise.all(localCustomUnsynced.map(async r => {
+          const dbId = await sync.upsertUserRecipe(user.id, r).catch(() => null)
+          if (dbId != null && dbId !== r.id) idMap.set(r.id, dbId)
+        }))
+        if (cancelled) return
+        if (idMap.size) {
+          store.saveRecipes(localRecipes.map(r => idMap.has(r.id) ? { ...r, id: idMap.get(r.id)! } : r))
+          syncedLocalOnly = localNotInDb.map(r => idMap.has(r.id) ? { ...r, id: idMap.get(r.id)! } : r)
+        }
       }
+
+      const merged = [...userRecipes, ...syncedLocalOnly]
+      if (merged.length) setCustomRecipes(merged)
       setLoading(false)
     })()
     return () => { cancelled = true }
