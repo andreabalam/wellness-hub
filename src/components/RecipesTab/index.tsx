@@ -125,8 +125,14 @@ export default function RecipesTab({ user }: { user?: User | null }) {
             store.addRecipe({ ...r, id: dbId })
             setCustomRecipes(prev => prev.map(x => x.id === r.id ? { ...r, id: dbId } : x))
           }
+          if (!dbId) {
+            // upsertUserRecipe returned null — DB write failed (check console for error)
+            console.warn('[RecipesTab] recipe saved locally but DB sync failed for:', r.name)
+          }
         }
-      } catch { /* offline — localStorage copy is sufficient */ }
+      } catch (err) {
+        console.error('[RecipesTab] handleSave DB sync error:', err)
+      }
     }
   }
 

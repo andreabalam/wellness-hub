@@ -33,8 +33,8 @@ async function tryPush(fn: (userId: string) => Promise<void>) {
   if (!supabase) return // not configured (tests / dev without .env.local)
   try {
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) fn(user.id).catch(() => { /* offline — next sync will catch up */ })
-  } catch { /* ignore */ }
+    if (user) fn(user.id).catch(err => console.error('[tryPush] failed:', err))
+  } catch (err) { console.error('[tryPush] getUser failed:', err) }
 }
 
 // ── Tracker ── plain functions, safe to call anywhere ────────────
