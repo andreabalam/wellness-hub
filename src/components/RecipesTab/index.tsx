@@ -90,12 +90,12 @@ export default function RecipesTab({ user }: { user?: User | null }) {
         const idMap = new Map<number, number>() // old (timestamp) id → new DB id
         await Promise.all(localCustomUnsynced.map(async r => {
           const dbId = await sync.upsertUserRecipe(user.id, r).catch(() => null)
-          if (dbId != null && dbId !== r.id) idMap.set(r.id, dbId)
+          if (dbId != null && dbId !== r.id) idMap.set(r.id!, dbId)
         }))
         if (cancelled) return
         if (idMap.size) {
-          store.saveRecipes(localRecipes.map(r => idMap.has(r.id) ? { ...r, id: idMap.get(r.id)! } : r))
-          syncedLocalOnly = localNotInDb.map(r => idMap.has(r.id) ? { ...r, id: idMap.get(r.id)! } : r)
+          store.saveRecipes(localRecipes.map(r => r.id != null && idMap.has(r.id) ? { ...r, id: idMap.get(r.id)! } : r))
+          syncedLocalOnly = localNotInDb.map(r => r.id != null && idMap.has(r.id) ? { ...r, id: idMap.get(r.id)! } : r)
         }
       }
 
