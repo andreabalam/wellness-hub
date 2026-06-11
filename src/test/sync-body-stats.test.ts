@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const { mockSingle, mockFrom } = vi.hoisted(() => {
   const mockSingle = vi.fn()
-  const mockEq     = vi.fn(() => ({ single: mockSingle }))
+  const mockEq     = vi.fn(() => ({ maybeSingle: mockSingle }))
   const mockSelect = vi.fn(() => ({ eq: mockEq }))
   const mockFrom   = vi.fn(() => ({ select: mockSelect }))
   return { mockSingle, mockFrom }
