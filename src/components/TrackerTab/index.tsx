@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, memo, Fragment } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { useTrackerStore, useFoodLibraryStore, bodyStatsStore, MED_GUIDES_KEY, useUserSettingsStore } from '../../hooks/useStore'
+import { useTrackerStore, useFoodLibraryStore, bodyStatsStore, MED_GUIDES_KEY, useUserSettingsStore, recipeStore, hiddenRecipeStore } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
 import type { MedGuide } from '../../lib/sync'
@@ -10,6 +10,11 @@ import {
   QUICK_FOODS, SESSION_OPTS, MED_MINS, MED_STYLES, PHASE_NOTES,
 } from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
+import { BUILTIN_RECIPES } from '../../data/recipes'
+import { searchLocalFoods, historyFoods } from '../../lib/localFoodSearch'
+import type { LocalFoodHit } from '../../lib/localFoodSearch'
+import { searchUSDAFoods, estimateFoodMacros } from '../../lib/foodSearch'
+import type { UsdaFoodHit } from '../../lib/foodSearch'
 import {
   isOuraConnected,
   fetchOuraWorkouts, fetchOuraReadiness, fetchOuraSessions, fetchOuraSleep,
@@ -196,6 +201,10 @@ export default function TrackerTab({ user }: { user?: User | null }) {
   const [editIndex, setEditIndex] = useState<number | null>(null)
   const [showSugg, setShowSugg]   = useState(false)
   const [foodLib, setFoodLib]     = useState<QuickFood[]>(() => libStore.getAll())
+  const [fRecipeId, setFRecipeId] = useState<number | null>(null)
+  const [onlineStatus, setOnlineStatus] = useState<'idle' | 'searching' | 'estimating' | 'error'>('idle')
+  const [onlineHits, setOnlineHits]     = useState<UsdaFoodHit[] | null>(null)
+  const onlineAbortRef = useRef<AbortController | null>(null)
   const [photoStatus, setPhotoStatus] = useState<'idle' | 'detecting' | 'reading' | 'identifying' | 'error'>('idle')
   const [photoNotes, setPhotoNotes]   = useState<string>('')
   const [photoConfidence, setPhotoConfidence] = useState<PhotoAnalysisResult['confidence'] | null>(null)
@@ -241,6 +250,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
     setEditIndex(null)
     setFName(''); setFKcal(''); setFPro(''); setFCarb(''); setFat(''); setFFiber('')
     setFServings('1')
+    setFRecipeId(null)
     setShowSugg(false)
     setPhotoStatus('idle'); setPhotoNotes(''); setPhotoConfidence(null)
   }, [store])
@@ -262,23 +272,95 @@ export default function TrackerTab({ user }: { user?: User | null }) {
     { k: 0, p: 0, c: 0, f: 0, fi: 0 }
   )
 
-  // Combined list: personal library first, then QUICK_FOODS not already in library
-  const allFoodSuggestions: QuickFood[] = [
-    ...foodLib,
-    ...QUICK_FOODS.filter(qf => !foodLib.some(lf => lf.n.toLowerCase() === qf.n.toLowerCase())),
-  ]
-  const suggestions = fName.length >= 2
-    ? allFoodSuggestions.filter(f => f.n.toLowerCase().includes(fName.toLowerCase())).slice(0, 8)
-    : []
+  // Local search sources — re-read when the dropdown opens or the day changes
+  // so newly saved recipes / logged foods are picked up without a remount.
+  const searchSources = useMemo(() => {
+    const custom = recipeStore.getRecipes()
+    const customIds = new Set(custom.map(r => r.id))
+    const hidden = new Set(hiddenRecipeStore.getAll())
+    const recipes = [...custom, ...BUILTIN_RECIPES.filter(b => b.id == null || !customIds.has(b.id))]
+      .filter(r => !(r.id != null && hidden.has(r.id)))
+    return { library: foodLib, history: historyFoods(store.getAll()), recipes, quickFoods: QUICK_FOODS }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [foodLib, showSugg, day, store])
 
-  const applySuggestion = (f: QuickFood) => {
+  const localHits = useMemo(() => searchLocalFoods(fName, searchSources), [fName, searchSources])
+  const hitGroups = ([
+    ['Your foods',  localHits.filter(h => h.source === 'library' || h.source === 'history')],
+    ['Recipes',     localHits.filter(h => h.source === 'recipe')],
+    ['Suggestions', localHits.filter(h => h.source === 'builtin')],
+  ] as [string, LocalFoodHit[]][]).filter(([, hits]) => hits.length > 0)
+
+  const resetOnline = useCallback(() => {
+    onlineAbortRef.current?.abort()
+    setOnlineHits(null)
+    setOnlineStatus('idle')
+  }, [])
+
+  const applySuggestion = (f: LocalFoodHit) => {
     setFName(f.n)
     setFKcal(String(f.k))
     setFPro(String(f.p))
     setFCarb(String(f.c))
     setFat(String(f.f))
     setFFiber(String(f.fi))
+    setFRecipeId(f.recipeId ?? null)
     setShowSugg(false)
+    resetOnline()
+  }
+
+  const searchOnline = async () => {
+    const q = fName.trim()
+    if (!q) return
+    onlineAbortRef.current?.abort()
+    const ctrl = new AbortController()
+    onlineAbortRef.current = ctrl
+    setOnlineStatus('searching')
+    try {
+      const hits = await searchUSDAFoods(q, ctrl.signal)
+      if (ctrl.signal.aborted) return
+      setOnlineHits(hits)
+      setOnlineStatus('idle')
+    } catch {
+      if (!ctrl.signal.aborted) setOnlineStatus('error')
+    }
+  }
+
+  const applyUsdaHit = (h: UsdaFoodHit) => {
+    setFName(h.name)
+    setFKcal(String(h.k))
+    setFPro(String(Math.round(h.p)))
+    setFCarb(String(Math.round(h.c)))
+    setFat(String(Math.round(h.f)))
+    setFFiber(String(Math.round(h.fi)))
+    setFRecipeId(null)
+    setPhotoNotes(`USDA · per ${h.srv}`)
+    setPhotoConfidence('high')
+    setShowSugg(false)
+    resetOnline()
+  }
+
+  const estimateAI = async () => {
+    const q = fName.trim()
+    if (!q) return
+    setOnlineStatus('estimating')
+    try {
+      const est = await estimateFoodMacros(q)
+      if (!est) { setOnlineStatus('error'); return }
+      setFName(est.name || q)
+      setFKcal(String(Math.round(est.kcal)))
+      setFPro(String(Math.round(est.protein)))
+      setFCarb(String(Math.round(est.carbs)))
+      setFat(String(Math.round(est.fat)))
+      setFFiber(String(Math.round(est.fiber)))
+      setFRecipeId(null)
+      setPhotoNotes(est.notes ? `AI estimate — ${est.notes}` : 'AI estimate — verify before logging')
+      setPhotoConfidence(est.confidence)
+      setShowSugg(false)
+      resetOnline()
+    } catch {
+      setOnlineStatus('error')
+    }
   }
 
   const startEdit = (i: number) => {
@@ -292,14 +374,18 @@ export default function TrackerTab({ user }: { user?: User | null }) {
     setFCarb(String(srv > 1 ? Math.round(f.c / srv) : f.c))
     setFat(String(srv > 1 ? Math.round(f.f / srv) : f.f))
     setFFiber(String(srv > 1 ? Math.round(f.fi / srv) : f.fi))
+    setFRecipeId(f.r ?? null)
     setShowSugg(false)
+    resetOnline()
   }
 
   const cancelEdit = () => {
     setEditIndex(null)
     setFName(''); setFKcal(''); setFPro(''); setFCarb(''); setFat(''); setFFiber('')
     setFServings('1')
+    setFRecipeId(null)
     setPhotoStatus('idle'); setPhotoNotes(''); setPhotoConfidence(null)
+    resetOnline()
   }
 
   const handlePhotoSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -345,6 +431,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
       c: Math.round(perC * srv), f: Math.round(perF * srv),
       fi: Math.round(perFi * srv),
       ...(srv !== 1 ? { s: srv } : {}),
+      ...(fRecipeId != null ? { r: fRecipeId } : {}),
     }
     // Upsert per-serving values into food library
     if (perK > 0) {
@@ -361,6 +448,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
     }
     setFName(''); setFKcal(''); setFPro(''); setFCarb(''); setFat(''); setFFiber('')
     setFServings('1')
+    setFRecipeId(null)
   }
 
   const removeFood = (i: number) => {
@@ -619,7 +707,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
                   className={`food-log-item ${editIndex === i ? 'food-log-item--editing' : ''}`}
                 >
                   <div className="flex-1">
-                    <div className="text-base text-default">{f.n}{f.s && f.s !== 1 ? <span className="text-muted2 text-2xs" style={{ marginLeft: 5 }}>×{f.s} srv</span> : null}</div>
+                    <div className="text-base text-default">{f.n}{f.r != null ? <span className="recipe-link-badge" title="Logged from a recipe">📖</span> : null}{f.s && f.s !== 1 ? <span className="text-muted2 text-2xs" style={{ marginLeft: 5 }}>×{f.s} srv</span> : null}</div>
                     <div className="food-log-meta">{f.k} kcal · {f.p}g P · {f.c}g C · {f.f}g F{f.fi ? ` · ${f.fi}g fiber` : ''}</div>
                   </div>
                   <button onClick={() => startEdit(i)} title="Edit" className={`food-edit-btn ${editIndex === i ? 'active' : ''}`}>✏</button>
@@ -684,25 +772,78 @@ export default function TrackerTab({ user }: { user?: User | null }) {
                   <input
                     className="tinput w-full"
                     value={fName}
-                    onChange={e => { setFName(e.target.value); setShowSugg(true) }}
+                    onChange={e => { setFName(e.target.value); setShowSugg(true); setFRecipeId(null); resetOnline() }}
                     onFocus={() => setShowSugg(true)}
                     onBlur={() => setTimeout(() => setShowSugg(false), 150)}
                     placeholder="Meal name (e.g. Berry Oats)"
                   />
-                  {showSugg && suggestions.length > 0 && (
+                  {showSugg && fName.trim().length >= 2 && (
                     <div className="autocomplete-dropdown">
-                      {suggestions.map(f => (
-                        <button
-                          key={f.n}
-                          onMouseDown={() => applySuggestion(f)}
-                          className="autocomplete-item"
-                        >
-                          {f.n}
-                          <span className="autocomplete-hint">
-                            {f.k} kcal · {f.p}g P · {f.c}g C · {f.f}g F
-                          </span>
-                        </button>
+                      {hitGroups.map(([label, hits]) => (
+                        <Fragment key={label}>
+                          <div className="autocomplete-section">{label}</div>
+                          {hits.map(f => (
+                            <button
+                              key={`${f.source}-${f.n}`}
+                              onMouseDown={() => applySuggestion(f)}
+                              className="autocomplete-item"
+                            >
+                              {f.n}
+                              <span className="autocomplete-hint">
+                                {f.k} kcal · {f.p}g P · {f.c}g C · {f.f}g F
+                              </span>
+                            </button>
+                          ))}
+                        </Fragment>
                       ))}
+                      {onlineHits === null && onlineStatus === 'idle' && (
+                        <button
+                          className="autocomplete-item autocomplete-action"
+                          onMouseDown={e => { e.preventDefault(); searchOnline() }}
+                        >
+                          🔍 Search online for “{fName.trim()}”
+                        </button>
+                      )}
+                      {onlineStatus === 'searching' && (
+                        <div className="autocomplete-empty">Searching USDA…</div>
+                      )}
+                      {onlineStatus === 'estimating' && (
+                        <div className="autocomplete-empty">Estimating with AI…</div>
+                      )}
+                      {onlineStatus === 'error' && (
+                        <button
+                          className="autocomplete-item autocomplete-action autocomplete-action--warn"
+                          onMouseDown={e => { e.preventDefault(); searchOnline() }}
+                        >
+                          ⚠ Search failed — tap to retry
+                        </button>
+                      )}
+                      {onlineHits !== null && onlineStatus === 'idle' && (
+                        <>
+                          <div className="autocomplete-section">USDA results</div>
+                          {onlineHits.length === 0 && (
+                            <div className="autocomplete-empty">No USDA match.</div>
+                          )}
+                          {onlineHits.map(h => (
+                            <button
+                              key={h.name}
+                              onMouseDown={() => applyUsdaHit(h)}
+                              className="autocomplete-item"
+                            >
+                              {h.name}
+                              <span className="autocomplete-hint">
+                                {h.srv} · {h.k} kcal · {h.p}g P · {h.c}g C · {h.f}g F
+                              </span>
+                            </button>
+                          ))}
+                          <button
+                            className="autocomplete-item autocomplete-action"
+                            onMouseDown={e => { e.preventDefault(); estimateAI() }}
+                          >
+                            ✨ Estimate with AI
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

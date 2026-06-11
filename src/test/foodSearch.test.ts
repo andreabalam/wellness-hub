@@ -1,7 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { searchUSDA } from '../lib/foodSearch'
 
-beforeEach(() => vi.unstubAllGlobals())
+// Mock the supabase client so estimateFoodMacros tests are deterministic
+// regardless of whether .env.local exists on the machine running them.
+const { mockInvoke } = vi.hoisted(() => ({ mockInvoke: vi.fn() }))
+vi.mock('../lib/supabase', () => ({
+  supabase: { functions: { invoke: mockInvoke } },
+}))
+
+import { searchUSDA, searchUSDAFoods, estimateFoodMacros } from '../lib/foodSearch'
+
+beforeEach(() => { vi.unstubAllGlobals(); mockInvoke.mockReset() })
 
 // ── helpers ───────────────────────────────────────────────────────
 
@@ -103,5 +111,63 @@ describe('searchUSDA', () => {
       expect.stringContaining('brown+rice'),
       expect.anything(),
     )
+  })
+})
+
+// ── searchUSDAFoods ───────────────────────────────────────────────
+
+describe('searchUSDAFoods', () => {
+  it('returns empty array when API has no matches', async () => {
+    mockUSDA([])
+    expect(await searchUSDAFoods('ghost food')).toEqual([])
+  })
+
+  it('maps every returned food with its description as name', async () => {
+    mockUSDA([
+      { description: 'Chicken, broiler, breast', foodNutrients: NUTRIENTS_100G },
+      { description: 'Chicken, thigh', servingSize: 50, foodNutrients: NUTRIENTS_100G },
+    ])
+    const hits = await searchUSDAFoods('chicken')
+    expect(hits).toHaveLength(2)
+    expect(hits[0]).toEqual({
+      name: 'Chicken, broiler, breast', srv: '100g',
+      k: 200, p: 10, c: 30, f: 5, fi: 8,
+    })
+    expect(hits[1]).toMatchObject({ name: 'Chicken, thigh', srv: '50g', k: 100, p: 5 })
+  })
+
+  it('throws with USDA status code when fetch returns non-ok', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }))
+    await expect(searchUSDAFoods('test')).rejects.toThrow('USDA 500')
+  })
+})
+
+// ── estimateFoodMacros ────────────────────────────────────────────
+
+describe('estimateFoodMacros', () => {
+  const ESTIMATE = {
+    name: 'Pozole Rojo', kcal: 320, protein: 22, carbs: 28, fat: 14, fiber: 5,
+    confidence: 'medium', notes: 'Assumes 1 bowl (~400 g)',
+  }
+
+  it('invokes the estimate-food-macros function with the food name', async () => {
+    mockInvoke.mockResolvedValue({ data: { estimate: ESTIMATE }, error: null })
+    await estimateFoodMacros('pozole')
+    expect(mockInvoke).toHaveBeenCalledWith('estimate-food-macros', { body: { name: 'pozole' } })
+  })
+
+  it('returns the estimate on success', async () => {
+    mockInvoke.mockResolvedValue({ data: { estimate: ESTIMATE }, error: null })
+    expect(await estimateFoodMacros('pozole')).toEqual(ESTIMATE)
+  })
+
+  it('returns null when the function errors', async () => {
+    mockInvoke.mockResolvedValue({ data: null, error: { message: 'boom' } })
+    expect(await estimateFoodMacros('pozole')).toBeNull()
+  })
+
+  it('returns null when the response has no estimate', async () => {
+    mockInvoke.mockResolvedValue({ data: {}, error: null })
+    expect(await estimateFoodMacros('pozole')).toBeNull()
   })
 })
