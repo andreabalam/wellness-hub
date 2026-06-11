@@ -205,6 +205,16 @@ export default function TrackerTab({ user }: { user?: User | null }) {
   const [onlineStatus, setOnlineStatus] = useState<'idle' | 'searching' | 'estimating' | 'error'>('idle')
   const [onlineHits, setOnlineHits]     = useState<UsdaFoodHit[] | null>(null)
   const onlineAbortRef = useRef<AbortController | null>(null)
+  // Delayed-close timer for the suggestions dropdown. Must be cancelled on
+  // refocus, or a stale blur timer closes a freshly reopened dropdown.
+  const suggTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const openSugg = () => {
+    if (suggTimerRef.current) { clearTimeout(suggTimerRef.current); suggTimerRef.current = null }
+    setShowSugg(true)
+  }
+  const closeSuggSoon = () => {
+    suggTimerRef.current = setTimeout(() => setShowSugg(false), 150)
+  }
   const [photoStatus, setPhotoStatus] = useState<'idle' | 'detecting' | 'reading' | 'identifying' | 'error'>('idle')
   const [photoNotes, setPhotoNotes]   = useState<string>('')
   const [photoConfidence, setPhotoConfidence] = useState<PhotoAnalysisResult['confidence'] | null>(null)
@@ -772,9 +782,9 @@ export default function TrackerTab({ user }: { user?: User | null }) {
                   <input
                     className="tinput w-full"
                     value={fName}
-                    onChange={e => { setFName(e.target.value); setShowSugg(true); setFRecipeId(null); resetOnline() }}
-                    onFocus={() => setShowSugg(true)}
-                    onBlur={() => setTimeout(() => setShowSugg(false), 150)}
+                    onChange={e => { setFName(e.target.value); openSugg(); setFRecipeId(null); resetOnline() }}
+                    onFocus={openSugg}
+                    onBlur={closeSuggSoon}
                     placeholder="Meal name (e.g. Berry Oats)"
                   />
                   {showSugg && fName.trim().length >= 2 && (
