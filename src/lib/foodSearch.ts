@@ -102,12 +102,29 @@ export interface AiFoodEstimate {
  * Ask the estimate-food-macros Edge Function (Claude Haiku) for per-serving
  * macros of a free-form food/dish name. Requires a signed-in user — the
  * function verifies the JWT. Returns null when unavailable or unparseable.
+ *
+ * Without a configured Supabase client (no env), falls back to a same-origin
+ * request so dev setups and tests can proxy or intercept it; with nothing
+ * listening there it fails → null, and the UI shows the retry row.
  */
 export async function estimateFoodMacros(name: string): Promise<AiFoodEstimate | null> {
-  if (!supabase) return null
-  const { data, error } = await supabase.functions.invoke('estimate-food-macros', {
-    body: { name },
-  })
-  if (error || !data?.estimate) return null
-  return data.estimate as AiFoodEstimate
+  try {
+    if (supabase) {
+      const { data, error } = await supabase.functions.invoke('estimate-food-macros', {
+        body: { name },
+      })
+      if (error || !data?.estimate) return null
+      return data.estimate as AiFoodEstimate
+    }
+    const res = await fetch('/functions/v1/estimate-food-macros', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    if (!res.ok) return null
+    const data = await res.json().catch(() => null)
+    return (data?.estimate as AiFoodEstimate) ?? null
+  } catch {
+    return null
+  }
 }

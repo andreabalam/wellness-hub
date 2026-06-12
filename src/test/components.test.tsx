@@ -3681,4 +3681,15 @@ describe('RecipesTab — open request from tracker', () => {
     )
     expect(screen.queryByText('tap to collapse')).not.toBeInTheDocument()
   })
+
+  it('expands a recipe written to localStorage after mount (state lagging the store)', async () => {
+    // Mount with an empty store — the rendered list starts empty
+    const { rerender } = render(<RecipesTab user={FAKE_USER} />)
+    expect(screen.queryByText(CUSTOM_RECIPE.name)).not.toBeInTheDocument()
+    // Recipe arrives via an external write (sync, another tab, e2e seeding)
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
+    rerender(<RecipesTab user={FAKE_USER} openRequest={{ id: CUSTOM_RECIPE.id, name: CUSTOM_RECIPE.name, seq: 1 }} />)
+    await waitFor(() => expect(screen.getByText('tap to collapse')).toBeInTheDocument())
+    expect(screen.getByText(CUSTOM_RECIPE.name)).toBeInTheDocument()
+  })
 })

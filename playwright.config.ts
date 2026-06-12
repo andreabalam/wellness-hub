@@ -20,5 +20,14 @@ export default defineConfig({
     command: 'npm run dev',
     url: 'http://localhost:5173/wellness-hub/',
     reuseExistingServer: !process.env.CI,
+    // Disable Supabase for E2E: empty env (process env beats .env.local in
+    // Vite) → the client is null, matching CI where .env.local doesn't exist.
+    // This keeps local and CI runs identical and network-hermetic. Do NOT
+    // point this at a fake URL instead — supabase-js hangs (not rejects) on
+    // unreachable hosts, deadlocking the app's loading states.
+    env: {
+      VITE_SUPABASE_URL:      '',
+      VITE_SUPABASE_ANON_KEY: '',
+    },
   },
 })
