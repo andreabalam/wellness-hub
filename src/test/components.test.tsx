@@ -3473,3 +3473,138 @@ describe('GroceryPanel — nutrition lookup', () => {
     expect(screen.getByLabelText('Calories')).toHaveValue(null)
   })
 })
+
+// ═════════════════════════════════════════════════════════════════
+// TrackerTab — food search (local-first + online fallback)
+// ═════════════════════════════════════════════════════════════════
+describe('TrackerTab — food search', () => {
+  const mealInput = () => screen.getByPlaceholderText('Meal name (e.g. Berry Oats)')
+
+  function typeQuery(q: string) {
+    fireEvent.focus(mealInput())
+    fireEvent.change(mealInput(), { target: { value: q } })
+  }
+
+  const USDA_HITS = [
+    { name: 'Tamales, masa', srv: '100g', k: 213, p: 5.8, c: 28.4, f: 9.1, fi: 3.2 },
+  ]
+
+  it('shows the "Search online" action for unknown foods', () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('zzghostfood')
+    expect(screen.getByText(/Search online for/)).toBeInTheDocument()
+  })
+
+  it('does not show the dropdown for queries under 2 chars', () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('z')
+    expect(screen.queryByText(/Search online for/)).not.toBeInTheDocument()
+  })
+
+  it('lists saved recipes under a "Recipes" section', () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([{ ...CUSTOM_RECIPE, name: 'Mango Lassi' }])
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('mango')
+    expect(screen.getByText('Recipes')).toBeInTheDocument()
+    expect(screen.getByText('Mango Lassi')).toBeInTheDocument()
+  })
+
+  it('picking a recipe hit fills the form with healthy-variant macros', () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([{ ...CUSTOM_RECIPE, name: 'Mango Lassi' }])
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('mango')
+    fireEvent.mouseDown(screen.getByText('Mango Lassi'))
+    expect(mealInput()).toHaveValue('Mango Lassi')
+    expect(screen.getByPlaceholderText('kcal')).toHaveValue(CUSTOM_RECIPE.hk)
+  })
+
+  it('logging a recipe hit stores the recipe link and shows the badge', () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([{ ...CUSTOM_RECIPE, name: 'Mango Lassi' }])
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('mango')
+    fireEvent.mouseDown(screen.getByText('Mango Lassi'))
+    fireEvent.click(screen.getByText('+ Log food'))
+    expect(screen.getByTitle('Logged from a recipe')).toBeInTheDocument()
+    const days = JSON.parse(ls['whub_tracker_v3'])
+    const foods = (Object.values(days)[0] as { foods: { n: string; r?: number }[] }).foods
+    expect(foods[0]).toMatchObject({ n: 'Mango Lassi', r: CUSTOM_RECIPE.id })
+  })
+
+  it('previously logged foods appear under "Your foods"', () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('Custom Tamal')
+    fireEvent.change(screen.getByPlaceholderText('kcal'), { target: { value: '250' } })
+    fireEvent.click(screen.getByText('+ Log food'))
+    typeQuery('tamal')
+    expect(screen.getByText('Your foods')).toBeInTheDocument()
+    // Name appears both in the meals-logged list and in the dropdown
+    const matches = screen.getAllByText('Custom Tamal')
+    expect(matches.some(el => el.closest('.autocomplete-dropdown') !== null)).toBe(true)
+  })
+
+  it('tapping "Search online" shows USDA results and picking one fills the form', async () => {
+    const spy = vi.spyOn(foodSearch, 'searchUSDAFoods').mockResolvedValue(USDA_HITS)
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('zztamales')
+    fireEvent.mouseDown(screen.getByText(/Search online for/))
+    await waitFor(() => expect(screen.getByText('Tamales, masa')).toBeInTheDocument())
+    expect(spy).toHaveBeenCalledWith('zztamales', expect.anything())
+    fireEvent.mouseDown(screen.getByText('Tamales, masa'))
+    expect(mealInput()).toHaveValue('Tamales, masa')
+    expect(screen.getByPlaceholderText('kcal')).toHaveValue(213)
+  })
+
+  it('shows "No USDA match." when the online search returns nothing', async () => {
+    vi.spyOn(foodSearch, 'searchUSDAFoods').mockResolvedValue([])
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('zzghost')
+    fireEvent.mouseDown(screen.getByText(/Search online for/))
+    await waitFor(() => expect(screen.getByText('No USDA match.')).toBeInTheDocument())
+  })
+
+  it('"Estimate with AI" fills the form with the AI estimate', async () => {
+    vi.spyOn(foodSearch, 'searchUSDAFoods').mockResolvedValue([])
+    vi.spyOn(foodSearch, 'estimateFoodMacros').mockResolvedValue({
+      name: 'Pozole Rojo', kcal: 320, protein: 22, carbs: 28, fat: 14, fiber: 5,
+      confidence: 'medium', notes: 'Assumes 1 bowl (~400 g)',
+    })
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('pozole')
+    fireEvent.mouseDown(screen.getByText(/Search online for/))
+    await waitFor(() => expect(screen.getByText(/Estimate with AI/)).toBeInTheDocument())
+    fireEvent.mouseDown(screen.getByText(/Estimate with AI/))
+    await waitFor(() => expect(mealInput()).toHaveValue('Pozole Rojo'))
+    expect(screen.getByPlaceholderText('kcal')).toHaveValue(320)
+    expect(screen.getByText(/Assumes 1 bowl/)).toBeInTheDocument()
+  })
+
+  it('shows the retry row when the AI estimate is unavailable', async () => {
+    vi.spyOn(foodSearch, 'searchUSDAFoods').mockResolvedValue([])
+    vi.spyOn(foodSearch, 'estimateFoodMacros').mockResolvedValue(null)
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('zzghost')
+    fireEvent.mouseDown(screen.getByText(/Search online for/))
+    await waitFor(() => expect(screen.getByText(/Estimate with AI/)).toBeInTheDocument())
+    fireEvent.mouseDown(screen.getByText(/Estimate with AI/))
+    await waitFor(() => expect(screen.getByText(/Search failed/)).toBeInTheDocument())
+  })
+
+  it('shows a retry row when the online search fails', async () => {
+    vi.spyOn(foodSearch, 'searchUSDAFoods').mockRejectedValue(new Error('USDA 500'))
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('zzghost')
+    fireEvent.mouseDown(screen.getByText(/Search online for/))
+    await waitFor(() => expect(screen.getByText(/Search failed/)).toBeInTheDocument())
+  })
+
+  it('typing again clears previous online results', async () => {
+    vi.spyOn(foodSearch, 'searchUSDAFoods').mockResolvedValue(USDA_HITS)
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('zztamales')
+    fireEvent.mouseDown(screen.getByText(/Search online for/))
+    await waitFor(() => expect(screen.getByText('Tamales, masa')).toBeInTheDocument())
+    typeQuery('zztamales con mole')
+    expect(screen.queryByText('Tamales, masa')).not.toBeInTheDocument()
+    expect(screen.getByText(/Search online for/)).toBeInTheDocument()
+  })
+})

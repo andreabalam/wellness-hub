@@ -5,6 +5,8 @@ user-invocable: true
 allowed-tools:
   - Bash(git *)
   - Bash(gh *)
+  - Bash(npm *)
+  - Bash(npx *)
 ---
 
 # /pr — Create a pull request with an AI-written description
@@ -15,7 +17,9 @@ Arguments: `$ARGUMENTS` (optional base branch, e.g. `main`. Defaults to `main`.)
 
 ## Your job
 
-Read every commit on this branch, understand what actually changed, and write a PR description that fills in the project's PR template. Then open the PR.
+Verify the branch passes all project checks, then read every commit on this branch, understand what actually changed, and write a PR description that fills in the project's PR template. Then open the PR.
+
+A PR is only opened from a green branch — if any check fails, the PR is not created until the failures are fixed.
 
 ---
 
@@ -34,12 +38,33 @@ Check whether a remote tracking branch exists and is up to date:
 ```bash
 git status -sb
 ```
-If commits exist locally but haven't been pushed, push first:
+Note whether commits need pushing — but do NOT push yet. Push only happens in step 6, after all checks pass.
+
+### 2. Verify the branch is green
+
+Run all project checks before writing anything. The fast checks first, in parallel:
+
 ```bash
-git push -u origin HEAD
+npm run lint     # ESLint
+npm test         # unit tests (Vitest)
+npm run build    # type-check + production build
 ```
 
-### 2. Read the changes
+If all three pass, run the E2E suite (slowest — it auto-starts the dev server):
+
+```bash
+npm run test:e2e
+```
+
+**If any check fails:**
+- Do NOT create the PR.
+- Show the user the failing output (the actual errors, not just "lint failed").
+- If the failures are small and clearly caused by this branch's changes (a type error, a lint violation, a test broken by the diff), fix them, re-run the failed check to confirm, and commit the fix on this branch before continuing.
+- If the failures are substantial, ambiguous, or pre-existing on `main` (verify with `git stash` / checking the base branch if unsure), stop and report — let the user decide how to proceed.
+
+Only continue to step 3 when every check passes.
+
+### 3. Read the changes
 
 Gather the full picture — do these in parallel:
 
@@ -51,7 +76,7 @@ git diff main...HEAD                          # full diff (ground truth)
 
 If the diff is very large (>600 lines), read it in sections per file rather than truncating.
 
-### 3. Assess — think before you write
+### 4. Assess — think before you write
 
 Before drafting, mentally answer:
 
@@ -62,7 +87,7 @@ Before drafting, mentally answer:
 - **Does the diff touch UI components?** If yes, a screenshot should be attached.
 - **Are there any secrets, credentials, or `.env` values in the diff?**
 
-### 4. Draft the PR
+### 5. Draft the PR
 
 Title: short (≤70 chars), describes the outcome not the mechanism. E.g. "Add photo meal logging via HuggingFace + USDA" not "Update analyzeFood.ts and deploy edge function."
 
@@ -81,7 +106,7 @@ secret required), add it as an extra bullet with a "Note:" prefix.>
 
 ## Tests
 - [x_or_space] Tests added / updated
-- [x_or_space] All tests pass (`npm test`)
+- [x_or_space] All checks pass (lint, unit tests, build, E2E)
 
 ## Checklist
 - [x_or_space] No secrets committed
@@ -90,7 +115,7 @@ secret required), add it as an extra bullet with a "Note:" prefix.>
 
 **Checkbox rules** — replace `x_or_space` with the correct value:
 - `Tests added / updated`: check `[x]` if the diff contains new or modified test files (files under `src/test/`, `e2e/`, or named `*.test.*` / `*.spec.*`).
-- `All tests pass`: check `[x]` if the commit hook ran tests and they passed (pre-commit output visible in git log), or if you ran tests and they passed. Leave `[ ]` if unknown.
+- `All tests pass`: always `[x]` — step 2 ran the full suite and you cannot reach this step otherwise.
 - `No secrets committed`: check `[x]` if the diff contains no API keys, tokens, passwords, or `.env` values. Leave `[ ]` only if you actually see something suspicious.
 - `Screenshot attached`: check `[x]` only if the user has already attached a screenshot. Leave `[ ]` if the diff touches UI components (the reviewer needs to attach one); omit the note entirely if the diff is backend/infra only with no UI changes.
 
@@ -101,7 +126,13 @@ Rules:
 - If a commit message is already perfectly descriptive, reuse its language
 - Do NOT add sections beyond the three in the template
 
-### 5. Create the PR
+### 6. Push and create the PR
+
+If commits haven't been pushed yet (noted in step 1, or new fix commits from step 2):
+
+```bash
+git push -u origin HEAD
+```
 
 ```bash
 gh pr create --title "<title>" --body "$(cat <<'EOF'

@@ -86,6 +86,7 @@ Requires `.env.local` for local development:
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
 VITE_OURA_CLIENT_ID=...   # Oura OAuth app client_id (public — safe to embed in JS)
+VITE_USDA_API_KEY=...     # USDA FoodData Central key (free, api.data.gov). Falls back to DEMO_KEY (~30 req/hr/IP)
 ```
 
 The app degrades gracefully without these — auth and sync are disabled, everything else works.
