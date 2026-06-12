@@ -17,3 +17,5 @@ supabase/
 
 #other
 plan/
+
+tsconfig.app.tsbuildinfo

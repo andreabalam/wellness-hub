@@ -24,6 +24,10 @@ npx playwright test e2e/tracker.spec.ts
 
 Unit tests live in `src/test/` and use jsdom — no browser. E2E tests live in `e2e/` and run against the real dev server (port 5173). `sync.ts` and `AuthButton.tsx` are excluded from unit coverage because they're covered by E2E.
 
+## Git workflow
+
+**Never commit directly on `main`.** All changes go through a feature branch + PR, even small fixes. If asked to commit while on `main`, create a descriptive branch first (`git checkout -b fix/...` or `feat/...`). The local pre-commit hook also rejects commits on `main`.
+
 ## Architecture
 
 ### Local-first with optional Supabase sync
