@@ -135,6 +135,14 @@ export default function RecipesTab({ user, openRequest }: {
     const visible = match && !(match.id != null && !match.custom && hiddenIds.includes(match.id))
     /* eslint-disable react-hooks/set-state-in-effect */
     if (match && visible) {
+      // The matched recipe may exist in localStorage but not in the rendered
+      // list yet — state is seeded at mount, and without Supabase there is no
+      // fetch effect to re-merge it. Inject it so there is a card to expand.
+      if (match.custom) {
+        setCustomRecipes(prev => prev.some(r => r.id === match.id) ? prev : [...prev, match])
+      } else {
+        setBuiltinRecipes(prev => prev.some(r => r.id === match.id) ? prev : [...prev, match])
+      }
       setFilter('all')
       setQuery('')
       setAutoOpenName(match.name.toLowerCase())
