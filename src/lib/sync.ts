@@ -5,6 +5,7 @@
 import { supabase } from './supabase'
 import type { DayData, QuickFood } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
+import { normalizeCat, catLabel } from '../data/recipes'
 import type { CustomBlock, WeekSchedule } from '../data/schedule'
 import type { GroceryItem, GroceryCatalogItem } from '../data/grocery'
 import type { Reminder } from '../data/reminders'
@@ -36,10 +37,13 @@ export async function pullAllDays(userId: string): Promise<Record<string, DayDat
 /** Map a DB row (snake_case) → Recipe (camelCase) */
 function rowToRecipe(row: Record<string, unknown>): Recipe {
   const source = (row.source ?? 'builtin') as Recipe['source']
+  // DB rows may still carry removed categories (lunch/dinner) or none at all —
+  // fold them into 'meal' so every recipe matches a filter chip
+  const cat = normalizeCat(row.cat)
   return {
     id:        row.id as number,
-    cat:       row.cat as string,
-    type:      row.type as string,
+    cat,
+    type:      cat === row.cat ? row.type as string : catLabel(cat),
     color:     row.color as string,
     sc:        row.sc as string,
     name:      row.name as string,

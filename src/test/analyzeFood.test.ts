@@ -120,13 +120,9 @@ beforeEach(() => {
 })
 
 describe('analyzeImage — label path', () => {
-  it('calls Tesseract twice (thumbnail + full) and skips Edge Function for analysis', async () => {
-    // First call = thumbnail scan (detects label keywords)
-    // Second call = full OCR
+  it('runs a single OCR pass and skips the Edge Function for analysis', async () => {
     const labelText = 'Nutrition Facts\nCalories 250\nTotal Fat 9g\nTotal Carbohydrate 30g\nProtein 12g\nDietary Fiber 4g'
-    mockRecognize
-      .mockResolvedValueOnce({ data: { text: labelText } } as never)  // thumbnail
-      .mockResolvedValueOnce({ data: { text: labelText } } as never)  // full OCR
+    mockRecognize.mockResolvedValueOnce({ data: { text: labelText } } as never)
 
     const statusMessages: string[] = []
     const result = await analyzeImage(new File([''], 'label.jpg', { type: 'image/jpeg' }), m => statusMessages.push(m))
@@ -135,6 +131,7 @@ describe('analyzeImage — label path', () => {
     expect(statusMessages).toContain('Reading label…')
     expect(result.kcal).toBe(250)
     expect(result.protein).toBe(12)
+    expect(mockRecognize).toHaveBeenCalledTimes(1)
     // Edge Function should only be called for logging (fire-and-forget), not for analysis
     expect(mockInvoke).toHaveBeenCalledWith('analyze-food-photo', expect.objectContaining({ body: expect.objectContaining({ mode: 'label' }) }))
   })

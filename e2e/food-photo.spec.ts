@@ -60,10 +60,11 @@ test.describe('Food photo feature', () => {
   })
 
   // ── Hidden file input has correct attributes ──────────────────────
-  test('file input accepts images and requests rear camera on mobile', async ({ page }) => {
+  test('file input accepts images from camera or photo library', async ({ page }) => {
     const input = page.locator('input[type="file"][accept="image/*"]')
     await expect(input).toHaveAttribute('accept', 'image/*')
-    await expect(input).toHaveAttribute('capture', 'environment')
+    // No `capture` attr — mobile browsers must offer the photo library too
+    await expect(input).not.toHaveAttribute('capture', /.+/)
   })
 
   // ── Form pre-fill via direct state manipulation (simulated) ──────

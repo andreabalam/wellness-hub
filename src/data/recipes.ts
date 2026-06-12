@@ -46,6 +46,20 @@ export interface Recipe {
 export const PRESET_CATS = ['breakfast', 'smoothie', 'meal', 'dessert', 'ferments', 'snack', 'drinks', 'sauce', 'side']
 
 /**
+ * Fold removed categories (lunch/dinner) and missing values into 'meal' so
+ * every recipe matches a filter chip. Used on DB reads, saves, and imports.
+ */
+export function normalizeCat(cat: unknown): string {
+  const c = typeof cat === 'string' ? cat.trim().toLowerCase() : ''
+  return c === '' || c === 'lunch' || c === 'dinner' ? 'meal' : c
+}
+
+/** Display label for a category, e.g. 'meal' → 'Meal'. */
+export function catLabel(cat: string): string {
+  return cat.charAt(0).toUpperCase() + cat.slice(1)
+}
+
+/**
  * One default recipe per category, chosen by best protein-to-calorie ratio.
  * Breakfast=2, Smoothie=5, Lunch=9, Dinner=13, Dessert=22, Ferments=24, Snack=45.
  */
