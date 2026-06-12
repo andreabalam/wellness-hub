@@ -53,7 +53,7 @@ function toHit(food: USDAFood): UsdaFoodHit {
 
 // USDA FoodData Central — Foundation and SR Legacy foods return nutrients per 100 g.
 // Docs: https://api.nal.usda.gov/fdc/v1/foods/search
-export async function searchUSDAFoods(query: string, signal?: AbortSignal): Promise<UsdaFoodHit[]> {
+async function fetchUSDAFoods(query: string, signal?: AbortSignal): Promise<USDAFood[]> {
   const apiKey = (import.meta.env.VITE_USDA_API_KEY as string | undefined) || 'DEMO_KEY'
   const url = `${USDA_BASE}/foods/search?` + new URLSearchParams({
     query,
@@ -66,8 +66,38 @@ export async function searchUSDAFoods(query: string, signal?: AbortSignal): Prom
   if (!res.ok) throw new Error(`USDA ${res.status}`)
 
   const data: USDASearchResponse = await res.json()
-  if (!data.foods?.length) return []
-  return data.foods.map(toHit)
+  return data.foods ?? []
+}
+
+export async function searchUSDAFoods(query: string, signal?: AbortSignal): Promise<UsdaFoodHit[]> {
+  const foods = await fetchUSDAFoods(query, signal)
+  return foods.map(toHit)
+}
+
+/** Macros per 100 g of the food — used by recipe macro calculation. */
+export interface UsdaPer100g {
+  name: string
+  k: number; p: number; c: number; f: number; fi: number
+}
+
+/**
+ * Best USDA match with macros per 100 g (no serving scaling), or null when
+ * nothing matches. Throws on network/HTTP errors so callers can distinguish
+ * "no match" from "lookup unavailable".
+ */
+export async function searchUSDAPer100g(query: string, signal?: AbortSignal): Promise<UsdaPer100g | null> {
+  const foods = await fetchUSDAFoods(query, signal)
+  const food = foods.find(f => get(f.foodNutrients, 1008) > 0)
+  if (!food) return null
+  const ns = food.foodNutrients
+  return {
+    name: food.description ?? query,
+    k: Math.round(get(ns, 1008)),
+    p: r1(get(ns, 1003)),
+    c: r1(get(ns, 1005)),
+    f: r1(get(ns, 1004)),
+    fi: r1(get(ns, 1079)),
+  }
 }
 
 /** Best USDA match as NutriInfo (grocery panel), or null when nothing matches. */

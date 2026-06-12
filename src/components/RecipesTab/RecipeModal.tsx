@@ -7,6 +7,11 @@ import {
   ACCEPTED_EXT,
   type ExtractedRecipe,
 } from '../../lib/recipeImport'
+import {
+  computeRecipeMacros,
+  makeCachedUsdaLookup,
+  type IngredientResolution,
+} from '../../lib/recipeMacros'
 
 interface Props {
   customTags: string[]
@@ -63,6 +68,12 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
   const [importError, setImportError] = useState('')
   const [dragging, setDragging]       = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // ── Macro calculation state (manual recipes only) ─────────────
+  const [servings, setServings]   = useState('1')
+  const [calcState, setCalcState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [calcRows, setCalcRows]   = useState<IngredientResolution[]>([])
+  const [calcError, setCalcError] = useState('')
 
   const allTags = useMemo(() => [...new Set([...PRESET_CATS, ...customTags])], [customTags])
 
@@ -142,10 +153,46 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
     setNewTag('')
   }
 
+  /** A stale resolution list is misleading — drop it when ingredients change */
+  const resetCalc = () => {
+    setCalcState('idle')
+    setCalcRows([])
+    setCalcError('')
+  }
+
   const addIng = () => {
     if (!ingName.trim()) return
     setIngs(prev => [...prev, [ingName.trim(), ingAmt.trim() || '—']])
     setIngName(''); setIngAmt('')
+    resetCalc()
+  }
+
+  const calcMacros = async () => {
+    if (!ings.length || calcState === 'loading') return
+    setCalcState('loading')
+    setCalcError('')
+    try {
+      const result = await computeRecipeMacros(
+        ings,
+        parseInt(servings) || 1,
+        makeCachedUsdaLookup(),
+      )
+      setCalcRows(result.rows)
+      if (!result.matched) {
+        setCalcState('error')
+        setCalcError('No ingredients could be matched — fill in the macros manually.')
+        return
+      }
+      setKcal(String(result.totals.k))
+      setProt(String(result.totals.p))
+      setCarb(String(result.totals.c))
+      setFat(String(result.totals.f))
+      setFib(result.totals.fi > 0 ? String(result.totals.fi) : '')
+      setCalcState('done')
+    } catch {
+      setCalcState('error')
+      setCalcError('Food database unavailable — check your connection and try again.')
+    }
   }
 
   const addStep = () => {
@@ -372,6 +419,49 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
               <input key={ph} className="tnum" type="number" min="0" placeholder={ph} value={val} onChange={e => set(e.target.value)} />
             ))}
           </div>
+
+          {/* Calculate from ingredients — manual recipes only, not file imports */}
+          {importState !== 'done' && (
+            <div className="macro-calc">
+              <div className="macro-calc__controls">
+                <label className="macro-calc__servings">
+                  Servings
+                  <input
+                    className="tnum" type="number" min="1" value={servings}
+                    onChange={e => setServings(e.target.value)}
+                    aria-label="Servings the recipe makes"
+                  />
+                </label>
+                <button
+                  className="macro-calc__btn"
+                  onClick={calcMacros}
+                  disabled={!ings.length || calcState === 'loading'}
+                  title={ings.length ? 'Look up each ingredient in the USDA food database' : 'Add ingredients below first'}
+                >
+                  {calcState === 'loading'
+                    ? <><span className="import-spinner import-spinner--sm" aria-hidden />Calculating…</>
+                    : '⚡ Calculate from ingredients'}
+                </button>
+              </div>
+
+              {calcState === 'error' && <div className="import-error" role="alert">{calcError}</div>}
+
+              {calcRows.length > 0 && calcState !== 'loading' && (
+                <div className="macro-calc__rows">
+                  {calcRows.map((r, i) => (
+                    <div key={i} className={`macro-calc__row macro-calc__row--${r.status}`}>
+                      {r.status === 'ok' && <>✓ {r.ing} · {r.amount} → {r.matchName} · {r.grams}g · {r.kcal} kcal</>}
+                      {r.status === 'no-amount' && <>⚠ {r.ing} · {r.amount} — amount unclear, skipped</>}
+                      {r.status === 'no-match' && <>✗ {r.ing} — no food database match, skipped</>}
+                    </div>
+                  ))}
+                  {calcState === 'done' && (
+                    <div className="macro-calc__note">Estimated from USDA data — review before saving.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </FieldRow>
 
         {/* Ingredients */}
@@ -380,7 +470,7 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
             <div key={i} className="ing-row">
               <span className="flex-1 text-base text-default">{n}</span>
               <span className="text-sm text-muted font-mono">{a}</span>
-              <button onClick={() => setIngs(prev => prev.filter((_, j) => j !== i))} className="icon-delete">×</button>
+              <button onClick={() => { setIngs(prev => prev.filter((_, j) => j !== i)); resetCalc() }} className="icon-delete">×</button>
             </div>
           ))}
           <div className="flex gap-6">
