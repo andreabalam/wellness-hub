@@ -140,7 +140,7 @@ export async function pullTags(userId: string): Promise<string[]> {
     .from('custom_tags')
     .select('tags')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   return (data?.tags as string[]) ?? []
 }
 
@@ -157,7 +157,7 @@ export async function pullGrocery(userId: string): Promise<string[]> {
     .from('grocery_checked')
     .select('checked')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   return (data?.checked as string[]) ?? []
 }
 
@@ -174,7 +174,7 @@ export async function pullFoodLibrary(userId: string): Promise<QuickFood[]> {
     .from('food_library')
     .select('library')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   return (data?.library as QuickFood[]) ?? []
 }
 
@@ -191,7 +191,7 @@ export async function pullSchedule(userId: string): Promise<CustomBlock[] | null
     .from('schedule_blocks')
     .select('blocks')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   return data ? (data.blocks as CustomBlock[]) : null
 }
 
@@ -232,7 +232,7 @@ export async function pullMedGuides(userId: string): Promise<MedGuide[] | null> 
     .from('med_guides')
     .select('guides')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   return data ? (data.guides as MedGuide[]) : null
 }
 
@@ -284,7 +284,7 @@ export async function pullUserGroceryCatalog(userId: string): Promise<GroceryCat
     .from('user_grocery_catalog')
     .select('items')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   return data ? (data.items as GroceryCatalogItem[]) : null
 }
 
@@ -320,7 +320,7 @@ export async function fetchUserSettings(userId: string): Promise<UserSettings | 
     .from('user_settings')
     .select('kcal_target, prot_target, carb_target, fat_target, fiber_target, macro_split, cognitive_peak_start, cognitive_peak_end')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   if (error || !data) return null
   return {
     kcalTarget:         data.kcal_target          as number,
@@ -402,10 +402,10 @@ export async function fetchUserBodyStats(userId: string): Promise<UserBodyStats 
     .from('user_body_stats')
     .select(fullCols)
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   // If measurement columns don't exist yet (migration pending), retry without them
   if (error && (error as { code?: string }).code === '42703') {
-    const fallback = await supabase!.from('user_body_stats').select(coreCols).eq('user_id', userId).single()
+    const fallback = await supabase!.from('user_body_stats').select(coreCols).eq('user_id', userId).maybeSingle()
     data  = fallback.data as typeof data
     error = fallback.error
   }
@@ -469,7 +469,7 @@ export async function fetchUserWorkoutPlan(userId: string): Promise<UserWorkoutP
     .from('user_workout_plans')
     .select('gender, num_weeks, plan_data')
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
   if (error || !data) return null
   return {
     gender:   data.gender    as 'female' | 'male',
