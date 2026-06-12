@@ -32,7 +32,12 @@ git rev-parse --abbrev-ref HEAD          # current branch
 git log --oneline main..HEAD             # commits going in
 ```
 
-If the branch is already at `main`, or has no commits ahead, stop and tell the user there's nothing to open a PR for.
+**Never commit on `main`.** If the current branch is `main`:
+- With uncommitted changes: create a feature branch first (`git checkout -b <descriptive-name>`), commit there, and continue.
+- With commits already on `main` that aren't on `origin/main`: stop — do not push them. Tell the user and offer to move them to a branch (`git branch <name> && git reset --hard origin/main && git checkout <name>`).
+- Clean and even with origin: stop and tell the user there's nothing to open a PR for.
+
+If on a feature branch with no commits ahead but uncommitted changes, commit them here before continuing.
 
 Check whether a remote tracking branch exists and is up to date:
 ```bash
