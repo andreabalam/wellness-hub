@@ -1,9 +1,11 @@
-import { useState, memo } from 'react'
+import { useState, useEffect, useRef, memo } from 'react'
 import type { Recipe } from '../../data/recipes'
 
 interface Props {
   recipe: Recipe
   cookCount?: number
+  /** When this flips true, the card expands and scrolls into view (open-from-tracker) */
+  autoOpen?: boolean
   /** Called when the user clicks Edit — parent opens an edit modal */
   onEdit?: (recipe: Recipe) => void
   /** Called when the user clicks Delete (custom recipes only) */
@@ -42,6 +44,7 @@ function autoBadge(r: Recipe): { label: string; color: string } | null {
 export default memo(function RecipeCard({
   recipe: r,
   cookCount = 0,
+  autoOpen = false,
   onEdit,
   onDelete,
   onHide,
@@ -49,7 +52,15 @@ export default memo(function RecipeCard({
   onGrocery,
 }: Props) {
   const [open, setOpen] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
   const isFerment = r.cat === 'ferments'
+
+  useEffect(() => {
+    if (!autoOpen) return
+    setOpen(true)
+    // scrollIntoView is missing in jsdom — optional call keeps tests happy
+    cardRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }, [autoOpen])
 
   // Badge: prep time string — use explicit prepTime if set, otherwise fall back to prepL
   const timeBadgeLabel = r.prepTime ?? r.prepL
@@ -65,7 +76,7 @@ export default memo(function RecipeCard({
   const stop = (e: React.MouseEvent) => e.stopPropagation()
 
   return (
-    <div className={`rcard${open ? ' open' : ''}`} onClick={() => setOpen(o => !o)}>
+    <div ref={cardRef} className={`rcard${open ? ' open' : ''}`} onClick={() => setOpen(o => !o)}>
       <div className="rctop">
         {/* Top row: category type (left) + badge cluster (right) */}
         <div className="rctr">
