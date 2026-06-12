@@ -86,7 +86,7 @@ test.describe('Tracker food search', () => {
     await expect(page.getByPlaceholder('prot')).toHaveValue('12')
 
     await page.getByRole('button', { name: '+ Log food' }).click()
-    await expect(page.locator('[title="Logged from a recipe"]')).toBeVisible()
+    await expect(page.locator('[title="Open recipe"]')).toBeVisible()
 
     // The recipe id is persisted on the entry
     const entry = await page.evaluate(() => {
@@ -152,6 +152,24 @@ test.describe('Tracker food search', () => {
     await expect(mealInput(page)).toHaveValue('Pozole Rojo')
     await expect(page.getByPlaceholder('kcal')).toHaveValue('320')
     await expect(page.getByText(/Assumes 1 bowl/)).toBeVisible()
+  })
+
+  test('tapping the 📖 badge opens the recipe in the Recipes tab', async ({ page }) => {
+    await page.evaluate(rec => {
+      localStorage.setItem('whub_custom_recipes_v1', JSON.stringify([rec]))
+    }, CUSTOM_RECIPE)
+
+    await mealInput(page).fill('mango')
+    await dropdown(page).getByText('Mango Lassi').dispatchEvent('mousedown')
+    await page.getByRole('button', { name: '+ Log food' }).click()
+
+    await page.locator('[title="Open recipe"]').click()
+
+    // App switches to the Recipes tab and the linked card is expanded
+    const openCard = page.locator('.rcard.open')
+    await expect(openCard).toBeVisible()
+    await expect(openCard).toContainText('Mango Lassi')
+    await expect(openCard).toContainText('Blend')
   })
 
   test('online search failure shows a retry row', async ({ page }) => {

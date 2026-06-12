@@ -3524,7 +3524,7 @@ describe('TrackerTab — food search', () => {
     typeQuery('mango')
     fireEvent.mouseDown(screen.getByText('Mango Lassi'))
     fireEvent.click(screen.getByText('+ Log food'))
-    expect(screen.getByTitle('Logged from a recipe')).toBeInTheDocument()
+    expect(screen.getByTitle('Open recipe')).toBeInTheDocument()
     const days = JSON.parse(ls['whub_tracker_v3'])
     const foods = (Object.values(days)[0] as { foods: { n: string; r?: number }[] }).foods
     expect(foods[0]).toMatchObject({ n: 'Mango Lassi', r: CUSTOM_RECIPE.id })
@@ -3606,5 +3606,79 @@ describe('TrackerTab — food search', () => {
     typeQuery('zztamales con mole')
     expect(screen.queryByText('Tamales, masa')).not.toBeInTheDocument()
     expect(screen.getByText(/Search online for/)).toBeInTheDocument()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
+// Food search follow-ups: builtin catalog + open-recipe-from-tracker
+// ═════════════════════════════════════════════════════════════════
+describe('TrackerTab — builtin catalog search', () => {
+  const mealInput = () => screen.getByPlaceholderText('Meal name (e.g. Berry Oats)')
+
+  function typeQuery(q: string) {
+    fireEvent.focus(mealInput())
+    fireEvent.change(mealInput(), { target: { value: q } })
+  }
+
+  it('recipes from the cached builtin catalog are searchable', () => {
+    ls['whub_builtin_recipes_v1'] = JSON.stringify([{ ...BASE_RECIPE, custom: false }])
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('test dish')
+    expect(screen.getByText('Recipes', { exact: true })).toBeInTheDocument()
+    expect(screen.getByText('Test Dish')).toBeInTheDocument()
+  })
+
+  it('a forked builtin (custom with defaultId) replaces the original in search', () => {
+    ls['whub_builtin_recipes_v1'] = JSON.stringify([{ ...BASE_RECIPE, custom: false }])
+    ls['whub_custom_recipes_v1'] = JSON.stringify([
+      { ...BASE_RECIPE, id: 9501, name: 'My Test Dish Fork', custom: true, defaultId: BASE_RECIPE.id },
+    ])
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('test dish')
+    expect(screen.getByText('My Test Dish Fork')).toBeInTheDocument()
+    expect(screen.queryByText('Test Dish')).not.toBeInTheDocument()
+  })
+
+  it('hidden builtin recipes stay out of search', () => {
+    ls['whub_builtin_recipes_v1'] = JSON.stringify([{ ...BASE_RECIPE, custom: false }])
+    ls['whub_hidden_recipes_v1'] = JSON.stringify([BASE_RECIPE.id])
+    render(<TrackerTab user={FAKE_USER} />)
+    typeQuery('test dish')
+    expect(screen.queryByText('Test Dish')).not.toBeInTheDocument()
+  })
+
+  it('tapping the 📖 badge calls onOpenRecipe with id and name', () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([{ ...CUSTOM_RECIPE, name: 'Mango Lassi' }])
+    const onOpenRecipe = vi.fn()
+    render(<TrackerTab user={FAKE_USER} onOpenRecipe={onOpenRecipe} />)
+    typeQuery('mango')
+    fireEvent.mouseDown(screen.getByText('Mango Lassi'))
+    fireEvent.click(screen.getByText('+ Log food'))
+    fireEvent.click(screen.getByTitle('Open recipe'))
+    expect(onOpenRecipe).toHaveBeenCalledWith(CUSTOM_RECIPE.id, 'Mango Lassi')
+  })
+})
+
+describe('RecipesTab — open request from tracker', () => {
+  it('expands the matching recipe card', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
+    render(<RecipesTab user={FAKE_USER} openRequest={{ id: CUSTOM_RECIPE.id, name: CUSTOM_RECIPE.name, seq: 1 }} />)
+    await waitFor(() => expect(screen.getByText('tap to collapse')).toBeInTheDocument())
+    expect(screen.getByText(CUSTOM_RECIPE.name)).toBeInTheDocument()
+  })
+
+  it('falls back to a name match when the id is stale', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
+    render(<RecipesTab user={FAKE_USER} openRequest={{ id: 424242, name: CUSTOM_RECIPE.name, seq: 1 }} />)
+    await waitFor(() => expect(screen.getByText('tap to collapse')).toBeInTheDocument())
+  })
+
+  it('surfaces unknown recipes as a search query', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
+    render(<RecipesTab user={FAKE_USER} openRequest={{ id: 424242, name: 'Ghost Recipe', seq: 1 }} />)
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText('Search recipes, ingredients…')).toHaveValue('Ghost Recipe')
+    )
+    expect(screen.queryByText('tap to collapse')).not.toBeInTheDocument()
   })
 })

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo, Fragment } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { useTrackerStore, useFoodLibraryStore, bodyStatsStore, MED_GUIDES_KEY, useUserSettingsStore, recipeStore, hiddenRecipeStore } from '../../hooks/useStore'
+import { useTrackerStore, useFoodLibraryStore, bodyStatsStore, MED_GUIDES_KEY, useUserSettingsStore, recipeStore, hiddenRecipeStore, builtinRecipeCacheStore } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
 import type { MedGuide } from '../../lib/sync'
@@ -11,6 +11,7 @@ import {
 } from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
 import { BUILTIN_RECIPES } from '../../data/recipes'
+import type { Recipe } from '../../data/recipes'
 import { searchLocalFoods, historyFoods } from '../../lib/localFoodSearch'
 import type { LocalFoodHit } from '../../lib/localFoodSearch'
 import { searchUSDAFoods, estimateFoodMacros } from '../../lib/foodSearch'
@@ -172,7 +173,11 @@ const WeekStrip = memo(function WeekStrip({ currentDate, onSelect, getDay }: {
 })
 
 // ── Main component ───────────────────────────────────────────────
-export default function TrackerTab({ user }: { user?: User | null }) {
+export default function TrackerTab({ user, onOpenRecipe }: {
+  user?: User | null
+  /** Called when the 📖 badge on a logged meal is tapped — App switches to Recipes */
+  onOpenRecipe?: (id: number | undefined, name: string) => void
+}) {
   const store         = useTrackerStore()
   const libStore      = useFoodLibraryStore()
   const settingsStore = useUserSettingsStore()
@@ -282,17 +287,38 @@ export default function TrackerTab({ user }: { user?: User | null }) {
     { k: 0, p: 0, c: 0, f: 0, fi: 0 }
   )
 
+  // Built-in recipe catalog for search — served from the localStorage cache
+  // (kept fresh by RecipesTab). Fetched once here only when the cache is empty,
+  // e.g. first app load before the Recipes tab has ever been opened.
+  const [builtinCatalog, setBuiltinCatalog] = useState<Recipe[]>(() => builtinRecipeCacheStore.getAll())
+  useEffect(() => {
+    if (!supabase || builtinCatalog.length) return
+    let cancelled = false
+    sync.fetchBuiltinRecipes().then(remote => {
+      if (cancelled || !remote?.length) return
+      builtinRecipeCacheStore.save(remote)
+      setBuiltinCatalog(remote)
+    }).catch(() => { /* offline — search still covers local sources */ })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Local search sources — re-read when the dropdown opens or the day changes
   // so newly saved recipes / logged foods are picked up without a remount.
   const searchSources = useMemo(() => {
     const custom = recipeStore.getRecipes()
     const customIds = new Set(custom.map(r => r.id))
+    // A custom recipe with defaultId is the user's fork of a built-in — the
+    // fork wins, the original is excluded from search.
+    const forkIds = new Set(custom.map(r => r.defaultId).filter((id): id is number => id != null))
     const hidden = new Set(hiddenRecipeStore.getAll())
-    const recipes = [...custom, ...BUILTIN_RECIPES.filter(b => b.id == null || !customIds.has(b.id))]
-      .filter(r => !(r.id != null && hidden.has(r.id)))
+    const catalog = builtinCatalog.length ? builtinCatalog : BUILTIN_RECIPES
+    const recipes = [...custom, ...catalog.filter(b =>
+      b.id == null || (!customIds.has(b.id) && !forkIds.has(b.id))
+    )].filter(r => !(r.id != null && hidden.has(r.id)))
     return { library: foodLib, history: historyFoods(store.getAll()), recipes, quickFoods: QUICK_FOODS }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [foodLib, showSugg, day, store])
+  }, [foodLib, showSugg, day, store, builtinCatalog])
 
   const localHits = useMemo(() => searchLocalFoods(fName, searchSources), [fName, searchSources])
   const hitGroups = ([
@@ -717,7 +743,7 @@ export default function TrackerTab({ user }: { user?: User | null }) {
                   className={`food-log-item ${editIndex === i ? 'food-log-item--editing' : ''}`}
                 >
                   <div className="flex-1">
-                    <div className="text-base text-default">{f.n}{f.r != null ? <span className="recipe-link-badge" title="Logged from a recipe">📖</span> : null}{f.s && f.s !== 1 ? <span className="text-muted2 text-2xs" style={{ marginLeft: 5 }}>×{f.s} srv</span> : null}</div>
+                    <div className="text-base text-default">{f.n}{f.r != null ? <button className="recipe-link-badge" title="Open recipe" onClick={() => onOpenRecipe?.(f.r, f.n)}>📖</button> : null}{f.s && f.s !== 1 ? <span className="text-muted2 text-2xs" style={{ marginLeft: 5 }}>×{f.s} srv</span> : null}</div>
                     <div className="food-log-meta">{f.k} kcal · {f.p}g P · {f.c}g C · {f.f}g F{f.fi ? ` · ${f.fi}g fiber` : ''}</div>
                   </div>
                   <button onClick={() => startEdit(i)} title="Edit" className={`food-edit-btn ${editIndex === i ? 'active' : ''}`}>✏</button>

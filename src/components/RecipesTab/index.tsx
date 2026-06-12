@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Recipe } from '../../data/recipes'
 import { BUILTIN_RECIPES } from '../../data/recipes'
-import { useRecipeStore, useTrackerStore, useHiddenRecipeStore, useGroceryCatalogStore } from '../../hooks/useStore'
+import { useRecipeStore, useTrackerStore, useHiddenRecipeStore, useGroceryCatalogStore, builtinRecipeCacheStore } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
 import RecipeCard from './RecipeCard'
@@ -24,7 +24,14 @@ const FILTER_BTNS: { id: Filter; label: string }[] = [
   { id: 'ferments', label: 'Ferments' },
 ]
 
-export default function RecipesTab({ user }: { user?: User | null }) {
+/** Request to open a specific recipe (from the tracker's 📖 badge).
+ *  `seq` changes on every request so repeat opens of the same recipe re-fire. */
+export interface OpenRecipeRequest { id?: number; name: string; seq: number }
+
+export default function RecipesTab({ user, openRequest }: {
+  user?: User | null
+  openRequest?: OpenRecipeRequest | null
+}) {
   const isAuth = !!user
   const store        = useRecipeStore()
   const trackerStore = useTrackerStore()
@@ -74,6 +81,8 @@ export default function RecipesTab({ user }: { user?: User | null }) {
       if (remote) {
         // Full DB catalog replaces the static fallback
         setBuiltinRecipes(remote)
+        // Cache for the tracker's log-food search (read-only consumer)
+        builtinRecipeCacheStore.save(remote)
       }
       // If fetch failed we silently keep the static fallback — no error banner
       // Merge: keep any localStorage-only recipes (not yet synced or failed to sync)
@@ -105,6 +114,37 @@ export default function RecipesTab({ user }: { user?: User | null }) {
     })()
     return () => { cancelled = true }
   }, [user?.id])
+
+  // Open-from-tracker: when a 📖 badge is tapped, expand the linked recipe.
+  // Resolve by id first; ids can go stale after the first sync (placeholder →
+  // DB id swap), so fall back to a case-insensitive name match. When nothing
+  // matches (e.g. recipe deleted or hidden), surface the name as a search so
+  // the user sees why.
+  const [autoOpenName, setAutoOpenName] = useState<string | null>(null)
+  useEffect(() => {
+    if (!openRequest) return
+    // Read the store live — customRecipes state can lag localStorage when the
+    // request arrives right after external writes (sync, another tab's upsert)
+    const all = [
+      ...store.getRecipes(),
+      ...(builtinRecipes.length ? builtinRecipes : builtinRecipeCacheStore.getAll()),
+    ]
+    const match =
+      (openRequest.id != null ? all.find(r => r.id === openRequest.id) : undefined) ??
+      all.find(r => r.name.toLowerCase() === openRequest.name.toLowerCase())
+    const visible = match && !(match.id != null && !match.custom && hiddenIds.includes(match.id))
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (match && visible) {
+      setFilter('all')
+      setQuery('')
+      setAutoOpenName(match.name.toLowerCase())
+    } else {
+      setQuery(openRequest.name)
+      setAutoOpenName(null)
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequest?.seq])
 
   const activeFilter: Filter = filter
 
@@ -361,6 +401,7 @@ export default function RecipesTab({ user }: { user?: User | null }) {
               <RecipeCard
                 key={r.custom ? r.id : i}
                 recipe={r}
+                autoOpen={autoOpenName === r.name.toLowerCase()}
                 cookCount={cookCounts[r.name.toLowerCase()] ?? 0}
                 onEdit={handleEdit}
                 onDelete={r.custom ? handleDelete : undefined}

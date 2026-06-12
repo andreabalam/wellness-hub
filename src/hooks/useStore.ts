@@ -84,6 +84,16 @@ export const recipeStore = {
   },
 }
 
+// ── Built-in recipe catalog cache ────────────────────────────────
+// The full catalog lives in the Supabase `recipes` table (user_id IS NULL).
+// RecipesTab refreshes this cache on every fetch; TrackerTab reads it so the
+// log-food search can match built-in recipes without its own network round-trip.
+const BUILTIN_CACHE_KEY = 'whub_builtin_recipes_v1'
+export const builtinRecipeCacheStore = {
+  getAll: (): Recipe[] => safeGet<Recipe[]>(BUILTIN_CACHE_KEY, []),
+  save:   (arr: Recipe[]) => safeSet(BUILTIN_CACHE_KEY, arr),
+}
+
 // ── Grocery ── plain functions ───────────────────────────────────
 export const groceryStore = {
   getChecked:  () => safeGet<string[]>(GROCERY_KEY, []),
