@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react'
-import { PRESET_CATS } from '../../data/recipes'
+import { useState, useRef, useCallback, useMemo } from 'react'
+import { PRESET_CATS, normalizeCat, catLabel } from '../../data/recipes'
 import type { Recipe } from '../../data/recipes'
 import { supabase } from '../../lib/supabase'
 import {
@@ -52,6 +52,8 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
   const [ingAmt, setIngAmt]       = useState('')
   const [steps, setSteps]         = useState<string[]>(() => initialRecipe?.steps ?? [])
   const [stepTxt, setStepTxt]     = useState('')
+  const [editingStep, setEditingStep] = useState<number | null>(null)
+  const [editStepTxt, setEditStepTxt] = useState('')
   const [tip, setTip]             = useState(() => initialRecipe?.tip ?? '')
   const [msg, setMsg]             = useState('')
   const [msgOk, setMsgOk]         = useState(true)
@@ -62,13 +64,18 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
   const [dragging, setDragging]       = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const allTags = [...new Set([...PRESET_CATS, ...customTags])]
+  const allTags = useMemo(() => [...new Set([...PRESET_CATS, ...customTags])], [customTags])
 
   // ── Import helpers ────────────────────────────────────────────
 
   const applyImport = useCallback((r: ExtractedRecipe) => {
     if (r.name)     setName(r.name)
-    if (r.cat)      setCat(r.cat)
+    // Only accept categories that exist as filter chips — the AI is asked for a
+    // valid one but isn't guaranteed to comply; anything unknown becomes 'meal'
+    if (r.cat) {
+      const c = normalizeCat(r.cat)
+      setCat(allTags.includes(c) ? c : 'meal')
+    }
     if (r.tag)      setTagLine(r.tag)
     if (r.prepTime) setPrepTime(r.prepTime)
     if (r.ings?.length)   setIngs(r.ings)
@@ -84,7 +91,7 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
       if (tag === 'healthy' || tag === 'indulgent') setHealthTag(tag)
     }
     if (r.link)      setLink(r.link)
-  }, [])
+  }, [allTags])
 
   const handleFile = useCallback(async (file: File) => {
     if (!file) return
@@ -147,6 +154,29 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
     setStepTxt('')
   }
 
+  const moveStep = (idx: number, dir: -1 | 1) => {
+    setSteps(prev => {
+      const swap = idx + dir
+      if (swap < 0 || swap >= prev.length) return prev
+      const next = [...prev]
+      ;[next[idx], next[swap]] = [next[swap], next[idx]]
+      return next
+    })
+    setEditingStep(null)
+  }
+
+  const startEditStep = (idx: number) => {
+    setEditingStep(idx)
+    setEditStepTxt(steps[idx])
+  }
+
+  const commitEditStep = () => {
+    if (editingStep === null) return
+    const txt = editStepTxt.trim()
+    setSteps(prev => txt ? prev.map((s, i) => i === editingStep ? txt : s) : prev)
+    setEditingStep(null)
+  }
+
   const save = () => {
     if (!name.trim()) { setMsg('Please enter a recipe name.'); setMsgOk(false); return }
 
@@ -163,13 +193,14 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
     }
 
     const hkVal = parseInt(kcal) || 0
+    const safeCat = normalizeCat(cat)   // never save an empty or removed category
     const recipe: Recipe = {
       id: initialRecipe?.id ?? Date.now(),
       defaultId: initialRecipe?.defaultId,
       source: initialRecipe?.source ?? 'user',
       custom: true,
-      cat,
-      type: cat.charAt(0).toUpperCase() + cat.slice(1),
+      cat: safeCat,
+      type: catLabel(safeCat),
       color: initialRecipe?.color ?? 'var(--purple)',
       sc:    initialRecipe?.sc    ?? 'cp',
       name: name.trim(),
@@ -366,8 +397,31 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
           {steps.map((s, i) => (
             <div key={i} className="step-row">
               <div className="step-num">{i + 1}</div>
-              <span className="flex-1 text-base text-default lh-16">{s}</span>
-              <button onClick={() => setSteps(prev => prev.filter((_, j) => j !== i))} className="icon-delete">×</button>
+              {editingStep === i ? (
+                <input
+                  className="tinput flex-1"
+                  value={editStepTxt}
+                  autoFocus
+                  onChange={e => setEditStepTxt(e.target.value)}
+                  onBlur={commitEditStep}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') commitEditStep()
+                    if (e.key === 'Escape') setEditingStep(null)
+                  }}
+                />
+              ) : (
+                <span
+                  className="flex-1 text-base text-default lh-16"
+                  title="Click to edit"
+                  style={{ cursor: 'text' }}
+                  onClick={() => startEditStep(i)}
+                >
+                  {s}
+                </span>
+              )}
+              <button onClick={() => moveStep(i, -1)} disabled={i === 0} title="Move up" className="icon-btn">↑</button>
+              <button onClick={() => moveStep(i, 1)} disabled={i === steps.length - 1} title="Move down" className="icon-btn">↓</button>
+              <button onClick={() => { setEditingStep(null); setSteps(prev => prev.filter((_, j) => j !== i)) }} className="icon-delete">×</button>
             </div>
           ))}
           <div className="flex gap-6">

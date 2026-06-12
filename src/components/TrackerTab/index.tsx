@@ -446,9 +446,10 @@ export default function TrackerTab({ user, onOpenRecipe }: {
       setPhotoNotes(result.notes)
       setPhotoConfidence(result.confidence)
       setPhotoStatus('idle')
-    } catch {
+    } catch (err) {
+      console.error('[TrackerTab] photo analysis failed:', err)
       setPhotoStatus('error')
-      setPhotoNotes('Could not identify — fill in manually.')
+      setPhotoNotes(err instanceof Error && err.message ? err.message : 'Could not identify — fill in manually.')
     }
   }, [])
 
@@ -752,12 +753,12 @@ export default function TrackerTab({ user, onOpenRecipe }: {
               ))}
             </div>
             <div style={{ paddingTop: 12 }}>
-              {/* Hidden file input for photo capture */}
+              {/* Hidden file input for photo capture — no `capture` attr so
+                  mobile browsers offer both camera and photo library */}
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="hidden"
                 onChange={handlePhotoSelect}
               />

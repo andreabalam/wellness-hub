@@ -50,12 +50,9 @@ function dataURLtoBlob(dataUrl: string): Blob {
 
 // ── Label detection ───────────────────────────────────────────────
 
-export async function isNutritionLabel(file: File): Promise<boolean> {
-  const thumb = await resizeImage(file, 200)
-  const { data: { text } } = await Tesseract.recognize(dataURLtoBlob(thumb), 'eng')
-  const lower = text.toLowerCase()
-  const matches = LABEL_KEYWORDS.filter(kw => lower.includes(kw))
-  return matches.length >= 2
+function looksLikeLabel(ocrText: string): boolean {
+  const lower = ocrText.toLowerCase()
+  return LABEL_KEYWORDS.filter(kw => lower.includes(kw)).length >= 2
 }
 
 // ── Nutrition label parser ────────────────────────────────────────
@@ -108,19 +105,23 @@ export async function analyzeImage(
 ): Promise<PhotoAnalysisResult> {
   onStatus('Detecting…')
 
-  // isNutritionLabel uses canvas — can fail on formats the browser can't decode
-  // (e.g. HEIC in Chromium). If it throws, treat the image as a food photo.
-  let label = false
+  // Resize once — large enough for OCR to read label text, small enough to
+  // upload. Canvas can fail on formats the browser can't decode (e.g. HEIC in
+  // Chromium); fall back to the raw file for OCR and FileReader for upload.
+  const resized: string | null = await resizeImage(file, 900).catch(() => null)
+
+  // Single OCR pass, shared by label detection and label parsing
+  let ocrText = ''
   try {
-    label = await isNutritionLabel(file)
-  } catch {
-    // fall through to photo analysis
+    const { data: { text } } = await Tesseract.recognize(resized ? dataURLtoBlob(resized) : file, 'eng')
+    ocrText = text
+  } catch (err) {
+    console.error('[analyzeFood] OCR failed — treating as food photo:', err)
   }
 
-  if (label) {
+  if (looksLikeLabel(ocrText)) {
     onStatus('Reading label…')
-    const { data: { text } } = await Tesseract.recognize(file, 'eng')
-    const result = parseNutritionLabel(text)
+    const result = parseNutritionLabel(ocrText)
 
     // Log to Edge Function — fire-and-forget; no image is sent
     supabase?.functions.invoke('analyze-food-photo', {
@@ -133,19 +134,23 @@ export async function analyzeImage(
   onStatus('Identifying food…')
   if (!supabase) throw new Error('Supabase not configured — cannot analyze food photos.')
 
-  // Try canvas resize first (smaller payload); fall back to FileReader for
-  // formats the canvas can't encode (e.g. HEIC on Chromium/Firefox).
-  let base64: string
-  try {
-    base64 = await resizeImage(file, 800)
-  } catch {
-    base64 = await fileToDataURL(file)
-  }
+  const base64 = resized ?? await fileToDataURL(file)
+  // The fallback path keeps the original format — tell the API what it really is
+  const mimeType = base64.match(/^data:([^;,]+)/)?.[1] ?? 'image/jpeg'
 
   const { data, error } = await supabase.functions.invoke('analyze-food-photo', {
-    body: { mode: 'photo', image: base64, mimeType: 'image/jpeg' },
+    body: { mode: 'photo', image: base64, mimeType },
   })
 
-  if (error) throw new Error('Food analysis failed — please fill in manually.')
+  if (error) {
+    // FunctionsHttpError carries the Response in .context — surface the server's reason
+    let detail = ''
+    try {
+      const ctx = (error as { context?: Response }).context
+      detail = ((await ctx?.json()) as { error?: string } | undefined)?.error ?? ''
+    } catch { /* no JSON body */ }
+    console.error('[analyzeFood] analyze-food-photo failed:', error, detail)
+    throw new Error(detail ? `Food analysis failed: ${detail}` : 'Food analysis failed — please fill in manually.')
+  }
   return data as PhotoAnalysisResult
 }

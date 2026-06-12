@@ -1,6 +1,7 @@
 import type { DayData, QuickFood } from '../data/tracker'
 import { EMPTY_DAY } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
+import { normalizeCat, catLabel } from '../data/recipes'
 import type { CustomBlock, WeekSchedule, DayKey } from '../data/schedule'
 import { SCHEDULE_BLOCKS, defaultToCustomBlock, makeWeekSchedule } from '../data/schedule'
 import type { MedGuide, UserSettings, UserBodyStats, UserWorkoutPlan } from '../lib/sync'
@@ -54,12 +55,12 @@ export const trackerStore = {
   },
 }
 
-// ── One-time localStorage migration: lunch/dinner → meal ─────────
+// ── One-time localStorage migration: lunch/dinner/missing cat → meal ──
 ;(() => {
   const raw = safeGet<Recipe[]>(RECIPES_KEY, [])
-  if (raw.some(r => r.cat === 'lunch' || r.cat === 'dinner')) {
+  if (raw.some(r => normalizeCat(r.cat) !== r.cat)) {
     safeSet(RECIPES_KEY, raw.map(r =>
-      (r.cat === 'lunch' || r.cat === 'dinner') ? { ...r, cat: 'meal', type: 'Meal' } : r
+      normalizeCat(r.cat) !== r.cat ? { ...r, cat: normalizeCat(r.cat), type: catLabel(normalizeCat(r.cat)) } : r
     ))
   }
 })()
