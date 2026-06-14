@@ -61,6 +61,7 @@ const EXTRACTED: ExtractedRecipe = {
   ings: [['Avocado', '1'], ['Bread', '2 slices']],
   steps: ['Mash avocado', 'Toast bread'],
   tip: 'Add chilli flakes', kcal: 320, protein: '8g', carbs: '30g', fat: '18g',
+  dietTag: 'vegetarian',
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -183,6 +184,7 @@ describe('importRecipeFromFile', () => {
     expect(result.name).toBe('Avocado Toast')
     expect(result.cat).toBe('breakfast')
     expect(result.ings).toHaveLength(2)
+    expect(result.dietTag).toBe('vegetarian')
   })
 
   it('sends Authorization header with the access token', async () => {

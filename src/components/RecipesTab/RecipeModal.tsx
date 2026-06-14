@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo } from 'react'
-import { PRESET_CATS, normalizeCat, catLabel } from '../../data/recipes'
-import type { Recipe } from '../../data/recipes'
+import { PRESET_CATS, normalizeCat, catLabel, DIET_TAGS } from '../../data/recipes'
+import type { Recipe, DietTag } from '../../data/recipes'
 import { supabase } from '../../lib/supabase'
 import {
   importRecipeFromFile,
@@ -45,6 +45,7 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
   const [newTag, setNewTag]       = useState('')
   const [prepTime, setPrepTime]   = useState(() => initialRecipe?.prepTime ?? initialRecipe?.prepL ?? '')
   const [healthTag, setHealthTag] = useState<'healthy' | 'indulgent' | ''>(() => initialRecipe?.healthTag ?? '')
+  const [dietTag, setDietTag]     = useState<DietTag | ''>(() => initialRecipe?.dietTag ?? '')
   const [link, setLink]           = useState(() => initialRecipe?.link ?? '')
   const [image, setImage]         = useState(() => initialRecipe?.image ?? '')
   const [kcal, setKcal]           = useState(() => initialRecipe ? String(initialRecipe.hk || '') : '')
@@ -100,6 +101,11 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
     if (r.healthTag) {
       const tag = String(r.healthTag).toLowerCase().trim()
       if (tag === 'healthy' || tag === 'indulgent') setHealthTag(tag)
+    }
+    if (r.dietTag) {
+      const d = String(r.dietTag).toLowerCase().trim()
+      const match = DIET_TAGS.find(dt => dt.id === d)
+      if (match) setDietTag(match.id)
     }
     if (r.link)      setLink(r.link)
   }, [allTags])
@@ -256,6 +262,7 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
       prepC: 'var(--purple)',
       prepTime: prepTime || undefined,
       healthTag: (healthTag as 'healthy' | 'indulgent') || undefined,
+      dietTag: dietTag || undefined,
       link: link.trim() || undefined,
       image: image.trim() || undefined,
       hk: hkVal,
@@ -409,6 +416,21 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
             <button onClick={() => setHealthTag(healthTag === 'indulgent' ? '' : 'indulgent')} style={chipStyle(healthTag === 'indulgent', 'var(--purple)')}>
               ✧ Indulgent
             </button>
+          </div>
+        </FieldRow>
+
+        {/* Diet tag */}
+        <FieldRow label="Dietary approach (optional)">
+          <div className="flex flex-wrap gap-6">
+            {DIET_TAGS.map(d => (
+              <button
+                key={d.id}
+                onClick={() => setDietTag(dietTag === d.id ? '' : d.id)}
+                style={chipStyle(dietTag === d.id, 'var(--teal)')}
+              >
+                {d.label}
+              </button>
+            ))}
           </div>
         </FieldRow>
 

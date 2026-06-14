@@ -136,6 +136,10 @@ body {
   background: var(--bg3, var(--border)); color: var(--muted);
   border-radius: 9px; padding: 0 5px; line-height: 15px; min-width: 15px; text-align: center;
 }
+.rfbtn--sm {
+  padding: 3px 10px; font-size: 11px; border-radius: 7px;
+  &.active, &:hover { border-color: var(--teal); color: var(--teal-light); background: rgba(74,158,158,0.08); }
+}
 .rgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
 .rcard {
   background: var(--bg2); border: 1px solid var(--border);

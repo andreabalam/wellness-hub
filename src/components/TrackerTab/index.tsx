@@ -91,23 +91,34 @@ const MacroBar = memo(function MacroBar({ label, sub, val, target, color, valCol
 })
 
 // ── Star picker ──────────────────────────────────────────────────
-const StarRow = memo(function StarRow({ value, onChange, emoji }: { value: number; onChange: (v: number) => void; emoji: string }) {
+const StarRow = memo(function StarRow({ value, onChange, emoji, lowLabel, highLabel }: {
+  value: number; onChange: (v: number) => void; emoji: string
+  lowLabel?: string; highLabel?: string
+}) {
   return (
-    <div className="flex gap-6">
-      {[1, 2, 3, 4, 5].map(i => (
-        <button
-          key={i}
-          onClick={() => onChange(i === value ? 0 : i)}
-          style={{
-            width: 30, height: 30, borderRadius: 6,
-            border: `1px solid ${i <= value ? 'var(--purple)' : 'var(--border)'}`,
-            background: i <= value ? 'rgba(138,106,184,0.18)' : 'var(--bg3)',
-            cursor: 'pointer', fontSize: 15, transition: 'all .15s',
-          }}
-        >
-          {i <= value ? emoji : '·'}
-        </button>
-      ))}
+    <div>
+      <div className="flex gap-6">
+        {[1, 2, 3, 4, 5].map(i => (
+          <button
+            key={i}
+            onClick={() => onChange(i === value ? 0 : i)}
+            style={{
+              width: 30, height: 30, borderRadius: 6,
+              border: `1px solid ${i <= value ? 'var(--purple)' : 'var(--border)'}`,
+              background: i <= value ? 'rgba(138,106,184,0.18)' : 'var(--bg3)',
+              cursor: 'pointer', fontSize: 15, transition: 'all .15s',
+            }}
+          >
+            {i <= value ? emoji : '·'}
+          </button>
+        ))}
+      </div>
+      {(lowLabel || highLabel) && (
+        <div className="flex-between text-2xs text-muted2 mt-4" style={{ maxWidth: 174 }}>
+          <span>{lowLabel}</span>
+          <span>{highLabel}</span>
+        </div>
+      )}
     </div>
   )
 })
@@ -1081,15 +1092,15 @@ export default function TrackerTab({ user, onOpenRecipe }: {
             <div className="flex flex-col gap-12">
               <div>
                 <div className="text-sm text-muted mb-6">Energy ⚡</div>
-                <StarRow value={energy} onChange={setEnergy} emoji="E" />
+                <StarRow value={energy} onChange={setEnergy} emoji="E" lowLabel="Drained" highLabel="Peaked" />
               </div>
               <div>
                 <div className="text-sm text-muted mb-6">Mood 😊</div>
-                <StarRow value={mood} onChange={setMood} emoji="M" />
+                <StarRow value={mood} onChange={setMood} emoji="M" lowLabel="Low" highLabel="Bright" />
               </div>
               <div>
                 <div className="text-sm text-muted mb-6">Sleep 🌙</div>
-                <StarRow value={sleep} onChange={setSleep} emoji="Z" />
+                <StarRow value={sleep} onChange={setSleep} emoji="Z" lowLabel="Poor" highLabel="Restorative" />
               </div>
               <div>
                 <div className="text-sm text-muted mb-6">Cycle phase</div>

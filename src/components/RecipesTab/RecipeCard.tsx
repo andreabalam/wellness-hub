@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, memo } from 'react'
 import type { Recipe } from '../../data/recipes'
+import { dietTagLabel } from '../../data/recipes'
 
 interface Props {
   recipe: Recipe
@@ -96,6 +97,13 @@ export default memo(function RecipeCard({
               <span className="dyn-badge" style={{ border: `1px solid ${healthBadge.color}`, color: healthBadge.color }}>
                 {healthBadge.label === 'Healthy' ? '✦ ' : healthBadge.label === 'Indulgent' ? '✧ ' : '⚠ '}
                 {healthBadge.label}
+              </span>
+            )}
+
+            {/* Dietary approach badge */}
+            {r.dietTag && (
+              <span className="dyn-badge" style={{ border: '1px solid var(--teal)', color: 'var(--teal-light)' }}>
+                {dietTagLabel(r.dietTag)}
               </span>
             )}
 

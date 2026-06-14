@@ -99,6 +99,11 @@ describe('MED_MINS / MED_STYLES', () => {
   it('MED_STYLES has at least 3 options', () => {
     expect(MED_STYLES.length).toBeGreaterThanOrEqual(3)
   })
+
+  it('MED_STYLES includes the breathing techniques', () => {
+    expect(MED_STYLES).toContain('Box breathing')
+    expect(MED_STYLES).toContain('Long exhale')
+  })
 })
 
 describe('PHASE_NOTES', () => {
