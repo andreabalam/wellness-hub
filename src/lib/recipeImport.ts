@@ -18,6 +18,7 @@ export interface ExtractedRecipe {
   fat?:     string | null
   fiber?:   string | null
   healthTag?: 'healthy' | 'indulgent' | null | string
+  dietTag?: string | null
   link?:    string
 }
 

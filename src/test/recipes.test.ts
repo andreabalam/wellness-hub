@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PRESET_CATS, DEFAULT_RECIPE_IDS } from '../data/recipes'
+import { PRESET_CATS, DEFAULT_RECIPE_IDS, DIET_TAGS, dietTagLabel } from '../data/recipes'
 import type { Recipe } from '../data/recipes'
 
 // ── Recipe interface fixtures ─────────────────────────────────────
@@ -240,5 +240,36 @@ describe('Recipe interface — Phase 1 new fields', () => {
       hidden: true,
     }
     expect(recipe.hidden).toBe(true)
+  })
+})
+
+// ── Diet tags ─────────────────────────────────────────────────────
+
+describe('DIET_TAGS / dietTagLabel', () => {
+  it('exposes the six dietary approaches', () => {
+    const ids = DIET_TAGS.map(d => d.id)
+    expect(ids).toEqual([
+      'mediterranean', 'portfolio', 'gluten-free', 'paleo', 'vegan', 'vegetarian',
+    ])
+  })
+
+  it('dietTagLabel resolves an id to its display label', () => {
+    expect(dietTagLabel('gluten-free')).toBe('Gluten-free')
+    expect(dietTagLabel('mediterranean')).toBe('Mediterranean')
+  })
+
+  it('dietTagLabel falls back to the raw id when unknown', () => {
+    expect(dietTagLabel('keto')).toBe('keto')
+  })
+
+  it('dietTag is optional on a recipe and defaults to undefined', () => {
+    const recipe: Recipe = {
+      cat: 'meal', type: 'Meal', color: '', sc: '', name: 'Plain',
+      tag: '', prepL: '', prepC: '', hk: 0, hp: '0g', hc: '0g', hf: '0g',
+      mk: 0, mp: '0g', mc: '0g', mf: '0g', ings: [], steps: [], tip: '',
+    }
+    expect(recipe.dietTag).toBeUndefined()
+    const tagged: Recipe = { ...recipe, dietTag: 'vegan' }
+    expect(tagged.dietTag).toBe('vegan')
   })
 })

@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { User } from '@supabase/supabase-js'
-import type { Recipe } from '../../data/recipes'
-import { BUILTIN_RECIPES } from '../../data/recipes'
+import type { Recipe, DietTag } from '../../data/recipes'
+import { BUILTIN_RECIPES, DIET_TAGS } from '../../data/recipes'
 import { useRecipeStore, useTrackerStore, useHiddenRecipeStore, useGroceryCatalogStore, builtinRecipeCacheStore } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
@@ -52,6 +52,7 @@ export default function RecipesTab({ user, openRequest }: {
   }, [trackerStore])
 
   const [filter, setFilter]         = useState<Filter>('all')
+  const [dietFilter, setDietFilter] = useState<DietTag | 'all'>('all')
   const [showModal, setShowModal]   = useState(false)
   const [cookingRecipe, setCookingRecipe]   = useState<Recipe | null>(null)
   const [groceryRecipe, setGroceryRecipe]   = useState<Recipe | null>(null)
@@ -284,24 +285,32 @@ export default function RecipesTab({ user, openRequest }: {
     return counts
   }, [customRecipes, visibleBuiltins])
 
+  // True when at least one visible recipe carries a diet tag — gates the diet filter row
+  const hasDietTags = useMemo(
+    () => [...customRecipes, ...visibleBuiltins].some(r => r.dietTag),
+    [customRecipes, visibleBuiltins]
+  )
+
   // Displayed recipes
   const visibleRecipes = useMemo<Recipe[]>(() => {
     const q = query.trim().toLowerCase()
+    const applyDiet = (list: Recipe[]) =>
+      dietFilter === 'all' ? list : list.filter(r => r.dietTag === dietFilter)
 
     // When searching, scan everything (built-in + custom) regardless of filter
     if (q) {
       const all = [...customRecipes, ...visibleBuiltins]
-      return all.filter(r =>
+      return applyDiet(all.filter(r =>
         r.name.toLowerCase().includes(q) ||
         (r.tag  ?? '').toLowerCase().includes(q) ||
         (r.type ?? '').toLowerCase().includes(q) ||
         r.ings.some(([ing]) => ing.toLowerCase().includes(q))
-      )
+      ))
     }
 
-    if (activeFilter === 'all') return [...customRecipes, ...visibleBuiltins]
-    return [...customRecipes.filter(r => r.cat === activeFilter), ...visibleBuiltins.filter(r => r.cat === activeFilter)]
-  }, [query, activeFilter, visibleBuiltins, customRecipes])
+    if (activeFilter === 'all') return applyDiet([...customRecipes, ...visibleBuiltins])
+    return applyDiet([...customRecipes.filter(r => r.cat === activeFilter), ...visibleBuiltins.filter(r => r.cat === activeFilter)])
+  }, [query, activeFilter, dietFilter, visibleBuiltins, customRecipes])
 
   if (!user) {
     return (
@@ -361,6 +370,27 @@ export default function RecipesTab({ user, openRequest }: {
           {query && (
             <button onClick={() => setQuery('')} className="recipe-search-clear">×</button>
           )}
+        </div>
+      )}
+
+      {/* Dietary approach filter — only shown when some recipes are diet-tagged */}
+      {activeFilter !== 'grocery' && hasDietTags && (
+        <div className="flex flex-wrap gap-6 mb-12 items-center">
+          <button
+            className={`rfbtn rfbtn--sm${dietFilter === 'all' ? ' active' : ''}`}
+            onClick={() => setDietFilter('all')}
+          >
+            All diets
+          </button>
+          {DIET_TAGS.map(d => (
+            <button
+              key={d.id}
+              className={`rfbtn rfbtn--sm${dietFilter === d.id ? ' active' : ''}`}
+              onClick={() => setDietFilter(dietFilter === d.id ? 'all' : d.id)}
+            >
+              {d.label}
+            </button>
+          ))}
         </div>
       )}
 

@@ -41,6 +41,28 @@ export interface Recipe {
    * Hidden defaults do not appear in the recipe list but can be restored.
    */
   hidden?: boolean
+  /**
+   * Optional dietary approach the recipe fits (Section 17 — Special Diets).
+   * Lets users filter recipes by the diet they currently follow. See DIET_TAGS.
+   */
+  dietTag?: DietTag
+}
+
+/** Dietary approaches a recipe can be tagged with. `id` is what we store. */
+export const DIET_TAGS = [
+  { id: 'mediterranean', label: 'Mediterranean' },
+  { id: 'portfolio',     label: 'Portfolio' },
+  { id: 'gluten-free',   label: 'Gluten-free' },
+  { id: 'paleo',         label: 'Paleo' },
+  { id: 'vegan',         label: 'Vegan' },
+  { id: 'vegetarian',    label: 'Vegetarian' },
+] as const
+
+export type DietTag = typeof DIET_TAGS[number]['id']
+
+/** Display label for a diet tag id, e.g. 'gluten-free' → 'Gluten-free'. */
+export function dietTagLabel(id: string): string {
+  return DIET_TAGS.find(d => d.id === id)?.label ?? id
 }
 
 export const PRESET_CATS = ['breakfast', 'smoothie', 'meal', 'dessert', 'ferments', 'snack', 'drinks', 'sauce', 'side']

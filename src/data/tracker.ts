@@ -44,7 +44,7 @@ export const SESSION_OPTS: SessionOption[] = [
 ]
 
 export const MED_MINS = [5, 10, 13, 15, 20]
-export const MED_STYLES = ['Breath focus', 'Body scan', 'Visualization', 'Guided', 'Silent']
+export const MED_STYLES = ['Breath focus', 'Box breathing', 'Long exhale', 'Body scan', 'Visualization', 'Guided', 'Silent']
 
 export const PHASE_NOTES: Record<string, string> = {
   Menstrual: 'Week 1: Low intensity. Pilates + gentle activation. Be kind to yourself.',
