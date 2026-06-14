@@ -30,21 +30,26 @@ const MAX_TEXT_CHARS = 40_000
 type Payload =
   | { type: 'text';  content: string }
   | { type: 'image'; content: string; mimeType: string }
+  | { type: 'pdf';   content: string }
 
 // ── Public API ────────────────────────────────────────────────────
 
 /**
  * Read a File and convert it to the payload shape expected by the edge function.
  * - .txt  → plain text
- * - .pdf  → text extracted page-by-page via pdfjs-dist (lazy-loaded)
+ * - .pdf  → base64-encoded bytes; Claude reads the PDF natively server-side
  * - image → base64-encoded bytes (data URL prefix stripped)
+ *
+ * PDFs are sent as-is rather than parsed in-browser: client-side PDF text
+ * extraction (pdfjs-dist) crashes on mobile Safari, and Claude's native PDF
+ * support reads layout and scanned pages better than naive text extraction.
  */
 export async function preparePayload(file: File): Promise<Payload> {
   const mime = file.type || guessMime(file.name)
 
   if (mime === 'application/pdf') {
-    const text = await extractPdfText(file)
-    return { type: 'text', content: text.slice(0, MAX_TEXT_CHARS) }
+    const base64 = await readAsBase64(file)
+    return { type: 'pdf', content: base64 }
   }
 
   if (mime === 'text/plain') {
@@ -112,34 +117,6 @@ export function readAsBase64(file: File): Promise<string> {
     reader.onerror = () => reject(new Error('Could not read file'))
     reader.readAsDataURL(file)
   })
-}
-
-export async function extractPdfText(file: File): Promise<string> {
-  // Lazy-load pdfjs-dist so it doesn't bloat the main bundle
-  const pdfjsLib = await import('pdfjs-dist')
-
-  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      'pdfjs-dist/build/pdf.worker.min.mjs',
-      import.meta.url,
-    ).href
-  }
-
-  const arrayBuffer = await file.arrayBuffer()
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-
-  const pages: string[] = []
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page    = await pdf.getPage(i)
-    const content = await page.getTextContent()
-    const text    = content.items
-      .map((item) => (item as { str: string }).str)
-      .join(' ')
-    pages.push(text)
-    if (pages.join('\n').length >= MAX_TEXT_CHARS) break  // stop early once we have enough
-  }
-
-  return pages.join('\n\n')
 }
 
 // ── Internal helpers ──────────────────────────────────────────────
