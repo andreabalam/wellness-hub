@@ -19,3 +19,4 @@ supabase/
 plan/
 
 tsconfig.app.tsbuildinfo
+tsconfig.node.tsbuildinfo
