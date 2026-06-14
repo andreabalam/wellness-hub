@@ -140,6 +140,13 @@ describe('preparePayload', () => {
     expect((payload as { mimeType: string }).mimeType).toBe('image/webp')
   })
 
+  it('returns type "pdf" with base64 content for .pdf files', async () => {
+    const file = makeFile('recipe.pdf', 'application/pdf', '%PDF-1.4 fake')
+    const payload = await preparePayload(file)
+    expect(payload.type).toBe('pdf')
+    expect((payload as { content: string }).content.length).toBeGreaterThan(0)
+  })
+
   it('truncates text content to MAX_TEXT_CHARS (40 000 chars)', async () => {
     const longText = 'x'.repeat(60_000)
     const file = makeFile('big.txt', 'text/plain', longText)
