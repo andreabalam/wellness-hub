@@ -287,7 +287,7 @@ describe('App (with mocked Supabase)', () => {
   it('tracker days are pushed individually via pushDay (line 78)', async () => {
     const dayData = {
       foods: [], workout: 'pilates', wkNotes: '', energy: 3,
-      mood: 4, sleep: 5, phase: '', notes: '', medMin: 0, medStyle: '',
+      mood: 4, sleep: 5, stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '',
     }
     ls['whub_tracker_v3'] = JSON.stringify({ '2026-01-15': dayData })
     mockAuth.getSession.mockResolvedValue({ data: { session: { user: MOCK_USER } }, error: null })

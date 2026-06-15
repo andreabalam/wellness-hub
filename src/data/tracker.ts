@@ -59,6 +59,7 @@ export interface FoodEntry {
   n: string; k: number; p: number; c: number; f: number; fi: number
   s?: number  // servings logged (stored so edit can reverse-calculate per-serving values)
   r?: number  // recipe id when logged from a recipe hit (ids can go stale after first sync — resolve by id, fall back to name match)
+  sat?: number  // Noom satiety after this meal (1–7, optional; "Ravenous" → "Out of commission")
 }
 
 export interface DayData {
@@ -68,6 +69,8 @@ export interface DayData {
   energy: number
   mood: number
   sleep: number
+  stress: number  // 1–5; auto-filled from Oura daily_stress when connected, else manual
+  water: number   // glasses of water (0–12)
   phase: string
   notes: string
   medMin: number
@@ -76,5 +79,8 @@ export interface DayData {
 
 export const EMPTY_DAY: DayData = {
   foods: [], workout: null, wkNotes: '', energy: 0, mood: 0,
-  sleep: 0, phase: '', notes: '', medMin: 0, medStyle: '',
+  sleep: 0, stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '',
 }
+
+/** Max glasses the hydration counter allows. */
+export const WATER_MAX = 12

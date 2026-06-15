@@ -397,6 +397,23 @@
   background: none; border: none; padding: 0; cursor: pointer;
 }
 
+.satiety-badge {
+  margin-left: 6px; font-size: 9px; line-height: 15px;
+  padding: 0 6px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--teal); color: var(--teal-light);
+  background: rgba(74, 158, 158, 0.08);
+  font-family: "DM Mono", monospace; white-space: nowrap;
+}
+
+.water-btn {
+  width: 30px; height: 30px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg3);
+  color: var(--blue-light); font-size: 17px; line-height: 1; cursor: pointer;
+  transition: all .15s;
+  &:hover:not(:disabled) { border-color: var(--blue); }
+  &:disabled { opacity: .4; cursor: default; }
+}
+
 // ── Oura sync button ──────────────────────────────────────────────
 .oura-sync-btn {
   font-size: 11px; padding: 4px 10px; border-radius: 6px;

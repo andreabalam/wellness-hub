@@ -22,7 +22,7 @@ function makeRecipe(over: Partial<Recipe> = {}): Recipe {
 function makeDay(foods: DayData['foods']): DayData {
   return {
     foods, workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0,
-    phase: '', notes: '', medMin: 0, medStyle: '',
+    stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '',
   }
 }
 

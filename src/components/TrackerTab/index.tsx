@@ -7,7 +7,7 @@ import type { MedGuide } from '../../lib/sync'
 import { macrosFromKcal } from '../../lib/stats'
 import ProfileStatsCard from './ProfileStatsCard'
 import {
-  QUICK_FOODS, SESSION_OPTS, MED_MINS, MED_STYLES, PHASE_NOTES,
+  QUICK_FOODS, SESSION_OPTS, MED_MINS, MED_STYLES, PHASE_NOTES, WATER_MAX,
 } from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
 import { BUILTIN_RECIPES } from '../../data/recipes'
@@ -18,9 +18,9 @@ import { searchUSDAFoods, estimateFoodMacros } from '../../lib/foodSearch'
 import type { UsdaFoodHit } from '../../lib/foodSearch'
 import {
   isOuraConnected,
-  fetchOuraWorkouts, fetchOuraReadiness, fetchOuraSessions, fetchOuraSleep,
+  fetchOuraWorkouts, fetchOuraReadiness, fetchOuraSessions, fetchOuraSleep, fetchOuraStress,
   OURA_ACTIVITY_MAP, OURA_SESSION_MAP, roundToMedMin,
-  readinessColor, readinessLabel, sleepScoreToStars,
+  readinessColor, readinessLabel, sleepScoreToStars, stressToScale,
 } from '../../lib/oura'
 import type { OuraReadiness } from '../../lib/oura'
 import { safeGet, safeSet } from '../../lib/storage'
@@ -123,6 +123,35 @@ const StarRow = memo(function StarRow({ value, onChange, emoji, lowLabel, highLa
   )
 })
 
+/** Optional 1–7 Noom satiety selector. value 0 = unset; tapping the active cell clears it. */
+const SatietyRow = memo(function SatietyRow({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div>
+      <div className="flex gap-4">
+        {[1, 2, 3, 4, 5, 6, 7].map(i => (
+          <button
+            key={i}
+            onClick={() => onChange(i === value ? 0 : i)}
+            style={{
+              width: 26, height: 26, borderRadius: 6, fontSize: 12,
+              border: `1px solid ${i === value ? 'var(--teal)' : 'var(--border)'}`,
+              background: i === value ? 'rgba(74,158,158,0.18)' : 'var(--bg3)',
+              color: i === value ? 'var(--teal-light)' : 'var(--muted)',
+              cursor: 'pointer', transition: 'all .15s',
+            }}
+          >
+            {i}
+          </button>
+        ))}
+      </div>
+      <div className="flex-between text-2xs text-muted2 mt-4" style={{ maxWidth: 206 }}>
+        <span>Ravenous</span>
+        <span>Out of commission</span>
+      </div>
+    </div>
+  )
+})
+
 // ── Week strip ───────────────────────────────────────────────────
 const WeekStrip = memo(function WeekStrip({ currentDate, onSelect, getDay }: {
   currentDate: Date
@@ -214,6 +243,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
   const [fFat, setFat]            = useState('')
   const [fFiber, setFFiber]       = useState('')
   const [fServings, setFServings] = useState('1')
+  const [fSat, setFSat]           = useState(0)
   const [editIndex, setEditIndex] = useState<number | null>(null)
   const [showSugg, setShowSugg]   = useState(false)
   const [foodLib, setFoodLib]     = useState<QuickFood[]>(() => libStore.getAll())
@@ -245,6 +275,8 @@ export default function TrackerTab({ user, onOpenRecipe }: {
   const [energy, setEnergy]     = useState(0)
   const [mood, setMood]         = useState(0)
   const [sleep, setSleep]       = useState(0)
+  const [stress, setStress]     = useState(0)
+  const [water, setWater]       = useState(0)
   const [phase, setPhase]       = useState('')
   const [dayNotes, setDayNotes] = useState('')
   const [notesSaved, setNotesSaved] = useState(false)
@@ -269,13 +301,15 @@ export default function TrackerTab({ user, onOpenRecipe }: {
     setEnergy(data.energy ?? 0)
     setMood(data.mood ?? 0)
     setSleep(data.sleep ?? 0)
+    setStress(data.stress ?? 0)
+    setWater(data.water ?? 0)
     setPhase(data.phase ?? '')
     setDayNotes(data.notes ?? '')
     setWkSaved(!!data.workout)
     setMedSaved(!!data.medMin)
     setEditIndex(null)
     setFName(''); setFKcal(''); setFPro(''); setFCarb(''); setFat(''); setFFiber('')
-    setFServings('1')
+    setFServings('1'); setFSat(0)
     setFRecipeId(null)
     setShowSugg(false)
     setPhotoStatus('idle'); setPhotoNotes(''); setPhotoConfidence(null)
@@ -422,6 +456,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
     setFat(String(srv > 1 ? Math.round(f.f / srv) : f.f))
     setFFiber(String(srv > 1 ? Math.round(f.fi / srv) : f.fi))
     setFRecipeId(f.r ?? null)
+    setFSat(f.sat ?? 0)
     setShowSugg(false)
     resetOnline()
   }
@@ -429,7 +464,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
   const cancelEdit = () => {
     setEditIndex(null)
     setFName(''); setFKcal(''); setFPro(''); setFCarb(''); setFat(''); setFFiber('')
-    setFServings('1')
+    setFServings('1'); setFSat(0)
     setFRecipeId(null)
     setPhotoStatus('idle'); setPhotoNotes(''); setPhotoConfidence(null)
     resetOnline()
@@ -480,6 +515,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
       fi: Math.round(perFi * srv),
       ...(srv !== 1 ? { s: srv } : {}),
       ...(fRecipeId != null ? { r: fRecipeId } : {}),
+      ...(fSat ? { sat: fSat } : {}),
     }
     // Upsert per-serving values into food library
     if (perK > 0) {
@@ -495,7 +531,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
       save({ foods: [...day.foods, entry] })
     }
     setFName(''); setFKcal(''); setFPro(''); setFCarb(''); setFat(''); setFFiber('')
-    setFServings('1')
+    setFServings('1'); setFSat(0)
     setFRecipeId(null)
   }
 
@@ -541,7 +577,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
   }
 
   const saveCheckIn = () => {
-    save({ energy, mood, sleep, phase })
+    save({ energy, mood, sleep, stress, phase })
     setCheckInSaved(true)
     setTimeout(() => setCheckInSaved(false), 1600)
   }
@@ -666,6 +702,23 @@ export default function TrackerTab({ user, onOpenRecipe }: {
     } catch { /* silent — sleep sync is best-effort */ }
   }, [ouraConnected, sleep, date])
 
+  // Auto-populate the stress scale from Oura daily_stress (same lazy pattern as sleep)
+  const syncStressFromOura = useCallback(async () => {
+    if (!ouraConnected || stress > 0) return   // don't overwrite a manual/already-set value
+    try {
+      const data = await fetchOuraStress(dkey(date))
+      const scaled = data && stressToScale(data)
+      if (scaled) setStress(scaled)
+    } catch { /* silent — stress sync is best-effort */ }
+  }, [ouraConnected, stress, date])
+
+  // Hydration counter — persists immediately on each tap
+  const adjustWater = (delta: number) => {
+    const next = Math.max(0, Math.min(WATER_MAX, water + delta))
+    setWater(next)
+    save({ water: next })
+  }
+
   const [wide, setWide] = useState(window.innerWidth >= 680)
   useEffect(() => {
     const handler = () => setWide(window.innerWidth >= 680)
@@ -741,6 +794,10 @@ export default function TrackerTab({ user, onOpenRecipe }: {
               <MacroBar label="Fat" sub="hormonal health" val={totals.f} target={activeFatTarget} color="var(--coral)" valColor="var(--coral-light)" />
               <MacroBar label="Fiber" sub="satiety on deficit" val={totals.fi} target={activeFiberTarget} color="var(--teal)" valColor="var(--teal-light)" />
             </div>
+            <div className="flex-between mt-12 text-sm">
+              <span className="text-muted">💧 Water</span>
+              <span className="font-mono text-blue">{day.water ?? 0} glass{(day.water ?? 0) === 1 ? '' : 'es'}</span>
+            </div>
           </div>
 
           {/* Food log */}
@@ -755,7 +812,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
                   className={`food-log-item ${editIndex === i ? 'food-log-item--editing' : ''}`}
                 >
                   <div className="flex-1">
-                    <div className="text-base text-default">{f.n}{f.r != null ? <button className="recipe-link-badge" title="Open recipe" onClick={() => onOpenRecipe?.(f.r, f.n)}>📖</button> : null}{f.s && f.s !== 1 ? <span className="text-muted2 text-2xs" style={{ marginLeft: 5 }}>×{f.s} srv</span> : null}</div>
+                    <div className="text-base text-default">{f.n}{f.r != null ? <button className="recipe-link-badge" title="Open recipe" onClick={() => onOpenRecipe?.(f.r, f.n)}>📖</button> : null}{f.s && f.s !== 1 ? <span className="text-muted2 text-2xs" style={{ marginLeft: 5 }}>×{f.s} srv</span> : null}{f.sat ? <button className="satiety-badge" title="Satiety — tap to edit" onClick={() => startEdit(i)}>🍽 {f.sat}/7</button> : null}</div>
                     <div className="food-log-meta">{f.k} kcal · {f.p}g P · {f.c}g C · {f.f}g F{f.fi ? ` · ${f.fi}g fiber` : ''}</div>
                   </div>
                   <button onClick={() => startEdit(i)} title="Edit" className={`food-edit-btn ${editIndex === i ? 'active' : ''}`}>✏</button>
@@ -907,6 +964,10 @@ export default function TrackerTab({ user, onOpenRecipe }: {
                 ))}
               </div>
               <div className="font-mono text-muted2 text-2xs mb-8">per serving</div>
+              <div className="mb-10">
+                <div className="text-xs text-muted2 mb-6">Satiety after this meal (optional) — where did it leave you?</div>
+                <SatietyRow value={fSat} onChange={setFSat} />
+              </div>
               <div className="text-xs text-muted2 mb-6">Quick-add from recent meals:</div>
               <div className="flex flex-wrap gap-6 mb-8">
                 {recentMeals.length === 0 ? (
@@ -1087,7 +1148,11 @@ export default function TrackerTab({ user, onOpenRecipe }: {
           </div>
 
           {/* Daily check-in */}
-          <div className="tcard" onFocus={syncSleepFromOura} onMouseEnter={syncSleepFromOura}>
+          <div
+            className="tcard"
+            onFocus={() => { syncSleepFromOura(); syncStressFromOura() }}
+            onMouseEnter={() => { syncSleepFromOura(); syncStressFromOura() }}
+          >
             <div className="tlabel" style={{ color: 'var(--purple)' }}>Daily check-in</div>
             <div className="flex flex-col gap-12">
               <div>
@@ -1101,6 +1166,23 @@ export default function TrackerTab({ user, onOpenRecipe }: {
               <div>
                 <div className="text-sm text-muted mb-6">Sleep 🌙</div>
                 <StarRow value={sleep} onChange={setSleep} emoji="Z" lowLabel="Poor" highLabel="Restorative" />
+              </div>
+              <div>
+                <div className="text-sm text-muted mb-6">
+                  Stress 🧠
+                  {ouraConnected && <span className="text-2xs text-muted2" style={{ marginLeft: 6 }}>auto from Oura · tap to override</span>}
+                </div>
+                <StarRow value={stress} onChange={setStress} emoji="S" lowLabel="Calm" highLabel="Stressed" />
+              </div>
+              <div>
+                <div className="text-sm text-muted mb-6">Hydration 💧</div>
+                <div className="flex gap-8 items-center">
+                  <button onClick={() => adjustWater(-1)} className="water-btn" aria-label="Remove a glass of water" disabled={water === 0}>–</button>
+                  <span className="font-mono text-base text-blue" style={{ minWidth: 90, textAlign: 'center' }}>
+                    {water} glass{water === 1 ? '' : 'es'}
+                  </span>
+                  <button onClick={() => adjustWater(1)} className="water-btn" aria-label="Add a glass of water" disabled={water >= WATER_MAX}>+</button>
+                </div>
               </div>
               <div>
                 <div className="text-sm text-muted mb-6">Cycle phase</div>
