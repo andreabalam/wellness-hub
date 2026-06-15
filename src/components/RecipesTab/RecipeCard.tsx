@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, memo } from 'react'
 import type { Recipe } from '../../data/recipes'
 import { dietTagLabel } from '../../data/recipes'
+import { densityTier, DENSITY_COLORS, DENSITY_LABELS, isDrinkCategory } from '../../lib/density'
 
 interface Props {
   recipe: Recipe
@@ -74,6 +75,9 @@ export default memo(function RecipeCard({
       : { label: 'Indulgent', color: 'var(--purple)' }
     : autoBadge(r)
 
+  // Caloric-density dot — only when grams/serving was captured by the macro calculator
+  const dTier = r.gramsPerServing ? densityTier(r.hk, r.gramsPerServing, isDrinkCategory(r.cat)) : null
+
   const stop = (e: React.MouseEvent) => e.stopPropagation()
 
   return (
@@ -87,6 +91,16 @@ export default memo(function RecipeCard({
 
           {/* Badge cluster — all chips sit together in the top-right corner */}
           <div className="badge-cluster">
+            {/* Caloric-density dot (informational — no warning styling) */}
+            {dTier && (
+              <span
+                className="density-dot"
+                title={`${DENSITY_LABELS[dTier]} · ${(r.hk / r.gramsPerServing!).toFixed(1)} cal/g`}
+                style={{ background: DENSITY_COLORS[dTier] }}
+                aria-label={DENSITY_LABELS[dTier]}
+              />
+            )}
+
             {/* Prep time / custom badge */}
             <span className="rcbadge" style={{ color: timeBadgeColor, borderColor: timeBadgeColor, margin: 0 }}>
               {r.custom ? 'Custom' : timeBadgeLabel}

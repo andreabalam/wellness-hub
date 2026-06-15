@@ -32,6 +32,8 @@ export interface UsdaFoodHit {
   name: string
   srv: string
   k: number; p: number; c: number; f: number; fi: number
+  /** Caloric density in kcal per gram (per-100g basis), for the density dot. */
+  calPerG?: number
 }
 
 function toHit(food: USDAFood): UsdaFoodHit {
@@ -40,14 +42,16 @@ function toHit(food: USDAFood): UsdaFoodHit {
     ? `${food.servingSize}${(food.servingSizeUnit ?? 'g').toLowerCase()}`
     : '100g'
   const ns = food.foodNutrients
+  const kcalPer100 = get(ns, 1008)
   return {
     name: food.description ?? '',
     srv,
-    k: Math.round(get(ns, 1008) * scale),
+    k: Math.round(kcalPer100 * scale),
     p: r1(get(ns, 1003) * scale),
     c: r1(get(ns, 1005) * scale),
     f: r1(get(ns, 1004) * scale),
     fi: r1(get(ns, 1079) * scale),
+    calPerG: kcalPer100 > 0 ? kcalPer100 / 100 : undefined,
   }
 }
 

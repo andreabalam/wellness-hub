@@ -405,6 +405,53 @@
   font-family: "DM Mono", monospace; white-space: nowrap;
 }
 
+// Caloric-density dot (Noom green/yellow/orange) — informational only
+.density-dot {
+  display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  flex-shrink: 0; vertical-align: middle;
+  &--inline { margin-right: 6px; }
+}
+
+// Hunger type (feed what's actually hungry)
+.hunger-chip {
+  font-size: 11px; padding: 4px 10px; border-radius: 7px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg3); color: var(--muted);
+  transition: all .15s;
+  &.active, &:hover { border-color: var(--purple); color: var(--purple-light); background: rgba(138, 106, 184, 0.12); }
+}
+.hunger-tag { margin-left: 6px; font-size: 12px; cursor: default; }
+
+// Craving swap helper
+.craving-helper {
+  margin-top: 10px; padding: 10px; border-radius: 8px;
+  background: var(--bg3); border: 1px solid var(--border);
+}
+.craving-chip {
+  font-size: 11px; padding: 3px 10px; border-radius: 7px; cursor: pointer; text-transform: capitalize;
+  border: 1px solid var(--border); background: var(--bg2); color: var(--muted); transition: all .15s;
+  &.active, &:hover { border-color: var(--coral); color: var(--coral-light); background: rgba(201, 107, 74, 0.12); }
+}
+.swap-list {
+  list-style: none; margin: 8px 0 0; padding: 0; font-size: 12px;
+  li { padding: 3px 0; color: var(--muted); }
+  .swap-from { color: var(--muted2); }
+  .swap-to   { color: var(--green-light); }
+}
+
+// Weekly goal — last-week continuity note
+.last-week-note {
+  font-size: 12px; color: var(--muted2); font-style: italic;
+  padding: 8px 10px; margin-bottom: 10px; border-radius: 7px;
+  background: var(--bg3); border: 1px solid var(--border);
+}
+
+// Browsable craving-swap reference card
+.swap-reference {
+  summary { cursor: pointer; font-size: 13px; color: var(--muted); font-weight: 500; }
+  &[open] summary { margin-bottom: 10px; }
+  .swap-group-title { font-size: 11px; text-transform: capitalize; color: var(--muted2); margin: 8px 0 2px; }
+}
+
 .water-btn {
   width: 30px; height: 30px; border-radius: 6px;
   border: 1px solid var(--border); background: var(--bg3);

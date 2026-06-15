@@ -60,6 +60,28 @@ export interface FoodEntry {
   s?: number  // servings logged (stored so edit can reverse-calculate per-serving values)
   r?: number  // recipe id when logged from a recipe hit (ids can go stale after first sync — resolve by id, fall back to name match)
   sat?: number  // Noom satiety after this meal (1–7, optional; "Ravenous" → "Out of commission")
+  hunger?: string  // Noom hunger type when logging (see HUNGER_TYPES), optional
+}
+
+/** Noom hunger types — "feed what's actually hungry". `id` is stored on the entry. */
+export const HUNGER_TYPES = [
+  { id: 'stomach',   label: 'Stomach',   icon: '🍽' },
+  { id: 'mouth',     label: 'Mouth',     icon: '👄' },
+  { id: 'emotional', label: 'Emotional', icon: '💭' },
+  { id: 'learned',   label: 'Learned',   icon: '⏰' },
+  { id: 'social',    label: 'Social',    icon: '👥' },
+] as const
+
+export type HungerType = typeof HUNGER_TYPES[number]['id']
+
+/** The icon for a hunger-type id, or '' if unknown. */
+export function hungerIcon(id: string | undefined): string {
+  return HUNGER_TYPES.find(h => h.id === id)?.icon ?? ''
+}
+
+/** The display label for a hunger-type id, or '' if unknown. */
+export function hungerLabel(id: string | undefined): string {
+  return HUNGER_TYPES.find(h => h.id === id)?.label ?? ''
 }
 
 export interface DayData {
@@ -75,7 +97,22 @@ export interface DayData {
   notes: string
   medMin: number
   medStyle: string
+  // Weekly check-in (Tier 2 #6) — populated only on a week's Monday anchor day.
+  weekGoal?: string
+  weekGoalKind?: WeekGoalKind   // 'goal' (SMART) or 'experiment' (CMA "if X then Y")
+  weekGoalResult?: WeekGoalResult
+  weekGoalNote?: string
 }
+
+export type WeekGoalKind = 'goal' | 'experiment'
+export type WeekGoalResult = 'yes' | 'partial' | 'no'
+
+/** Seed suggestions for a weekly goal (from the Noom doc). */
+export const WEEK_GOAL_SUGGESTIONS = [
+  '1–2 fermented foods this week',
+  'Protein at every meal',
+  'One new movement type',
+]
 
 export const EMPTY_DAY: DayData = {
   foods: [], workout: null, wkNotes: '', energy: 0, mood: 0,

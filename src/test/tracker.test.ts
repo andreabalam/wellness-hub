@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { QUICK_FOODS, SESSION_OPTS, MED_MINS, MED_STYLES, KCAL_TARGET, PROT_TARGET, CARB_TARGET, FAT_TARGET, FIBER_TARGET, PHASE_NOTES, EMPTY_DAY, WATER_MAX } from '../data/tracker'
+import { QUICK_FOODS, SESSION_OPTS, MED_MINS, MED_STYLES, KCAL_TARGET, PROT_TARGET, CARB_TARGET, FAT_TARGET, FIBER_TARGET, PHASE_NOTES, EMPTY_DAY, WATER_MAX, HUNGER_TYPES, hungerIcon, hungerLabel, WEEK_GOAL_SUGGESTIONS } from '../data/tracker'
 import type { FoodEntry } from '../data/tracker'
 
 // ── dkey helper (inline — same logic as component) ───────────────
@@ -132,5 +132,32 @@ describe('EMPTY_DAY', () => {
   it('FoodEntry supports an optional satiety value', () => {
     const entry: FoodEntry = { n: 'Oats', k: 350, p: 18, c: 42, f: 12, fi: 9, sat: 5 }
     expect(entry.sat).toBe(5)
+  })
+
+  it('FoodEntry supports an optional hunger type', () => {
+    const entry: FoodEntry = { n: 'Chips', k: 150, p: 2, c: 15, f: 9, fi: 1, hunger: 'mouth' }
+    expect(entry.hunger).toBe('mouth')
+  })
+})
+
+describe('HUNGER_TYPES', () => {
+  it('has the five Noom hunger types', () => {
+    expect(HUNGER_TYPES.map(h => h.id)).toEqual(['stomach', 'mouth', 'emotional', 'learned', 'social'])
+  })
+
+  it('hungerIcon and hungerLabel resolve known ids', () => {
+    expect(hungerIcon('mouth')).toBeTruthy()
+    expect(hungerLabel('emotional')).toBe('Emotional')
+  })
+
+  it('hungerIcon and hungerLabel return empty for unknown/undefined', () => {
+    expect(hungerIcon('nope')).toBe('')
+    expect(hungerLabel(undefined)).toBe('')
+  })
+})
+
+describe('WEEK_GOAL_SUGGESTIONS', () => {
+  it('provides at least one seed suggestion', () => {
+    expect(WEEK_GOAL_SUGGESTIONS.length).toBeGreaterThan(0)
   })
 })
