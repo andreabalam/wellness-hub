@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { QUICK_FOODS, SESSION_OPTS, MED_MINS, MED_STYLES, KCAL_TARGET, PROT_TARGET, CARB_TARGET, FAT_TARGET, FIBER_TARGET, PHASE_NOTES } from '../data/tracker'
+import { QUICK_FOODS, SESSION_OPTS, MED_MINS, MED_STYLES, KCAL_TARGET, PROT_TARGET, CARB_TARGET, FAT_TARGET, FIBER_TARGET, PHASE_NOTES, EMPTY_DAY, WATER_MAX } from '../data/tracker'
 import type { FoodEntry } from '../data/tracker'
 
 // ── dkey helper (inline — same logic as component) ───────────────
@@ -116,5 +116,21 @@ describe('PHASE_NOTES', () => {
     phases.forEach(p => {
       expect(PHASE_NOTES[p]).toBeTruthy()
     })
+  })
+})
+
+describe('EMPTY_DAY', () => {
+  it('initialises stress and water to 0', () => {
+    expect(EMPTY_DAY.stress).toBe(0)
+    expect(EMPTY_DAY.water).toBe(0)
+  })
+
+  it('WATER_MAX is a positive cap', () => {
+    expect(WATER_MAX).toBeGreaterThan(0)
+  })
+
+  it('FoodEntry supports an optional satiety value', () => {
+    const entry: FoodEntry = { n: 'Oats', k: 350, p: 18, c: 42, f: 12, fi: 9, sat: 5 }
+    expect(entry.sat).toBe(5)
   })
 })

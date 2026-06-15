@@ -40,7 +40,7 @@ describe('trackerStore', () => {
     const data = {
       foods: [{ n: 'Oats', k: 350, p: 18, c: 42, f: 12, fi: 9 }],
       workout: 'pilates', wkNotes: 'felt great',
-      energy: 4, mood: 3, sleep: 5, phase: 'Follicular',
+      energy: 4, mood: 3, sleep: 5, stress: 2, water: 6, phase: 'Follicular',
       notes: 'good day', medMin: 13, medStyle: 'Breath focus',
     }
     trackerStore.setDay('2026-01-01', data)
@@ -52,7 +52,7 @@ describe('trackerStore', () => {
   })
 
   it('setDay for different dates do not overwrite each other', () => {
-    const base = { foods: [], workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0, phase: '', notes: '', medMin: 0, medStyle: '' }
+    const base = { foods: [], workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0, stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '' }
     trackerStore.setDay('2026-01-01', { ...base, energy: 5 })
     trackerStore.setDay('2026-01-02', { ...base, energy: 2 })
     expect(trackerStore.getDay('2026-01-01').energy).toBe(5)
@@ -60,14 +60,14 @@ describe('trackerStore', () => {
   })
 
   it('getAll returns all stored days', () => {
-    const base = { foods: [], workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0, phase: '', notes: '', medMin: 0, medStyle: '' }
+    const base = { foods: [], workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0, stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '' }
     trackerStore.setDay('2026-01-01', base)
     trackerStore.setDay('2026-01-02', base)
     expect(Object.keys(trackerStore.getAll())).toHaveLength(2)
   })
 
   it('overwriting a day replaces only that day', () => {
-    const base = { foods: [], workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0, phase: '', notes: '', medMin: 0, medStyle: '' }
+    const base = { foods: [], workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0, stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '' }
     trackerStore.setDay('2026-01-01', { ...base, energy: 3 })
     trackerStore.setDay('2026-01-01', { ...base, energy: 5 })
     expect(trackerStore.getDay('2026-01-01').energy).toBe(5)
@@ -165,7 +165,7 @@ describe('export / import round-trip', () => {
   })
 
   it('importAllData restores all keys', () => {
-    const base = { foods: [], workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0, phase: '', notes: '', medMin: 0, medStyle: '' }
+    const base = { foods: [], workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0, stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '' }
     const recipeBase = { cat: 'snack', type: 'Snack', color: '', sc: '', tag: '', prepL: '', prepC: '', hk: 100, hp: '5g', hc: '10g', hf: '3g', mk: 0, mp: '0g', mc: '0g', mf: '0g', ings: [] as [string,string][], steps: [], tip: '', custom: true }
 
     trackerStore.setDay('2026-05-25', { ...base, workout: 'pilates' })
