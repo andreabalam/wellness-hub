@@ -3028,6 +3028,64 @@ describe('TrackerTab', () => {
     expect(screen.queryByText('Oura Ring')).not.toBeInTheDocument()
     expect(screen.queryByPlaceholderText('Paste your Oura PAT here…')).not.toBeInTheDocument()
   })
+
+  // ── Tier 2: hunger type + craving swaps ──────────────────────────
+  it('selecting a Mouth hunger type reveals the craving helper with swaps', () => {
+    const { container } = render(<TrackerTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByText(/Mouth/))
+    const helper = container.querySelector('.craving-helper') as HTMLElement
+    expect(helper).toBeTruthy()
+    fireEvent.click(within(helper).getByText('sweet'))
+    expect(within(helper).getByText(/berries/i)).toBeInTheDocument()
+  })
+
+  it('logs a food carrying its hunger type (icon on the row)', () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByText(/Emotional/))
+    fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), { target: { value: 'Cookies' } })
+    fireEvent.change(screen.getByPlaceholderText('kcal'), { target: { value: '200' } })
+    fireEvent.click(screen.getByText('+ Log food'))
+    expect(screen.getByTitle('Emotional hunger')).toBeInTheDocument()
+  })
+
+  it('renders the browsable craving-swap reference', () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    expect(screen.getByText(/Craving swaps/)).toBeInTheDocument()
+  })
+
+  // ── Tier 2: weekly goal ──────────────────────────────────────────
+  it('can save a weekly goal', () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByText('Meditation'))
+    fireEvent.change(screen.getByPlaceholderText(/Protein at every meal/), { target: { value: 'Walk daily' } })
+    fireEvent.click(screen.getByText('Save weekly'))
+    expect(screen.getByText('Saved!')).toBeInTheDocument()
+  })
+
+  it('weekly experiment toggle switches the goal prompt', () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByText('Meditation'))
+    fireEvent.click(screen.getByText('experiment'))
+    expect(screen.getByPlaceholderText(/If I prep 3 lunches/)).toBeInTheDocument()
+  })
+
+  it('a weekly goal suggestion chip fills the goal field', () => {
+    const { container } = render(<TrackerTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByText('Meditation'))
+    const weekCard = screen.getByText('Weekly goal').closest('.tcard') as HTMLElement
+    fireEvent.click(within(weekCard).getByText('Protein at every meal'))
+    const textarea = container.querySelector('textarea[placeholder^="e.g. Protein"]') as HTMLTextAreaElement
+    expect(textarea.value).toBe('Protein at every meal')
+  })
+
+  it('recording a weekly result and saving works', () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByText('Meditation'))
+    const weekCard = screen.getByText('Weekly goal').closest('.tcard') as HTMLElement
+    fireEvent.click(within(weekCard).getByText('Yes'))
+    fireEvent.click(within(weekCard).getByText('Save weekly'))
+    expect(screen.getByText('Saved!')).toBeInTheDocument()
+  })
 })
 
 // ═════════════════════════════════════════════════════════════════

@@ -118,6 +118,17 @@ describe('Recipe interface', () => {
     expect(minimal.link).toBeUndefined()
     expect(minimal.hfi).toBeUndefined()
     expect(minimal.source).toBeUndefined()
+    expect(minimal.gramsPerServing).toBeUndefined()
+  })
+
+  it('gramsPerServing can be set for the caloric-density dot', () => {
+    const r: Recipe = {
+      cat: 'meal', type: 'Meal', color: '', sc: '', name: 'Dense bowl',
+      tag: '', prepL: '', prepC: '', hk: 600, hp: '30g', hc: '40g', hf: '20g',
+      mk: 0, mp: '0g', mc: '0g', mf: '0g', ings: [], steps: [], tip: '',
+      gramsPerServing: 250,
+    }
+    expect(r.gramsPerServing).toBe(250)
   })
 })
 

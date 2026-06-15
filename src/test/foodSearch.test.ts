@@ -131,7 +131,7 @@ describe('searchUSDAFoods', () => {
     expect(hits).toHaveLength(2)
     expect(hits[0]).toEqual({
       name: 'Chicken, broiler, breast', srv: '100g',
-      k: 200, p: 10, c: 30, f: 5, fi: 8,
+      k: 200, p: 10, c: 30, f: 5, fi: 8, calPerG: 2,
     })
     expect(hits[1]).toMatchObject({ name: 'Chicken, thigh', srv: '50g', k: 100, p: 5 })
   })

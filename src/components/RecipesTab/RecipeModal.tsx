@@ -46,6 +46,7 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
   const [prepTime, setPrepTime]   = useState(() => initialRecipe?.prepTime ?? initialRecipe?.prepL ?? '')
   const [healthTag, setHealthTag] = useState<'healthy' | 'indulgent' | ''>(() => initialRecipe?.healthTag ?? '')
   const [dietTag, setDietTag]     = useState<DietTag | ''>(() => initialRecipe?.dietTag ?? '')
+  const [gramsPerServing, setGramsPerServing] = useState<number | undefined>(() => initialRecipe?.gramsPerServing)
   const [link, setLink]           = useState(() => initialRecipe?.link ?? '')
   const [image, setImage]         = useState(() => initialRecipe?.image ?? '')
   const [kcal, setKcal]           = useState(() => initialRecipe ? String(initialRecipe.hk || '') : '')
@@ -164,6 +165,7 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
     setCalcState('idle')
     setCalcRows([])
     setCalcError('')
+    setGramsPerServing(undefined)   // stale once ingredients change
   }
 
   const addIng = () => {
@@ -189,6 +191,10 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
         setCalcError('No ingredients could be matched — fill in the macros manually.')
         return
       }
+      // Capture grams/serving from the resolved rows for the caloric-density dot
+      const totalGrams = result.rows.reduce((sum, r) => sum + (r.grams ?? 0), 0)
+      const div = parseInt(servings) || 1
+      setGramsPerServing(totalGrams > 0 ? Math.round(totalGrams / div) : undefined)
       setKcal(String(result.totals.k))
       setProt(String(result.totals.p))
       setCarb(String(result.totals.c))
@@ -263,6 +269,7 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
       prepTime: prepTime || undefined,
       healthTag: (healthTag as 'healthy' | 'indulgent') || undefined,
       dietTag: dietTag || undefined,
+      gramsPerServing,
       link: link.trim() || undefined,
       image: image.trim() || undefined,
       hk: hkVal,

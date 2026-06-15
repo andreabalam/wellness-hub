@@ -8,8 +8,11 @@ import { macrosFromKcal } from '../../lib/stats'
 import ProfileStatsCard from './ProfileStatsCard'
 import {
   QUICK_FOODS, SESSION_OPTS, MED_MINS, MED_STYLES, PHASE_NOTES, WATER_MAX,
+  HUNGER_TYPES, hungerIcon, hungerLabel, WEEK_GOAL_SUGGESTIONS,
 } from '../../data/tracker'
-import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
+import type { DayData, FoodEntry, QuickFood, WeekGoalKind, WeekGoalResult } from '../../data/tracker'
+import { CRAVING_TYPES, swapsFor } from '../../data/swaps'
+import type { CravingType } from '../../data/swaps'
 import { BUILTIN_RECIPES } from '../../data/recipes'
 import type { Recipe } from '../../data/recipes'
 import { searchLocalFoods, historyFoods } from '../../lib/localFoodSearch'
@@ -24,11 +27,30 @@ import {
 } from '../../lib/oura'
 import type { OuraReadiness } from '../../lib/oura'
 import { safeGet, safeSet } from '../../lib/storage'
+import { densityTierFor, DENSITY_COLORS, DENSITY_LABELS } from '../../lib/density'
 import { analyzeImage } from '../../lib/analyzeFood'
 import type { PhotoAnalysisResult } from '../../lib/analyzeFood'
 import RemindersSection from './RemindersSection'
 
 function dkey(d: Date) { return d.toISOString().split('T')[0] }
+
+/** Local Monday (week anchor) of the week containing d. */
+function mondayOf(d: Date): Date {
+  const m = new Date(d)
+  m.setHours(0, 0, 0, 0)
+  const diff = (m.getDay() + 6) % 7   // days since Monday (getDay: 0=Sun..6=Sat)
+  m.setDate(m.getDate() - diff)
+  return m
+}
+
+/** A new Date offset by n days (does not mutate the input). */
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d)
+  r.setDate(r.getDate() + n)
+  return r
+}
+
+const WEEK_RESULT_LABEL: Record<string, string> = { yes: 'Yes', partial: 'Partially', no: 'No' }
 
 // ── Oura readiness cache (one entry per date) ─────────────────────
 const READINESS_CACHE_KEY = 'whub_oura_readiness_v1'
@@ -244,6 +266,8 @@ export default function TrackerTab({ user, onOpenRecipe }: {
   const [fFiber, setFFiber]       = useState('')
   const [fServings, setFServings] = useState('1')
   const [fSat, setFSat]           = useState(0)
+  const [fHunger, setFHunger]     = useState('')
+  const [craving, setCraving]     = useState<CravingType | null>(null)
   const [editIndex, setEditIndex] = useState<number | null>(null)
   const [showSugg, setShowSugg]   = useState(false)
   const [foodLib, setFoodLib]     = useState<QuickFood[]>(() => libStore.getAll())
@@ -281,6 +305,11 @@ export default function TrackerTab({ user, onOpenRecipe }: {
   const [dayNotes, setDayNotes] = useState('')
   const [notesSaved, setNotesSaved] = useState(false)
   const [checkInSaved, setCheckInSaved] = useState(false)
+  const [weekGoal, setWeekGoal]         = useState('')
+  const [weekGoalKind, setWeekGoalKind] = useState<WeekGoalKind>('goal')
+  const [weekGoalResult, setWeekGoalResult] = useState<WeekGoalResult | ''>('')
+  const [weekGoalNote, setWeekGoalNote] = useState('')
+  const [weekSaved, setWeekSaved]       = useState(false)
   const [stripKey, setStripKey] = useState(0)
   const [innerTab, setInnerTab] = useState<'food' | 'workout' | 'meditation'>('food')
 
@@ -305,11 +334,17 @@ export default function TrackerTab({ user, onOpenRecipe }: {
     setWater(data.water ?? 0)
     setPhase(data.phase ?? '')
     setDayNotes(data.notes ?? '')
+    // Weekly goal lives on the week's Monday anchor day
+    const wk = store.getDay(dkey(mondayOf(d)))
+    setWeekGoal(wk.weekGoal ?? '')
+    setWeekGoalKind(wk.weekGoalKind ?? 'goal')
+    setWeekGoalResult(wk.weekGoalResult ?? '')
+    setWeekGoalNote(wk.weekGoalNote ?? '')
     setWkSaved(!!data.workout)
     setMedSaved(!!data.medMin)
     setEditIndex(null)
     setFName(''); setFKcal(''); setFPro(''); setFCarb(''); setFat(''); setFFiber('')
-    setFServings('1'); setFSat(0)
+    setFServings('1'); setFSat(0); setFHunger('')
     setFRecipeId(null)
     setShowSugg(false)
     setPhotoStatus('idle'); setPhotoNotes(''); setPhotoConfidence(null)
@@ -457,6 +492,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
     setFFiber(String(srv > 1 ? Math.round(f.fi / srv) : f.fi))
     setFRecipeId(f.r ?? null)
     setFSat(f.sat ?? 0)
+    setFHunger(f.hunger ?? '')
     setShowSugg(false)
     resetOnline()
   }
@@ -464,7 +500,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
   const cancelEdit = () => {
     setEditIndex(null)
     setFName(''); setFKcal(''); setFPro(''); setFCarb(''); setFat(''); setFFiber('')
-    setFServings('1'); setFSat(0)
+    setFServings('1'); setFSat(0); setFHunger('')
     setFRecipeId(null)
     setPhotoStatus('idle'); setPhotoNotes(''); setPhotoConfidence(null)
     resetOnline()
@@ -516,6 +552,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
       ...(srv !== 1 ? { s: srv } : {}),
       ...(fRecipeId != null ? { r: fRecipeId } : {}),
       ...(fSat ? { sat: fSat } : {}),
+      ...(fHunger ? { hunger: fHunger } : {}),
     }
     // Upsert per-serving values into food library
     if (perK > 0) {
@@ -531,7 +568,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
       save({ foods: [...day.foods, entry] })
     }
     setFName(''); setFKcal(''); setFPro(''); setFCarb(''); setFat(''); setFFiber('')
-    setFServings('1'); setFSat(0)
+    setFServings('1'); setFSat(0); setFHunger('')
     setFRecipeId(null)
   }
 
@@ -587,6 +624,26 @@ export default function TrackerTab({ user, onOpenRecipe }: {
     setNotesSaved(true)
     setTimeout(() => setNotesSaved(false), 1600)
   }
+
+  // Weekly goal persists on the week's Monday anchor day (not the viewed day)
+  const saveWeekGoal = () => {
+    const anchorKey = dkey(mondayOf(date))
+    const updated: DayData = {
+      ...store.getDay(anchorKey),
+      weekGoal: weekGoal.trim(),
+      weekGoalKind,
+      weekGoalResult: weekGoalResult || undefined,
+      weekGoalNote: weekGoalNote.trim() || undefined,
+    }
+    store.setDay(anchorKey, updated)
+    if (anchorKey === dkey(date)) setDay(updated)   // keep viewed-day state in sync
+    setStripKey(n => n + 1)
+    setWeekSaved(true)
+    setTimeout(() => setWeekSaved(false), 1600)
+  }
+
+  // Last week's goal (read from the previous Monday anchor) for continuity
+  const lastWeek = store.getDay(dkey(addDays(mondayOf(date), -7)))
 
   const addGuide = () => {
     const url = newGuideUrl.trim()
@@ -812,7 +869,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
                   className={`food-log-item ${editIndex === i ? 'food-log-item--editing' : ''}`}
                 >
                   <div className="flex-1">
-                    <div className="text-base text-default">{f.n}{f.r != null ? <button className="recipe-link-badge" title="Open recipe" onClick={() => onOpenRecipe?.(f.r, f.n)}>📖</button> : null}{f.s && f.s !== 1 ? <span className="text-muted2 text-2xs" style={{ marginLeft: 5 }}>×{f.s} srv</span> : null}{f.sat ? <button className="satiety-badge" title="Satiety — tap to edit" onClick={() => startEdit(i)}>🍽 {f.sat}/7</button> : null}</div>
+                    <div className="text-base text-default">{f.n}{f.r != null ? <button className="recipe-link-badge" title="Open recipe" onClick={() => onOpenRecipe?.(f.r, f.n)}>📖</button> : null}{f.s && f.s !== 1 ? <span className="text-muted2 text-2xs" style={{ marginLeft: 5 }}>×{f.s} srv</span> : null}{f.sat ? <button className="satiety-badge" title="Satiety — tap to edit" onClick={() => startEdit(i)}>🍽 {f.sat}/7</button> : null}{f.hunger ? <span className="hunger-tag" title={`${hungerLabel(f.hunger)} hunger`}>{hungerIcon(f.hunger)}</span> : null}</div>
                     <div className="food-log-meta">{f.k} kcal · {f.p}g P · {f.c}g C · {f.f}g F{f.fi ? ` · ${f.fi}g fiber` : ''}</div>
                   </div>
                   <button onClick={() => startEdit(i)} title="Edit" className={`food-edit-btn ${editIndex === i ? 'active' : ''}`}>✏</button>
@@ -857,6 +914,46 @@ export default function TrackerTab({ user, onOpenRecipe }: {
                   <button onClick={cancelEdit} className="item-icon-btn text-xs">Cancel</button>
                 </div>
               )}
+
+              {/* Hunger type — feed what's actually hungry (optional) */}
+              <div className="mb-8">
+                <div className="text-xs text-muted2 mb-6">What kind of hunger? (optional)</div>
+                <div className="flex flex-wrap gap-6">
+                  {HUNGER_TYPES.map(h => (
+                    <button
+                      key={h.id}
+                      onClick={() => { setFHunger(fHunger === h.id ? '' : h.id); setCraving(null) }}
+                      className={`hunger-chip${fHunger === h.id ? ' active' : ''}`}
+                    >
+                      {h.icon} {h.label}
+                    </button>
+                  ))}
+                </div>
+                {(fHunger === 'mouth' || fHunger === 'emotional') && (
+                  <div className="craving-helper">
+                    <div className="text-2xs text-muted2 mb-6">Craving something? A swap can hit the same note:</div>
+                    <div className="flex flex-wrap gap-6">
+                      {CRAVING_TYPES.map(c => (
+                        <button
+                          key={c}
+                          onClick={() => setCraving(craving === c ? null : c)}
+                          className={`craving-chip${craving === c ? ' active' : ''}`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                    {craving && (
+                      <ul className="swap-list">
+                        {swapsFor(craving).map((s, i) => (
+                          <li key={i}><span className="swap-from">{s.from}</span> → <span className="swap-to">{s.to}</span></li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-6 mb-8 items-center">
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -929,18 +1026,24 @@ export default function TrackerTab({ user, onOpenRecipe }: {
                           {onlineHits.length === 0 && (
                             <div className="autocomplete-empty">No USDA match.</div>
                           )}
-                          {onlineHits.map(h => (
+                          {onlineHits.map(h => {
+                            const tier = h.calPerG != null ? densityTierFor(h.calPerG) : null
+                            return (
                             <button
                               key={h.name}
                               onMouseDown={() => applyUsdaHit(h)}
                               className="autocomplete-item"
                             >
-                              {h.name}
+                              <span>
+                                {tier && <span className="density-dot density-dot--inline" title={DENSITY_LABELS[tier]} style={{ background: DENSITY_COLORS[tier] }} />}
+                                {h.name}
+                              </span>
                               <span className="autocomplete-hint">
                                 {h.srv} · {h.k} kcal · {h.p}g P · {h.c}g C · {h.f}g F
                               </span>
                             </button>
-                          ))}
+                            )
+                          })}
                           <button
                             className="autocomplete-item autocomplete-action"
                             onMouseDown={e => { e.preventDefault(); estimateAI() }}
@@ -984,6 +1087,21 @@ export default function TrackerTab({ user, onOpenRecipe }: {
             </div>
           </div>
         </div>
+
+        {/* Browsable craving-swap reference */}
+        <details className="swap-reference tcard">
+          <summary>🔁 Craving swaps — lower-density picks that hit the same note</summary>
+          {CRAVING_TYPES.map(c => (
+            <div key={c}>
+              <div className="swap-group-title">{c}</div>
+              <ul className="swap-list">
+                {swapsFor(c).map((s, i) => (
+                  <li key={i}><span className="swap-from">{s.from}</span> → <span className="swap-to">{s.to}</span></li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </details>
 
         {/* Profile & Targets — consolidated stats module */}
         <ProfileStatsCard
@@ -1215,6 +1333,58 @@ export default function TrackerTab({ user, onOpenRecipe }: {
             <textarea className="tinput resize-vertical mb-8" value={dayNotes} onChange={e => setDayNotes(e.target.value)} placeholder="Cravings, how the workout felt, anything worth noting..." rows={4} />
             <button onClick={saveNotes} className={`tbtn tbtn-ghost ${notesSaved ? 'saved' : ''}`}>
               {notesSaved ? 'Saved!' : 'Save notes'}
+            </button>
+          </div>
+
+          {/* Weekly goal / experiment */}
+          <div className="tcard">
+            <div className="flex-between mb-8">
+              <div className="tlabel" style={{ color: 'var(--green-light)', marginBottom: 0 }}>Weekly goal</div>
+              <div className="flex gap-6">
+                {(['goal', 'experiment'] as WeekGoalKind[]).map(k => (
+                  <button key={k} onClick={() => setWeekGoalKind(k)} className={`rfbtn${weekGoalKind === k ? ' active' : ''}`} style={{ textTransform: 'capitalize' }}>{k}</button>
+                ))}
+              </div>
+            </div>
+
+            {lastWeek.weekGoal && (
+              <div className="last-week-note">
+                Last week: “{lastWeek.weekGoal}”{lastWeek.weekGoalResult ? ` — ${WEEK_RESULT_LABEL[lastWeek.weekGoalResult]}` : ''}
+              </div>
+            )}
+
+            <div className="text-sm text-muted mb-6">
+              {weekGoalKind === 'goal' ? "This week's SMART goal" : 'Experiment — “If I…, then…”'}
+            </div>
+            <textarea
+              className="tinput resize-vertical mb-8" rows={2} value={weekGoal}
+              onChange={e => setWeekGoal(e.target.value)}
+              placeholder={weekGoalKind === 'goal' ? 'e.g. Protein at every meal' : 'e.g. If I prep 3 lunches on Sunday, then I eat out less'}
+            />
+
+            {!weekGoal && (
+              <div className="flex flex-wrap gap-6 mb-8">
+                {WEEK_GOAL_SUGGESTIONS.map(s => (
+                  <button key={s} onClick={() => setWeekGoal(s)} className="quick-food-btn">{s}</button>
+                ))}
+              </div>
+            )}
+
+            <div className="text-sm text-muted mb-6">{weekGoalKind === 'goal' ? 'Did you hit it?' : 'Result'}</div>
+            <div className="flex gap-6 mb-8">
+              {(['yes', 'partial', 'no'] as WeekGoalResult[]).map(r => (
+                <button key={r} onClick={() => setWeekGoalResult(weekGoalResult === r ? '' : r)} className={`rfbtn${weekGoalResult === r ? ' active' : ''}`}>{WEEK_RESULT_LABEL[r]}</button>
+              ))}
+            </div>
+
+            <textarea
+              className="tinput resize-vertical mb-8" rows={2} value={weekGoalNote}
+              onChange={e => setWeekGoalNote(e.target.value)}
+              placeholder="Reflection — what worked, what got in the way…"
+            />
+
+            <button onClick={saveWeekGoal} className={`tbtn tbtn--secondary ${weekSaved ? 'saved' : ''}`}>
+              {weekSaved ? 'Saved!' : 'Save weekly'}
             </button>
           </div>
         </div>

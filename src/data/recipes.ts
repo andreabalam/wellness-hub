@@ -46,6 +46,11 @@ export interface Recipe {
    * Lets users filter recipes by the diet they currently follow. See DIET_TAGS.
    */
   dietTag?: DietTag
+  /**
+   * Total grams per serving, captured when "Calculate from ingredients" runs.
+   * Enables the caloric-density dot (kcal ÷ grams). Absent → no dot.
+   */
+  gramsPerServing?: number
 }
 
 /** Dietary approaches a recipe can be tagged with. `id` is what we store. */
