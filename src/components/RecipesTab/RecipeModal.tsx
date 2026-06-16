@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import {
   importRecipeFromFile,
   importRecipeFromUrl,
+  importRecipeFromText,
   ACCEPTED_EXT,
   type ExtractedRecipe,
 } from '../../lib/recipeImport'
@@ -70,6 +71,8 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
   const [importState, setImportState] = useState<ImportState>('idle')
   const [importError, setImportError] = useState('')
   const [importUrl, setImportUrl]     = useState('')
+  const [importText, setImportText]   = useState('')
+  const [showPaste, setShowPaste]     = useState(false)
   const [dragging, setDragging]       = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -183,6 +186,33 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
       setImportError(err instanceof Error ? err.message : 'Import failed — please try again.')
     }
   }, [importUrl, applyImport])
+
+  const handleText = useCallback(async () => {
+    const text = importText.trim()
+    if (!text) return
+    if (!supabase) {
+      setImportState('error')
+      setImportError('Sign in to use text import.')
+      return
+    }
+    setImportState('loading')
+    setImportError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setImportState('error')
+        setImportError('Sign in to use text import.')
+        return
+      }
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+      const recipe = await importRecipeFromText(text, session.access_token, supabaseUrl)
+      applyImport(recipe)
+      setImportState('done')
+    } catch (err) {
+      setImportState('error')
+      setImportError(err instanceof Error ? err.message : 'Import failed — please try again.')
+    }
+  }, [importText, applyImport])
 
   // ── Recipe form helpers ────────────────────────────────────────
 
@@ -421,6 +451,38 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
                       Import
                     </button>
                   </div>
+                </div>
+
+                <div className="import-paste-row">
+                  {showPaste ? (
+                    <>
+                      <textarea
+                        className="tinput resize-vertical"
+                        rows={5}
+                        value={importText}
+                        onChange={e => setImportText(e.target.value)}
+                        placeholder="Paste recipe text — ingredients, steps, anything…"
+                        disabled={importState === 'loading'}
+                        data-testid="recipe-text-input"
+                      />
+                      <button
+                        type="button"
+                        className="tbtn tbtn--purple"
+                        onClick={handleText}
+                        disabled={importState === 'loading' || !importText.trim()}
+                      >
+                        Import text
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="import-paste-toggle"
+                      onClick={() => setShowPaste(true)}
+                    >
+                      or paste recipe text
+                    </button>
+                  )}
                 </div>
 
                 {importState === 'error' && (

@@ -81,6 +81,21 @@ export async function importRecipeFromFile(
 }
 
 /**
+ * Import a recipe from pasted plain text. The text is sent straight to the
+ * edge function's text path — the same one used for .txt files — and parsed
+ * by Claude into a structured recipe.
+ */
+export async function importRecipeFromText(
+  text: string,
+  accessToken: string,
+  supabaseUrl: string,
+): Promise<ExtractedRecipe> {
+  const trimmed = text.trim()
+  if (!trimmed) throw new Error('Paste some recipe text first.')
+  return postImport({ type: 'text', content: trimmed.slice(0, MAX_TEXT_CHARS) }, accessToken, supabaseUrl)
+}
+
+/**
  * Import a recipe from a web page URL. The page is fetched and parsed
  * server-side by the edge function (browsers can't fetch most recipe sites
  * directly because of CORS).

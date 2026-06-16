@@ -5,6 +5,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 
+// Force the tracker's paste-to-log flow down its offline fallback (the real
+// local parser) by making the AI call reject instantly — keeps tests fast and
+// deterministic without a live edge function.
+vi.mock('../lib/foodImport', async () => {
+  const actual = await vi.importActual<typeof import('../lib/foodImport')>('../lib/foodImport')
+  return { ...actual, parseFoodLog: vi.fn().mockRejectedValue(new Error('offline')) }
+})
+
 
 // ── localStorage mock ─────────────────────────────────────────────
 const ls: Record<string, string> = {}
@@ -987,6 +995,24 @@ describe('RecipeModal', () => {
     expect(input).not.toBeNull()
     expect(input.accept).toContain('.pdf')
     expect(input.accept).toContain('.txt')
+  })
+
+  it('"or paste recipe text" toggle reveals a textarea', () => {
+    render(<RecipeModal {...baseProps} />)
+    expect(document.querySelector('[data-testid="recipe-text-input"]')).toBeNull()
+    fireEvent.click(screen.getByText('or paste recipe text'))
+    expect(document.querySelector('[data-testid="recipe-text-input"]')).not.toBeNull()
+  })
+
+  it('Import text button is disabled until text is entered', () => {
+    render(<RecipeModal {...baseProps} />)
+    fireEvent.click(screen.getByText('or paste recipe text'))
+    const btn = screen.getByText('Import text') as HTMLButtonElement
+    expect(btn.disabled).toBe(true)
+    fireEvent.change(document.querySelector('[data-testid="recipe-text-input"]')!, {
+      target: { value: 'Berry Bowl\nMix and serve' },
+    })
+    expect(btn.disabled).toBe(false)
   })
 })
 
@@ -2650,6 +2676,53 @@ describe('TrackerTab', () => {
     expect(screen.getByText('Oatmeal')).toBeInTheDocument()
     fireEvent.click(screen.getByText('×'))
     expect(screen.queryByText('Oatmeal')).not.toBeInTheDocument()
+  })
+
+  // ── Paste-to-log ──────────────────────────────────────────────
+  it('paste-to-log parses explicit-macro text and logs the foods', async () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByTestId('paste-log-toggle'))
+    fireEvent.change(screen.getByTestId('paste-log-input'), {
+      target: { value: 'Chicken Bowl 420 38 30 14 6\nApple 95 0 25 0 4' },
+    })
+    fireEvent.click(screen.getByText('Parse'))
+
+    // Falls back to the local parser (AI mocked to reject) → review list appears
+    const addBtn = await screen.findByTestId('paste-log-add')
+    expect(addBtn).toHaveTextContent('Add 2 foods')
+    // Edit a review-row protein field (placeholder 'P' is unique to review rows)
+    fireEvent.change(screen.getAllByPlaceholderText('P')[0], { target: { value: '40' } })
+    fireEvent.click(addBtn)
+
+    expect(screen.getByText('Chicken Bowl')).toBeInTheDocument()
+    expect(screen.getByText('Apple')).toBeInTheDocument()
+    expect(screen.getByText(/420 kcal/)).toBeInTheDocument()
+  })
+
+  it('paste-to-log review rows can be removed before adding', async () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByTestId('paste-log-toggle'))
+    fireEvent.change(screen.getByTestId('paste-log-input'), {
+      target: { value: 'Chicken Bowl 420 38 30 14 6\nApple 95 0 25 0 4' },
+    })
+    fireEvent.click(screen.getByText('Parse'))
+
+    const addBtn = await screen.findByTestId('paste-log-add')
+    // Remove the first review row, then add — only one food should log
+    fireEvent.click(screen.getAllByTitle('Remove')[0])
+    expect(addBtn).toHaveTextContent('Add 1 food')
+    fireEvent.click(addBtn)
+    expect(screen.queryByText('Chicken Bowl')).not.toBeInTheDocument()
+    expect(screen.getByText('Apple')).toBeInTheDocument()
+  })
+
+  it('paste-to-log Cancel closes the panel without logging', () => {
+    render(<TrackerTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByTestId('paste-log-toggle'))
+    expect(screen.getByTestId('paste-log-input')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Cancel'))
+    expect(screen.queryByTestId('paste-log-input')).not.toBeInTheDocument()
+    expect(screen.getByText('No meals logged yet.')).toBeInTheDocument()
   })
 
   it('prev date button decrements the displayed date', () => {
