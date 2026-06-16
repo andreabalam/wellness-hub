@@ -1810,6 +1810,21 @@ describe('ErrorBoundary', () => {
     expect(clearSpy).toHaveBeenCalled()
     clearSpy.mockRestore()
   })
+
+  it('shows a generic message (not the raw error) in production builds', () => {
+    vi.stubEnv('DEV', false)
+    try {
+      render(
+        <ErrorBoundary>
+          <BrokenChild />
+        </ErrorBoundary>
+      )
+      expect(screen.getByText(/Please try again later/i)).toBeInTheDocument()
+      expect(screen.queryByText('Render explosion')).not.toBeInTheDocument()
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
 })
 
 // ═════════════════════════════════════════════════════════════════

@@ -10,6 +10,7 @@ import type { GroceryCatalogItem } from '../data/grocery'
 import { supabase } from '../lib/supabase'
 import * as sync from '../lib/sync'
 import { safeGet, safeSet } from '../lib/storage'
+import { reportError } from '../lib/errorLog'
 
 const TRACKER_KEY             = 'whub_tracker_v3'
 const RECIPES_KEY             = 'whub_custom_recipes_v1'
@@ -34,8 +35,8 @@ async function tryPush(fn: (userId: string) => Promise<void>) {
   if (!supabase) return // not configured (tests / dev without .env.local)
   try {
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) fn(user.id).catch(err => console.error('[tryPush] failed:', err))
-  } catch (err) { console.error('[tryPush] getUser failed:', err) }
+    if (user) fn(user.id).catch(err => reportError('tryPush:push', err))
+  } catch (err) { reportError('tryPush:getUser', err) }
 }
 
 // ── Tracker ── plain functions, safe to call anywhere ────────────

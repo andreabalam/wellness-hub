@@ -27,6 +27,8 @@ import {
 } from '../../lib/oura'
 import type { OuraReadiness } from '../../lib/oura'
 import { safeGet, safeSet } from '../../lib/storage'
+import { reportError } from '../../lib/errorLog'
+import { showToast } from '../../lib/toast'
 import { densityTierFor, DENSITY_COLORS, DENSITY_LABELS } from '../../lib/density'
 import { analyzeImage } from '../../lib/analyzeFood'
 import type { PhotoAnalysisResult } from '../../lib/analyzeFood'
@@ -772,7 +774,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
       ])
       if (readinessData) { setCachedReadiness(dkey(date), readinessData); setReadiness(readinessData) }
       if (workouts.length === 0) {
-        if (!readinessData) alert('No Oura data found for this date.')
+        if (!readinessData) showToast('No Oura data found for this date.', 'info')
         return
       }
       const w = workouts[0]
@@ -784,7 +786,7 @@ export default function TrackerTab({ user, onOpenRecipe }: {
       const hrNote = w.average_heart_rate ? ` · avg HR ${w.average_heart_rate} bpm` : ''
       setWkNotes(`Oura: ${w.activity.replace(/_/g, ' ')} · ${dMin} min${hrNote}`)
     } catch (err: unknown) {
-      alert(`Oura sync failed: ${err instanceof Error ? err.message : String(err)}`)
+      showToast(reportError('oura-sync:workout', err), 'error')
     } finally {
       setWkSyncing(false)
     }
@@ -795,14 +797,14 @@ export default function TrackerTab({ user, onOpenRecipe }: {
     try {
       const sessions = await fetchOuraSessions(dkey(date))
       const med = sessions.find(s => s.type !== 'nap')
-      if (!med) { alert('No meditation session found for this date in Oura.'); return }
+      if (!med) { showToast('No meditation session found for this date in Oura.', 'info'); return }
       const dSec = (new Date(med.end_datetime).getTime() - new Date(med.start_datetime).getTime()) / 1000
       setMedMin(roundToMedMin(dSec))
       if (OURA_SESSION_MAP[med.type]) setMedStyle(OURA_SESSION_MAP[med.type])
       setOuraHRV(med.average_hrv); setOuraHR(med.average_heart_rate)
       setOuraMood(med.mood); setOuraActualMin(Math.round(dSec / 60))
     } catch (err: unknown) {
-      alert(`Oura sync failed: ${err instanceof Error ? err.message : String(err)}`)
+      showToast(reportError('oura-sync:meditation', err), 'error')
     } finally {
       setMedSyncing(false)
     }

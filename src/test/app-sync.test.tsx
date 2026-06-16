@@ -12,6 +12,8 @@ vi.mock('../lib/supabase', () => ({
     auth: {
       getSession: vi.fn(),
       onAuthStateChange: vi.fn(),
+      // Used by errorLog.reportError when persisting a log row
+      getUser: vi.fn(async () => ({ data: { user: null } })),
     },
   },
   // isConfigured: false → AuthButton returns null immediately (avoids its own supabase calls)
@@ -47,6 +49,7 @@ vi.mock('../lib/sync', () => ({
   upsertUserSettings:       vi.fn(),
   fetchUserBodyStats:       vi.fn(),
   fetchUserWorkoutPlan:     vi.fn(),
+  pushErrorLog:             vi.fn(),
 }))
 
 // ── Imports (after mocks) ─────────────────────────────────────────

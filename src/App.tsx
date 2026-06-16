@@ -16,6 +16,9 @@ import { consumeOAuthCallback } from './lib/oura'
 import * as sync from './lib/sync'
 import type { MedGuide } from './lib/sync'
 import { safeGet } from './lib/storage'
+import { reportError } from './lib/errorLog'
+import { showToast } from './lib/toast'
+import { ToastHost } from './components/common'
 import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStore, groceryCatalogStore, remindersStore, importRemoteData, MED_GUIDES_KEY, exportAllData, importAllData, userSettingsStore, bodyStatsStore, workoutPlanStore } from './hooks/useStore'
 
 type Tab = 'tracker' | 'recipes' | 'workouts' | 'schedule' | 'oura'
@@ -80,8 +83,8 @@ export default function App() {
     const reader = new FileReader()
     reader.onload = ev => {
       const ok = importAllData(ev.target?.result as string)
-      if (ok) { alert('Data imported! Reloading...'); location.reload() }
-      else alert('Import failed. Make sure you are using a backup file exported from this Hub.')
+      if (ok) location.reload()
+      else showToast('Import failed. Make sure you are using a backup file exported from this Hub.', 'error')
     }
     reader.readAsText(file)
     e.target.value = ''
@@ -185,7 +188,7 @@ export default function App() {
       setLastSynced(new Date())
       setSyncVersion(v => v + 1)
     } catch (err) {
-      console.error('[sync] syncAll failed:', err)
+      showToast(reportError('syncAll', err), 'error')
     } finally {
       setSyncing(false)
     }
@@ -304,6 +307,7 @@ export default function App() {
       </ErrorBoundary>
 
       <UpdatePrompt onUpdate={swUpdate} />
+      <ToastHost />
     </>
   )
 }

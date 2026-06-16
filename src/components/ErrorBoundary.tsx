@@ -1,4 +1,5 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react'
+import { reportError, GENERIC_ERROR_MESSAGE } from '../lib/errorLog'
 
 interface Props {
   children: ReactNode
@@ -18,7 +19,9 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.warn(`[ErrorBoundary:${this.props.name ?? 'unknown'}]`, error, info)
+    reportError(`ErrorBoundary:${this.props.name ?? 'unknown'}`, error)
+    // componentStack is useful context but not worth a second log row.
+    if (import.meta.env.DEV) console.warn(info.componentStack)
   }
 
   private reset = () => {
@@ -40,7 +43,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           Something went wrong{this.props.name ? ` in ${this.props.name}` : ''}
         </div>
         <div className="error-boundary__msg">
-          {this.state.error.message}
+          {import.meta.env.DEV ? this.state.error.message : GENERIC_ERROR_MESSAGE}
         </div>
         <div className="error-boundary__actions">
           <button onClick={this.reset} className="btn btn--primary btn--md">
