@@ -1000,6 +1000,47 @@
   font-family: "DM Mono", monospace;
 }
 
+.import-url-row {
+  margin-top: 10px;
+
+  .import-url-or {
+    display: block; margin-bottom: 6px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--muted2);
+  }
+  .import-url-field {
+    display: flex; gap: 8px; align-items: center;
+    .tinput { flex: 1; }
+    .tbtn { flex-shrink: 0; width: auto; padding: 9px 16px; }
+  }
+}
+
+// ── Shared recipe landing page (#/r/<token>) ──────────────────────
+.shared-recipe-page {
+  max-width: 560px; margin: 0 auto; padding: 24px 16px 48px;
+
+  .shared-recipe-head {
+    display: flex; align-items: baseline; gap: 10px; margin-bottom: 18px;
+  }
+  .shared-recipe-brand {
+    font-family: "DM Serif Display", serif; font-size: 22px; color: var(--green-light);
+  }
+  .shared-recipe-sub {
+    font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--muted2);
+  }
+  .shared-recipe-msg {
+    text-align: center; padding: 48px 16px; color: var(--muted);
+    font-size: 14px; display: flex; flex-direction: column; gap: 16px; align-items: center;
+  }
+  .shared-recipe-actions {
+    margin-top: 20px; display: flex; flex-direction: column; gap: 12px; align-items: center;
+  }
+  .shared-recipe-ok   { color: var(--green-light); font-weight: 500; }
+  .shared-recipe-err  { color: var(--coral-light); font-size: 12px; }
+  .shared-recipe-hint { color: var(--muted2); font-size: 13px; }
+}
+
 // ── Recipe macro calculation (manual recipes) ─────────────────────
 .macro-calc {
   margin-top: 10px;

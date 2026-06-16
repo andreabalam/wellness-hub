@@ -4,6 +4,7 @@ import type { Recipe, DietTag } from '../../data/recipes'
 import { supabase } from '../../lib/supabase'
 import {
   importRecipeFromFile,
+  importRecipeFromUrl,
   ACCEPTED_EXT,
   type ExtractedRecipe,
 } from '../../lib/recipeImport'
@@ -68,6 +69,7 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
   // ── Import state ──────────────────────────────────────────────
   const [importState, setImportState] = useState<ImportState>('idle')
   const [importError, setImportError] = useState('')
+  const [importUrl, setImportUrl]     = useState('')
   const [dragging, setDragging]       = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -149,6 +151,38 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
     const file = e.dataTransfer.files?.[0]
     if (file) handleFile(file)
   }
+
+  const handleUrl = useCallback(async () => {
+    const url = importUrl.trim()
+    if (!url) return
+    if (!/^https?:\/\/.+/i.test(url)) {
+      setImportState('error')
+      setImportError('Enter a valid http(s) URL.')
+      return
+    }
+    if (!supabase) {
+      setImportState('error')
+      setImportError('Sign in to use URL import.')
+      return
+    }
+    setImportState('loading')
+    setImportError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setImportState('error')
+        setImportError('Sign in to use URL import.')
+        return
+      }
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+      const recipe = await importRecipeFromUrl(url, session.access_token, supabaseUrl)
+      applyImport(recipe)
+      setImportState('done')
+    } catch (err) {
+      setImportState('error')
+      setImportError(err instanceof Error ? err.message : 'Import failed — please try again.')
+    }
+  }, [importUrl, applyImport])
 
   // ── Recipe form helpers ────────────────────────────────────────
 
@@ -362,6 +396,31 @@ export default function RecipeModal({ customTags, existingNames = [], initialRec
                       <span className="import-zone__hint">PDF · TXT · JPG · PNG · WebP</span>
                     </div>
                   )}
+                </div>
+
+                <div className="import-url-row">
+                  <span className="import-url-or">or paste a link</span>
+                  <div className="import-url-field">
+                    <input
+                      className="tinput"
+                      type="url"
+                      inputMode="url"
+                      value={importUrl}
+                      onChange={e => setImportUrl(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleUrl() } }}
+                      placeholder="https://example.com/recipe"
+                      disabled={importState === 'loading'}
+                      data-testid="recipe-url-input"
+                    />
+                    <button
+                      type="button"
+                      className="tbtn tbtn--purple"
+                      onClick={handleUrl}
+                      disabled={importState === 'loading' || !importUrl.trim()}
+                    >
+                      Import
+                    </button>
+                  </div>
                 </div>
 
                 {importState === 'error' && (

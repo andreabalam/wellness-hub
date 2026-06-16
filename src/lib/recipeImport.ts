@@ -32,6 +32,7 @@ type Payload =
   | { type: 'text';  content: string }
   | { type: 'image'; content: string; mimeType: string }
   | { type: 'pdf';   content: string }
+  | { type: 'url';   content: string }
 
 // ── Public API ────────────────────────────────────────────────────
 
@@ -76,7 +77,32 @@ export async function importRecipeFromFile(
   supabaseUrl: string,
 ): Promise<ExtractedRecipe> {
   const payload = await preparePayload(file)
+  return postImport(payload, accessToken, supabaseUrl)
+}
 
+/**
+ * Import a recipe from a web page URL. The page is fetched and parsed
+ * server-side by the edge function (browsers can't fetch most recipe sites
+ * directly because of CORS).
+ */
+export async function importRecipeFromUrl(
+  url: string,
+  accessToken: string,
+  supabaseUrl: string,
+): Promise<ExtractedRecipe> {
+  const trimmed = url.trim()
+  if (!/^https?:\/\/.+/i.test(trimmed)) {
+    throw new Error('Enter a valid http(s) URL.')
+  }
+  return postImport({ type: 'url', content: trimmed }, accessToken, supabaseUrl)
+}
+
+/** POST a prepared payload to the recipe-import edge function. */
+async function postImport(
+  payload: Payload,
+  accessToken: string,
+  supabaseUrl: string,
+): Promise<ExtractedRecipe> {
   const res = await fetch(`${supabaseUrl}/functions/v1/recipe-import`, {
     method:  'POST',
     headers: {

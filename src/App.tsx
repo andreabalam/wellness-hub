@@ -9,6 +9,8 @@ import OuraTab from './components/OuraTab'
 import UpdatePrompt from './components/UpdatePrompt'
 import AuthButton from './components/AuthButton'
 import ErrorBoundary from './components/ErrorBoundary'
+import SharedRecipeView from './components/SharedRecipeView'
+import { parseShareRoute } from './lib/recipeShare'
 import { supabase } from './lib/supabase'
 import { consumeOAuthCallback } from './lib/oura'
 import * as sync from './lib/sync'
@@ -46,6 +48,8 @@ export default function App() {
     : null
 
   const [user, setUser]           = useState<User | null>(e2eUser)
+  // Shared-recipe deep link (#/r/<token>) — renders a standalone view when present
+  const [shareToken, setShareToken] = useState<string | null>(() => parseShareRoute(location.hash))
   const [syncing, setSyncing]     = useState(false)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
   // Incremented after each syncAll — used as TrackerTab key so it remounts fresh
@@ -217,6 +221,33 @@ export default function App() {
     window.__swOnUpdate = (cb: () => void) => setSwUpdate(() => cb)
     return () => { window.__swOnUpdate = undefined }
   }, [])
+
+  // ── Shared-recipe deep link routing ──────────────────────────
+  useEffect(() => {
+    const onHash = () => setShareToken(parseShareRoute(location.hash))
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+
+  if (shareToken) {
+    return (
+      <ErrorBoundary name="SharedRecipe">
+        <SharedRecipeView
+          token={shareToken}
+          user={user}
+          onExit={() => { location.hash = ''; setShareToken(null) }}
+        />
+        <AuthButton
+          user={user}
+          syncing={syncing}
+          lastSynced={lastSynced}
+          onSynced={() => user && syncAll(user.id)}
+          onExport={handleExport}
+          onImportFile={handleImport}
+        />
+      </ErrorBoundary>
+    )
+  }
 
   return (
     <>
