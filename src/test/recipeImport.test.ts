@@ -9,6 +9,7 @@ import {
   readAsText,
   readAsBase64,
   importRecipeFromFile,
+  importRecipeFromUrl,
   ACCEPTED_EXT,
   ACCEPTED_MIME,
   type ExtractedRecipe,
@@ -229,5 +230,50 @@ describe('importRecipeFromFile', () => {
     await importRecipeFromFile(file, TOKEN, URL)
     const [url] = vi.mocked(fetch).mock.calls[0]
     expect(url).toBe(`${URL}/functions/v1/recipe-import`)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
+// importRecipeFromUrl
+// ═════════════════════════════════════════════════════════════════
+
+describe('importRecipeFromUrl', () => {
+  const TOKEN = 'fake-access-token'
+  const URL   = 'https://xyz.supabase.co'
+
+  it('sends a url payload to the edge function', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 })
+    )
+    const result = await importRecipeFromUrl('https://example.com/recipe', TOKEN, URL)
+    expect(result.name).toBe('Avocado Toast')
+    const [url, init] = vi.mocked(fetch).mock.calls[0]
+    expect(url).toBe(`${URL}/functions/v1/recipe-import`)
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      type: 'url', content: 'https://example.com/recipe',
+    })
+  })
+
+  it('trims surrounding whitespace from the URL', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 })
+    )
+    await importRecipeFromUrl('  https://example.com/recipe  ', TOKEN, URL)
+    const [, init] = vi.mocked(fetch).mock.calls[0]
+    expect(JSON.parse((init as RequestInit).body as string).content).toBe('https://example.com/recipe')
+  })
+
+  it('rejects non-http(s) input without calling fetch', async () => {
+    await expect(importRecipeFromUrl('ftp://example.com', TOKEN, URL)).rejects.toThrow(/valid http/i)
+    await expect(importRecipeFromUrl('not a url', TOKEN, URL)).rejects.toThrow(/valid http/i)
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('propagates server error messages', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: 'No readable content found at that URL' }), { status: 422 })
+    )
+    await expect(importRecipeFromUrl('https://example.com', TOKEN, URL))
+      .rejects.toThrow('No readable content found at that URL')
   })
 })

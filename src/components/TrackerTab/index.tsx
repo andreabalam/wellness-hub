@@ -853,7 +853,13 @@ export default function TrackerTab({ user, onOpenRecipe }: {
             </div>
             <div className="flex-between mt-12 text-sm">
               <span className="text-muted">💧 Water</span>
-              <span className="font-mono text-blue">{day.water ?? 0} glass{(day.water ?? 0) === 1 ? '' : 'es'}</span>
+              <div className="flex gap-8 items-center">
+                <button onClick={() => adjustWater(-1)} className="water-btn" aria-label="Remove a glass of water" disabled={water === 0}>–</button>
+                <span className="font-mono text-blue" style={{ minWidth: 78, textAlign: 'center' }}>
+                  {water} glass{water === 1 ? '' : 'es'}
+                </span>
+                <button onClick={() => adjustWater(1)} className="water-btn" aria-label="Add a glass of water" disabled={water >= WATER_MAX}>+</button>
+              </div>
             </div>
           </div>
 
@@ -1291,16 +1297,6 @@ export default function TrackerTab({ user, onOpenRecipe }: {
                   {ouraConnected && <span className="text-2xs text-muted2" style={{ marginLeft: 6 }}>auto from Oura · tap to override</span>}
                 </div>
                 <StarRow value={stress} onChange={setStress} emoji="S" lowLabel="Calm" highLabel="Stressed" />
-              </div>
-              <div>
-                <div className="text-sm text-muted mb-6">Hydration 💧</div>
-                <div className="flex gap-8 items-center">
-                  <button onClick={() => adjustWater(-1)} className="water-btn" aria-label="Remove a glass of water" disabled={water === 0}>–</button>
-                  <span className="font-mono text-base text-blue" style={{ minWidth: 90, textAlign: 'center' }}>
-                    {water} glass{water === 1 ? '' : 'es'}
-                  </span>
-                  <button onClick={() => adjustWater(1)} className="water-btn" aria-label="Add a glass of water" disabled={water >= WATER_MAX}>+</button>
-                </div>
               </div>
               <div>
                 <div className="text-sm text-muted mb-6">Cycle phase</div>

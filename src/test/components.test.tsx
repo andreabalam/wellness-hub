@@ -404,6 +404,17 @@ describe('RecipeCard', () => {
     expect(screen.getByText('tap to collapse')).toBeInTheDocument()
   })
 
+  it('Share button copies a share link to the clipboard', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })  // no navigator.share → clipboard fallback
+    render(<RecipeCard recipe={BASE_RECIPE} />)
+    fireEvent.click(screen.getByRole('button', { name: /share recipe/i }))
+    await waitFor(() => expect(writeText).toHaveBeenCalled())
+    const url = writeText.mock.calls[0][0] as string
+    expect(url).toContain('#/r/')
+    await waitFor(() => expect(screen.getByText('Link copied!')).toBeInTheDocument())
+  })
+
   it('clicking an open card shows "tap to see recipe" again', () => {
     render(<RecipeCard recipe={BASE_RECIPE} />)
     const card = screen.getByText('Test Dish').closest('.rcard') as HTMLElement

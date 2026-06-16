@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, memo } from 'react'
 import type { Recipe } from '../../data/recipes'
 import { dietTagLabel } from '../../data/recipes'
 import { densityTier, DENSITY_COLORS, DENSITY_LABELS, isDrinkCategory } from '../../lib/density'
+import { buildShareUrl } from '../../lib/recipeShare'
 
 interface Props {
   recipe: Recipe
@@ -54,8 +55,27 @@ export default memo(function RecipeCard({
   onGrocery,
 }: Props) {
   const [open, setOpen] = useState(false)
+  const [shareMsg, setShareMsg] = useState('')
   const cardRef = useRef<HTMLDivElement>(null)
   const isFerment = r.cat === 'ferments'
+
+  const handleShare = async () => {
+    try {
+      const url = await buildShareUrl(r)
+      if (navigator.share) {
+        await navigator.share({ title: r.name, text: `${r.name} — recipe`, url })
+        return
+      }
+      await navigator.clipboard.writeText(url)
+      setShareMsg('Link copied!')
+      setTimeout(() => setShareMsg(''), 2500)
+    } catch (err) {
+      // User-cancelled share sheets reject — ignore those; surface real failures
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      setShareMsg('Could not create link')
+      setTimeout(() => setShareMsg(''), 2500)
+    }
+  }
 
   useEffect(() => {
     if (!autoOpen) return
@@ -246,6 +266,14 @@ export default memo(function RecipeCard({
               🛒 Grocery
             </button>
           )}
+
+          <button
+            className="btn btn--ghost btn--sm"
+            onClick={handleShare}
+            aria-label="Share recipe"
+          >
+            {shareMsg || '🔗 Share'}
+          </button>
 
           {/* Destructive actions pushed to the right */}
           <div className="rcard-actions__right">
