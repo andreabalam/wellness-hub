@@ -658,6 +658,30 @@
 .food-log-meta    { font-family: monospace; font-size: 10px; color: var(--muted); }
 .food-edit-btn    { background: none; border: none; cursor: pointer; font-size: 14px; padding: 0 3px; line-height: 1; }
 .food-remove-btn  { background: none; border: none; color: var(--muted2); cursor: pointer; font-size: 19px; padding: 0 4px; line-height: 1; }
+
+// ── Paste-to-log (tracker) ────────────────────────────────────────
+.paste-log-toggle {
+  background: none; border: 1px dashed var(--border); border-radius: 7px;
+  color: var(--muted); cursor: pointer; font-size: 12px; padding: 7px 12px;
+  width: 100%; margin-bottom: 10px;
+  &:hover { color: var(--teal-light); border-color: var(--teal); }
+}
+.paste-log-panel {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px; margin-bottom: 12px; background: var(--bg3);
+}
+.paste-log-error { color: var(--coral-light); font-size: 11px; margin-top: 6px; }
+.paste-log-cancel {
+  background: none; border: none; color: var(--muted2); cursor: pointer;
+  font-size: 12px; padding: 0 8px;
+  &:hover { color: var(--muted); }
+}
+.paste-log-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+  .paste-log-macros { display: flex; gap: 4px;
+    .tnum { width: 42px; text-align: center; }
+  }
+}
 .edit-indicator   {
   display: flex; justify-content: space-between; align-items: center;
   padding: 5px 8px; background: rgba(184,150,58,0.1);
@@ -1013,6 +1037,20 @@
     .tinput { flex: 1; }
     .tbtn { flex-shrink: 0; width: auto; padding: 9px 16px; }
   }
+}
+
+.import-paste-row {
+  margin-top: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+
+  .import-paste-toggle {
+    align-self: flex-start;
+    background: none; border: none; padding: 0; cursor: pointer;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--muted2); text-decoration: underline;
+    &:hover { color: var(--muted); }
+  }
+  .tbtn { align-self: flex-end; width: auto; padding: 9px 16px; }
 }
 
 // ── Shared recipe landing page (#/r/<token>) ──────────────────────

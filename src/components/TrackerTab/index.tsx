@@ -30,6 +30,7 @@ import { safeGet, safeSet } from '../../lib/storage'
 import { densityTierFor, DENSITY_COLORS, DENSITY_LABELS } from '../../lib/density'
 import { analyzeImage } from '../../lib/analyzeFood'
 import type { PhotoAnalysisResult } from '../../lib/analyzeFood'
+import { parseFoodLog, parseFoodLogLocal } from '../../lib/foodImport'
 import RemindersSection from './RemindersSection'
 
 function dkey(d: Date) { return d.toISOString().split('T')[0] }
@@ -289,6 +290,13 @@ export default function TrackerTab({ user, onOpenRecipe }: {
   const [photoNotes, setPhotoNotes]   = useState<string>('')
   const [photoConfidence, setPhotoConfidence] = useState<PhotoAnalysisResult['confidence'] | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Paste-to-log: parse a pasted text block into reviewable food entries.
+  const [pasteOpen, setPasteOpen]     = useState(false)
+  const [pasteText, setPasteText]     = useState('')
+  const [pasteStatus, setPasteStatus] = useState<'idle' | 'parsing' | 'error'>('idle')
+  const [pasteError, setPasteError]   = useState('')
+  const [pasteRows, setPasteRows]     = useState<QuickFood[] | null>(null)
 
   const [selSession, setSess]     = useState<string | null>(null)
   const [wkNotes, setWkNotes]   = useState('')
@@ -580,6 +588,56 @@ export default function TrackerTab({ user, onOpenRecipe }: {
 
   const quickAdd = (f: FoodEntry) => {
     save({ foods: [...day.foods, f] })
+  }
+
+  // ── Paste-to-log ────────────────────────────────────────────────
+  const closePaste = () => {
+    setPasteOpen(false); setPasteText(''); setPasteRows(null)
+    setPasteStatus('idle'); setPasteError('')
+  }
+
+  const runParse = async () => {
+    const text = pasteText.trim()
+    if (!text) return
+    setPasteStatus('parsing'); setPasteError('')
+    try {
+      const rows = await parseFoodLog(text)
+      if (!Array.isArray(rows) || rows.length === 0) throw new Error('No foods found in that text')
+      setPasteRows(rows)
+      setPasteStatus('idle')
+    } catch (err) {
+      // Fall back to the offline parser (explicit macros + food-library matches).
+      const local = parseFoodLogLocal(text, foodLib)
+      if (local.length) {
+        setPasteRows(local)
+        setPasteStatus('idle')
+      } else {
+        setPasteStatus('error')
+        setPasteError(err instanceof Error ? err.message : 'Could not read any foods from that text.')
+      }
+    }
+  }
+
+  const updatePasteRow = (i: number, patch: Partial<QuickFood>) => {
+    setPasteRows(rows => rows?.map((r, j) => j === i ? { ...r, ...patch } : r) ?? rows)
+  }
+
+  const removePasteRow = (i: number) => {
+    setPasteRows(rows => rows?.filter((_, j) => j !== i) ?? rows)
+  }
+
+  const addParsedFoods = () => {
+    const rows = (pasteRows ?? []).filter(r => r.n.trim() && r.k > 0)
+    if (!rows.length) return
+    const entries: FoodEntry[] = rows.map(r => ({
+      n: r.n.trim(), k: r.k, p: r.p, c: r.c, f: r.f, fi: r.fi,
+    }))
+    // Remember per-serving macros so these foods autocomplete next time.
+    let lib = foodLib
+    for (const r of rows) lib = libStore.upsert(r)
+    setFoodLib(lib)
+    save({ foods: [...day.foods, ...entries] })
+    closePaste()
   }
 
   // Top 10 most-recently-seen unique meals across all logged days
@@ -884,6 +942,89 @@ export default function TrackerTab({ user, onOpenRecipe }: {
               ))}
             </div>
             <div style={{ paddingTop: 12 }}>
+              {/* Paste-to-log: parse a pasted block of meals into reviewable entries */}
+              {!pasteOpen ? (
+                <button
+                  onClick={() => setPasteOpen(true)}
+                  className="paste-log-toggle"
+                  data-testid="paste-log-toggle"
+                >
+                  📋 Paste meals to log
+                </button>
+              ) : (
+                <div className="paste-log-panel">
+                  {pasteRows === null ? (
+                    <>
+                      <textarea
+                        className="tinput resize-vertical w-full"
+                        rows={5}
+                        value={pasteText}
+                        onChange={e => setPasteText(e.target.value)}
+                        placeholder={'Paste meals — one per line. e.g.\nGreek yogurt with berries\nChicken salad, 420 cal\nBerry Oats 350 18 42 12 9'}
+                        disabled={pasteStatus === 'parsing'}
+                        data-testid="paste-log-input"
+                      />
+                      {pasteStatus === 'error' && (
+                        <div className="paste-log-error" role="alert">{pasteError}</div>
+                      )}
+                      <div className="flex gap-6 justify-end mt-8">
+                        <button onClick={closePaste} className="paste-log-cancel">Cancel</button>
+                        <button
+                          onClick={runParse}
+                          disabled={pasteStatus === 'parsing' || !pasteText.trim()}
+                          className="tbtn tbtn--teal"
+                          style={{ width: 'auto' }}
+                        >
+                          {pasteStatus === 'parsing' ? 'Parsing…' : 'Parse'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-xs text-muted2 mb-6">Review and edit before logging:</div>
+                      {pasteRows.length === 0 ? (
+                        <div className="text-2xs text-muted2 italic mb-8">Nothing left to add.</div>
+                      ) : pasteRows.map((r, i) => (
+                        <div key={i} className="paste-log-row">
+                          <input
+                            className="tinput flex-1"
+                            value={r.n}
+                            onChange={e => updatePasteRow(i, { n: e.target.value })}
+                            placeholder="Food name"
+                          />
+                          <div className="paste-log-macros">
+                            {([['kcal', 'k'], ['P', 'p'], ['C', 'c'], ['F', 'f'], ['Fi', 'fi']] as [string, keyof QuickFood][]).map(([ph, key]) => (
+                              <input
+                                key={key}
+                                className="tnum"
+                                type="number"
+                                min="0"
+                                placeholder={ph}
+                                value={r[key] as number}
+                                onChange={e => updatePasteRow(i, { [key]: Math.max(0, parseInt(e.target.value) || 0) })}
+                              />
+                            ))}
+                          </div>
+                          <button onClick={() => removePasteRow(i)} className="food-remove-btn" title="Remove">×</button>
+                        </div>
+                      ))}
+                      <div className="flex gap-6 justify-end mt-8">
+                        <button onClick={closePaste} className="paste-log-cancel">Cancel</button>
+                        <button
+                          onClick={addParsedFoods}
+                          disabled={!pasteRows.some(r => r.n.trim() && r.k > 0)}
+                          className="tbtn tbtn--teal"
+                          style={{ width: 'auto' }}
+                          data-testid="paste-log-add"
+                        >
+                          + Add {pasteRows.filter(r => r.n.trim() && r.k > 0).length} food{pasteRows.filter(r => r.n.trim() && r.k > 0).length === 1 ? '' : 's'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* Hidden file input for photo capture — no `capture` attr so
                   mobile browsers offer both camera and photo library */}
               <input

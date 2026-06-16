@@ -10,6 +10,7 @@ import {
   readAsBase64,
   importRecipeFromFile,
   importRecipeFromUrl,
+  importRecipeFromText,
   ACCEPTED_EXT,
   ACCEPTED_MIME,
   type ExtractedRecipe,
@@ -275,5 +276,40 @@ describe('importRecipeFromUrl', () => {
     )
     await expect(importRecipeFromUrl('https://example.com', TOKEN, URL))
       .rejects.toThrow('No readable content found at that URL')
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
+// importRecipeFromText
+// ═════════════════════════════════════════════════════════════════
+
+describe('importRecipeFromText', () => {
+  const TOKEN = 'fake-access-token'
+  const URL   = 'https://xyz.supabase.co'
+
+  it('sends a trimmed text payload to the edge function', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 })
+    )
+    const result = await importRecipeFromText('  Avocado Toast\nMash, toast  ', TOKEN, URL)
+    expect(result.name).toBe('Avocado Toast')
+    const [url, init] = vi.mocked(fetch).mock.calls[0]
+    expect(url).toBe(`${URL}/functions/v1/recipe-import`)
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body.type).toBe('text')
+    expect(body.content).toBe('Avocado Toast\nMash, toast')
+  })
+
+  it('rejects empty text without calling fetch', async () => {
+    await expect(importRecipeFromText('   ', TOKEN, URL)).rejects.toThrow(/paste some recipe text/i)
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('propagates server error messages', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Could not parse recipe from response' }), { status: 422 })
+    )
+    await expect(importRecipeFromText('garbage', TOKEN, URL))
+      .rejects.toThrow('Could not parse recipe from response')
   })
 })
