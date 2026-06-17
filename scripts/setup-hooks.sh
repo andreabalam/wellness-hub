@@ -3,6 +3,14 @@ cat > .git/hooks/pre-commit << 'EOF'
 #!/bin/sh
 set -e
 
+# Block direct commits to main — all changes go through a feature branch + PR
+branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$branch" = "main" ]; then
+  echo "ERROR: Direct commits to main are not allowed."
+  echo "Create a branch first: git checkout -b fix/<name>"
+  exit 1
+fi
+
 # Block .env files from being staged
 if git diff --cached --name-only | grep -qE '\.env(\.local)?$'; then
   echo "ERROR: .env file staged. Remove it with: git restore --staged <file>"
