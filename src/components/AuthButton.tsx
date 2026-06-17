@@ -6,6 +6,8 @@ interface Props {
   user: User | null
   syncing: boolean
   lastSynced: Date | null
+  /** True when local changes have not yet been confirmed pushed to Supabase. */
+  syncPending?: boolean
   onSynced: () => void
   onExport: () => void
   onImportFile: (e: React.ChangeEvent<HTMLInputElement>) => void
@@ -13,7 +15,7 @@ interface Props {
 
 type PanelState = 'idle' | 'sending' | 'sent' | 'verifying'
 
-export default function AuthButton({ user, syncing, lastSynced, onSynced, onExport, onImportFile }: Props) {
+export default function AuthButton({ user, syncing, lastSynced, syncPending, onSynced, onExport, onImportFile }: Props) {
   const [open, setOpen]               = useState(false)
   const [email, setEmail]             = useState('')
   const [code, setCode]               = useState('')
@@ -141,6 +143,7 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
           </svg>
         )}
         {syncing && <span className="auth-avatar__badge" />}
+        {!syncing && syncPending && <span className="auth-avatar__badge auth-avatar__badge--pending" />}
       </button>
 
       {/* ── Panel ── */}
@@ -224,7 +227,9 @@ export default function AuthButton({ user, syncing, lastSynced, onSynced, onExpo
                   <div className="auth-user-status">
                     {syncing
                       ? <span className="text-amber">syncing…</span>
-                      : <span>synced: <span className="text-teal">{lastSyncedLabel}</span></span>
+                      : syncPending
+                        ? <span className="text-coral">changes not synced</span>
+                        : <span>synced: <span className="text-teal">{lastSyncedLabel}</span></span>
                     }
                   </div>
                 </div>

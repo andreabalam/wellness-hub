@@ -27,7 +27,8 @@ beforeAll(() => {
     const msg = typeof args[0] === 'string' ? args[0] : ''
     if (msg.includes('not wrapped in act')) return
     if (msg.startsWith('[sync]')) return
-    if (msg.startsWith('[syncAll]')) return
+    if (msg.startsWith('[syncAll')) return
+    if (msg.startsWith('[recipe-sync')) return
     originalError(...args)
   }
 })

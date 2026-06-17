@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
 import ScheduleTab from './components/ScheduleTab'
 import WorkoutsTab from './components/WorkoutsTab'
@@ -19,7 +19,7 @@ import { safeGet } from './lib/storage'
 import { reportError } from './lib/errorLog'
 import { showToast } from './lib/toast'
 import { ToastHost } from './components/common'
-import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStore, groceryCatalogStore, remindersStore, importRemoteData, MED_GUIDES_KEY, exportAllData, importAllData, userSettingsStore, bodyStatsStore, workoutPlanStore } from './hooks/useStore'
+import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStore, groceryCatalogStore, remindersStore, importRemoteData, MED_GUIDES_KEY, exportAllData, importAllData, userSettingsStore, bodyStatsStore, workoutPlanStore, syncStatusStore } from './hooks/useStore'
 
 type Tab = 'tracker' | 'recipes' | 'workouts' | 'schedule' | 'oura'
 
@@ -55,6 +55,13 @@ export default function App() {
   const [shareToken, setShareToken] = useState<string | null>(() => parseShareRoute(location.hash))
   const [syncing, setSyncing]     = useState(false)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
+  // True when local writes failed to reach Supabase and are awaiting the next
+  // sync. Persisted in localStorage so it survives reloads (offline edits).
+  const [syncPending, setSyncPending] = useState(() => syncStatusStore.isPending())
+  useEffect(() => syncStatusStore.subscribe(setSyncPending), [])
+  // Guards against overlapping syncAll runs (sign-in + manual "sync now" +
+  // auth-change can fire close together) which could interleave reads/writes.
+  const syncInFlight = useRef(false)
   // Incremented after each syncAll — used as TrackerTab key so it remounts fresh
   // and reads the synced localStorage data rather than keeping its pre-sync state.
   const [syncVersion, setSyncVersion] = useState(0)
@@ -93,9 +100,11 @@ export default function App() {
   // ── Bidirectional sync on sign-in ─────────────────────────────
   const syncAll = useCallback(async (userId: string) => {
     if (!supabase) return
+    if (syncInFlight.current) return   // A5: never let two syncAll runs interleave
+    syncInFlight.current = true
     setSyncing(true)
     try {
-      // Pull remote data
+      // ── Pull phase ─────────────────────────────────────────────
       const [remoteDays, remoteTags, remoteGrocery, remoteFoodLib, remoteWeekSchedule, remoteMedGuides, remoteGroceryCatalog, remoteReminders] = await Promise.all([
         sync.pullAllDays(userId),
         sync.pullTags(userId),
@@ -109,9 +118,6 @@ export default function App() {
 
       // Merge: remote wins for tracker day conflicts (another device is authoritative);
       // tags, grocery, and food library are unioned so local-only items are never lost.
-      const localDays = trackerStore.getAll()
-      const mergedDays = { ...localDays, ...remoteDays }
-
       const mergedTags    = [...new Set([...recipeStore.getTags(), ...remoteTags])]
       const mergedGrocery = [...new Set([...groceryStore.getChecked(), ...remoteGrocery])]
 
@@ -146,6 +152,11 @@ export default function App() {
         ? [...(remoteGroceryCatalog ?? []), ...localCatalog.filter(i => !remoteIds.has(i.id))]
         : localCatalog
 
+      // A5: re-read tracker days right before writing so a day edited during the
+      // pull window survives. Remote still wins same-day conflicts (the rule),
+      // but a brand-new local-only edit is no longer clobbered by stale state.
+      const mergedDays = { ...trackerStore.getAll(), ...remoteDays }
+
       // Write merged data to localStorage (bypasses push to avoid a loop)
       importRemoteData({
         tracker:        mergedDays,
@@ -158,39 +169,45 @@ export default function App() {
         reminders: mergedReminders,
       })
 
-      // Push merged data back so any local-only items reach Supabase
-      await Promise.all([
-        ...Object.entries(mergedDays).map(([date, data]) =>
-          sync.pushDay(userId, date, data)
-        ),
-        sync.pushTags(userId, mergedTags),
-        sync.pushGrocery(userId, mergedGrocery),
-        sync.pushFoodLibrary(userId, mergedFoodLib),
-        ...(mergedWeekSchedule      ? [sync.pushWeekSchedule(userId, mergedWeekSchedule)]           : []),
-        ...(mergedMedGuides         ? [sync.pushMedGuides(userId, mergedMedGuides)]                 : []),
-        ...(mergedGroceryCatalog.length ? [sync.pushUserGroceryCatalog(userId, mergedGroceryCatalog)] : []),
-        ...mergedReminders.map(r => sync.upsertReminder(userId, r)),
-      ])
-
-      // User settings: remote wins; push local if no remote copy
+      // User settings / body stats / workout plan: remote wins; settings push
+      // happens only when there's no remote copy yet (included in the push batch).
       const remoteSettings = await sync.fetchUserSettings(userId).catch(() => null)
       if (remoteSettings) userSettingsStore.importFromRemote(remoteSettings)
-      else await sync.upsertUserSettings(userId, userSettingsStore.get()).catch(() => {})
-
-      // Body stats: remote wins; skip push if empty
       const remoteBodyStats = await sync.fetchUserBodyStats(userId).catch(() => null)
       if (remoteBodyStats) bodyStatsStore.importFromRemote(remoteBodyStats)
-
-      // Workout plan: remote wins; skip push (plan is set via DB seed / future UI)
       const remoteWorkoutPlan = await sync.fetchUserWorkoutPlan(userId).catch(() => null)
       if (remoteWorkoutPlan) workoutPlanStore.importFromRemote(remoteWorkoutPlan)
+
+      // ── Push phase ── push merged data back so local-only items reach Supabase.
+      // A4: a failure here flips the pending flag (rather than being swallowed) so
+      // the UI can show "changes not synced" and the next syncAll reconciles it.
+      try {
+        await Promise.all([
+          ...Object.entries(mergedDays).map(([date, data]) =>
+            sync.pushDay(userId, date, data)
+          ),
+          sync.pushTags(userId, mergedTags),
+          sync.pushGrocery(userId, mergedGrocery),
+          sync.pushFoodLibrary(userId, mergedFoodLib),
+          ...(mergedWeekSchedule      ? [sync.pushWeekSchedule(userId, mergedWeekSchedule)]           : []),
+          ...(mergedMedGuides         ? [sync.pushMedGuides(userId, mergedMedGuides)]                 : []),
+          ...(mergedGroceryCatalog.length ? [sync.pushUserGroceryCatalog(userId, mergedGroceryCatalog)] : []),
+          ...mergedReminders.map(r => sync.upsertReminder(userId, r)),
+          ...(remoteSettings ? [] : [sync.upsertUserSettings(userId, userSettingsStore.get())]),
+        ])
+        syncStatusStore.clear()   // everything confirmed in the cloud
+      } catch (pushErr) {
+        reportError('syncAll:push', pushErr)
+        syncStatusStore.markPending()
+      }
 
       setLastSynced(new Date())
       setSyncVersion(v => v + 1)
     } catch (err) {
-      showToast(reportError('syncAll', err), 'error')
+      showToast(reportError('syncAll:pull', err), 'error')
     } finally {
       setSyncing(false)
+      syncInFlight.current = false
     }
   }, [])
 
@@ -244,6 +261,7 @@ export default function App() {
           user={user}
           syncing={syncing}
           lastSynced={lastSynced}
+          syncPending={syncPending}
           onSynced={() => user && syncAll(user.id)}
           onExport={handleExport}
           onImportFile={handleImport}
@@ -261,6 +279,7 @@ export default function App() {
             user={user}
             syncing={syncing}
             lastSynced={lastSynced}
+            syncPending={syncPending}
             onSynced={() => user && syncAll(user.id)}
             onExport={handleExport}
             onImportFile={handleImport}

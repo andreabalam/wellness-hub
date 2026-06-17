@@ -11,6 +11,14 @@ import type { GroceryItem, GroceryCatalogItem } from '../data/grocery'
 import type { Reminder } from '../data/reminders'
 import type { WorkoutWeek } from '../data/workouts'
 
+/**
+ * Throw when a Supabase write returns an error, so callers (tryPush, syncAll)
+ * can actually detect a failed push instead of it being silently swallowed.
+ */
+function assertOk(op: string, error: { message: string } | null): void {
+  if (error) throw new Error(`${op}: ${error.message}`)
+}
+
 // ── Tracker days ─────────────────────────────────────────────────
 
 export async function pushDay(userId: string, date: string, data: DayData) {
@@ -20,7 +28,7 @@ export async function pushDay(userId: string, date: string, data: DayData) {
       { user_id: userId, date, data, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,date' },
     )
-  if (error) console.error('[sync] pushDay failed:', error)
+  assertOk('pushDay', error)
 }
 
 export async function pullAllDays(userId: string): Promise<Record<string, DayData>> {
@@ -84,7 +92,11 @@ export async function fetchBuiltinRecipes(): Promise<Recipe[] | null> {
   return data.map(rowToRecipe)
 }
 
-/** Fetch this user's custom recipes from the recipes table. */
+/**
+ * Fetch this user's custom recipes. Throws on error (rather than returning [])
+ * so the caller can tell a real empty result from a failed fetch — the merge
+ * must not prune synced recipes just because the network blipped.
+ */
 export async function fetchUserRecipes(userId: string): Promise<Recipe[]> {
   const { data, error } = await supabase!
     .from('recipes')
@@ -92,8 +104,8 @@ export async function fetchUserRecipes(userId: string): Promise<Recipe[]> {
     .eq('user_id', userId)
     .eq('custom', true)
     .order('id')
-  if (error || !data) return []
-  return data.map(rowToRecipe)
+  assertOk('fetchUserRecipes', error)
+  return (data ?? []).map(rowToRecipe)
 }
 
 /** Insert or update a custom recipe for the logged-in user. Returns the DB id. */
@@ -138,9 +150,10 @@ export async function deleteUserRecipe(recipeId: number): Promise<void> {
 // ── Custom tags ───────────────────────────────────────────────────
 
 export async function pushTags(userId: string, tags: string[]) {
-  await supabase!
+  const { error } = await supabase!
     .from('custom_tags')
     .upsert({ user_id: userId, tags, updated_at: new Date().toISOString() })
+  assertOk('pushTags', error)
 }
 
 export async function pullTags(userId: string): Promise<string[]> {
@@ -155,9 +168,10 @@ export async function pullTags(userId: string): Promise<string[]> {
 // ── Grocery ───────────────────────────────────────────────────────
 
 export async function pushGrocery(userId: string, checked: string[]) {
-  await supabase!
+  const { error } = await supabase!
     .from('grocery_checked')
     .upsert({ user_id: userId, checked, updated_at: new Date().toISOString() })
+  assertOk('pushGrocery', error)
 }
 
 export async function pullGrocery(userId: string): Promise<string[]> {
@@ -172,9 +186,10 @@ export async function pullGrocery(userId: string): Promise<string[]> {
 // ── Food library ──────────────────────────────────────────────────
 
 export async function pushFoodLibrary(userId: string, library: QuickFood[]) {
-  await supabase!
+  const { error } = await supabase!
     .from('food_library')
     .upsert({ user_id: userId, library, updated_at: new Date().toISOString() })
+  assertOk('pushFoodLibrary', error)
 }
 
 export async function pullFoodLibrary(userId: string): Promise<QuickFood[]> {
@@ -189,9 +204,10 @@ export async function pullFoodLibrary(userId: string): Promise<QuickFood[]> {
 // ── Schedule blocks (per user) ────────────────────────────────────
 
 export async function pushSchedule(userId: string, blocks: CustomBlock[]) {
-  await supabase!
+  const { error } = await supabase!
     .from('schedule_blocks')
     .upsert({ user_id: userId, blocks, updated_at: new Date().toISOString() })
+  assertOk('pushSchedule', error)
 }
 
 export async function pullSchedule(userId: string): Promise<CustomBlock[] | null> {
@@ -204,9 +220,10 @@ export async function pullSchedule(userId: string): Promise<CustomBlock[] | null
 }
 
 export async function pushWeekSchedule(userId: string, week: WeekSchedule) {
-  await supabase!
+  const { error } = await supabase!
     .from('schedule_blocks')
     .upsert({ user_id: userId, week_schedule: week, updated_at: new Date().toISOString() })
+  assertOk('pushWeekSchedule', error)
 }
 
 export async function pullWeekSchedule(userId: string): Promise<WeekSchedule | null> {
@@ -230,9 +247,10 @@ export async function pullWeekSchedule(userId: string): Promise<WeekSchedule | n
 export interface MedGuide { title: string; url: string }
 
 export async function pushMedGuides(userId: string, guides: MedGuide[]) {
-  await supabase!
+  const { error } = await supabase!
     .from('med_guides')
     .upsert({ user_id: userId, guides, updated_at: new Date().toISOString() })
+  assertOk('pushMedGuides', error)
 }
 
 export async function pullMedGuides(userId: string): Promise<MedGuide[] | null> {
@@ -261,7 +279,7 @@ export async function fetchReminders(userId: string): Promise<Reminder[]> {
   }))
 }
 
-export async function upsertReminder(userId: string, r: Reminder): Promise<string | null> {
+export async function upsertReminder(userId: string, r: Reminder): Promise<void> {
   const { error } = await supabase!
     .from('reminders')
     .upsert({
@@ -272,7 +290,7 @@ export async function upsertReminder(userId: string, r: Reminder): Promise<strin
       checked_at: r.checkedAt,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'id' })
-  return error ? error.message : null
+  assertOk('upsertReminder', error)
 }
 
 export async function deleteReminder(reminderId: string): Promise<void> {
@@ -282,9 +300,10 @@ export async function deleteReminder(reminderId: string): Promise<void> {
 // ── User grocery catalog (per-user CRUD) ─────────────────────────
 
 export async function pushUserGroceryCatalog(userId: string, items: GroceryCatalogItem[]) {
-  await supabase!
+  const { error } = await supabase!
     .from('user_grocery_catalog')
     .upsert({ user_id: userId, items, updated_at: new Date().toISOString() })
+  assertOk('pushUserGroceryCatalog', error)
 }
 
 export async function pullUserGroceryCatalog(userId: string): Promise<GroceryCatalogItem[] | null> {
@@ -343,7 +362,7 @@ export async function fetchUserSettings(userId: string): Promise<UserSettings | 
 }
 
 export async function upsertUserSettings(userId: string, s: UserSettings): Promise<void> {
-  await supabase!.from('user_settings').upsert({
+  const { error } = await supabase!.from('user_settings').upsert({
     user_id:              userId,
     kcal_target:          s.kcalTarget,
     prot_target:          s.protTarget,
@@ -355,6 +374,7 @@ export async function upsertUserSettings(userId: string, s: UserSettings): Promi
     cognitive_peak_end:   s.cognitivePeakEnd,
     updated_at:           new Date().toISOString(),
   }, { onConflict: 'user_id' })
+  assertOk('upsertUserSettings', error)
 }
 
 // ── User body stats ─────────────────────────────────────────────────
@@ -441,7 +461,7 @@ export async function fetchUserBodyStats(userId: string): Promise<UserBodyStats 
 }
 
 export async function upsertUserBodyStats(userId: string, s: UserBodyStats): Promise<void> {
-  await supabase!.from('user_body_stats').upsert({
+  const { error } = await supabase!.from('user_body_stats').upsert({
     user_id:          userId,
     weight_kg:        s.weightKg,
     height_m:         s.heightM,
@@ -462,6 +482,7 @@ export async function upsertUserBodyStats(userId: string, s: UserBodyStats): Pro
     fat_loss_goal:    s.fatLossGoal,
     updated_at:       new Date().toISOString(),
   }, { onConflict: 'user_id' })
+  assertOk('upsertUserBodyStats', error)
 }
 
 // ── User workout plan ─────────────────────────────────────────────────
@@ -487,13 +508,14 @@ export async function fetchUserWorkoutPlan(userId: string): Promise<UserWorkoutP
 }
 
 export async function upsertUserWorkoutPlan(userId: string, plan: UserWorkoutPlan): Promise<void> {
-  await supabase!.from('user_workout_plans').upsert({
+  const { error } = await supabase!.from('user_workout_plans').upsert({
     user_id:    userId,
     gender:     plan.gender,
     num_weeks:  plan.numWeeks,
     plan_data:  plan.planData,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' })
+  assertOk('upsertUserWorkoutPlan', error)
 }
 
 // ── Client error log ─────────────────────────────────────────────
