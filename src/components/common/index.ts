@@ -4,6 +4,7 @@ export { default as ConfirmDialog } from './ConfirmDialog'
 export { default as SectionHeader } from './SectionHeader'
 export { default as StatusBanner } from './StatusBanner'
 export { default as ToastHost } from './Toast'
+export { default as InlineEdit } from './InlineEdit'
 
 export type { ButtonVariant, ButtonSize } from './Button'
 export type { BannerVariant } from './StatusBanner'

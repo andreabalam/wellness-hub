@@ -1,9 +1,10 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Reminder } from '../../data/reminders'
 import { useRemindersStore } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
+import { InlineEdit } from '../common'
 
 interface Props {
   user?: User | null
@@ -42,7 +43,6 @@ export default function RemindersSection({ user }: Props) {
   const [items, setItems] = useState<Reminder[]>(() => store.getAll())
   const [inputText, setInput] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editText, setEditText] = useState('')
 
   const commit = useCallback(
     (next: Reminder[]) => {
@@ -77,36 +77,28 @@ export default function RemindersSection({ user }: Props) {
     [items, commit, user],
   )
 
-  const handleStartEdit = useCallback((id: string, text: string) => {
+  const handleStartEdit = useCallback((id: string) => {
     setEditingId(id)
-    setEditText(text)
   }, [])
 
   const handleSaveEdit = useCallback(
-    (id: string) => {
-      const text = editText.trim()
-      if (!text) return
+    (id: string, text: string) => {
       const next = items.map(r => (r.id === id ? { ...r, text } : r))
       commit(next)
       const updated = next.find(r => r.id === id)
       if (updated) tryUpsert(user, updated)
       setEditingId(null)
-      setEditText('')
     },
-    [editText, items, commit, user],
+    [items, commit, user],
   )
 
   const handleCancelEdit = useCallback(() => {
     setEditingId(null)
-    setEditText('')
   }, [])
 
   const handleDelete = useCallback(
     (id: string) => {
-      if (editingId === id) {
-        setEditingId(null)
-        setEditText('')
-      }
+      if (editingId === id) setEditingId(null)
       commit(items.filter(r => r.id !== id))
       tryDelete(user, id)
     },
@@ -122,12 +114,17 @@ export default function RemindersSection({ user }: Props) {
 
   const renderRow = (r: Reminder) =>
     editingId === r.id ? (
-      <EditRow
+      <InlineEdit
         key={r.id}
-        text={editText}
-        onChange={setEditText}
-        onSave={() => handleSaveEdit(r.id)}
+        initialValue={r.text}
+        onSave={text => handleSaveEdit(r.id, text)}
         onCancel={handleCancelEdit}
+        className="rem-edit-row"
+        inputClassName="rem-edit-input"
+        saveClassName="rem-save-btn"
+        saveLabel="Save"
+        cancelClassName="rem-icon-btn"
+        cancelLabel="×"
       />
     ) : (
       <ReminderRow
@@ -169,55 +166,6 @@ export default function RemindersSection({ user }: Props) {
   )
 }
 
-// ── Inline edit row ──────────────────────────────────────────────
-function EditRow({
-  text,
-  onChange,
-  onSave,
-  onCancel,
-}: {
-  text: string
-  onChange: (v: string) => void
-  onSave: () => void
-  onCancel: () => void
-}) {
-  const ref = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    ref.current?.focus()
-  }, [])
-
-  return (
-    <div className="rem-edit-row">
-      <input
-        ref={ref}
-        className="rem-edit-input"
-        value={text}
-        onChange={e => onChange(e.target.value)}
-        onKeyDown={e => {
-          if (e.key === 'Enter') onSave()
-          if (e.key === 'Escape') onCancel()
-        }}
-      />
-      <button
-        className="rem-save-btn"
-        onClick={onSave}
-        disabled={!text.trim()}
-        aria-label="Save edit"
-      >
-        Save
-      </button>
-      <button
-        className="rem-icon-btn"
-        onClick={onCancel}
-        aria-label="Cancel edit"
-        style={{ fontSize: 16 }}
-      >
-        ×
-      </button>
-    </div>
-  )
-}
-
 // ── Single row ───────────────────────────────────────────────────
 function ReminderRow({
   reminder: r,
@@ -228,7 +176,7 @@ function ReminderRow({
   reminder: Reminder
   onToggle: (id: string) => void
   onDelete: (id: string) => void
-  onEdit: (id: string, text: string) => void
+  onEdit: (id: string) => void
 }) {
   return (
     <div className="rem-row">
@@ -247,7 +195,7 @@ function ReminderRow({
       {!r.checked && (
         <button
           className="rem-icon-btn"
-          onClick={() => onEdit(r.id, r.text)}
+          onClick={() => onEdit(r.id)}
           aria-label="Edit reminder"
           style={{ fontSize: 13 }}
         >
