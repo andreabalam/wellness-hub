@@ -15,7 +15,6 @@ import { macrosFromKcal } from '../../lib/stats'
 import ProfileStatsCard from './ProfileStatsCard'
 import {
   QUICK_FOODS,
-  SESSION_OPTS,
   PHASE_NOTES,
   WATER_MAX,
   HUNGER_TYPES,
@@ -38,18 +37,7 @@ import { searchLocalFoods, historyFoods } from '../../lib/localFoodSearch'
 import type { LocalFoodHit } from '../../lib/localFoodSearch'
 import { searchUSDAFoods, estimateFoodMacros } from '../../lib/foodSearch'
 import type { UsdaFoodHit } from '../../lib/foodSearch'
-import {
-  isOuraConnected,
-  fetchOuraWorkouts,
-  fetchOuraReadiness,
-  OURA_ACTIVITY_MAP,
-  readinessColor,
-  readinessLabel,
-} from '../../lib/oura'
-import type { OuraReadiness } from '../../lib/oura'
-import { safeGet, safeSet } from '../../lib/storage'
-import { reportError } from '../../lib/errorLog'
-import { showToast } from '../../lib/toast'
+import { isOuraConnected } from '../../lib/oura'
 import { densityTierFor, DENSITY_COLORS, DENSITY_LABELS } from '../../lib/density'
 import { analyzeImage } from '../../lib/analyzeFood'
 import type { PhotoAnalysisResult } from '../../lib/analyzeFood'
@@ -61,6 +49,7 @@ import WeekStrip from './WeekStrip'
 import CheckIn from './CheckIn'
 import MeditationLog from './MeditationLog'
 import MeditationGuides from './MeditationGuides'
+import WorkoutLog from './WorkoutLog'
 import { dkey } from './dateKey'
 
 /** Local Monday (week anchor) of the week containing d. */
@@ -80,17 +69,6 @@ function addDays(d: Date, n: number): Date {
 }
 
 const WEEK_RESULT_LABEL: Record<string, string> = { yes: 'Yes', partial: 'Partially', no: 'No' }
-
-// ── Oura readiness cache (one entry per date) ─────────────────────
-const READINESS_CACHE_KEY = 'whub_oura_readiness_v1'
-function getCachedReadiness(date: string): OuraReadiness | null {
-  return safeGet<Record<string, OuraReadiness>>(READINESS_CACHE_KEY, {})[date] ?? null
-}
-function setCachedReadiness(date: string, data: OuraReadiness): void {
-  const all = safeGet<Record<string, OuraReadiness>>(READINESS_CACHE_KEY, {})
-  all[date] = data
-  safeSet(READINESS_CACHE_KEY, all)
-}
 
 // ── Main component ───────────────────────────────────────────────
 export default function TrackerTab({
@@ -171,9 +149,6 @@ export default function TrackerTab({
   const [pasteError, setPasteError] = useState('')
   const [pasteRows, setPasteRows] = useState<QuickFood[] | null>(null)
 
-  const [selSession, setSess] = useState<string | null>(null)
-  const [wkNotes, setWkNotes] = useState('')
-  const [wkSaved, setWkSaved] = useState(false)
   const [water, setWater] = useState(0)
   const [phase, setPhase] = useState('')
   const [dayNotes, setDayNotes] = useState('')
@@ -191,8 +166,6 @@ export default function TrackerTab({
       const k = dkey(d)
       const data = store.getDay(k)
       setDay(data)
-      setSess(data.workout ?? null)
-      setWkNotes(data.wkNotes ?? '')
       setWater(data.water ?? 0)
       setPhase(data.phase ?? '')
       setDayNotes(data.notes ?? '')
@@ -202,7 +175,6 @@ export default function TrackerTab({
       setWeekGoalKind(wk.weekGoalKind ?? 'goal')
       setWeekGoalResult(wk.weekGoalResult ?? '')
       setWeekGoalNote(wk.weekGoalNote ?? '')
-      setWkSaved(!!data.workout)
       setEditIndex(null)
       setFName('')
       setFKcal('')
@@ -595,15 +567,6 @@ export default function TrackerTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, day])
 
-  const logWorkout = () => {
-    if (!selSession) {
-      alert('Select a session type first.')
-      return
-    }
-    save({ workout: selSession, wkNotes })
-    setWkSaved(true)
-  }
-
   const saveNotes = () => {
     save({ notes: dayNotes })
     setNotesSaved(true)
@@ -645,8 +608,6 @@ export default function TrackerTab({
 
   // ── Oura state ──────────────────────────────────────────────────
   const [ouraConnected, setOuraConnected] = useState(false)
-  const [readiness, setReadiness] = useState<OuraReadiness | null>(null)
-  const [wkSyncing, setWkSyncing] = useState(false)
 
   // Check connection status on mount
   useEffect(() => {
@@ -654,60 +615,6 @@ export default function TrackerTab({
       .then(setOuraConnected)
       .catch(() => {})
   }, [])
-
-  // Load readiness from cache on date change; auto-fetch from Oura if not cached
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    const dateStr = dkey(date)
-    const cached = getCachedReadiness(dateStr)
-    if (cached) {
-      setReadiness(cached)
-    } else {
-      setReadiness(null)
-      if (ouraConnected) {
-        fetchOuraReadiness(dateStr)
-          .then(data => {
-            if (data) {
-              setCachedReadiness(dateStr, data)
-              setReadiness(data)
-            }
-          })
-          .catch(() => {})
-      }
-    }
-  }, [date, ouraConnected])
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  const syncWorkoutFromOura = async () => {
-    setWkSyncing(true)
-    try {
-      const dateStr = dkey(date)
-      const [workouts, readinessData] = await Promise.all([
-        fetchOuraWorkouts(dateStr),
-        fetchOuraReadiness(dateStr),
-      ])
-      if (readinessData) {
-        setCachedReadiness(dkey(date), readinessData)
-        setReadiness(readinessData)
-      }
-      if (workouts.length === 0) {
-        if (!readinessData) showToast('No Oura data found for this date.', 'info')
-        return
-      }
-      const w = workouts[0]
-      const mapped = OURA_ACTIVITY_MAP[w.activity] ?? null
-      if (mapped) setSess(mapped)
-      const dMin = Math.round(
-        (new Date(w.end_datetime).getTime() - new Date(w.start_datetime).getTime()) / 60000,
-      )
-      const hrNote = w.average_heart_rate ? ` · avg HR ${w.average_heart_rate} bpm` : ''
-      setWkNotes(`Oura: ${w.activity.replace(/_/g, ' ')} · ${dMin} min${hrNote}`)
-    } catch (err: unknown) {
-      showToast(reportError('oura-sync:workout', err), 'error')
-    } finally {
-      setWkSyncing(false)
-    }
-  }
 
   // Hydration counter — persists immediately on each tap
   const adjustWater = (delta: number) => {
@@ -1361,93 +1268,19 @@ export default function TrackerTab({
         </>
       )}
 
-      {/* ── Workout ── */}
+      {/* ── Workout — keyed by date so the picker re-seeds on day change ── */}
       {innerTab === 'workout' && (
-        <div className="tcard">
-          <div className="flex-between mb-6">
-            <div className="tlabel" style={{ color: 'var(--coral)', marginBottom: 0 }}>
-              Workout log · 4:30 PM
-            </div>
-            {ouraConnected && (
-              <button
-                onClick={syncWorkoutFromOura}
-                disabled={wkSyncing}
-                className={`oura-sync-btn oura-sync-btn--teal ${wkSyncing ? 'loading' : ''}`}
-              >
-                {wkSyncing ? 'Syncing…' : '⟳ Sync Oura'}
-              </button>
-            )}
-          </div>
-
-          {/* Readiness badge */}
-          {readiness && (
-            <div
-              className="readiness-badge"
-              style={{ border: `1px solid ${readinessColor(readiness.score)}40` }}
-            >
-              <div
-                className="readiness-score flex-center"
-                style={{
-                  background: `${readinessColor(readiness.score)}20`,
-                  border: `2px solid ${readinessColor(readiness.score)}`,
-                  color: readinessColor(readiness.score),
-                }}
-              >
-                {readiness.score}
-              </div>
-              <div>
-                <div
-                  className="text-sm font-600"
-                  style={{ color: readinessColor(readiness.score) }}
-                >
-                  {readinessLabel(readiness.score)}
-                </div>
-                <div className="font-mono text-muted2 text-2xs">
-                  HRV balance {readiness.contributors.hrv_balance} · Recovery{' '}
-                  {readiness.contributors.recovery_index}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="phase-note">{phaseNote}</div>
-          <div className="text-sm text-muted mb-8">Session type:</div>
-          <div className="flex flex-wrap gap-6 mb-10">
-            {SESSION_OPTS.map(s => (
-              <button
-                key={s.id}
-                onClick={() => setSess(selSession === s.id ? null : s.id)}
-                className="session-type-btn"
-                style={{
-                  border: `1px solid ${selSession === s.id ? s.color : 'var(--border)'}`,
-                  background: selSession === s.id ? `${s.color}20` : 'var(--bg3)',
-                  color: selSession === s.id ? s.color : 'var(--muted)',
-                }}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-          {wkSaved && day.workout && (
-            <div className="workout-saved">
-              <div className="text-base text-green font-500 mb-4">✓ Session logged</div>
-              <div className="text-sm text-muted">
-                {SESSION_OPTS.find(s => s.id === day.workout)?.label ?? day.workout}
-                {day.wkNotes ? ` - ${day.wkNotes.substring(0, 70)}` : ''}
-              </div>
-            </div>
-          )}
-          <textarea
-            className="tinput resize-vertical mb-8"
-            value={wkNotes}
-            onChange={e => setWkNotes(e.target.value)}
-            placeholder="How did it feel? PRs? Modifications?"
-            rows={3}
-          />
-          <button onClick={logWorkout} className="tbtn tbtn--coral">
-            + Log workout
-          </button>
-        </div>
+        <WorkoutLog
+          key={dkey(date)}
+          initialSession={dayForDate.workout}
+          initialWkNotes={dayForDate.wkNotes}
+          savedWorkout={day.workout}
+          savedWkNotes={day.wkNotes}
+          phaseNote={phaseNote}
+          ouraConnected={ouraConnected}
+          date={date}
+          onSave={save}
+        />
       )}
 
       {/* ── Meditation ── */}
