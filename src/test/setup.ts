@@ -10,15 +10,16 @@ import { beforeAll, afterAll } from 'vitest'
 //   assertion in App / RecipesTab tests. All tests pass; it's cosmetic
 //   noise from fire-and-forget effects inside those components.
 //
-// [sync] syncAll failed — intentionally triggered by the error-recovery
-//   test; the test asserts the app doesn't crash, not the log line.
+// [sync] / [syncAll] — intentionally triggered by the error-recovery test
+//   (reportError logs the context); the test asserts the app doesn't crash,
+//   not the log line.
 
 const originalWarn  = console.warn
 const originalError = console.error
 
 beforeAll(() => {
   console.warn = (...args: unknown[]) => {
-    if (typeof args[0] === 'string' && args[0].startsWith('[storage]')) return
+    if (typeof args[0] === 'string' && args[0].startsWith('[storage')) return
     originalWarn(...args)
   }
 
@@ -26,6 +27,7 @@ beforeAll(() => {
     const msg = typeof args[0] === 'string' ? args[0] : ''
     if (msg.includes('not wrapped in act')) return
     if (msg.startsWith('[sync]')) return
+    if (msg.startsWith('[syncAll]')) return
     originalError(...args)
   }
 })

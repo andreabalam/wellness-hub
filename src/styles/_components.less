@@ -237,6 +237,22 @@
 .error-boundary__msg   { font-size: 12px; font-family: "DM Mono", monospace; color: var(--muted2); margin-bottom: 20px; word-break: break-word; }
 .error-boundary__actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 
+// ── Toast notices ─────────────────────────────────────────────────
+.toast-host {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+  z-index: 700; display: flex; flex-direction: column; gap: 8px;
+  width: max-content; max-width: calc(100vw - 32px); pointer-events: none;
+}
+.toast {
+  pointer-events: auto; cursor: pointer; text-align: left;
+  padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 500;
+  border: 1px solid var(--border); background: var(--bg2); color: var(--text);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+.toast--error   { border-color: var(--coral); }
+.toast--success { border-color: var(--teal); }
+.toast--info    { border-color: var(--border); }
+
 // ── CookingMode ───────────────────────────────────────────────────
 .cooking-overlay { position: fixed; inset: 0; z-index: 600; background: var(--bg); overflow-y: auto; }
 .cooking-topbar {

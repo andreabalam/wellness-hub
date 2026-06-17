@@ -495,3 +495,30 @@ export async function upsertUserWorkoutPlan(userId: string, plan: UserWorkoutPla
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' })
 }
+
+// ── Client error log ─────────────────────────────────────────────
+// Persists runtime errors for the project owner to review. user_id is optional
+// because errors can happen signed-out. See src/lib/errorLog.ts for the caller.
+
+export interface ErrorLogRow {
+  userId?:     string | null
+  context:     string
+  message:     string
+  stack?:      string | null
+  severity?:   'error' | 'warn'
+  appVersion?: string | null
+  userAgent?:  string | null
+}
+
+export async function pushErrorLog(row: ErrorLogRow): Promise<void> {
+  const { error } = await supabase!.from('client_error_log').insert({
+    user_id:     row.userId ?? null,
+    context:     row.context,
+    message:     row.message,
+    stack:       row.stack ?? null,
+    severity:    row.severity ?? 'error',
+    app_version: row.appVersion ?? null,
+    user_agent:  row.userAgent ?? null,
+  })
+  if (error) console.error('[sync] pushErrorLog failed:', error)
+}
