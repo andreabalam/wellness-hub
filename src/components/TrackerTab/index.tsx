@@ -20,15 +20,8 @@ import {
   HUNGER_TYPES,
   hungerIcon,
   hungerLabel,
-  WEEK_GOAL_SUGGESTIONS,
 } from '../../data/tracker'
-import type {
-  DayData,
-  FoodEntry,
-  QuickFood,
-  WeekGoalKind,
-  WeekGoalResult,
-} from '../../data/tracker'
+import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
 import { CRAVING_TYPES, swapsFor } from '../../data/swaps'
 import type { CravingType } from '../../data/swaps'
 import { BUILTIN_RECIPES } from '../../data/recipes'
@@ -50,6 +43,8 @@ import CheckIn from './CheckIn'
 import MeditationLog from './MeditationLog'
 import MeditationGuides from './MeditationGuides'
 import WorkoutLog from './WorkoutLog'
+import WeekGoal from './WeekGoal'
+import type { WeekGoalPayload } from './WeekGoal'
 import { dkey } from './dateKey'
 
 /** Local Monday (week anchor) of the week containing d. */
@@ -67,8 +62,6 @@ function addDays(d: Date, n: number): Date {
   r.setDate(r.getDate() + n)
   return r
 }
-
-const WEEK_RESULT_LABEL: Record<string, string> = { yes: 'Yes', partial: 'Partially', no: 'No' }
 
 // ── Main component ───────────────────────────────────────────────
 export default function TrackerTab({
@@ -153,11 +146,6 @@ export default function TrackerTab({
   const [phase, setPhase] = useState('')
   const [dayNotes, setDayNotes] = useState('')
   const [notesSaved, setNotesSaved] = useState(false)
-  const [weekGoal, setWeekGoal] = useState('')
-  const [weekGoalKind, setWeekGoalKind] = useState<WeekGoalKind>('goal')
-  const [weekGoalResult, setWeekGoalResult] = useState<WeekGoalResult | ''>('')
-  const [weekGoalNote, setWeekGoalNote] = useState('')
-  const [weekSaved, setWeekSaved] = useState(false)
   const [stripKey, setStripKey] = useState(0)
   const [innerTab, setInnerTab] = useState<'food' | 'workout' | 'meditation'>('food')
 
@@ -169,12 +157,6 @@ export default function TrackerTab({
       setWater(data.water ?? 0)
       setPhase(data.phase ?? '')
       setDayNotes(data.notes ?? '')
-      // Weekly goal lives on the week's Monday anchor day
-      const wk = store.getDay(dkey(mondayOf(d)))
-      setWeekGoal(wk.weekGoal ?? '')
-      setWeekGoalKind(wk.weekGoalKind ?? 'goal')
-      setWeekGoalResult(wk.weekGoalResult ?? '')
-      setWeekGoalNote(wk.weekGoalNote ?? '')
       setEditIndex(null)
       setFName('')
       setFKcal('')
@@ -574,22 +556,22 @@ export default function TrackerTab({
   }
 
   // Weekly goal persists on the week's Monday anchor day (not the viewed day)
-  const saveWeekGoal = () => {
+  const saveWeekGoal = (p: WeekGoalPayload) => {
     const anchorKey = dkey(mondayOf(date))
     const updated: DayData = {
       ...store.getDay(anchorKey),
-      weekGoal: weekGoal.trim(),
-      weekGoalKind,
-      weekGoalResult: weekGoalResult || undefined,
-      weekGoalNote: weekGoalNote.trim() || undefined,
+      weekGoal: p.weekGoal.trim(),
+      weekGoalKind: p.weekGoalKind,
+      weekGoalResult: p.weekGoalResult || undefined,
+      weekGoalNote: p.weekGoalNote.trim() || undefined,
     }
     store.setDay(anchorKey, updated)
     if (anchorKey === dkey(date)) setDay(updated) // keep viewed-day state in sync
     setStripKey(n => n + 1)
-    setWeekSaved(true)
-    setTimeout(() => setWeekSaved(false), 1600)
   }
 
+  // Current week's goal anchor (Monday) — seeds <WeekGoal>; re-read per week.
+  const weekAnchorDay = useMemo(() => store.getDay(dkey(mondayOf(date))), [date, store])
   // Last week's goal (read from the previous Monday anchor) for continuity
   const lastWeek = store.getDay(dkey(addDays(mondayOf(date), -7)))
 
@@ -1333,88 +1315,17 @@ export default function TrackerTab({
             </button>
           </div>
 
-          {/* Weekly goal / experiment */}
-          <div className="tcard">
-            <div className="flex-between mb-8">
-              <div className="tlabel" style={{ color: 'var(--green-light)', marginBottom: 0 }}>
-                Weekly goal
-              </div>
-              <div className="flex gap-6">
-                {(['goal', 'experiment'] as WeekGoalKind[]).map(k => (
-                  <button
-                    key={k}
-                    onClick={() => setWeekGoalKind(k)}
-                    className={`rfbtn${weekGoalKind === k ? ' active' : ''}`}
-                    style={{ textTransform: 'capitalize' }}
-                  >
-                    {k}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {lastWeek.weekGoal && (
-              <div className="last-week-note">
-                Last week: “{lastWeek.weekGoal}”
-                {lastWeek.weekGoalResult ? ` — ${WEEK_RESULT_LABEL[lastWeek.weekGoalResult]}` : ''}
-              </div>
-            )}
-
-            <div className="text-sm text-muted mb-6">
-              {weekGoalKind === 'goal' ? "This week's SMART goal" : 'Experiment — “If I…, then…”'}
-            </div>
-            <textarea
-              className="tinput resize-vertical mb-8"
-              rows={2}
-              value={weekGoal}
-              onChange={e => setWeekGoal(e.target.value)}
-              placeholder={
-                weekGoalKind === 'goal'
-                  ? 'e.g. Protein at every meal'
-                  : 'e.g. If I prep 3 lunches on Sunday, then I eat out less'
-              }
-            />
-
-            {!weekGoal && (
-              <div className="flex flex-wrap gap-6 mb-8">
-                {WEEK_GOAL_SUGGESTIONS.map(s => (
-                  <button key={s} onClick={() => setWeekGoal(s)} className="quick-food-btn">
-                    {s}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="text-sm text-muted mb-6">
-              {weekGoalKind === 'goal' ? 'Did you hit it?' : 'Result'}
-            </div>
-            <div className="flex gap-6 mb-8">
-              {(['yes', 'partial', 'no'] as WeekGoalResult[]).map(r => (
-                <button
-                  key={r}
-                  onClick={() => setWeekGoalResult(weekGoalResult === r ? '' : r)}
-                  className={`rfbtn${weekGoalResult === r ? ' active' : ''}`}
-                >
-                  {WEEK_RESULT_LABEL[r]}
-                </button>
-              ))}
-            </div>
-
-            <textarea
-              className="tinput resize-vertical mb-8"
-              rows={2}
-              value={weekGoalNote}
-              onChange={e => setWeekGoalNote(e.target.value)}
-              placeholder="Reflection — what worked, what got in the way…"
-            />
-
-            <button
-              onClick={saveWeekGoal}
-              className={`tbtn tbtn--secondary ${weekSaved ? 'saved' : ''}`}
-            >
-              {weekSaved ? 'Saved!' : 'Save weekly'}
-            </button>
-          </div>
+          {/* Weekly goal — keyed by week anchor so it re-seeds per week */}
+          <WeekGoal
+            key={dkey(mondayOf(date))}
+            initialGoal={weekAnchorDay.weekGoal ?? ''}
+            initialKind={weekAnchorDay.weekGoalKind ?? 'goal'}
+            initialResult={weekAnchorDay.weekGoalResult ?? ''}
+            initialNote={weekAnchorDay.weekGoalNote ?? ''}
+            lastWeekGoal={lastWeek.weekGoal ?? ''}
+            lastWeekResult={lastWeek.weekGoalResult ?? ''}
+            onSave={saveWeekGoal}
+          />
         </div>
       )}
     </>
