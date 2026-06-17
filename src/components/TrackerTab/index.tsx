@@ -13,14 +13,7 @@ import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
 import { macrosFromKcal } from '../../lib/stats'
 import ProfileStatsCard from './ProfileStatsCard'
-import {
-  QUICK_FOODS,
-  PHASE_NOTES,
-  WATER_MAX,
-  HUNGER_TYPES,
-  hungerIcon,
-  hungerLabel,
-} from '../../data/tracker'
+import { QUICK_FOODS, PHASE_NOTES, WATER_MAX, HUNGER_TYPES } from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
 import { CRAVING_TYPES, swapsFor } from '../../data/swaps'
 import type { CravingType } from '../../data/swaps'
@@ -45,6 +38,7 @@ import MeditationGuides from './MeditationGuides'
 import WorkoutLog from './WorkoutLog'
 import WeekGoal from './WeekGoal'
 import type { WeekGoalPayload } from './WeekGoal'
+import MealList from './MealList'
 import { dkey } from './dateKey'
 
 /** Local Monday (week anchor) of the week containing d. */
@@ -753,68 +747,13 @@ export default function TrackerTab({
             {/* Food log */}
             <div className="tcard">
               <div className="tlabel text-muted2">Meals logged</div>
-              <div className="mb-12" style={{ minHeight: 30 }}>
-                {day.foods.length === 0 ? (
-                  <div className="text-base text-muted2 italic" style={{ padding: '3px 0' }}>
-                    No meals logged yet.
-                  </div>
-                ) : (
-                  day.foods.map((f, i) => (
-                    <div
-                      key={i}
-                      className={`food-log-item ${editIndex === i ? 'food-log-item--editing' : ''}`}
-                    >
-                      <div className="flex-1">
-                        <div className="text-base text-default">
-                          {f.n}
-                          {f.r != null ? (
-                            <button
-                              className="recipe-link-badge"
-                              title="Open recipe"
-                              onClick={() => onOpenRecipe?.(f.r, f.n)}
-                            >
-                              📖
-                            </button>
-                          ) : null}
-                          {f.s && f.s !== 1 ? (
-                            <span className="text-muted2 text-2xs" style={{ marginLeft: 5 }}>
-                              ×{f.s} srv
-                            </span>
-                          ) : null}
-                          {f.sat ? (
-                            <button
-                              className="satiety-badge"
-                              title="Satiety — tap to edit"
-                              onClick={() => startEdit(i)}
-                            >
-                              🍽 {f.sat}/7
-                            </button>
-                          ) : null}
-                          {f.hunger ? (
-                            <span className="hunger-tag" title={`${hungerLabel(f.hunger)} hunger`}>
-                              {hungerIcon(f.hunger)}
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="food-log-meta">
-                          {f.k} kcal · {f.p}g P · {f.c}g C · {f.f}g F
-                          {f.fi ? ` · ${f.fi}g fiber` : ''}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => startEdit(i)}
-                        title="Edit"
-                        className={`food-edit-btn ${editIndex === i ? 'active' : ''}`}
-                      >
-                        ✏
-                      </button>
-                      <button onClick={() => removeFood(i)} className="food-remove-btn">
-                        ×
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
+              <MealList
+                foods={day.foods}
+                editIndex={editIndex}
+                onEdit={startEdit}
+                onRemove={removeFood}
+                onOpenRecipe={onOpenRecipe}
+              />
               <div style={{ paddingTop: 12 }}>
                 {/* Paste-to-log: parse a pasted block of meals into reviewable entries */}
                 {!pasteOpen ? (
