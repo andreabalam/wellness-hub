@@ -37,12 +37,14 @@ describe('reportError persistence', () => {
     await flushPromises()
 
     expect(pushErrorLog).toHaveBeenCalledTimes(1)
-    expect(pushErrorLog).toHaveBeenCalledWith(expect.objectContaining({
-      userId:   'uid-9',
-      context:  'syncAll:push',
-      message:  'boom',
-      severity: 'error',
-    }))
+    expect(pushErrorLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'uid-9',
+        context: 'syncAll:push',
+        message: 'boom',
+        severity: 'error',
+      }),
+    )
   })
 
   it('logs anonymously (user_id null) when getUser fails', async () => {

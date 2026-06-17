@@ -31,7 +31,11 @@ function r1(n: number): number {
 export interface UsdaFoodHit {
   name: string
   srv: string
-  k: number; p: number; c: number; f: number; fi: number
+  k: number
+  p: number
+  c: number
+  f: number
+  fi: number
   /** Caloric density in kcal per gram (per-100g basis), for the density dot. */
   calPerG?: number
 }
@@ -59,12 +63,14 @@ function toHit(food: USDAFood): UsdaFoodHit {
 // Docs: https://api.nal.usda.gov/fdc/v1/foods/search
 async function fetchUSDAFoods(query: string, signal?: AbortSignal): Promise<USDAFood[]> {
   const apiKey = (import.meta.env.VITE_USDA_API_KEY as string | undefined) || 'DEMO_KEY'
-  const url = `${USDA_BASE}/foods/search?` + new URLSearchParams({
-    query,
-    api_key: apiKey,
-    pageSize: '5',
-    dataType: 'Foundation,SR Legacy',
-  })
+  const url =
+    `${USDA_BASE}/foods/search?` +
+    new URLSearchParams({
+      query,
+      api_key: apiKey,
+      pageSize: '5',
+      dataType: 'Foundation,SR Legacy',
+    })
 
   const res = await fetch(url, { signal })
   if (!res.ok) throw new Error(`USDA ${res.status}`)
@@ -81,7 +87,11 @@ export async function searchUSDAFoods(query: string, signal?: AbortSignal): Prom
 /** Macros per 100 g of the food — used by recipe macro calculation. */
 export interface UsdaPer100g {
   name: string
-  k: number; p: number; c: number; f: number; fi: number
+  k: number
+  p: number
+  c: number
+  f: number
+  fi: number
 }
 
 /**
@@ -89,7 +99,10 @@ export interface UsdaPer100g {
  * nothing matches. Throws on network/HTTP errors so callers can distinguish
  * "no match" from "lookup unavailable".
  */
-export async function searchUSDAPer100g(query: string, signal?: AbortSignal): Promise<UsdaPer100g | null> {
+export async function searchUSDAPer100g(
+  query: string,
+  signal?: AbortSignal,
+): Promise<UsdaPer100g | null> {
   const foods = await fetchUSDAFoods(query, signal)
   const food = foods.find(f => get(f.foodNutrients, 1008) > 0)
   if (!food) return null
@@ -112,10 +125,10 @@ export async function searchUSDA(query: string, signal?: AbortSignal): Promise<N
   return {
     srv: h.srv,
     cal: h.k,
-    p:   h.p,
-    c:   h.c,
-    f:   h.f,
-    fi:  h.fi > 0 ? h.fi : undefined,
+    p: h.p,
+    c: h.c,
+    f: h.f,
+    fi: h.fi > 0 ? h.fi : undefined,
   }
 }
 

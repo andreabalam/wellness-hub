@@ -20,13 +20,17 @@ export default function SharedRecipeView({
   user: User | null
   onExit: () => void
 }) {
-  const [recipe, setRecipe] = useState<Recipe | null | undefined>(undefined)  // undefined = loading
+  const [recipe, setRecipe] = useState<Recipe | null | undefined>(undefined) // undefined = loading
   const [importState, setImportState] = useState<'idle' | 'saving' | 'done' | 'error'>('idle')
 
   useEffect(() => {
     let alive = true
-    resolveShareToken(token).then(r => { if (alive) setRecipe(r) })
-    return () => { alive = false }
+    resolveShareToken(token).then(r => {
+      if (alive) setRecipe(r)
+    })
+    return () => {
+      alive = false
+    }
   }, [token])
 
   const handleImport = async () => {
@@ -39,7 +43,7 @@ export default function SharedRecipeView({
       const dbId = await sync.upsertUserRecipe(user.id, fresh).catch(() => null)
       if (dbId != null) {
         recipeStore.saveRecipes(
-          recipeStore.getRecipes().map(x => x.id === fresh.id ? { ...x, id: dbId } : x),
+          recipeStore.getRecipes().map(x => (x.id === fresh.id ? { ...x, id: dbId } : x)),
         )
       }
       setImportState('done')
@@ -60,7 +64,11 @@ export default function SharedRecipeView({
       ) : recipe === null ? (
         <div className="shared-recipe-msg">
           This recipe link is invalid or damaged.
-          <div><button className="btn btn--ghost btn--sm" onClick={onExit}>Open Wellness Hub</button></div>
+          <div>
+            <button className="btn btn--ghost btn--sm" onClick={onExit}>
+              Open Wellness Hub
+            </button>
+          </div>
         </div>
       ) : (
         <>
@@ -80,12 +88,16 @@ export default function SharedRecipeView({
                 </button>
               )
             ) : (
-              <span className="shared-recipe-hint">Sign in to Wellness Hub to save this recipe.</span>
+              <span className="shared-recipe-hint">
+                Sign in to Wellness Hub to save this recipe.
+              </span>
             )}
             {importState === 'error' && (
               <span className="shared-recipe-err">Could not import — please try again.</span>
             )}
-            <button className="btn btn--ghost btn--sm" onClick={onExit}>Open Wellness Hub</button>
+            <button className="btn btn--ghost btn--sm" onClick={onExit}>
+              Open Wellness Hub
+            </button>
           </div>
         </>
       )}

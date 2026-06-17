@@ -56,21 +56,31 @@ export interface Recipe {
 /** Dietary approaches a recipe can be tagged with. `id` is what we store. */
 export const DIET_TAGS = [
   { id: 'mediterranean', label: 'Mediterranean' },
-  { id: 'portfolio',     label: 'Portfolio' },
-  { id: 'gluten-free',   label: 'Gluten-free' },
-  { id: 'paleo',         label: 'Paleo' },
-  { id: 'vegan',         label: 'Vegan' },
-  { id: 'vegetarian',    label: 'Vegetarian' },
+  { id: 'portfolio', label: 'Portfolio' },
+  { id: 'gluten-free', label: 'Gluten-free' },
+  { id: 'paleo', label: 'Paleo' },
+  { id: 'vegan', label: 'Vegan' },
+  { id: 'vegetarian', label: 'Vegetarian' },
 ] as const
 
-export type DietTag = typeof DIET_TAGS[number]['id']
+export type DietTag = (typeof DIET_TAGS)[number]['id']
 
 /** Display label for a diet tag id, e.g. 'gluten-free' → 'Gluten-free'. */
 export function dietTagLabel(id: string): string {
   return DIET_TAGS.find(d => d.id === id)?.label ?? id
 }
 
-export const PRESET_CATS = ['breakfast', 'smoothie', 'meal', 'dessert', 'ferments', 'snack', 'drinks', 'sauce', 'side']
+export const PRESET_CATS = [
+  'breakfast',
+  'smoothie',
+  'meal',
+  'dessert',
+  'ferments',
+  'snack',
+  'drinks',
+  'sauce',
+  'side',
+]
 
 /**
  * Fold removed categories (lunch/dinner) and missing values into 'meal' so

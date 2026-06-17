@@ -13,10 +13,14 @@ const ls: Record<string, string> = {}
 beforeEach(() => {
   Object.keys(ls).forEach(k => delete ls[k])
   vi.stubGlobal('localStorage', {
-    getItem:    (k: string) => ls[k] ?? null,
-    setItem:    (k: string, v: string) => { ls[k] = v },
-    removeItem: (k: string) => { delete ls[k] },
-    clear:      () => Object.keys(ls).forEach(k => delete ls[k]),
+    getItem: (k: string) => ls[k] ?? null,
+    setItem: (k: string, v: string) => {
+      ls[k] = v
+    },
+    removeItem: (k: string) => {
+      delete ls[k]
+    },
+    clear: () => Object.keys(ls).forEach(k => delete ls[k]),
   })
 })
 afterEach(() => {
@@ -29,12 +33,26 @@ import { recipeStore } from '../hooks/useStore'
 import * as sync from '../lib/sync'
 
 const RECIPE: Recipe = {
-  id: 1, cat: 'breakfast', type: 'Breakfast', color: 'var(--green)', sc: 'sc-green',
-  name: 'Shared Avocado Toast', tag: 'Quick',
-  prepL: '10 min', prepC: 'var(--green)',
-  hk: 320, hp: '8g', hc: '30g', hf: '18g',
-  mk: 320, mp: '8g', mc: '30g', mf: '18g',
-  ings: [['Avocado', '1']], steps: ['Mash', 'Toast'], tip: '',
+  id: 1,
+  cat: 'breakfast',
+  type: 'Breakfast',
+  color: 'var(--green)',
+  sc: 'sc-green',
+  name: 'Shared Avocado Toast',
+  tag: 'Quick',
+  prepL: '10 min',
+  prepC: 'var(--green)',
+  hk: 320,
+  hp: '8g',
+  hc: '30g',
+  hf: '18g',
+  mk: 320,
+  mp: '8g',
+  mc: '30g',
+  mf: '18g',
+  ings: [['Avocado', '1']],
+  steps: ['Mash', 'Toast'],
+  tip: '',
 }
 
 const USER = { id: 'user-123' } as User
@@ -67,8 +85,15 @@ describe('SharedRecipeView', () => {
     await waitFor(() => expect(screen.getByText(/added to your recipes/i)).toBeInTheDocument())
     expect(addSpy).toHaveBeenCalledTimes(1)
     // Imported recipe gets a fresh local identity, never the sharer's
-    expect(addSpy.mock.calls[0][0]).toMatchObject({ name: 'Shared Avocado Toast', source: 'user', custom: true })
-    expect(upsertSpy).toHaveBeenCalledWith('user-123', expect.objectContaining({ name: 'Shared Avocado Toast' }))
+    expect(addSpy.mock.calls[0][0]).toMatchObject({
+      name: 'Shared Avocado Toast',
+      source: 'user',
+      custom: true,
+    })
+    expect(upsertSpy).toHaveBeenCalledWith(
+      'user-123',
+      expect.objectContaining({ name: 'Shared Avocado Toast' }),
+    )
   })
 
   it('calls onExit when "Open Wellness Hub" is clicked', async () => {

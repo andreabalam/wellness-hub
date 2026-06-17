@@ -1,9 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
-  readinessColor, readinessLabel, sleepScoreToStars, roundToMedMin,
-  OURA_ACTIVITY_MAP, OURA_SESSION_MAP,
-  isOuraConnected, disconnectOura,
-  consumeOAuthCallback, startOuraOAuth, stressToScale,
+  readinessColor,
+  readinessLabel,
+  sleepScoreToStars,
+  roundToMedMin,
+  OURA_ACTIVITY_MAP,
+  OURA_SESSION_MAP,
+  isOuraConnected,
+  disconnectOura,
+  consumeOAuthCallback,
+  startOuraOAuth,
+  stressToScale,
 } from '../lib/oura'
 import type { OuraStress } from '../lib/oura'
 
@@ -79,8 +86,10 @@ describe('sleepScoreToStars', () => {
 // ── stressToScale ─────────────────────────────────────────────────
 
 describe('stressToScale', () => {
-  const make = (day_summary: OuraStress['day_summary'], stress_high: number | null = null): OuraStress =>
-    ({ day: '2026-06-14', stress_high, recovery_high: null, day_summary })
+  const make = (
+    day_summary: OuraStress['day_summary'],
+    stress_high: number | null = null,
+  ): OuraStress => ({ day: '2026-06-14', stress_high, recovery_high: null, day_summary })
 
   it('maps the day_summary to base values', () => {
     expect(stressToScale(make('restored'))).toBe(1)
@@ -117,12 +126,12 @@ describe('roundToMedMin', () => {
     expect(roundToMedMin(20 * 60)).toBe(20)
   })
   it('rounds to nearest option below midpoint', () => {
-    expect(roundToMedMin(7 * 60)).toBe(5)    // |5-7|=2 < |10-7|=3
-    expect(roundToMedMin(11 * 60)).toBe(10)  // |10-11|=1 < |13-11|=2
+    expect(roundToMedMin(7 * 60)).toBe(5) // |5-7|=2 < |10-7|=3
+    expect(roundToMedMin(11 * 60)).toBe(10) // |10-11|=1 < |13-11|=2
   })
   it('rounds to nearest option above midpoint', () => {
-    expect(roundToMedMin(12 * 60)).toBe(13)  // |13-12|=1 < |10-12|=2
-    expect(roundToMedMin(18 * 60)).toBe(20)  // |20-18|=2 < |15-18|=3
+    expect(roundToMedMin(12 * 60)).toBe(13) // |13-12|=1 < |10-12|=2
+    expect(roundToMedMin(18 * 60)).toBe(20) // |20-18|=2 < |15-18|=3
   })
 })
 
@@ -237,19 +246,31 @@ describe('startOuraOAuth', () => {
   it('stores a random OAuth state and redirect URI in sessionStorage', () => {
     // May throw in jsdom when trying to navigate cross-origin — that's fine:
     // sessionStorage writes happen before the navigation line.
-    try { startOuraOAuth() } catch { /* jsdom navigation not implemented */ }
+    try {
+      startOuraOAuth()
+    } catch {
+      /* jsdom navigation not implemented */
+    }
     const state = sessionStorage.getItem('oura_oauth_state')
-    const uri   = sessionStorage.getItem('oura_oauth_pending_uri')
+    const uri = sessionStorage.getItem('oura_oauth_pending_uri')
     expect(state).not.toBeNull()
-    expect(state).toHaveLength(36)   // UUID format
+    expect(state).toHaveLength(36) // UUID format
     expect(uri).not.toBeNull()
   })
 
   it('generates a unique state on each call', () => {
-    try { startOuraOAuth() } catch { /* ignore navigation */ }
+    try {
+      startOuraOAuth()
+    } catch {
+      /* ignore navigation */
+    }
     const first = sessionStorage.getItem('oura_oauth_state')
     sessionStorage.clear()
-    try { startOuraOAuth() } catch { /* ignore navigation */ }
+    try {
+      startOuraOAuth()
+    } catch {
+      /* ignore navigation */
+    }
     const second = sessionStorage.getItem('oura_oauth_state')
     expect(first).not.toBe(second)
   })

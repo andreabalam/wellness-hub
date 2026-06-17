@@ -20,7 +20,11 @@ export interface IngredientResolution {
 }
 
 export interface RecipeMacroTotals {
-  k: number; p: number; c: number; f: number; fi: number
+  k: number
+  p: number
+  c: number
+  f: number
+  fi: number
 }
 
 export interface RecipeMacroResult {
@@ -45,7 +49,11 @@ export async function computeRecipeMacros(
 ): Promise<RecipeMacroResult> {
   const div = servings >= 1 ? servings : 1
   const rows: IngredientResolution[] = []
-  let k = 0, p = 0, c = 0, f = 0, fi = 0
+  let k = 0,
+    p = 0,
+    c = 0,
+    f = 0,
+    fi = 0
   let matched = 0
 
   for (const [ing, amount] of ings) {
@@ -67,7 +75,9 @@ export async function computeRecipeMacros(
     fi += per100.fi * scale
     matched++
     rows.push({
-      ing, amount, status: 'ok',
+      ing,
+      amount,
+      status: 'ok',
       grams: parsed.grams,
       matchName: per100.name,
       kcal: Math.round(per100.k * scale),
@@ -90,7 +100,7 @@ export async function computeRecipeMacros(
 // ── Cached USDA lookup ────────────────────────────────────────────
 
 export const USDA_CACHE_KEY = 'whub_usda_per100g_v1'
-const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000   // 30 days
+const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 /** Pause between live USDA requests — stays polite under DEMO_KEY rate limits */
 const THROTTLE_MS = 150
 
@@ -109,7 +119,9 @@ function readCache(): Record<string, CacheEntry> {
 function writeCache(cache: Record<string, CacheEntry>) {
   try {
     localStorage.setItem(USDA_CACHE_KEY, JSON.stringify(cache))
-  } catch { /* quota exceeded — cache is best-effort */ }
+  } catch {
+    /* quota exceeded — cache is best-effort */
+  }
 }
 
 function normalizeName(name: string): string {

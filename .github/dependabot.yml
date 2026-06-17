@@ -5,7 +5,7 @@ updates:
   # own isolated PRs (see plan/architecture-audit-improvement.md, Phase D), so
   # they are excluded here.
   - package-ecosystem: npm
-    directory: "/"
+    directory: '/'
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -15,13 +15,13 @@ updates:
           - minor
           - patch
     ignore:
-      - dependency-name: "*"
+      - dependency-name: '*'
         update-types:
           - version-update:semver-major
 
   # Keep GitHub Actions pinned versions current too.
   - package-ecosystem: github-actions
-    directory: "/"
+    directory: '/'
     schedule:
       interval: weekly
     open-pull-requests-limit: 3

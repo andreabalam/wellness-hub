@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
-  parseMacro, recipeToHit, historyFoods, searchLocalFoods, MAX_HITS,
+  parseMacro,
+  recipeToHit,
+  historyFoods,
+  searchLocalFoods,
+  MAX_HITS,
 } from '../lib/localFoodSearch'
 import type { LocalSearchSources } from '../lib/localFoodSearch'
 import type { Recipe } from '../data/recipes'
@@ -10,24 +14,53 @@ import type { DayData, QuickFood } from '../data/tracker'
 
 function makeRecipe(over: Partial<Recipe> = {}): Recipe {
   return {
-    id: 1, cat: 'meal', type: 'Meal', color: 'var(--green)', sc: 'cg',
-    name: 'Chicken Bowl', tag: 'Quick', prepL: '20 min', prepC: 'var(--green)',
-    hk: 400, hp: '35g', hc: '30g', hf: '12g', hfi: '5g',
-    mk: 550, mp: '28g', mc: '48g', mf: '22g',
-    ings: [], steps: [], tip: '',
+    id: 1,
+    cat: 'meal',
+    type: 'Meal',
+    color: 'var(--green)',
+    sc: 'cg',
+    name: 'Chicken Bowl',
+    tag: 'Quick',
+    prepL: '20 min',
+    prepC: 'var(--green)',
+    hk: 400,
+    hp: '35g',
+    hc: '30g',
+    hf: '12g',
+    hfi: '5g',
+    mk: 550,
+    mp: '28g',
+    mc: '48g',
+    mf: '22g',
+    ings: [],
+    steps: [],
+    tip: '',
     ...over,
   }
 }
 
 function makeDay(foods: DayData['foods']): DayData {
   return {
-    foods, workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0,
-    stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '',
+    foods,
+    workout: null,
+    wkNotes: '',
+    energy: 0,
+    mood: 0,
+    sleep: 0,
+    stress: 0,
+    water: 0,
+    phase: '',
+    notes: '',
+    medMin: 0,
+    medStyle: '',
   }
 }
 
 const EMPTY_SOURCES: LocalSearchSources = {
-  library: [], history: [], recipes: [], quickFoods: [],
+  library: [],
+  history: [],
+  recipes: [],
+  quickFoods: [],
 }
 
 const food = (n: string, k = 100): QuickFood => ({ n, k, p: 10, c: 10, f: 5, fi: 2 })
@@ -49,8 +82,14 @@ describe('parseMacro', () => {
 describe('recipeToHit', () => {
   it('uses the healthy variant by default', () => {
     expect(recipeToHit(makeRecipe())).toEqual({
-      source: 'recipe', recipeId: 1, n: 'Chicken Bowl',
-      k: 400, p: 35, c: 30, f: 12, fi: 5,
+      source: 'recipe',
+      recipeId: 1,
+      n: 'Chicken Bowl',
+      k: 400,
+      p: 35,
+      c: 30,
+      f: 12,
+      fi: 5,
     })
   })
 
@@ -135,8 +174,10 @@ describe('searchLocalFoods', () => {
     }
     const bySource = Object.fromEntries(searchLocalFoods('meal', src).map(h => [h.source, h.n]))
     expect(bySource).toEqual({
-      library: 'Lib Meal', history: 'Hist Meal',
-      recipe: 'Recipe Meal', builtin: 'Quick Meal',
+      library: 'Lib Meal',
+      history: 'Hist Meal',
+      recipe: 'Recipe Meal',
+      builtin: 'Quick Meal',
     })
   })
 

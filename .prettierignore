@@ -1,0 +1,9 @@
+dist
+coverage
+node_modules
+package-lock.json
+*.md
+public
+test-results
+playwright-report
+*.timestamp-*.mjs

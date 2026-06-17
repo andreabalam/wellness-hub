@@ -16,20 +16,45 @@ export interface ParsedAmount {
 
 /** Mass units → grams per unit */
 const MASS_G: Record<string, number> = {
-  g: 1, gr: 1, gram: 1, grams: 1,
-  kg: 1000, kgs: 1000, kilogram: 1000, kilograms: 1000,
+  g: 1,
+  gr: 1,
+  gram: 1,
+  grams: 1,
+  kg: 1000,
+  kgs: 1000,
+  kilogram: 1000,
+  kilograms: 1000,
   mg: 0.001,
-  oz: 28.35, ounce: 28.35, ounces: 28.35,
-  lb: 453.6, lbs: 453.6, pound: 453.6, pounds: 453.6,
+  oz: 28.35,
+  ounce: 28.35,
+  ounces: 28.35,
+  lb: 453.6,
+  lbs: 453.6,
+  pound: 453.6,
+  pounds: 453.6,
 }
 
 /** Volume units → milliliters per unit */
 const VOLUME_ML: Record<string, number> = {
-  ml: 1, milliliter: 1, milliliters: 1, millilitre: 1, millilitres: 1,
-  l: 1000, liter: 1000, liters: 1000, litre: 1000, litres: 1000,
-  cup: 240, cups: 240,
-  tbsp: 15, tbs: 15, tablespoon: 15, tablespoons: 15,
-  tsp: 5, teaspoon: 5, teaspoons: 5,
+  ml: 1,
+  milliliter: 1,
+  milliliters: 1,
+  millilitre: 1,
+  millilitres: 1,
+  l: 1000,
+  liter: 1000,
+  liters: 1000,
+  litre: 1000,
+  litres: 1000,
+  cup: 240,
+  cups: 240,
+  tbsp: 15,
+  tbs: 15,
+  tablespoon: 15,
+  tablespoons: 15,
+  tsp: 5,
+  teaspoon: 5,
+  teaspoons: 5,
 }
 
 /**
@@ -68,7 +93,7 @@ const DENSITY: [string, number][] = [
   ['kale', 0.28],
   ['lettuce', 0.2],
   ['arugula', 0.08],
-  ['berr', 0.62],   // berry/berries
+  ['berr', 0.62], // berry/berries
   ['cheese', 0.45], // shredded
 ]
 
@@ -100,7 +125,7 @@ const PIECE_G: [string, number][] = [
   ['pear', 178],
   ['mango', 200],
   ['kiwi', 75],
-  ['date', 24],     // medjool
+  ['date', 24], // medjool
   ['tortilla', 30],
   ['pita', 60],
   ['bagel', 100],
@@ -112,27 +137,46 @@ const PIECE_G: [string, number][] = [
 
 /** Count-style units → grams per unit (independent of ingredient name) */
 const PIECE_UNIT_G: Record<string, number> = {
-  clove: 3, cloves: 3,
-  slice: 30, slices: 30,
-  scoop: 30, scoops: 30,
-  stalk: 40, stalks: 40,
-  stick: 113, sticks: 113,   // butter stick
-  can: 400, cans: 400,
-  handful: 30, handfuls: 30,
+  clove: 3,
+  cloves: 3,
+  slice: 30,
+  slices: 30,
+  scoop: 30,
+  scoops: 30,
+  stalk: 40,
+  stalks: 40,
+  stick: 113,
+  sticks: 113, // butter stick
+  can: 400,
+  cans: 400,
+  handful: 30,
+  handfuls: 30,
 }
 
 /** Size adjectives scale per-piece weights */
 const SIZE_FACTOR: Record<string, number> = {
-  small: 0.8, medium: 1, large: 1.2, big: 1.2, jumbo: 1.4, mini: 0.5,
+  small: 0.8,
+  medium: 1,
+  large: 1.2,
+  big: 1.2,
+  jumbo: 1.4,
+  mini: 0.5,
 }
 
 /** Amounts that mean "negligible / unmeasurable" — skipped without guessing */
-const NON_AMOUNTS = /^(—|-|to taste|a? ?pinch( of)?|a? ?dash( of)?|a? ?splash( of)?|some|optional|as needed)$/
+const NON_AMOUNTS =
+  /^(—|-|to taste|a? ?pinch( of)?|a? ?dash( of)?|a? ?splash( of)?|some|optional|as needed)$/
 
 const UNICODE_FRACTIONS: Record<string, string> = {
-  '¼': '1/4', '½': '1/2', '¾': '3/4',
-  '⅓': '1/3', '⅔': '2/3',
-  '⅛': '1/8', '⅜': '3/8', '⅝': '5/8', '⅞': '7/8',
+  '¼': '1/4',
+  '½': '1/2',
+  '¾': '3/4',
+  '⅓': '1/3',
+  '⅔': '2/3',
+  '⅛': '1/8',
+  '⅜': '3/8',
+  '⅝': '5/8',
+  '⅞': '7/8',
 }
 
 // ── Parsing ───────────────────────────────────────────────────────
@@ -147,7 +191,10 @@ function parseQuantity(s: string): { qty: number; rest: string } | null {
   // mixed fraction: "1 1/2"
   const mixed = s.match(/^(\d+)\s+(\d+)\/(\d+)(.*)$/)
   if (mixed) {
-    return { qty: parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]), rest: mixed[4].trim() }
+    return {
+      qty: parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]),
+      rest: mixed[4].trim(),
+    }
   }
   // plain fraction: "1/2"
   const frac = s.match(/^(\d+)\/(\d+)(.*)$/)
@@ -189,7 +236,9 @@ export function parseIngredientAmount(amount: string, name: string): ParsedAmoun
 
   for (const [uni, ascii] of Object.entries(UNICODE_FRACTIONS)) {
     // "1½" → "1 1/2" so the mixed-fraction regex matches
-    s = s.replace(new RegExp(`(\\d)${uni}`, 'g'), `$1 ${ascii}`).replace(new RegExp(uni, 'g'), ascii)
+    s = s
+      .replace(new RegExp(`(\\d)${uni}`, 'g'), `$1 ${ascii}`)
+      .replace(new RegExp(uni, 'g'), ascii)
   }
 
   const q = parseQuantity(s)
@@ -214,7 +263,7 @@ export function parseIngredientAmount(amount: string, name: string): ParsedAmoun
 
   // bare count, optionally size-qualified: "2", "1 large", "3 medium"
   if (unit === '' || unit in SIZE_FACTOR) {
-    if (!q) return null   // no number and no recognizable unit
+    if (!q) return null // no number and no recognizable unit
     const piece = pieceWeightFor(n)
     if (piece == null) return null
     const factor = SIZE_FACTOR[unit] ?? 1

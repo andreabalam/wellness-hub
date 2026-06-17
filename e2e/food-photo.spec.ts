@@ -3,30 +3,61 @@ import { fileURLToPath } from 'url'
 import path from 'path'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const FIXTURE_FOOD  = path.join(__dirname, 'fixtures/food-test.jpg')
+const FIXTURE_FOOD = path.join(__dirname, 'fixtures/food-test.jpg')
 const FIXTURE_LABEL = path.join(__dirname, 'fixtures/label-test.jpg')
 
 const MOCK_HIGH: Record<string, unknown> = {
-  name: 'Pizza', kcal: 266, protein: 11, carbs: 33, fat: 10, fiber: 2,
-  servings: 1, confidence: 'high', notes: 'Serving size defaulted to 200 g — adjust if needed.',
+  name: 'Pizza',
+  kcal: 266,
+  protein: 11,
+  carbs: 33,
+  fat: 10,
+  fiber: 2,
+  servings: 1,
+  confidence: 'high',
+  notes: 'Serving size defaulted to 200 g — adjust if needed.',
 }
-const MOCK_MEDIUM: Record<string, unknown> = { ...MOCK_HIGH, confidence: 'medium', notes: 'Serving size estimate uncertain.' }
-const MOCK_LOW: Record<string, unknown>    = { ...MOCK_HIGH, confidence: 'low',    notes: 'Food not recognized — fill in manually.' }
-const MOCK_LABEL: Record<string, unknown>  = {
-  name: 'Packaged food', kcal: 250, protein: 12, carbs: 30, fat: 9, fiber: 4,
-  servings: 1, confidence: 'high', notes: 'Values read from nutrition label — adjust servings if you ate a different amount.',
+const MOCK_MEDIUM: Record<string, unknown> = {
+  ...MOCK_HIGH,
+  confidence: 'medium',
+  notes: 'Serving size estimate uncertain.',
+}
+const MOCK_LOW: Record<string, unknown> = {
+  ...MOCK_HIGH,
+  confidence: 'low',
+  notes: 'Food not recognized — fill in manually.',
+}
+const MOCK_LABEL: Record<string, unknown> = {
+  name: 'Packaged food',
+  kcal: 250,
+  protein: 12,
+  carbs: 30,
+  fat: 9,
+  fiber: 4,
+  servings: 1,
+  confidence: 'high',
+  notes: 'Values read from nutrition label — adjust servings if you ate a different amount.',
 }
 
 test.describe('Food photo feature', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
-      sessionStorage.setItem('__e2e_user__', JSON.stringify({
-        id: 'e2e-test-id', email: 'test@e2e.com',
-        app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
-      }))
+      sessionStorage.setItem(
+        '__e2e_user__',
+        JSON.stringify({
+          id: 'e2e-test-id',
+          email: 'test@e2e.com',
+          app_metadata: {},
+          user_metadata: {},
+          aud: 'authenticated',
+          created_at: '',
+        }),
+      )
     })
     await page.goto('/')
-    await page.evaluate(() => { localStorage.clear() })
+    await page.evaluate(() => {
+      localStorage.clear()
+    })
     await page.reload()
   })
 
@@ -34,7 +65,11 @@ test.describe('Food photo feature', () => {
   test('food photo pre-fills form and logs correctly', async ({ page }) => {
     // Mock the Edge Function call
     await page.route('**/functions/v1/analyze-food-photo', async route => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_HIGH) })
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_HIGH),
+      })
     })
 
     // Also mock tesseract by intercepting its CDN worker/wasm requests
@@ -108,8 +143,14 @@ test.describe('Food photo feature', () => {
     await expect(page.getByText('Persisted Meal', { exact: true })).toBeVisible()
 
     // Navigate away then back using the nav tabs
-    await page.locator('nav.tabs').getByRole('button', { name: /Schedule/i }).click()
-    await page.locator('nav.tabs').getByRole('button', { name: /Tracker/i }).click()
+    await page
+      .locator('nav.tabs')
+      .getByRole('button', { name: /Schedule/i })
+      .click()
+    await page
+      .locator('nav.tabs')
+      .getByRole('button', { name: /Tracker/i })
+      .click()
 
     await expect(page.getByText('Persisted Meal', { exact: true })).toBeVisible()
     await expect(page.getByText('400 / 1,380 kcal')).toBeVisible()
@@ -133,7 +174,11 @@ test.describe('Food photo feature', () => {
       const res = await fetch('/functions/v1/analyze-food-photo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer fake' },
-        body: JSON.stringify({ mode: 'photo', image: 'data:image/jpeg;base64,AA==', mimeType: 'image/jpeg' }),
+        body: JSON.stringify({
+          mode: 'photo',
+          image: 'data:image/jpeg;base64,AA==',
+          mimeType: 'image/jpeg',
+        }),
       })
       return res.json()
     })
@@ -161,13 +206,21 @@ test.describe('Food photo feature', () => {
       return res.json()
     })
 
-    expect(result).toMatchObject({ kcal: 250, confidence: 'high', notes: expect.stringContaining('label') })
+    expect(result).toMatchObject({
+      kcal: 250,
+      confidence: 'high',
+      notes: expect.stringContaining('label'),
+    })
   })
 
   // ── Edge Function mock: 500 error ─────────────────────────────────
   test('Edge Function 500 returns error shape', async ({ page }) => {
     await page.route('**/functions/v1/analyze-food-photo', async route => {
-      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'Analysis failed' }) })
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Analysis failed' }),
+      })
     })
 
     const result = await page.evaluate(async () => {

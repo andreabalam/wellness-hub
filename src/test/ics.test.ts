@@ -61,15 +61,21 @@ describe('parseDuration', () => {
 
 const SINGLE_BLOCK: ScheduleBlock[] = [
   {
-    phase: 'Morning', time: '09:00', title: 'Deep Work',
-    dur: '90 min', dot: 'cg', why: 'wg', whyTxt: 'focus',
-    desc: 'Focus session', bridge: null,
+    phase: 'Morning',
+    time: '09:00',
+    title: 'Deep Work',
+    dur: '90 min',
+    dot: 'cg',
+    why: 'wg',
+    whyTxt: 'focus',
+    desc: 'Focus session',
+    bridge: null,
   },
 ]
 
 describe('generateIcs', () => {
   const start = new Date('2026-06-01T00:00:00')
-  const end   = new Date('2026-07-01T00:00:00')
+  const end = new Date('2026-07-01T00:00:00')
 
   it('returns a string starting with BEGIN:VCALENDAR', () => {
     const ics = generateIcs(SINGLE_BLOCK, start, end)
@@ -121,17 +127,13 @@ describe('generateIcs', () => {
   })
 
   it('omits DESCRIPTION when desc is empty', () => {
-    const noDesc: ScheduleBlock[] = [
-      { ...SINGLE_BLOCK[0], desc: '' },
-    ]
+    const noDesc: ScheduleBlock[] = [{ ...SINGLE_BLOCK[0], desc: '' }]
     const ics = generateIcs(noDesc, start, end)
     expect(ics).not.toContain('DESCRIPTION:')
   })
 
   it('omits CATEGORIES when whyTxt is empty', () => {
-    const noWhy: ScheduleBlock[] = [
-      { ...SINGLE_BLOCK[0], whyTxt: '' },
-    ]
+    const noWhy: ScheduleBlock[] = [{ ...SINGLE_BLOCK[0], whyTxt: '' }]
     const ics = generateIcs(noWhy, start, end)
     expect(ics).not.toContain('CATEGORIES:')
   })
@@ -140,9 +142,15 @@ describe('generateIcs', () => {
     const two: ScheduleBlock[] = [
       ...SINGLE_BLOCK,
       {
-        phase: null, time: '11:00', title: 'Lunch Break',
-        dur: '30 min', dot: 'ca', why: 'wa', whyTxt: '',
-        desc: '', bridge: null,
+        phase: null,
+        time: '11:00',
+        title: 'Lunch Break',
+        dur: '30 min',
+        dot: 'ca',
+        why: 'wa',
+        whyTxt: '',
+        desc: '',
+        bridge: null,
       },
     ]
     const ics = generateIcs(two, start, end)
@@ -184,16 +192,12 @@ describe('generateIcs', () => {
   })
 
   it('handles a block with "—" dur (fallback PT30M)', () => {
-    const dashBlk: ScheduleBlock[] = [
-      { ...SINGLE_BLOCK[0], dur: '—' },
-    ]
+    const dashBlk: ScheduleBlock[] = [{ ...SINGLE_BLOCK[0], dur: '—' }]
     expect(generateIcs(dashBlk, start, end)).toContain('DURATION:PT30M')
   })
 
   it('escapes special characters in SUMMARY', () => {
-    const special: ScheduleBlock[] = [
-      { ...SINGLE_BLOCK[0], title: 'A, B; C' },
-    ]
+    const special: ScheduleBlock[] = [{ ...SINGLE_BLOCK[0], title: 'A, B; C' }]
     const ics = generateIcs(special, start, end)
     expect(ics).toContain('SUMMARY:A\\,')
   })
@@ -206,12 +210,12 @@ describe('downloadIcs', () => {
     const mockUrl = 'blob:test-url'
     const createObjectURL = vi.fn(() => mockUrl)
     const revokeObjectURL = vi.fn()
-    const click           = vi.fn()
+    const click = vi.fn()
 
     vi.stubGlobal('URL', { createObjectURL, revokeObjectURL })
-    const spy = vi.spyOn(document, 'createElement').mockReturnValue(
-      { href: '', download: '', click } as unknown as HTMLAnchorElement
-    )
+    const spy = vi
+      .spyOn(document, 'createElement')
+      .mockReturnValue({ href: '', download: '', click } as unknown as HTMLAnchorElement)
 
     downloadIcs('BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n', 'test.ics')
 
@@ -229,8 +233,11 @@ describe('downloadIcs', () => {
     const click = vi.fn()
     vi.stubGlobal('URL', { createObjectURL, revokeObjectURL })
     vi.spyOn(document, 'createElement').mockReturnValue({
-      set download(v: string) { captured = v },
-      href: '', click,
+      set download(v: string) {
+        captured = v
+      },
+      href: '',
+      click,
     } as unknown as HTMLAnchorElement)
 
     downloadIcs('content')
@@ -241,26 +248,44 @@ describe('downloadIcs', () => {
 // ── generateWeekIcs ───────────────────────────────────────────────
 
 const MON_BLOCK: ScheduleBlock = {
-  phase: 'Morning', time: '09:00', title: 'Mon Deep Work',
-  dur: '90 min', dot: 'cg', why: 'wg', whyTxt: 'focus',
-  desc: 'Monday focus session', bridge: null,
+  phase: 'Morning',
+  time: '09:00',
+  title: 'Mon Deep Work',
+  dur: '90 min',
+  dot: 'cg',
+  why: 'wg',
+  whyTxt: 'focus',
+  desc: 'Monday focus session',
+  bridge: null,
 }
 
 const SAT_BLOCK: ScheduleBlock = {
-  phase: null, time: '10:00', title: 'Sat Yoga',
-  dur: '60 min', dot: 'ct', why: 'wt', whyTxt: 'flexibility',
-  desc: 'Saturday yoga', bridge: null,
+  phase: null,
+  time: '10:00',
+  title: 'Sat Yoga',
+  dur: '60 min',
+  dot: 'ct',
+  why: 'wt',
+  whyTxt: 'flexibility',
+  desc: 'Saturday yoga',
+  bridge: null,
 }
 
 function makeWeekWith(mon: ScheduleBlock[], sat: ScheduleBlock[]): Record<DayKey, ScheduleBlock[]> {
   return {
-    mon, tue: [], wed: [], thu: [], fri: [], sat, sun: [],
+    mon,
+    tue: [],
+    wed: [],
+    thu: [],
+    fri: [],
+    sat,
+    sun: [],
   }
 }
 
 describe('generateWeekIcs', () => {
   const start = new Date('2026-06-01T00:00:00') // Monday
-  const end   = new Date('2026-07-01T00:00:00')
+  const end = new Date('2026-07-01T00:00:00')
 
   it('generates BEGIN:VCALENDAR', () => {
     const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], []), start, end)
@@ -318,7 +343,13 @@ describe('generateWeekIcs', () => {
 
   it('fully empty week produces no VEVENTs', () => {
     const emptyWeek: Record<DayKey, ScheduleBlock[]> = {
-      mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [],
+      mon: [],
+      tue: [],
+      wed: [],
+      thu: [],
+      fri: [],
+      sat: [],
+      sun: [],
     }
     const ics = generateWeekIcs(emptyWeek, start, end)
     expect(ics).not.toContain('BEGIN:VEVENT')

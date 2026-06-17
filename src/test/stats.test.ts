@@ -61,25 +61,25 @@ describe('macrosFromKcal', () => {
   it('balanced split: correct gram splits', () => {
     const m = macrosFromKcal(2000, 'balanced')!
     expect(m.kcal).toBe(2000)
-    expect(m.prot).toBe(Math.round(2000 * 0.30 / 4))  // 150
-    expect(m.carb).toBe(Math.round(2000 * 0.40 / 4))  // 200
-    expect(m.fat).toBe(Math.round(2000  * 0.30 / 9))  // 67
+    expect(m.prot).toBe(Math.round((2000 * 0.3) / 4)) // 150
+    expect(m.carb).toBe(Math.round((2000 * 0.4) / 4)) // 200
+    expect(m.fat).toBe(Math.round((2000 * 0.3) / 9)) // 67
     expect(m.fiber).toBe(25)
   })
 
   it('high_protein split: correct gram splits', () => {
     const m = macrosFromKcal(2000, 'high_protein')!
-    expect(m.prot).toBe(Math.round(2000 * 0.35 / 4))  // 175
-    expect(m.carb).toBe(Math.round(2000 * 0.35 / 4))  // 175
-    expect(m.fat).toBe(Math.round(2000  * 0.30 / 9))  // 67
+    expect(m.prot).toBe(Math.round((2000 * 0.35) / 4)) // 175
+    expect(m.carb).toBe(Math.round((2000 * 0.35) / 4)) // 175
+    expect(m.fat).toBe(Math.round((2000 * 0.3) / 9)) // 67
     expect(m.fiber).toBe(25)
   })
 
   it('low_carb split: correct gram splits', () => {
     const m = macrosFromKcal(2000, 'low_carb')!
-    expect(m.prot).toBe(Math.round(2000 * 0.35 / 4))  // 175
-    expect(m.carb).toBe(Math.round(2000 * 0.20 / 4))  // 100
-    expect(m.fat).toBe(Math.round(2000  * 0.45 / 9))  // 100
+    expect(m.prot).toBe(Math.round((2000 * 0.35) / 4)) // 175
+    expect(m.carb).toBe(Math.round((2000 * 0.2) / 4)) // 100
+    expect(m.fat).toBe(Math.round((2000 * 0.45) / 9)) // 100
     expect(m.fiber).toBe(25)
   })
 })

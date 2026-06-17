@@ -14,13 +14,22 @@ import { test, expect } from '@playwright/test'
 test.describe('Recipe import UI', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
-      sessionStorage.setItem('__e2e_user__', JSON.stringify({
-        id: 'e2e-test-id', email: 'test@e2e.com',
-        app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
-      }))
+      sessionStorage.setItem(
+        '__e2e_user__',
+        JSON.stringify({
+          id: 'e2e-test-id',
+          email: 'test@e2e.com',
+          app_metadata: {},
+          user_metadata: {},
+          aud: 'authenticated',
+          created_at: '',
+        }),
+      )
     })
     await page.goto('/')
-    await page.evaluate(() => { localStorage.clear() })
+    await page.evaluate(() => {
+      localStorage.clear()
+    })
     await page.reload()
     await page.getByRole('button', { name: /Recipes/i }).click()
   })
@@ -47,13 +56,35 @@ test.describe('Recipe import UI', () => {
   test('import zone is hidden in edit mode', async ({ page }) => {
     // Seed a custom recipe so there is something to edit
     await page.evaluate(() => {
-      localStorage.setItem('whub_custom_recipes_v1', JSON.stringify([{
-        id: 1001, name: 'My Salad', cat: 'meal', type: 'Meal',
-        color: 'var(--green)', sc: 'cg', tag: 'Fresh', prepL: '5 min',
-        prepC: 'var(--green)', hk: 200, hp: '10g', hc: '20g', hf: '5g',
-        mk: 200, mp: '10g', mc: '20g', mf: '5g',
-        ings: [], steps: [], tip: '', custom: true, source: 'user',
-      }]))
+      localStorage.setItem(
+        'whub_custom_recipes_v1',
+        JSON.stringify([
+          {
+            id: 1001,
+            name: 'My Salad',
+            cat: 'meal',
+            type: 'Meal',
+            color: 'var(--green)',
+            sc: 'cg',
+            tag: 'Fresh',
+            prepL: '5 min',
+            prepC: 'var(--green)',
+            hk: 200,
+            hp: '10g',
+            hc: '20g',
+            hf: '5g',
+            mk: 200,
+            mp: '10g',
+            mc: '20g',
+            mf: '5g',
+            ings: [],
+            steps: [],
+            tip: '',
+            custom: true,
+            source: 'user',
+          },
+        ]),
+      )
     })
     await page.reload()
     await page.getByRole('button', { name: /Recipes/i }).click()

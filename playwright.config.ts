@@ -13,9 +13,7 @@ export default defineConfig({
     // Don't wait longer than 10 s for any element to appear
     actionTimeout: 10_000,
   },
-  projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-  ],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:5173/wellness-hub/',
@@ -26,7 +24,7 @@ export default defineConfig({
     // point this at a fake URL instead — supabase-js hangs (not rejects) on
     // unreachable hosts, deadlocking the app's loading states.
     env: {
-      VITE_SUPABASE_URL:      '',
+      VITE_SUPABASE_URL: '',
       VITE_SUPABASE_ANON_KEY: '',
     },
   },

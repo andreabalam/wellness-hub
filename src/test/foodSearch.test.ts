@@ -9,23 +9,29 @@ vi.mock('../lib/supabase', () => ({
 
 import { searchUSDA, searchUSDAFoods, estimateFoodMacros } from '../lib/foodSearch'
 
-beforeEach(() => { vi.unstubAllGlobals(); mockInvoke.mockReset() })
+beforeEach(() => {
+  vi.unstubAllGlobals()
+  mockInvoke.mockReset()
+})
 
 // ── helpers ───────────────────────────────────────────────────────
 
 const NUTRIENTS_100G = [
-  { nutrientId: 1008, value: 200 },   // energy kcal
-  { nutrientId: 1003, value: 10 },    // protein
-  { nutrientId: 1005, value: 30 },    // carbs
-  { nutrientId: 1004, value: 5 },     // fat
-  { nutrientId: 1079, value: 8 },     // fiber
+  { nutrientId: 1008, value: 200 }, // energy kcal
+  { nutrientId: 1003, value: 10 }, // protein
+  { nutrientId: 1005, value: 30 }, // carbs
+  { nutrientId: 1004, value: 5 }, // fat
+  { nutrientId: 1079, value: 8 }, // fiber
 ]
 
 function mockUSDA(foods: unknown[]) {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-    ok: true,
-    json: vi.fn().mockResolvedValue({ foods }),
-  }))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ foods }),
+    }),
+  )
 }
 
 // ── searchUSDA ────────────────────────────────────────────────────
@@ -37,47 +43,60 @@ describe('searchUSDA', () => {
   })
 
   it('returns null when foods key is absent from response', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: vi.fn().mockResolvedValue({}),
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({}),
+      }),
+    )
     expect(await searchUSDA('anything')).toBeNull()
   })
 
   it('returns NutriInfo per 100 g when no servingSize provided', async () => {
     mockUSDA([{ foodNutrients: NUTRIENTS_100G }])
     expect(await searchUSDA('chicken')).toEqual({
-      srv: '100g', cal: 200, p: 10, c: 30, f: 5, fi: 8,
+      srv: '100g',
+      cal: 200,
+      p: 10,
+      c: 30,
+      f: 5,
+      fi: 8,
     })
   })
 
   it('scales nutrients by serving size', async () => {
-    mockUSDA([{
-      servingSize: 50, servingSizeUnit: 'G',
-      foodNutrients: NUTRIENTS_100G,
-    }])
+    mockUSDA([
+      {
+        servingSize: 50,
+        servingSizeUnit: 'G',
+        foodNutrients: NUTRIENTS_100G,
+      },
+    ])
     const result = await searchUSDA('bread')
     expect(result).toMatchObject({ srv: '50g', cal: 100, p: 5, c: 15, f: 2.5, fi: 4 })
   })
 
   it('omits fiber when the USDA value is zero', async () => {
-    const noFiber = NUTRIENTS_100G.map(n => n.nutrientId === 1079 ? { ...n, value: 0 } : n)
+    const noFiber = NUTRIENTS_100G.map(n => (n.nutrientId === 1079 ? { ...n, value: 0 } : n))
     mockUSDA([{ foodNutrients: noFiber }])
     const result = await searchUSDA('sugar')
     expect(result?.fi).toBeUndefined()
   })
 
   it('rounds calories to integer and macros to one decimal', async () => {
-    mockUSDA([{
-      servingSize: 33,
-      foodNutrients: [
-        { nutrientId: 1008, value: 300 },   // 99 kcal — rounds to 99
-        { nutrientId: 1003, value: 25.33 }, // 8.359 → 8.4
-        { nutrientId: 1005, value: 10 },
-        { nutrientId: 1004, value: 9 },
-        { nutrientId: 1079, value: 3 },
-      ],
-    }])
+    mockUSDA([
+      {
+        servingSize: 33,
+        foodNutrients: [
+          { nutrientId: 1008, value: 300 }, // 99 kcal — rounds to 99
+          { nutrientId: 1003, value: 25.33 }, // 8.359 → 8.4
+          { nutrientId: 1005, value: 10 },
+          { nutrientId: 1004, value: 9 },
+          { nutrientId: 1079, value: 3 },
+        ],
+      },
+    ])
     const result = await searchUSDA('test')
     expect(result?.cal).toBe(99)
     expect(result?.p).toBe(8.4)
@@ -90,7 +109,8 @@ describe('searchUSDA', () => {
 
   it('passes abort signal through to fetch', async () => {
     const mockFetchFn = vi.fn().mockResolvedValue({
-      ok: true, json: vi.fn().mockResolvedValue({ foods: [] }),
+      ok: true,
+      json: vi.fn().mockResolvedValue({ foods: [] }),
     })
     vi.stubGlobal('fetch', mockFetchFn)
     const signal = new AbortController().signal
@@ -103,7 +123,8 @@ describe('searchUSDA', () => {
 
   it('includes query in the request URL', async () => {
     const mockFetchFn = vi.fn().mockResolvedValue({
-      ok: true, json: vi.fn().mockResolvedValue({ foods: [] }),
+      ok: true,
+      json: vi.fn().mockResolvedValue({ foods: [] }),
     })
     vi.stubGlobal('fetch', mockFetchFn)
     await searchUSDA('brown rice')
@@ -130,8 +151,14 @@ describe('searchUSDAFoods', () => {
     const hits = await searchUSDAFoods('chicken')
     expect(hits).toHaveLength(2)
     expect(hits[0]).toEqual({
-      name: 'Chicken, broiler, breast', srv: '100g',
-      k: 200, p: 10, c: 30, f: 5, fi: 8, calPerG: 2,
+      name: 'Chicken, broiler, breast',
+      srv: '100g',
+      k: 200,
+      p: 10,
+      c: 30,
+      f: 5,
+      fi: 8,
+      calPerG: 2,
     })
     expect(hits[1]).toMatchObject({ name: 'Chicken, thigh', srv: '50g', k: 100, p: 5 })
   })
@@ -146,8 +173,14 @@ describe('searchUSDAFoods', () => {
 
 describe('estimateFoodMacros', () => {
   const ESTIMATE = {
-    name: 'Pozole Rojo', kcal: 320, protein: 22, carbs: 28, fat: 14, fiber: 5,
-    confidence: 'medium', notes: 'Assumes 1 bowl (~400 g)',
+    name: 'Pozole Rojo',
+    kcal: 320,
+    protein: 22,
+    carbs: 28,
+    fat: 14,
+    fiber: 5,
+    confidence: 'medium',
+    notes: 'Assumes 1 bowl (~400 g)',
   }
 
   it('invokes the estimate-food-macros function with the food name', async () => {

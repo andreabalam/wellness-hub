@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test'
 // Grocery catalog pre-seed — avoids relying on GroceryPanel's async seeding effect.
 // Using the same categories as GROCERY_DATA so .gcat elements appear immediately.
 const SEED_GROCERY = JSON.stringify([
-  { id: 'g-e2e-1', n: 'Brown rice',     cat: 'Grains & Legumes' },
-  { id: 'g-e2e-2', n: 'Blueberries',    cat: 'Fruits' },
+  { id: 'g-e2e-1', n: 'Brown rice', cat: 'Grains & Legumes' },
+  { id: 'g-e2e-2', n: 'Blueberries', cat: 'Fruits' },
   { id: 'g-e2e-3', n: 'Chicken breast', cat: 'Protein' },
 ])
 
@@ -12,16 +12,53 @@ const SEED_GROCERY = JSON.stringify([
 // Built-in recipes have been removed; tests that need cards must seed their own.
 const SEED_RECIPES = JSON.stringify([
   {
-    name: 'Test Breakfast Bowl', cat: 'breakfast', type: 'Breakfast',
-    color: 'var(--amber)', sc: 'am', tag: 'Quick', prepL: '10 min', prepC: 'var(--amber)',
-    hk: 350, hp: '20g', hc: '40g', hf: '8g', mk: 350, mp: '20g', mc: '40g', mf: '8g',
-    ings: [['Oats', '50g']], steps: ['Cook oats', 'Top with fruit'], tip: '', custom: true, source: 'user',
+    name: 'Test Breakfast Bowl',
+    cat: 'breakfast',
+    type: 'Breakfast',
+    color: 'var(--amber)',
+    sc: 'am',
+    tag: 'Quick',
+    prepL: '10 min',
+    prepC: 'var(--amber)',
+    hk: 350,
+    hp: '20g',
+    hc: '40g',
+    hf: '8g',
+    mk: 350,
+    mp: '20g',
+    mc: '40g',
+    mf: '8g',
+    ings: [['Oats', '50g']],
+    steps: ['Cook oats', 'Top with fruit'],
+    tip: '',
+    custom: true,
+    source: 'user',
   },
   {
-    name: 'Test Green Smoothie', cat: 'smoothie', type: 'Smoothie',
-    color: 'var(--green)', sc: 'cg', tag: 'Quick', prepL: '5 min', prepC: 'var(--green)',
-    hk: 250, hp: '10g', hc: '45g', hf: '3g', mk: 250, mp: '10g', mc: '45g', mf: '3g',
-    ings: [['Banana', '1 piece'], ['Spinach', '30g']], steps: ['Blend everything'], tip: '', custom: true, source: 'user',
+    name: 'Test Green Smoothie',
+    cat: 'smoothie',
+    type: 'Smoothie',
+    color: 'var(--green)',
+    sc: 'cg',
+    tag: 'Quick',
+    prepL: '5 min',
+    prepC: 'var(--green)',
+    hk: 250,
+    hp: '10g',
+    hc: '45g',
+    hf: '3g',
+    mk: 250,
+    mp: '10g',
+    mc: '45g',
+    mf: '3g',
+    ings: [
+      ['Banana', '1 piece'],
+      ['Spinach', '30g'],
+    ],
+    steps: ['Blend everything'],
+    tip: '',
+    custom: true,
+    source: 'user',
   },
 ])
 
@@ -33,10 +70,17 @@ test.describe('Recipes tab', () => {
     // session. Only sessionStorage is touched here so localStorage persistence
     // tests (lines 93, 139, 175) are not disrupted by the init script re-running.
     await page.addInitScript(() => {
-      sessionStorage.setItem('__e2e_user__', JSON.stringify({
-        id: 'e2e-test-id', email: 'test@e2e.com',
-        app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
-      }))
+      sessionStorage.setItem(
+        '__e2e_user__',
+        JSON.stringify({
+          id: 'e2e-test-id',
+          email: 'test@e2e.com',
+          app_metadata: {},
+          user_metadata: {},
+          aud: 'authenticated',
+          created_at: '',
+        }),
+      )
     })
 
     // Seed localStorage once before the initial navigation.
@@ -44,12 +88,15 @@ test.describe('Recipes tab', () => {
     // GroceryPanel's async seeding useEffect, which can miss the 5-second
     // Playwright assertion timeout on slow CI runners.
     await page.goto('/')
-    await page.evaluate(({ recipes, grocery }) => {
-      localStorage.clear()
-      localStorage.setItem('whub_custom_recipes_v1', recipes)
-      localStorage.setItem('whub_grocery_initialized_v1', '1')   // skip seeding effect
-      localStorage.setItem('whub_grocery_catalog_v1', grocery)
-    }, { recipes: SEED_RECIPES, grocery: SEED_GROCERY })
+    await page.evaluate(
+      ({ recipes, grocery }) => {
+        localStorage.clear()
+        localStorage.setItem('whub_custom_recipes_v1', recipes)
+        localStorage.setItem('whub_grocery_initialized_v1', '1') // skip seeding effect
+        localStorage.setItem('whub_grocery_catalog_v1', grocery)
+      },
+      { recipes: SEED_RECIPES, grocery: SEED_GROCERY },
+    )
     await page.reload()
     await page.getByRole('button', { name: /Recipes/i }).click()
   })
@@ -326,7 +373,9 @@ test.describe('Recipes tab', () => {
 
   // ── Phase 6: GroceryIngredientModal ─────────────────────────────
 
-  test('Grocery button on a recipe with ingredients opens the ingredient picker modal', async ({ page }) => {
+  test('Grocery button on a recipe with ingredients opens the ingredient picker modal', async ({
+    page,
+  }) => {
     // Create a custom recipe with an ingredient
     await page.getByRole('button', { name: '+ Add my recipe' }).click()
     await page.getByPlaceholder('e.g. Mango Chia Pudding').fill('Grocery Test Recipe')
@@ -385,7 +434,10 @@ test.describe('Recipes tab', () => {
     await page.getByRole('button', { name: /add ingredients to grocery/i }).click()
 
     // Uncheck "Skip This"
-    const skipCheckbox = page.locator('label').filter({ hasText: 'Skip This' }).locator('input[type=checkbox]')
+    const skipCheckbox = page
+      .locator('label')
+      .filter({ hasText: 'Skip This' })
+      .locator('input[type=checkbox]')
     await skipCheckbox.uncheck()
     await expect(page.getByRole('button', { name: /Add 1 item to grocery/i })).toBeVisible()
 

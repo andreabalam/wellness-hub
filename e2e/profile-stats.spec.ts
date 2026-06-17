@@ -1,8 +1,12 @@
 import { test, expect } from '@playwright/test'
 
 const MOCK_USER = JSON.stringify({
-  id: 'e2e-test-id', email: 'test@e2e.com',
-  app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
+  id: 'e2e-test-id',
+  email: 'test@e2e.com',
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  created_at: '',
 })
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -14,7 +18,10 @@ async function goToTrackerStats(page: import('@playwright/test').Page) {
 
 /** Switch to the Workouts tab. */
 async function goToWorkoutsStats(page: import('@playwright/test').Page) {
-  await page.locator('nav.tabs').getByRole('button', { name: /Workouts/i }).click()
+  await page
+    .locator('nav.tabs')
+    .getByRole('button', { name: /Workouts/i })
+    .click()
 }
 
 /**
@@ -31,7 +38,7 @@ function activeView(page: import('@playwright/test').Page) {
 
 test.describe('ProfileStatsCard', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript((user) => {
+    await page.addInitScript(user => {
       sessionStorage.setItem('__e2e_user__', user)
     }, MOCK_USER)
     await page.goto('/')
@@ -59,7 +66,7 @@ test.describe('ProfileStatsCard', () => {
   test('clicking "+ Set up" opens the profile form', async ({ page }) => {
     await goToTrackerStats(page)
     await activeView(page).getByRole('button', { name: '+ Set up' }).click()
-    await expect(activeView(page).getByPlaceholder('65')).toBeVisible()   // weight
+    await expect(activeView(page).getByPlaceholder('65')).toBeVisible() // weight
     await expect(activeView(page).getByPlaceholder('1.70')).toBeVisible() // height (actual placeholder)
   })
 
@@ -99,12 +106,25 @@ test.describe('ProfileStatsCard', () => {
 
   test('clicking "✎ Edit" re-opens the form with current values', async ({ page }) => {
     await page.evaluate(() => {
-      localStorage.setItem('whub_body_stats_v1', JSON.stringify({
-        weightKg: 72, heightM: 1.72, age: 30, biologicalSex: 'female',
-        bodyFatPct: 22, cycleType: 'regular', equipment: 'Bodyweight only',
-        fatLossRateKg: 0.5, macroSplit: 'balanced', tdeeKcal: 0, kcalTarget: 0,
-        protRange: '', fatLossGoal: '', chronotype: 'bear',
-      }))
+      localStorage.setItem(
+        'whub_body_stats_v1',
+        JSON.stringify({
+          weightKg: 72,
+          heightM: 1.72,
+          age: 30,
+          biologicalSex: 'female',
+          bodyFatPct: 22,
+          cycleType: 'regular',
+          equipment: 'Bodyweight only',
+          fatLossRateKg: 0.5,
+          macroSplit: 'balanced',
+          tdeeKcal: 0,
+          kcalTarget: 0,
+          protRange: '',
+          fatLossGoal: '',
+          chronotype: 'bear',
+        }),
+      )
     })
     await page.reload()
 
@@ -142,7 +162,10 @@ test.describe('ProfileStatsCard', () => {
     await activeView(page).getByPlaceholder('65').fill('63')
     await activeView(page).getByRole('button', { name: 'Save' }).click()
 
-    await page.locator('nav.tabs').getByRole('button', { name: /Tracker/i }).click()
+    await page
+      .locator('nav.tabs')
+      .getByRole('button', { name: /Tracker/i })
+      .click()
     await goToTrackerStats(page)
     await expect(activeView(page).getByText('63 kg', { exact: true })).toBeVisible()
   })
@@ -211,9 +234,9 @@ test.describe('ProfileStatsCard', () => {
   test('saving waist and glutes in cm shows tiles in collapsed grid', async ({ page }) => {
     await goToTrackerStats(page)
     await activeView(page).getByRole('button', { name: '+ Set up' }).click()
-    await activeView(page).getByPlaceholder('65').fill('65')      // weight (required for hasData)
-    await activeView(page).getByPlaceholder('75').fill('80')      // waist
-    await activeView(page).getByPlaceholder('95').fill('100')     // glutes
+    await activeView(page).getByPlaceholder('65').fill('65') // weight (required for hasData)
+    await activeView(page).getByPlaceholder('75').fill('80') // waist
+    await activeView(page).getByPlaceholder('95').fill('100') // glutes
     await activeView(page).getByRole('button', { name: 'Save' }).click()
     await expect(activeView(page).getByText('Waist', { exact: true })).toBeVisible()
     await expect(activeView(page).getByText('80 cm', { exact: true })).toBeVisible()
@@ -248,13 +271,28 @@ test.describe('ProfileStatsCard', () => {
 
   test('editing re-opens form with previously saved measurements', async ({ page }) => {
     await page.evaluate(() => {
-      localStorage.setItem('whub_body_stats_v1', JSON.stringify({
-        weightKg: 65, waistCm: 82, glutesCm: 98, measurementUnit: 'cm',
-        heightM: 1.65, bodyFatPct: 0, age: 0, biologicalSex: '',
-        cycleType: 'none', equipment: '', chronotype: '',
-        fatLossRateKg: 0, macroSplit: 'balanced',
-        tdeeKcal: 0, kcalTarget: 0, protRange: '', fatLossGoal: '',
-      }))
+      localStorage.setItem(
+        'whub_body_stats_v1',
+        JSON.stringify({
+          weightKg: 65,
+          waistCm: 82,
+          glutesCm: 98,
+          measurementUnit: 'cm',
+          heightM: 1.65,
+          bodyFatPct: 0,
+          age: 0,
+          biologicalSex: '',
+          cycleType: 'none',
+          equipment: '',
+          chronotype: '',
+          fatLossRateKg: 0,
+          macroSplit: 'balanced',
+          tdeeKcal: 0,
+          kcalTarget: 0,
+          protRange: '',
+          fatLossGoal: '',
+        }),
+      )
     })
     await page.reload()
     await goToTrackerStats(page)

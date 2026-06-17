@@ -5,34 +5,34 @@
  */
 
 export interface ExtractedRecipe {
-  name:     string
-  cat:      string
-  tag:      string
+  name: string
+  cat: string
+  tag: string
   prepTime: string
-  ings:     [string, string][]
-  steps:    string[]
-  tip:      string
-  kcal?:    number | null
+  ings: [string, string][]
+  steps: string[]
+  tip: string
+  kcal?: number | null
   protein?: string | null
-  carbs?:   string | null
-  fat?:     string | null
-  fiber?:   string | null
+  carbs?: string | null
+  fat?: string | null
+  fiber?: string | null
   healthTag?: 'healthy' | 'indulgent' | null | string
   dietTag?: string | null
-  link?:    string
+  link?: string
 }
 
-export const ACCEPTED_EXT  = '.pdf,.txt,.jpg,.jpeg,.png,.webp'
+export const ACCEPTED_EXT = '.pdf,.txt,.jpg,.jpeg,.png,.webp'
 export const ACCEPTED_MIME = 'application/pdf,text/plain,image/jpeg,image/png,image/webp'
 
 // Characters sent for text content (keeps Claude context small and latency low)
 const MAX_TEXT_CHARS = 40_000
 
 type Payload =
-  | { type: 'text';  content: string }
+  | { type: 'text'; content: string }
   | { type: 'image'; content: string; mimeType: string }
-  | { type: 'pdf';   content: string }
-  | { type: 'url';   content: string }
+  | { type: 'pdf'; content: string }
+  | { type: 'url'; content: string }
 
 // ── Public API ────────────────────────────────────────────────────
 
@@ -92,7 +92,11 @@ export async function importRecipeFromText(
 ): Promise<ExtractedRecipe> {
   const trimmed = text.trim()
   if (!trimmed) throw new Error('Paste some recipe text first.')
-  return postImport({ type: 'text', content: trimmed.slice(0, MAX_TEXT_CHARS) }, accessToken, supabaseUrl)
+  return postImport(
+    { type: 'text', content: trimmed.slice(0, MAX_TEXT_CHARS) },
+    accessToken,
+    supabaseUrl,
+  )
 }
 
 /**
@@ -119,20 +123,20 @@ async function postImport(
   supabaseUrl: string,
 ): Promise<ExtractedRecipe> {
   const res = await fetch(`${supabaseUrl}/functions/v1/recipe-import`, {
-    method:  'POST',
+    method: 'POST',
     headers: {
-      Authorization:  `Bearer ${accessToken}`,
+      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
   })
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string }
+    const err = (await res.json().catch(() => ({}))) as { error?: string }
     throw new Error(err.error ?? `Import failed (${res.status})`)
   }
 
-  const data = await res.json() as { recipe?: ExtractedRecipe }
+  const data = (await res.json()) as { recipe?: ExtractedRecipe }
   if (!data.recipe) throw new Error('Invalid response from import service')
   return data.recipe
 }
@@ -142,7 +146,7 @@ async function postImport(
 export function readAsText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload  = () => resolve(reader.result as string)
+    reader.onload = () => resolve(reader.result as string)
     reader.onerror = () => reject(new Error('Could not read file'))
     reader.readAsText(file)
   })
@@ -153,7 +157,7 @@ export function readAsBase64(file: File): Promise<string> {
     const reader = new FileReader()
     reader.onload = () => {
       const dataUrl = reader.result as string
-      const base64  = dataUrl.split(',')[1] ?? ''   // strip "data:…;base64,"
+      const base64 = dataUrl.split(',')[1] ?? '' // strip "data:…;base64,"
       resolve(base64)
     }
     reader.onerror = () => reject(new Error('Could not read file'))
@@ -168,7 +172,8 @@ function guessMime(filename: string): string {
   const map: Record<string, string> = {
     pdf: 'application/pdf',
     txt: 'text/plain',
-    jpg: 'image/jpeg', jpeg: 'image/jpeg',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
     png: 'image/png',
     webp: 'image/webp',
   }

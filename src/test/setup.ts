@@ -14,7 +14,7 @@ import { beforeAll, afterAll } from 'vitest'
 //   (reportError logs the context); the test asserts the app doesn't crash,
 //   not the log line.
 
-const originalWarn  = console.warn
+const originalWarn = console.warn
 const originalError = console.error
 
 beforeAll(() => {
@@ -34,6 +34,6 @@ beforeAll(() => {
 })
 
 afterAll(() => {
-  console.warn  = originalWarn
+  console.warn = originalWarn
   console.error = originalError
 })

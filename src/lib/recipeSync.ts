@@ -38,9 +38,7 @@ export function mergeRecipes(local: Recipe[], db: Recipe[]): RecipeMergeResult {
   // Never-synced local recipes (placeholder id) → push and keep.
   const toPush = localOnly.filter(r => r.custom && isPlaceholderId(r.id))
   // Real DB ids missing from the DB fetch → deleted elsewhere → drop locally.
-  const prunedIds = localOnly
-    .filter(r => !isPlaceholderId(r.id))
-    .map(r => r.id as number)
+  const prunedIds = localOnly.filter(r => !isPlaceholderId(r.id)).map(r => r.id as number)
 
   // DB rows win; keep genuinely-local recipes so they stay visible while syncing.
   const merged = [...db, ...toPush]

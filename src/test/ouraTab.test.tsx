@@ -13,25 +13,25 @@ vi.mock('../lib/supabase', () => ({
 }))
 
 // ── Mock Oura API layer ───────────────────────────────────────────
-vi.mock('../lib/oura', async (importOriginal) => {
+vi.mock('../lib/oura', async importOriginal => {
   const orig = await importOriginal<typeof import('../lib/oura')>()
   return {
     ...orig,
-    fetchOuraDailyActivity:    vi.fn().mockResolvedValue(null),
-    fetchOuraReadiness:        vi.fn().mockResolvedValue(null),
-    fetchOuraSleep:            vi.fn().mockResolvedValue(null),
-    fetchOuraSleepSession:     vi.fn().mockResolvedValue(null),
-    fetchOuraWorkouts:         vi.fn().mockResolvedValue([]),
-    fetchOuraSessions:         vi.fn().mockResolvedValue([]),
-    fetchOuraCardiovascularAge:vi.fn().mockResolvedValue(null),
-    fetchOuraSpo2:             vi.fn().mockResolvedValue(null),
-    fetchOuraStress:           vi.fn().mockResolvedValue(null),
-    fetchOuraResilience:       vi.fn().mockResolvedValue(null),
-    fetchOuraWorkoutRoute:     vi.fn().mockResolvedValue(null),
-    startOuraOAuth:            vi.fn(),
-    exchangePendingCode:       vi.fn().mockResolvedValue(undefined),
-    disconnectOura:            vi.fn().mockResolvedValue(undefined),
-    isOuraConnected:           vi.fn().mockResolvedValue(false),
+    fetchOuraDailyActivity: vi.fn().mockResolvedValue(null),
+    fetchOuraReadiness: vi.fn().mockResolvedValue(null),
+    fetchOuraSleep: vi.fn().mockResolvedValue(null),
+    fetchOuraSleepSession: vi.fn().mockResolvedValue(null),
+    fetchOuraWorkouts: vi.fn().mockResolvedValue([]),
+    fetchOuraSessions: vi.fn().mockResolvedValue([]),
+    fetchOuraCardiovascularAge: vi.fn().mockResolvedValue(null),
+    fetchOuraSpo2: vi.fn().mockResolvedValue(null),
+    fetchOuraStress: vi.fn().mockResolvedValue(null),
+    fetchOuraResilience: vi.fn().mockResolvedValue(null),
+    fetchOuraWorkoutRoute: vi.fn().mockResolvedValue(null),
+    startOuraOAuth: vi.fn(),
+    exchangePendingCode: vi.fn().mockResolvedValue(undefined),
+    disconnectOura: vi.fn().mockResolvedValue(undefined),
+    isOuraConnected: vi.fn().mockResolvedValue(false),
   }
 })
 
@@ -43,10 +43,14 @@ const ls: Record<string, string> = {}
 beforeEach(() => {
   Object.keys(ls).forEach(k => delete ls[k])
   vi.stubGlobal('localStorage', {
-    getItem:    (k: string) => ls[k] ?? null,
-    setItem:    (k: string, v: string) => { ls[k] = v },
-    removeItem: (k: string) => { delete ls[k] },
-    clear:      () => Object.keys(ls).forEach(k => delete ls[k]),
+    getItem: (k: string) => ls[k] ?? null,
+    setItem: (k: string, v: string) => {
+      ls[k] = v
+    },
+    removeItem: (k: string) => {
+      delete ls[k]
+    },
+    clear: () => Object.keys(ls).forEach(k => delete ls[k]),
   })
 })
 afterEach(() => {
@@ -66,9 +70,7 @@ describe('OuraTab — connect screen', () => {
   it('shows connect prompt when no Oura token (noToken state)', async () => {
     // Mock fetchAll to trigger noToken via the NO_TOKEN_MSGS error path
     const { fetchOuraDailyActivity } = await import('../lib/oura')
-    vi.mocked(fetchOuraDailyActivity).mockRejectedValueOnce(
-      new Error('No Oura account connected')
-    )
+    vi.mocked(fetchOuraDailyActivity).mockRejectedValueOnce(new Error('No Oura account connected'))
     render(<OuraTab user={FAKE_USER} />)
     await waitFor(() => {
       expect(screen.getByText('Connect Oura Ring')).toBeInTheDocument()
@@ -77,9 +79,7 @@ describe('OuraTab — connect screen', () => {
 
   it('Connect with Oura button is clickable', async () => {
     const { fetchOuraDailyActivity, startOuraOAuth } = await import('../lib/oura')
-    vi.mocked(fetchOuraDailyActivity).mockRejectedValueOnce(
-      new Error('No Oura account connected')
-    )
+    vi.mocked(fetchOuraDailyActivity).mockRejectedValueOnce(new Error('No Oura account connected'))
     render(<OuraTab user={FAKE_USER} />)
     await waitFor(() => screen.getByText('Connect Oura Ring'))
     fireEvent.click(screen.getByText('Connect with Oura'))
@@ -190,7 +190,7 @@ describe('OuraTab — with workout data', () => {
         id: 'w1',
         activity: 'running',
         start_datetime: '2024-01-15T07:00:00Z',
-        end_datetime:   '2024-01-15T07:30:00Z',
+        end_datetime: '2024-01-15T07:30:00Z',
         calories: 250,
         distance: 5000,
         average_heart_rate: 155,
@@ -216,7 +216,7 @@ describe('OuraTab — with session data', () => {
         id: 's1',
         type: 'meditation',
         start_datetime: '2024-01-15T06:00:00Z',
-        end_datetime:   '2024-01-15T06:15:00Z',
+        end_datetime: '2024-01-15T06:15:00Z',
         mood: 'good',
         average_hrv: 45,
         average_heart_rate: 62,

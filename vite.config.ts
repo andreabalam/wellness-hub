@@ -12,8 +12,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',          // ask user before activating new SW
-      injectRegister: null,            // we register manually in main.tsx
+      registerType: 'prompt', // ask user before activating new SW
+      injectRegister: null, // we register manually in main.tsx
       base: '/wellness-hub/',
       scope: '/wellness-hub/',
       manifest: {
@@ -30,7 +30,12 @@ export default defineConfig({
         icons: [
           { src: '/wellness-hub/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/wellness-hub/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/wellness-hub/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          {
+            src: '/wellness-hub/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
         ],
       },
       workbox: {
@@ -73,17 +78,17 @@ export default defineConfig({
       exclude: [
         'src/main.tsx',
         'src/test/**',
-        'src/lib/sync.ts',                              // Supabase network layer — covered by E2E
-        'src/components/AuthButton.tsx',                // Supabase auth flow — covered by E2E
+        'src/lib/sync.ts', // Supabase network layer — covered by E2E
+        'src/components/AuthButton.tsx', // Supabase auth flow — covered by E2E
         'src/components/TrackerTab/RemindersSection.tsx', // Supabase sync + complex UI — covered by E2E
-        'src/components/RecipesTab/CookingMode.tsx',    // Wake Lock API + keyboard — covered by E2E
-        'src/components/common/**',                     // Tiny presentational primitives
+        'src/components/RecipesTab/CookingMode.tsx', // Wake Lock API + keyboard — covered by E2E
+        'src/components/common/**', // Tiny presentational primitives
       ],
       thresholds: {
-        lines:      85,
+        lines: 85,
         statements: 85,
-        functions:  85,
-        branches:   75,   // UI branches (ternaries, null guards) are harder to exhaust
+        functions: 85,
+        branches: 75, // UI branches (ternaries, null guards) are harder to exhaust
       },
     },
   },

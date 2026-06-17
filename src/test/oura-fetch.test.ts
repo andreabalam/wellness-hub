@@ -23,10 +23,19 @@ vi.mock('../lib/supabase', () => {
 
 import { supabase } from '../lib/supabase'
 import {
-  fetchOuraWorkouts, fetchOuraReadiness, fetchOuraSleep, fetchOuraSessions,
-  fetchOuraSpo2, fetchOuraStress, fetchOuraResilience,
-  fetchOuraWorkoutRoute, fetchOuraPersonalInfo, fetchOuraTdeeAvg,
-  isOuraConnected, exchangePendingCode, disconnectOura,
+  fetchOuraWorkouts,
+  fetchOuraReadiness,
+  fetchOuraSleep,
+  fetchOuraSessions,
+  fetchOuraSpo2,
+  fetchOuraStress,
+  fetchOuraResilience,
+  fetchOuraWorkoutRoute,
+  fetchOuraPersonalInfo,
+  fetchOuraTdeeAvg,
+  isOuraConnected,
+  exchangePendingCode,
+  disconnectOura,
   fetchOuraDailyActivity,
 } from '../lib/oura'
 
@@ -38,12 +47,15 @@ const FAKE_SESSION = { access_token: 'fake-token' }
 
 /** Make fetch() return a JSON response */
 function mockFetch(data: unknown, ok = true) {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-    ok,
-    json: vi.fn().mockResolvedValue(data),
-    statusText: ok ? 'OK' : 'Internal Server Error',
-    status: ok ? 200 : 500,
-  }))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok,
+      json: vi.fn().mockResolvedValue(data),
+      statusText: ok ? 'OK' : 'Internal Server Error',
+      status: ok ? 200 : 500,
+    }),
+  )
 }
 
 beforeEach(() => {
@@ -63,11 +75,14 @@ describe('fetchOuraWorkouts', () => {
   it('returns workout array on successful fetch', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
     const workout = {
-      id: 'w1', activity: 'yoga',
+      id: 'w1',
+      activity: 'yoga',
       start_datetime: '2026-01-01T09:00:00Z',
       end_datetime: '2026-01-01T10:00:00Z',
-      calories: 200, distance: null,
-      average_heart_rate: 80, max_heart_rate: 120,
+      calories: 200,
+      distance: null,
+      average_heart_rate: 80,
+      max_heart_rate: 120,
     }
     mockFetch({ data: [workout] })
     const result = await fetchOuraWorkouts('2026-01-01')
@@ -107,7 +122,13 @@ describe('fetchOuraReadiness', () => {
 
   it('returns readiness data for the matching day', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    const readiness = { day: '2026-01-01', score: 78, hrv_balance_score: 80, recovery_index_score: 75, temperature_deviation: null }
+    const readiness = {
+      day: '2026-01-01',
+      score: 78,
+      hrv_balance_score: 80,
+      recovery_index_score: 75,
+      temperature_deviation: null,
+    }
     mockFetch({ data: [readiness] })
     const result = await fetchOuraReadiness('2026-01-01')
     expect(result).not.toBeNull()
@@ -116,7 +137,13 @@ describe('fetchOuraReadiness', () => {
 
   it('returns null when no matching day in response', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    const readiness = { day: '2026-01-02', score: 78, hrv_balance_score: 80, recovery_index_score: 75, temperature_deviation: null }
+    const readiness = {
+      day: '2026-01-02',
+      score: 78,
+      hrv_balance_score: 80,
+      recovery_index_score: 75,
+      temperature_deviation: null,
+    }
     mockFetch({ data: [readiness] })
     const result = await fetchOuraReadiness('2026-01-01')
     expect(result).toBeNull()
@@ -138,9 +165,13 @@ describe('fetchOuraSleep', () => {
   it('returns sleep data for the matching day', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
     const sleep = {
-      day: '2026-01-01', score: 82,
-      total_sleep_duration: 28800, deep_sleep_duration: 7200,
-      rem_sleep_duration: 5400, efficiency: 91, average_hrv: 45,
+      day: '2026-01-01',
+      score: 82,
+      total_sleep_duration: 28800,
+      deep_sleep_duration: 7200,
+      rem_sleep_duration: 5400,
+      efficiency: 91,
+      average_hrv: 45,
     }
     mockFetch({ data: [sleep] })
     const result = await fetchOuraSleep('2026-01-01')
@@ -164,10 +195,13 @@ describe('fetchOuraSessions', () => {
   it('returns session array on successful fetch', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
     const session = {
-      id: 's1', type: 'meditation',
+      id: 's1',
+      type: 'meditation',
       start_datetime: '2026-01-01T08:00:00Z',
       end_datetime: '2026-01-01T08:13:00Z',
-      average_heart_rate: null, average_hrv: null, mood: 'good',
+      average_heart_rate: null,
+      average_hrv: null,
+      mood: 'good',
     }
     mockFetch({ data: [session] })
     const result = await fetchOuraSessions('2026-01-01')
@@ -184,19 +218,25 @@ describe('isOuraConnected (mocked supabase)', () => {
 
   it('returns true when exchange endpoint reports connected', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ connected: true }),
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ connected: true }),
+      }),
+    )
     expect(await isOuraConnected()).toBe(true)
   })
 
   it('returns false when exchange endpoint reports not connected', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ connected: false }),
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ connected: false }),
+      }),
+    )
     expect(await isOuraConnected()).toBe(false)
   })
 
@@ -230,10 +270,13 @@ describe('exchangePendingCode (mocked supabase)', () => {
   it('throws when the exchange endpoint returns an error', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
     sessionStorage.setItem('oura_oauth_pending_code', 'bad-code')
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      json: async () => ({ error: 'invalid_grant' }),
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: async () => ({ error: 'invalid_grant' }),
+      }),
+    )
     await expect(exchangePendingCode()).rejects.toThrow('invalid_grant')
   })
 })
@@ -288,7 +331,12 @@ describe('fetchOuraStress', () => {
 
   it('returns stress record matching the requested date', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    const item = { day: '2024-01-01', stress_high: 3600, recovery_high: 7200, day_summary: 'normal' }
+    const item = {
+      day: '2024-01-01',
+      stress_high: 3600,
+      recovery_high: 7200,
+      day_summary: 'normal',
+    }
     mockFetch({ data: [item] })
     expect(await fetchOuraStress('2024-01-01')).toEqual(item)
   })
@@ -327,12 +375,20 @@ describe('fetchOuraWorkoutRoute', () => {
   it('returns route data when found', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
     const route = {
-      id: 'w1', start_datetime: '2024-01-01T08:00:00', end_datetime: '2024-01-01T09:00:00',
-      source: 'oura', polyline: 'encoded_polyline',
+      id: 'w1',
+      start_datetime: '2024-01-01T08:00:00',
+      end_datetime: '2024-01-01T09:00:00',
+      source: 'oura',
+      polyline: 'encoded_polyline',
     }
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true, status: 200, json: vi.fn().mockResolvedValue(route),
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue(route),
+      }),
+    )
     expect(await fetchOuraWorkoutRoute('w1')).toEqual(route)
   })
 
@@ -375,32 +431,38 @@ describe('fetchOuraTdeeAvg', () => {
 
   it('returns rounded average of total_calories across valid days', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    mockFetch({ data: [
-      { day: '2024-01-01', total_calories: 2200 },
-      { day: '2024-01-02', total_calories: 2400 },
-      { day: '2024-01-03', total_calories: 2000 },
-    ]})
+    mockFetch({
+      data: [
+        { day: '2024-01-01', total_calories: 2200 },
+        { day: '2024-01-02', total_calories: 2400 },
+        { day: '2024-01-03', total_calories: 2000 },
+      ],
+    })
     // (2200 + 2400 + 2000) / 3 = 2200
     expect(await fetchOuraTdeeAvg(3)).toBe(2200)
   })
 
   it('skips ring-off days (total_calories <= 500)', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    mockFetch({ data: [
-      { day: '2024-01-01', total_calories: 2400 },
-      { day: '2024-01-02', total_calories: 300 },  // ring off
-      { day: '2024-01-03', total_calories: 2200 },
-    ]})
+    mockFetch({
+      data: [
+        { day: '2024-01-01', total_calories: 2400 },
+        { day: '2024-01-02', total_calories: 300 }, // ring off
+        { day: '2024-01-03', total_calories: 2200 },
+      ],
+    })
     // average only the valid days: (2400 + 2200) / 2 = 2300
     expect(await fetchOuraTdeeAvg(3)).toBe(2300)
   })
 
   it('returns null when all days are ring-off', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    mockFetch({ data: [
-      { day: '2024-01-01', total_calories: 100 },
-      { day: '2024-01-02', total_calories: 50 },
-    ]})
+    mockFetch({
+      data: [
+        { day: '2024-01-01', total_calories: 100 },
+        { day: '2024-01-02', total_calories: 50 },
+      ],
+    })
     expect(await fetchOuraTdeeAvg(2)).toBeNull()
   })
 
@@ -417,18 +479,24 @@ describe('fetchOuraDailyActivity', () => {
 
   const makeActivity = (day: string) => ({
     day,
-    score: 72, active_calories: 450, steps: 8200,
-    total_calories: 2100, high_activity_time: 1800,
-    medium_activity_time: 3600, low_activity_time: 7200,
-    sedentary_time: 28800, equivalent_walking_distance: 6500,
-    target_calories: 500, target_meters: 8000,
+    score: 72,
+    active_calories: 450,
+    steps: 8200,
+    total_calories: 2100,
+    high_activity_time: 1800,
+    medium_activity_time: 3600,
+    low_activity_time: 7200,
+    sedentary_time: 28800,
+    equivalent_walking_distance: 6500,
+    target_calories: 500,
+    target_meters: 8000,
   })
 
   it('throws "Not signed in" when no session', async () => {
     await expect(fetchOuraDailyActivity(DATE)).rejects.toThrow('Not signed in')
   })
 
-  it('returns today\'s activity when the API includes today\'s record', async () => {
+  it("returns today's activity when the API includes today's record", async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
     mockFetch({ data: [makeActivity(DATE)] })
     const result = await fetchOuraDailyActivity(DATE)
@@ -449,7 +517,7 @@ describe('fetchOuraDailyActivity', () => {
   it('prefers today over yesterday when both are returned', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
     const todayActivity = { ...makeActivity(DATE), steps: 9999 }
-    const yestActivity  = { ...makeActivity(YESTERDAY), steps: 1111 }
+    const yestActivity = { ...makeActivity(YESTERDAY), steps: 1111 }
     mockFetch({ data: [yestActivity, todayActivity] })
     const result = await fetchOuraDailyActivity(DATE)
     expect(result!.day).toBe(DATE)
@@ -471,14 +539,14 @@ describe('fetchOuraDailyActivity', () => {
     })
     vi.stubGlobal('fetch', fetchSpy)
     await fetchOuraDailyActivity(DATE)
-    const calledUrl = (fetchSpy.mock.calls[0][0] as string)
+    const calledUrl = fetchSpy.mock.calls[0][0] as string
     expect(calledUrl).toContain('start_date=' + YESTERDAY)
     expect(calledUrl).toContain('end_date=' + DATE)
   })
 
   it('returns null when response has no data field', async () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    mockFetch({})   // no data field → json.data ?? [] → []
+    mockFetch({}) // no data field → json.data ?? [] → []
     const result = await fetchOuraDailyActivity(DATE)
     expect(result).toBeNull()
   })

@@ -13,46 +13,52 @@ vi.mock('../lib/foodImport', async () => {
   return { ...actual, parseFoodLog: vi.fn().mockRejectedValue(new Error('offline')) }
 })
 
-
 // ── localStorage mock ─────────────────────────────────────────────
 const ls: Record<string, string> = {}
 
 beforeEach(() => {
   Object.keys(ls).forEach(k => delete ls[k])
   vi.stubGlobal('localStorage', {
-    getItem:    (k: string) => ls[k] ?? null,
-    setItem:    (k: string, v: string) => { ls[k] = v },
-    removeItem: (k: string) => { delete ls[k] },
-    clear:      () => Object.keys(ls).forEach(k => delete ls[k]),
+    getItem: (k: string) => ls[k] ?? null,
+    setItem: (k: string, v: string) => {
+      ls[k] = v
+    },
+    removeItem: (k: string) => {
+      delete ls[k]
+    },
+    clear: () => Object.keys(ls).forEach(k => delete ls[k]),
   })
   vi.stubGlobal('URL', {
     createObjectURL: vi.fn(() => 'blob:mock'),
     revokeObjectURL: vi.fn(),
   })
-  vi.stubGlobal('confirm', vi.fn(() => true))
-  vi.stubGlobal('alert',   vi.fn())
+  vi.stubGlobal(
+    'confirm',
+    vi.fn(() => true),
+  )
+  vi.stubGlobal('alert', vi.fn())
 })
 
 afterEach(() => {
   vi.unstubAllGlobals()
-  vi.restoreAllMocks()  // restore any spyOn mocks (e.g. document.createElement)
+  vi.restoreAllMocks() // restore any spyOn mocks (e.g. document.createElement)
 })
 
 // ── Imports (ESM-hoisted, but code only runs on demand) ───────────
-import UpdatePrompt   from '../components/UpdatePrompt'
-import GroceryPanel   from '../components/RecipesTab/GroceryPanel'
-import RecipeCard     from '../components/RecipesTab/RecipeCard'
-import RecipeModal    from '../components/RecipesTab/RecipeModal'
-import CookingMode              from '../components/RecipesTab/CookingMode'
-import GroceryIngredientModal   from '../components/RecipesTab/GroceryIngredientModal'
-import RecipesTab               from '../components/RecipesTab'
-import WorkoutsTab    from '../components/WorkoutsTab'
-import ErrorBoundary  from '../components/ErrorBoundary'
+import UpdatePrompt from '../components/UpdatePrompt'
+import GroceryPanel from '../components/RecipesTab/GroceryPanel'
+import RecipeCard from '../components/RecipesTab/RecipeCard'
+import RecipeModal from '../components/RecipesTab/RecipeModal'
+import CookingMode from '../components/RecipesTab/CookingMode'
+import GroceryIngredientModal from '../components/RecipesTab/GroceryIngredientModal'
+import RecipesTab from '../components/RecipesTab'
+import WorkoutsTab from '../components/WorkoutsTab'
+import ErrorBoundary from '../components/ErrorBoundary'
 import { MALE_DEFAULT_PLAN } from '../data/workouts'
-import ScheduleTab    from '../components/ScheduleTab'
+import ScheduleTab from '../components/ScheduleTab'
 import ScheduleEditor from '../components/ScheduleTab/ScheduleEditor'
-import TrackerTab     from '../components/TrackerTab'
-import App            from '../App'
+import TrackerTab from '../components/TrackerTab'
+import App from '../App'
 import { SCHEDULE_BLOCKS, defaultToCustomBlock } from '../data/schedule'
 import type { CustomBlock } from '../data/schedule'
 import type { Recipe } from '../data/recipes'
@@ -65,21 +71,45 @@ const FAKE_USER = { id: 'test-user-1' } as User
 
 // ── Recipe fixtures ───────────────────────────────────────────────
 const BASE_RECIPE: Recipe = {
-  id: 9001, name: 'Test Dish', cat: 'meal', type: 'Meal',
-  color: 'var(--green)', sc: 'cg', tag: 'Quick · high-protein',
-  prepL: '20 min', prepC: 'var(--green)',
-  hk: 400, hp: '35g', hc: '30g', hf: '12g', hfi: '5g',
-  mk: 380, mp: '32g', mc: '28g', mf: '11g',
-  ings: [['Chicken breast', '200g'], ['Broccoli', '1 cup']],
+  id: 9001,
+  name: 'Test Dish',
+  cat: 'meal',
+  type: 'Meal',
+  color: 'var(--green)',
+  sc: 'cg',
+  tag: 'Quick · high-protein',
+  prepL: '20 min',
+  prepC: 'var(--green)',
+  hk: 400,
+  hp: '35g',
+  hc: '30g',
+  hf: '12g',
+  hfi: '5g',
+  mk: 380,
+  mp: '32g',
+  mc: '28g',
+  mf: '11g',
+  ings: [
+    ['Chicken breast', '200g'],
+    ['Broccoli', '1 cup'],
+  ],
   steps: ['Cook chicken', 'Steam broccoli'],
   tip: 'Add lemon for brightness',
   custom: false,
 }
 
 const CUSTOM_RECIPE: Recipe = {
-  ...BASE_RECIPE, id: 9002, name: 'My Smoothie', cat: 'smoothie',
-  type: 'Smoothie', custom: true, prepL: 'Custom', prepC: 'var(--purple)',
-  color: 'var(--purple)', sc: 'cp', hfi: '0g',
+  ...BASE_RECIPE,
+  id: 9002,
+  name: 'My Smoothie',
+  cat: 'smoothie',
+  type: 'Smoothie',
+  custom: true,
+  prepL: 'Custom',
+  prepC: 'var(--purple)',
+  color: 'var(--purple)',
+  sc: 'cp',
+  hfi: '0g',
 }
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -89,7 +119,7 @@ function spyCreateLink(click: ReturnType<typeof vi.fn>) {
   const link = orig('a')
   link.click = click as unknown as () => void
   vi.spyOn(document, 'createElement').mockImplementation((tag: string) =>
-    tag === 'a' ? link : orig(tag)
+    tag === 'a' ? link : orig(tag),
   )
 }
 
@@ -270,13 +300,15 @@ describe('GroceryPanel — dynamic catalog', () => {
   it('user item for a standard category appears under that category header', () => {
     render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
-    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Dragon Fruit' } })
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), {
+      target: { value: 'Dragon Fruit' },
+    })
     // Select "Produce - Fruit" category
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Produce - Fruit' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
     // The item should appear; its category header should also be visible
     const header = screen.getByText('Produce - Fruit')
-    const item   = screen.getByText('Dragon Fruit')
+    const item = screen.getByText('Dragon Fruit')
     expect(header).toBeInTheDocument()
     expect(item).toBeInTheDocument()
   })
@@ -284,7 +316,9 @@ describe('GroceryPanel — dynamic catalog', () => {
   it('item for a non-standard category appears under "My Custom Items"', () => {
     render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
-    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Magic Beans' } })
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), {
+      target: { value: 'Magic Beans' },
+    })
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'My Custom Items' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
     expect(screen.getByText('My Custom Items')).toBeInTheDocument()
@@ -341,7 +375,9 @@ describe('GroceryPanel — dynamic catalog', () => {
   it('pressing Enter in the edit input saves the new name (onKeyDown handler)', () => {
     render(<GroceryPanel user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /add grocery item/i }))
-    fireEvent.change(screen.getByPlaceholderText(/Item name/i), { target: { value: 'Press Enter' } })
+    fireEvent.change(screen.getByPlaceholderText(/Item name/i), {
+      target: { value: 'Press Enter' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
     fireEvent.click(screen.getByRole('button', { name: /Edit Press Enter/i }))
     const input = screen.getByDisplayValue('Press Enter')
@@ -414,7 +450,7 @@ describe('RecipeCard', () => {
 
   it('Share button copies a share link to the clipboard', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
-    vi.stubGlobal('navigator', { clipboard: { writeText } })  // no navigator.share → clipboard fallback
+    vi.stubGlobal('navigator', { clipboard: { writeText } }) // no navigator.share → clipboard fallback
     render(<RecipeCard recipe={BASE_RECIPE} />)
     fireEvent.click(screen.getByRole('button', { name: /share recipe/i }))
     await waitFor(() => expect(writeText).toHaveBeenCalled())
@@ -550,7 +586,7 @@ describe('RecipeCard', () => {
   })
 
   it('does not show Grocery button when recipe has no ingredients', () => {
-    const noIngs = { ...BASE_RECIPE, ings: [] as [string,string][] }
+    const noIngs = { ...BASE_RECIPE, ings: [] as [string, string][] }
     render(<RecipeCard recipe={noIngs} onGrocery={vi.fn()} />)
     fireEvent.click(screen.getByText('Test Dish').closest('.rcard') as HTMLElement)
     expect(screen.queryByRole('button', { name: /grocery/i })).not.toBeInTheDocument()
@@ -670,7 +706,7 @@ describe('CookingMode', () => {
 
 // ═════════════════════════════════════════════════════════════════
 describe('RecipeModal', () => {
-  const noop  = vi.fn()
+  const noop = vi.fn()
   const baseProps = { customTags: [], onSave: noop, onAddTag: noop, onClose: noop }
 
   beforeEach(() => noop.mockClear())
@@ -705,7 +741,9 @@ describe('RecipeModal', () => {
 
   it('can type a recipe name', () => {
     render(<RecipeModal {...baseProps} />)
-    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), { target: { value: 'Berry Bowl' } })
+    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), {
+      target: { value: 'Berry Bowl' },
+    })
     expect(screen.getByDisplayValue('Berry Bowl')).toBeInTheDocument()
   })
 
@@ -746,7 +784,9 @@ describe('RecipeModal', () => {
 
   it('can add a step via + button', () => {
     render(<RecipeModal {...baseProps} />)
-    fireEvent.change(screen.getByPlaceholderText('Add a step...'), { target: { value: 'Bake 20 min' } })
+    fireEvent.change(screen.getByPlaceholderText('Add a step...'), {
+      target: { value: 'Bake 20 min' },
+    })
     fireEvent.click(screen.getAllByText('+')[1])
     expect(screen.getByText('Bake 20 min')).toBeInTheDocument()
   })
@@ -771,10 +811,14 @@ describe('RecipeModal', () => {
 
   it('saves a valid recipe and calls onSave', () => {
     vi.useFakeTimers()
-    const onSave  = vi.fn()
+    const onSave = vi.fn()
     render(<RecipeModal {...baseProps} onSave={onSave} />)
-    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), { target: { value: 'Berry Bowl' } })
-    fireEvent.change(screen.getByPlaceholderText('e.g. High protein · gluten free'), { target: { value: 'Easy breakfast' } })
+    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), {
+      target: { value: 'Berry Bowl' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('e.g. High protein · gluten free'), {
+      target: { value: 'Easy breakfast' },
+    })
     fireEvent.click(screen.getByText('Save recipe'))
     expect(onSave).toHaveBeenCalledOnce()
     const saved = onSave.mock.calls[0][0]
@@ -787,7 +831,9 @@ describe('RecipeModal', () => {
   it('saved recipe with no tagline uses "My recipe" default', () => {
     const onSave = vi.fn()
     render(<RecipeModal {...baseProps} onSave={onSave} />)
-    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), { target: { value: 'Plain Dish' } })
+    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), {
+      target: { value: 'Plain Dish' },
+    })
     fireEvent.click(screen.getByText('Save recipe'))
     expect(onSave.mock.calls[0][0].tag).toBe('My recipe')
   })
@@ -797,7 +843,9 @@ describe('RecipeModal', () => {
     render(<RecipeModal {...baseProps} onSave={onSave} />)
     fireEvent.change(screen.getByPlaceholderText('Ingredient'), { target: { value: 'Salt' } })
     fireEvent.click(screen.getAllByText('+')[0])
-    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), { target: { value: 'Dish' } })
+    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), {
+      target: { value: 'Dish' },
+    })
     fireEvent.click(screen.getByText('Save recipe'))
     expect(onSave.mock.calls[0][0].ings[0][1]).toBe('—')
   })
@@ -812,7 +860,9 @@ describe('RecipeModal', () => {
   it('can create and select a new custom tag', () => {
     const onAddTag = vi.fn()
     render(<RecipeModal {...baseProps} onAddTag={onAddTag} />)
-    fireEvent.change(screen.getByPlaceholderText('New tag (e.g. Sauce, Side...)'), { target: { value: 'bowl' } })
+    fireEvent.change(screen.getByPlaceholderText('New tag (e.g. Sauce, Side...)'), {
+      target: { value: 'bowl' },
+    })
     fireEvent.click(screen.getByText('Add tag'))
     expect(onAddTag).toHaveBeenCalledWith('bowl')
   })
@@ -860,20 +910,26 @@ describe('RecipeModal', () => {
 
   it('pre-fills name from initialRecipe', () => {
     render(<RecipeModal {...baseProps} initialRecipe={CUSTOM_RECIPE} />)
-    expect((screen.getByPlaceholderText('e.g. Mango Chia Pudding') as HTMLInputElement).value)
-      .toBe('My Smoothie')
+    expect((screen.getByPlaceholderText('e.g. Mango Chia Pudding') as HTMLInputElement).value).toBe(
+      'My Smoothie',
+    )
   })
 
   it('pre-fills tagline from initialRecipe', () => {
     render(<RecipeModal {...baseProps} initialRecipe={CUSTOM_RECIPE} />)
-    expect((screen.getByPlaceholderText('e.g. High protein · gluten free') as HTMLInputElement).value)
-      .toBe(CUSTOM_RECIPE.tag)
+    expect(
+      (screen.getByPlaceholderText('e.g. High protein · gluten free') as HTMLInputElement).value,
+    ).toBe(CUSTOM_RECIPE.tag)
   })
 
   it('pre-fills macros from initialRecipe', () => {
     const recipe: Recipe = {
       ...CUSTOM_RECIPE,
-      hk: 350, hp: '28g', hc: '42g', hf: '10g', hfi: '6g',
+      hk: 350,
+      hp: '28g',
+      hc: '42g',
+      hf: '10g',
+      hfi: '6g',
     }
     render(<RecipeModal {...baseProps} initialRecipe={recipe} />)
     expect((screen.getByPlaceholderText('kcal') as HTMLInputElement).value).toBe('350')
@@ -886,7 +942,10 @@ describe('RecipeModal', () => {
   it('pre-fills ingredients from initialRecipe', () => {
     const recipe: Recipe = {
       ...CUSTOM_RECIPE,
-      ings: [['Spinach', '2 cups'], ['Banana', '1 medium']],
+      ings: [
+        ['Spinach', '2 cups'],
+        ['Banana', '1 medium'],
+      ],
     }
     render(<RecipeModal {...baseProps} initialRecipe={recipe} />)
     expect(screen.getByText('Spinach')).toBeInTheDocument()
@@ -902,8 +961,10 @@ describe('RecipeModal', () => {
 
   it('pre-fills tip from initialRecipe', () => {
     render(<RecipeModal {...baseProps} initialRecipe={BASE_RECIPE} />)
-    expect((screen.getByPlaceholderText('Any notes, variations, or tips...') as HTMLTextAreaElement).value)
-      .toBe('Add lemon for brightness')
+    expect(
+      (screen.getByPlaceholderText('Any notes, variations, or tips...') as HTMLTextAreaElement)
+        .value,
+    ).toBe('Add lemon for brightness')
   })
 
   it('shows "Save changes" button in edit mode', () => {
@@ -936,15 +997,17 @@ describe('RecipeModal', () => {
   it('mk/mp/mc/mf mirror the single macro set on save', () => {
     const onSave = vi.fn()
     render(<RecipeModal {...baseProps} onSave={onSave} />)
-    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), { target: { value: 'Test' } })
+    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), {
+      target: { value: 'Test' },
+    })
     fireEvent.change(screen.getByPlaceholderText('kcal'), { target: { value: '400' } })
     fireEvent.change(screen.getByPlaceholderText('prot g'), { target: { value: '30' } })
     fireEvent.click(screen.getByText('Save recipe'))
     const saved = onSave.mock.calls[0][0]
     expect(saved.hk).toBe(400)
-    expect(saved.mk).toBe(400)  // mirrors hk
+    expect(saved.mk).toBe(400) // mirrors hk
     expect(saved.hp).toBe('30g')
-    expect(saved.mp).toBe('30g')  // mirrors hp
+    expect(saved.mp).toBe('30g') // mirrors hp
   })
 
   it('shows "Changes saved!" message after saving in edit mode', async () => {
@@ -1059,11 +1122,27 @@ describe('hiddenRecipeStore', () => {
 
 describe('RecipesTab Phase 4 — fork / hide / restore', () => {
   const BUILTIN: Recipe = {
-    id: 5, name: 'Builtin Meal', cat: 'meal', type: 'Meal',
-    color: 'var(--green)', sc: 'cg', tag: 'Classic', prepL: '30 min', prepC: 'var(--green)',
-    hk: 500, hp: '40g', hc: '35g', hf: '15g',
-    mk: 500, mp: '40g', mc: '35g', mf: '15g',
-    ings: [['Chicken', '200g']], steps: ['Cook it'], tip: '', custom: false,
+    id: 5,
+    name: 'Builtin Meal',
+    cat: 'meal',
+    type: 'Meal',
+    color: 'var(--green)',
+    sc: 'cg',
+    tag: 'Classic',
+    prepL: '30 min',
+    prepC: 'var(--green)',
+    hk: 500,
+    hp: '40g',
+    hc: '35g',
+    hf: '15g',
+    mk: 500,
+    mp: '40g',
+    mc: '35g',
+    mf: '15g',
+    ings: [['Chicken', '200g']],
+    steps: ['Cook it'],
+    tip: '',
+    custom: false,
   }
 
   it('Edit on a built-in pre-fills the modal as a fork (heading is "Edit my Recipe")', async () => {
@@ -1071,13 +1150,7 @@ describe('RecipesTab Phase 4 — fork / hide / restore', () => {
     // We render RecipesTab which fetches on mount — but supabase is null in tests,
     // so builtinRecipes stays empty. We test the fork logic via RecipeCard directly.
     const onEdit = vi.fn()
-    render(
-      <RecipeCard
-        recipe={BUILTIN}
-        onEdit={onEdit}
-        cookCount={0}
-      />
-    )
+    render(<RecipeCard recipe={BUILTIN} onEdit={onEdit} cookCount={0} />)
     // Expand card
     fireEvent.click(screen.getByText('Builtin Meal'))
     // Click Edit
@@ -1103,7 +1176,7 @@ describe('RecipesTab Phase 4 — fork / hide / restore', () => {
         onSave={onSave}
         onAddTag={() => {}}
         onClose={() => {}}
-      />
+      />,
     )
     expect(screen.getByText(/Edit my/)).toBeInTheDocument()
     expect(screen.getByDisplayValue('Builtin Meal')).toBeInTheDocument()
@@ -1127,7 +1200,7 @@ describe('RecipesTab Phase 4 — fork / hide / restore', () => {
         onSave={onSave}
         onAddTag={() => {}}
         onClose={() => {}}
-      />
+      />,
     )
     fireEvent.click(screen.getByText('Save changes'))
     expect(onSave.mock.calls[0][0].defaultId).toBe(BUILTIN.id)
@@ -1136,13 +1209,7 @@ describe('RecipesTab Phase 4 — fork / hide / restore', () => {
 
   it('Hide button calls onHide with recipe id', () => {
     const onHide = vi.fn()
-    render(
-      <RecipeCard
-        recipe={BUILTIN}
-        cookCount={0}
-        onHide={onHide}
-      />
-    )
+    render(<RecipeCard recipe={BUILTIN} cookCount={0} onHide={onHide} />)
     fireEvent.click(screen.getByText('Builtin Meal'))
     fireEvent.click(screen.getByRole('button', { name: /hide this suggestion/i }))
     expect(onHide).toHaveBeenCalledWith(BUILTIN.id)
@@ -1150,14 +1217,7 @@ describe('RecipesTab Phase 4 — fork / hide / restore', () => {
 
   it('Hide button is not shown for custom recipes', () => {
     const custom: Recipe = { ...BUILTIN, id: 9002, custom: true }
-    render(
-      <RecipeCard
-        recipe={custom}
-        cookCount={0}
-        onHide={vi.fn()}
-        onDelete={vi.fn()}
-      />
-    )
+    render(<RecipeCard recipe={custom} cookCount={0} onHide={vi.fn()} onDelete={vi.fn()} />)
     fireEvent.click(screen.getByText('Builtin Meal'))
     expect(screen.queryByRole('button', { name: /hide this suggestion/i })).toBeNull()
   })
@@ -1171,12 +1231,16 @@ describe('GroceryIngredientModal', () => {
     ...BASE_RECIPE,
     id: 7001,
     name: 'Test Stir Fry',
-    ings: [['Chicken breast', '200g'], ['Broccoli', '1 cup'], ['Soy sauce', '2 tbsp']],
+    ings: [
+      ['Chicken breast', '200g'],
+      ['Broccoli', '1 cup'],
+      ['Soy sauce', '2 tbsp'],
+    ],
   }
 
   const baseProps = {
     recipe: RECIPE_WITH_INGS,
-    onAdd:  vi.fn(),
+    onAdd: vi.fn(),
     onClose: vi.fn(),
   }
 
@@ -1398,10 +1462,15 @@ describe('WorkoutsTab', () => {
   // ── Auth user WITH pre-seeded body stats ────────────────────────
   it('auth with stats: shows stats strip with weight and TDEE', () => {
     ls['whub_body_stats_v1'] = JSON.stringify({
-      weightKg: 58, bodyFatPct: 35, heightM: 1.56,
-      cycleType: 'irregular', equipment: 'Dumbbells',
-      tdeeKcal: 1680, kcalTarget: 1380,
-      protRange: '105-115g/day', fatLossGoal: '0.4-0.5 kg/wk',
+      weightKg: 58,
+      bodyFatPct: 35,
+      heightM: 1.56,
+      cycleType: 'irregular',
+      equipment: 'Dumbbells',
+      tdeeKcal: 1680,
+      kcalTarget: 1380,
+      protRange: '105-115g/day',
+      fatLossGoal: '0.4-0.5 kg/wk',
       chronotype: 'late',
     })
     render(<WorkoutsTab user={FAKE_USER} />)
@@ -1415,9 +1484,16 @@ describe('WorkoutsTab', () => {
 
   it('auth with stats: shows 3-Week Rotating Cycle for irregular cycle type', () => {
     ls['whub_body_stats_v1'] = JSON.stringify({
-      weightKg: 58, bodyFatPct: 35, heightM: 1.56, cycleType: 'irregular',
-      equipment: '', tdeeKcal: 1680, kcalTarget: 1380,
-      protRange: '', fatLossGoal: '', chronotype: 'late',
+      weightKg: 58,
+      bodyFatPct: 35,
+      heightM: 1.56,
+      cycleType: 'irregular',
+      equipment: '',
+      tdeeKcal: 1680,
+      kcalTarget: 1380,
+      protRange: '',
+      fatLossGoal: '',
+      chronotype: 'late',
     })
     render(<WorkoutsTab user={FAKE_USER} />)
     expect(screen.getByText('3-Week Rotating Cycle')).toBeInTheDocument()
@@ -1425,9 +1501,16 @@ describe('WorkoutsTab', () => {
 
   it('auth with stats: "✎ Edit" button opens pre-filled form', () => {
     ls['whub_body_stats_v1'] = JSON.stringify({
-      weightKg: 58, bodyFatPct: 35, heightM: 1.56, cycleType: 'irregular',
-      equipment: 'Dumbbells', tdeeKcal: 1680, kcalTarget: 1380,
-      protRange: '105-115g/day', fatLossGoal: '0.4-0.5 kg/wk', chronotype: 'late',
+      weightKg: 58,
+      bodyFatPct: 35,
+      heightM: 1.56,
+      cycleType: 'irregular',
+      equipment: 'Dumbbells',
+      tdeeKcal: 1680,
+      kcalTarget: 1380,
+      protRange: '105-115g/day',
+      fatLossGoal: '0.4-0.5 kg/wk',
+      chronotype: 'late',
     })
     render(<WorkoutsTab user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /✎ Edit/ }))
@@ -1438,9 +1521,16 @@ describe('WorkoutsTab', () => {
 
   it('auth with stats: Cancel button closes profile edit form', () => {
     ls['whub_body_stats_v1'] = JSON.stringify({
-      weightKg: 58, bodyFatPct: 35, heightM: 1.56, cycleType: 'none',
-      equipment: '', tdeeKcal: 1680, kcalTarget: 1380,
-      protRange: '', fatLossGoal: '', chronotype: 'bear',
+      weightKg: 58,
+      bodyFatPct: 35,
+      heightM: 1.56,
+      cycleType: 'none',
+      equipment: '',
+      tdeeKcal: 1680,
+      kcalTarget: 1380,
+      protRange: '',
+      fatLossGoal: '',
+      chronotype: 'bear',
     })
     render(<WorkoutsTab user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /✎ Edit/ }))
@@ -1451,9 +1541,16 @@ describe('WorkoutsTab', () => {
 
   it('auth with stats: changing cycle type select updates value', () => {
     ls['whub_body_stats_v1'] = JSON.stringify({
-      weightKg: 58, bodyFatPct: 35, heightM: 1.56, cycleType: 'none',
-      equipment: '', tdeeKcal: 0, kcalTarget: 0,
-      protRange: '', fatLossGoal: '', chronotype: 'bear',
+      weightKg: 58,
+      bodyFatPct: 35,
+      heightM: 1.56,
+      cycleType: 'none',
+      equipment: '',
+      tdeeKcal: 0,
+      kcalTarget: 0,
+      protRange: '',
+      fatLossGoal: '',
+      chronotype: 'bear',
     })
     render(<WorkoutsTab user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /✎ Edit/ }))
@@ -1476,7 +1573,9 @@ describe('WorkoutsTab', () => {
 
   it('auth with male plan: shows Full-Body Strength Plan heading', () => {
     ls['whub_workout_plan_v1'] = JSON.stringify({
-      gender: 'male', numWeeks: 3, planData: MALE_DEFAULT_PLAN,
+      gender: 'male',
+      numWeeks: 3,
+      planData: MALE_DEFAULT_PLAN,
     })
     render(<WorkoutsTab user={FAKE_USER} />)
     expect(screen.getByText(/Strength Plan/i)).toBeInTheDocument()
@@ -1568,16 +1667,16 @@ describe('ProfileStatsCard — measurements', () => {
   it('form defaults to cm unit and shows cm placeholders', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
-    expect(screen.getByPlaceholderText('75')).toBeInTheDocument()  // waist cm
-    expect(screen.getByPlaceholderText('95')).toBeInTheDocument()  // glutes cm
+    expect(screen.getByPlaceholderText('75')).toBeInTheDocument() // waist cm
+    expect(screen.getByPlaceholderText('95')).toBeInTheDocument() // glutes cm
   })
 
   it('switching to inches updates placeholders to inch values', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     fireEvent.click(screen.getByRole('button', { name: 'in' }))
-    expect(screen.getByPlaceholderText('30')).toBeInTheDocument()  // waist in
-    expect(screen.getByPlaceholderText('37')).toBeInTheDocument()  // glutes in
+    expect(screen.getByPlaceholderText('30')).toBeInTheDocument() // waist in
+    expect(screen.getByPlaceholderText('37')).toBeInTheDocument() // glutes in
   })
 
   it('saves waist and glutes in cm to localStorage', () => {
@@ -1608,11 +1707,23 @@ describe('ProfileStatsCard — measurements', () => {
 
   it('shows waist and glutes tiles in collapsed stats grid after save', () => {
     ls['whub_body_stats_v1'] = JSON.stringify({
-      weightKg: 60, waistCm: 75, glutesCm: 95, measurementUnit: 'cm',
-      heightM: 1.65, bodyFatPct: 0, age: 0, biologicalSex: '',
-      cycleType: 'none', equipment: '', chronotype: '',
-      fatLossRateKg: 0, macroSplit: 'balanced',
-      tdeeKcal: 0, kcalTarget: 0, protRange: '', fatLossGoal: '',
+      weightKg: 60,
+      waistCm: 75,
+      glutesCm: 95,
+      measurementUnit: 'cm',
+      heightM: 1.65,
+      bodyFatPct: 0,
+      age: 0,
+      biologicalSex: '',
+      cycleType: 'none',
+      equipment: '',
+      chronotype: '',
+      fatLossRateKg: 0,
+      macroSplit: 'balanced',
+      tdeeKcal: 0,
+      kcalTarget: 0,
+      protRange: '',
+      fatLossGoal: '',
     })
     render(<WorkoutsTab user={FAKE_USER} />)
     expect(screen.getByText('Waist')).toBeInTheDocument()
@@ -1623,15 +1734,27 @@ describe('ProfileStatsCard — measurements', () => {
 
   it('collapsed stats grid shows measurements in inches when unit is in', () => {
     ls['whub_body_stats_v1'] = JSON.stringify({
-      weightKg: 60, waistCm: 76.2, glutesCm: 93.98, measurementUnit: 'in',
-      heightM: 0, bodyFatPct: 0, age: 0, biologicalSex: '',
-      cycleType: 'none', equipment: '', chronotype: '',
-      fatLossRateKg: 0, macroSplit: 'balanced',
-      tdeeKcal: 0, kcalTarget: 0, protRange: '', fatLossGoal: '',
+      weightKg: 60,
+      waistCm: 76.2,
+      glutesCm: 93.98,
+      measurementUnit: 'in',
+      heightM: 0,
+      bodyFatPct: 0,
+      age: 0,
+      biologicalSex: '',
+      cycleType: 'none',
+      equipment: '',
+      chronotype: '',
+      fatLossRateKg: 0,
+      macroSplit: 'balanced',
+      tdeeKcal: 0,
+      kcalTarget: 0,
+      protRange: '',
+      fatLossGoal: '',
     })
     render(<WorkoutsTab user={FAKE_USER} />)
-    expect(screen.getByText('30 in')).toBeInTheDocument()   // 76.2 / 2.54 = 30.0
-    expect(screen.getByText('37 in')).toBeInTheDocument()   // 93.98 / 2.54 ≈ 37.0
+    expect(screen.getByText('30 in')).toBeInTheDocument() // 76.2 / 2.54 = 30.0
+    expect(screen.getByText('37 in')).toBeInTheDocument() // 93.98 / 2.54 ≈ 37.0
   })
 
   it('toggling cm → in converts existing input values', () => {
@@ -1647,11 +1770,23 @@ describe('ProfileStatsCard — measurements', () => {
 
   it('pre-fills measurements from localStorage when editing', () => {
     ls['whub_body_stats_v1'] = JSON.stringify({
-      weightKg: 60, waistCm: 80, glutesCm: 100, measurementUnit: 'cm',
-      heightM: 0, bodyFatPct: 0, age: 0, biologicalSex: '',
-      cycleType: 'none', equipment: '', chronotype: '',
-      fatLossRateKg: 0, macroSplit: 'balanced',
-      tdeeKcal: 0, kcalTarget: 0, protRange: '', fatLossGoal: '',
+      weightKg: 60,
+      waistCm: 80,
+      glutesCm: 100,
+      measurementUnit: 'cm',
+      heightM: 0,
+      bodyFatPct: 0,
+      age: 0,
+      biologicalSex: '',
+      cycleType: 'none',
+      equipment: '',
+      chronotype: '',
+      fatLossRateKg: 0,
+      macroSplit: 'balanced',
+      tdeeKcal: 0,
+      kcalTarget: 0,
+      protRange: '',
+      fatLossGoal: '',
     })
     render(<WorkoutsTab user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /✎ Edit/i }))
@@ -1756,7 +1891,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary name="TestSection">
         <BrokenChild />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
     expect(screen.getByText(/Something went wrong in TestSection/i)).toBeInTheDocument()
     expect(screen.getByText('Render explosion')).toBeInTheDocument()
@@ -1766,7 +1901,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <BrokenChild />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
     expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument()
   })
@@ -1781,7 +1916,7 @@ describe('ErrorBoundary', () => {
     const { rerender } = render(
       <ErrorBoundary>
         <MaybeThrow />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
     expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument()
 
@@ -1791,7 +1926,7 @@ describe('ErrorBoundary', () => {
     rerender(
       <ErrorBoundary>
         <MaybeThrow />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
     expect(screen.getByText('Content OK')).toBeInTheDocument()
   })
@@ -1804,7 +1939,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <BrokenChild />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
     fireEvent.click(screen.getByRole('button', { name: /Reset all data/i }))
     expect(clearSpy).toHaveBeenCalled()
@@ -1817,7 +1952,7 @@ describe('ErrorBoundary', () => {
       render(
         <ErrorBoundary>
           <BrokenChild />
-        </ErrorBoundary>
+        </ErrorBoundary>,
       )
       expect(screen.getByText(/Please try again later/i)).toBeInTheDocument()
       expect(screen.queryByText('Render explosion')).not.toBeInTheDocument()
@@ -1887,7 +2022,7 @@ describe('ScheduleTab', () => {
 
   it('clicking Download .ics triggers file download', () => {
     const click = vi.fn()
-    spyCreateLink(click)  // safe spy that passes through non-'a' elements
+    spyCreateLink(click) // safe spy that passes through non-'a' elements
     render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('📅 Export .ics'))
     fireEvent.click(screen.getByText('Download .ics'))
@@ -2012,7 +2147,7 @@ describe('ScheduleTab', () => {
     // All days start from the same default template — no dots expected
     // (dots are <span> siblings inside the day tab buttons; aria is not set on them,
     //  so we check that none of the day tab buttons have a dot child)
-    const dayTabs = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+    const dayTabs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     dayTabs.forEach(label => {
       const btn = screen.getByRole('button', { name: new RegExp(`^${label}$`) })
       // No amber dot span inside — just the text node
@@ -2049,14 +2184,29 @@ describe('ScheduleEditor', () => {
   const defaultBlocks: CustomBlock[] = SCHEDULE_BLOCKS.map(defaultToCustomBlock)
 
   it('renders all blocks in the list', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     expect(screen.getByText('Wake + no-phone rule')).toBeInTheDocument()
     expect(screen.getByText('Deep work block')).toBeInTheDocument()
   })
 
   it('clicking × (header) closes the editor', () => {
     const onClose = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={onClose} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onClose={onClose}
+        onReset={vi.fn()}
+      />,
+    )
     // The header × close button
     fireEvent.click(screen.getAllByText('×')[0])
     expect(onClose).toHaveBeenCalledOnce()
@@ -2064,20 +2214,42 @@ describe('ScheduleEditor', () => {
 
   it('clicking Done closes the editor', () => {
     const onClose = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={onClose} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onClose={onClose}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getByText('Done'))
     expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('clicking edit (✎) opens the inline form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     expect(screen.getByPlaceholderText('Block name')).toBeInTheDocument()
   })
 
   it('editing and saving a block calls onChange with updated block', () => {
     const onChange = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={onChange}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     const titleInput = screen.getByPlaceholderText('Block name')
     fireEvent.change(titleInput, { target: { value: 'Updated Block' } })
@@ -2088,7 +2260,15 @@ describe('ScheduleEditor', () => {
   })
 
   it('cancel edit closes the form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     expect(screen.getByPlaceholderText('Block name')).toBeInTheDocument()
     fireEvent.click(screen.getByText('Cancel'))
@@ -2097,26 +2277,56 @@ describe('ScheduleEditor', () => {
 
   it('delete button removes block without confirmation', () => {
     const onChange = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={onChange}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getAllByTitle('Delete')[0])
     expect(onChange).toHaveBeenCalledOnce()
     expect(onChange.mock.calls[0][0]).toHaveLength(defaultBlocks.length - 1)
   })
 
   it('move up button is disabled for first block', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     expect(screen.getAllByTitle('Move up')[0]).toBeDisabled()
   })
 
   it('move down button is disabled for last block', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     const downs = screen.getAllByTitle('Move down')
     expect(downs[downs.length - 1]).toBeDisabled()
   })
 
   it('move up second block swaps it with the first', () => {
     const onChange = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={onChange}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getAllByTitle('Move up')[1])
     const updated: CustomBlock[] = onChange.mock.calls[0][0]
     expect(updated[0].id).toBe(defaultBlocks[1].id)
@@ -2124,14 +2334,29 @@ describe('ScheduleEditor', () => {
   })
 
   it('Add block button shows new block form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getByText('+ Add block'))
     expect(screen.getByPlaceholderText('Block name')).toBeInTheDocument()
   })
 
   it('saving a new block calls onChange with one extra block', () => {
     const onChange = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={onChange}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getByText('+ Add block'))
     fireEvent.change(screen.getByPlaceholderText('Block name'), { target: { value: 'New Block' } })
     fireEvent.click(screen.getByText('Save block'))
@@ -2142,7 +2367,15 @@ describe('ScheduleEditor', () => {
   })
 
   it('Save block is disabled when title is empty', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getByText('+ Add block'))
     expect(screen.getByText('Save block')).toBeDisabled()
   })
@@ -2150,14 +2383,29 @@ describe('ScheduleEditor', () => {
   it('Reset to default calls onReset and onClose', () => {
     const onReset = vi.fn()
     const onClose = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={onClose} onReset={onReset} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onClose={onClose}
+        onReset={onReset}
+      />,
+    )
     fireEvent.click(screen.getByText('Reset to default'))
     expect(onReset).toHaveBeenCalledOnce()
     expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('clicking the same edit button again closes the form (toggle)', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     const editBtns = screen.getAllByTitle('Edit')
     fireEvent.click(editBtns[0])
     fireEvent.click(editBtns[0])
@@ -2166,7 +2414,14 @@ describe('ScheduleEditor', () => {
 
   it('move down button reorders blocks', () => {
     const onChange = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={onChange}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     const downBtns = screen.getAllByTitle('Move down')
     // Find the first enabled Move down button (not the last block)
     const enabledDown = downBtns.find(btn => !(btn as HTMLButtonElement).disabled)!
@@ -2175,7 +2430,15 @@ describe('ScheduleEditor', () => {
   })
 
   it('clicking a color in the edit form updates form color', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     // Click the Teal color swatch — title comes from c.label in BLOCK_COLORS
     const colorBtns = screen.getAllByTitle(/Teal|Amber|Purple|Gold|Gray/i)
@@ -2184,7 +2447,15 @@ describe('ScheduleEditor', () => {
   })
 
   it('changing time input in edit form updates form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     const timeInput = screen.getByDisplayValue('08:00')
     fireEvent.change(timeInput, { target: { value: '09:30' } })
@@ -2192,7 +2463,15 @@ describe('ScheduleEditor', () => {
   })
 
   it('changing duration number input in edit form updates value', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     const durInput = screen.getByRole('spinbutton')
     fireEvent.change(durInput, { target: { value: '45' } })
@@ -2200,7 +2479,15 @@ describe('ScheduleEditor', () => {
   })
 
   it('changing duration unit to hours updates the form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     const unitSelect = screen.getByRole('combobox')
     fireEvent.change(unitSelect, { target: { value: 'hr' } })
@@ -2208,7 +2495,15 @@ describe('ScheduleEditor', () => {
   })
 
   it('changing phase header input in edit form updates form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     const phaseInput = screen.getByPlaceholderText('e.g. Morning routine')
     fireEvent.change(phaseInput, { target: { value: 'Wake-up' } })
@@ -2216,7 +2511,15 @@ describe('ScheduleEditor', () => {
   })
 
   it('changing badge label input in edit form updates form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     const whyInput = screen.getByPlaceholderText('e.g. focus, nutrition')
     fireEvent.change(whyInput, { target: { value: 'morning energy' } })
@@ -2224,7 +2527,15 @@ describe('ScheduleEditor', () => {
   })
 
   it('changing description textarea in edit form updates form', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getAllByTitle('Edit')[0])
     const descInput = screen.getByPlaceholderText('Why this block matters…')
     fireEvent.change(descInput, { target: { value: 'My custom description' } })
@@ -2233,7 +2544,15 @@ describe('ScheduleEditor', () => {
 
   it('closing modal from backdrop click calls onClose', () => {
     const onClose = vi.fn()
-    const { container } = render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={onClose} onReset={vi.fn()} />)
+    const { container } = render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={onClose}
+        onReset={vi.fn()}
+      />,
+    )
     const backdrop = container.firstChild as HTMLElement
     fireEvent.click(backdrop, { target: backdrop })
     expect(onClose).toHaveBeenCalledOnce()
@@ -2242,24 +2561,48 @@ describe('ScheduleEditor', () => {
   // ── Scope toggle ─────────────────────────────────────────────────
 
   it('renders "This day only" and "All 7 days" scope buttons', () => {
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     expect(screen.getByText('This day only')).toBeInTheDocument()
     expect(screen.getByText('All 7 days')).toBeInTheDocument()
   })
 
   it('default scope is "This day only" — save calls onChange not onSaveAll', () => {
-    const onChange  = vi.fn()
+    const onChange = vi.fn()
     const onSaveAll = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onSaveAll={onSaveAll} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={onChange}
+        onSaveAll={onSaveAll}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getAllByTitle('Delete')[0])
     expect(onChange).toHaveBeenCalledOnce()
     expect(onSaveAll).not.toHaveBeenCalled()
   })
 
   it('switching to "All 7 days" scope routes save to onSaveAll', () => {
-    const onChange  = vi.fn()
+    const onChange = vi.fn()
     const onSaveAll = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={onChange} onSaveAll={onSaveAll} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={onChange}
+        onSaveAll={onSaveAll}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getByText('All 7 days'))
     fireEvent.click(screen.getAllByTitle('Delete')[0])
     expect(onSaveAll).toHaveBeenCalledOnce()
@@ -2267,12 +2610,38 @@ describe('ScheduleEditor', () => {
   })
 
   it('move does not auto-sort — manual order is preserved', () => {
-    const onChange  = vi.fn()
+    const onChange = vi.fn()
     const twoBlocks: CustomBlock[] = [
-      { id: 'a', time: '08:00', title: 'Early', dur: '30 min', color: 'green', phase: '', whyTxt: '', desc: '' },
-      { id: 'b', time: '10:00', title: 'Late',  dur: '30 min', color: 'green', phase: '', whyTxt: '', desc: '' },
+      {
+        id: 'a',
+        time: '08:00',
+        title: 'Early',
+        dur: '30 min',
+        color: 'green',
+        phase: '',
+        whyTxt: '',
+        desc: '',
+      },
+      {
+        id: 'b',
+        time: '10:00',
+        title: 'Late',
+        dur: '30 min',
+        color: 'green',
+        phase: '',
+        whyTxt: '',
+        desc: '',
+      },
     ]
-    render(<ScheduleEditor blocks={twoBlocks} onChange={onChange} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={twoBlocks}
+        onChange={onChange}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     // Move "Late" (index 1) up — should produce [Late, Early] without re-sorting
     fireEvent.click(screen.getAllByTitle('Move up')[1])
     const updated: CustomBlock[] = onChange.mock.calls[0][0]
@@ -2283,10 +2652,36 @@ describe('ScheduleEditor', () => {
   it('adding a block auto-sorts it into the correct time position', () => {
     const onChange = vi.fn()
     const twoBlocks: CustomBlock[] = [
-      { id: 'a', time: '10:00', title: 'Mid',  dur: '30 min', color: 'green', phase: '', whyTxt: '', desc: '' },
-      { id: 'b', time: '12:00', title: 'Late', dur: '30 min', color: 'green', phase: '', whyTxt: '', desc: '' },
+      {
+        id: 'a',
+        time: '10:00',
+        title: 'Mid',
+        dur: '30 min',
+        color: 'green',
+        phase: '',
+        whyTxt: '',
+        desc: '',
+      },
+      {
+        id: 'b',
+        time: '12:00',
+        title: 'Late',
+        dur: '30 min',
+        color: 'green',
+        phase: '',
+        whyTxt: '',
+        desc: '',
+      },
     ]
-    render(<ScheduleEditor blocks={twoBlocks} onChange={onChange} onSaveAll={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />)
+    render(
+      <ScheduleEditor
+        blocks={twoBlocks}
+        onChange={onChange}
+        onSaveAll={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getByText('+ Add block'))
     fireEvent.change(screen.getByPlaceholderText('Block name'), { target: { value: 'Early' } })
     fireEvent.change(screen.getByDisplayValue('09:00'), { target: { value: '08:00' } })
@@ -2300,10 +2695,18 @@ describe('ScheduleEditor', () => {
   // ── Reset to default — scope-aware ────────────────────────────────
 
   it('Reset to default in "This day only" scope calls onReset (not onResetAll)', () => {
-    const onReset    = vi.fn()
+    const onReset = vi.fn()
     const onResetAll = vi.fn()
-    const onClose    = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={onClose} onReset={onReset} onResetAll={onResetAll} />)
+    const onClose = vi.fn()
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onClose={onClose}
+        onReset={onReset}
+        onResetAll={onResetAll}
+      />,
+    )
     fireEvent.click(screen.getByText('Reset to default'))
     expect(onReset).toHaveBeenCalledOnce()
     expect(onResetAll).not.toHaveBeenCalled()
@@ -2311,10 +2714,18 @@ describe('ScheduleEditor', () => {
   })
 
   it('Reset to default in "All 7 days" scope calls onResetAll (not onReset)', () => {
-    const onReset    = vi.fn()
+    const onReset = vi.fn()
     const onResetAll = vi.fn()
-    const onClose    = vi.fn()
-    render(<ScheduleEditor blocks={defaultBlocks} onChange={vi.fn()} onClose={onClose} onReset={onReset} onResetAll={onResetAll} />)
+    const onClose = vi.fn()
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onClose={onClose}
+        onReset={onReset}
+        onResetAll={onResetAll}
+      />,
+    )
     fireEvent.click(screen.getByText('All 7 days'))
     fireEvent.click(screen.getByText('Reset to default'))
     expect(onResetAll).toHaveBeenCalledOnce()
@@ -2483,7 +2894,9 @@ describe('RecipesTab', () => {
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: '+ Add my recipe' }))
     // Fill in recipe name — placeholder is "e.g. Mango Chia Pudding"
-    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), { target: { value: 'My Test Recipe' } })
+    fireEvent.change(screen.getByPlaceholderText('e.g. Mango Chia Pudding'), {
+      target: { value: 'My Test Recipe' },
+    })
     // Save
     fireEvent.click(screen.getByText('Save recipe'))
     // Recipe appears in the All view
@@ -2552,7 +2965,7 @@ describe('RecipesTab', () => {
   })
 
   it('filter count badge appears when a custom recipe matches a category', async () => {
-    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])  // cat: 'smoothie'
+    ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE]) // cat: 'smoothie'
     render(<RecipesTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
     // "All" button should now have a count badge showing 1
@@ -2742,7 +3155,11 @@ describe('TrackerTab', () => {
 
   it('prev date button decrements the displayed date', () => {
     render(<TrackerTab user={FAKE_USER} />)
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+    const today = new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    })
     expect(screen.getByText(today)).toBeInTheDocument()
     fireEvent.click(screen.getByText('‹ Prev'))
     expect(screen.queryByText(today)).not.toBeInTheDocument()
@@ -2750,7 +3167,11 @@ describe('TrackerTab', () => {
 
   it('Next › button returns to today after navigating to previous day', () => {
     render(<TrackerTab user={FAKE_USER} />)
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+    const today = new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    })
     fireEvent.click(screen.getByText('‹ Prev'))
     expect(screen.queryByText(today)).not.toBeInTheDocument()
     fireEvent.click(screen.getByText('Next ›'))
@@ -2910,22 +3331,26 @@ describe('TrackerTab', () => {
   it('food name input onFocus sets showSugg and onBlur clears it', () => {
     render(<TrackerTab user={FAKE_USER} />)
     const nameInput = screen.getByPlaceholderText('Meal name (e.g. Berry Oats)')
-    fireEvent.focus(nameInput)   // line 435: onFocus → setShowSugg(true)
-    fireEvent.blur(nameInput)    // line 436: onBlur → setTimeout(setShowSugg(false))
+    fireEvent.focus(nameInput) // line 435: onFocus → setShowSugg(true)
+    fireEvent.blur(nameInput) // line 436: onBlur → setTimeout(setShowSugg(false))
     // No crash = handlers exercised
   })
 
   it('changing servings input updates the serving count', () => {
     render(<TrackerTab user={FAKE_USER} />)
     const srvInput = screen.getByPlaceholderText('1')
-    fireEvent.change(srvInput, { target: { value: '2' } })  // line 458 onChange
+    fireEvent.change(srvInput, { target: { value: '2' } }) // line 458 onChange
     expect((srvInput as HTMLInputElement).value).toBe('2')
   })
 
   it('clicking Next › advances the date', () => {
     render(<TrackerTab user={FAKE_USER} />)
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-    fireEvent.click(screen.getByText('Next ›'))   // line 348 onClick
+    const today = new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    })
+    fireEvent.click(screen.getByText('Next ›')) // line 348 onClick
     // Date changed — today label is no longer shown
     expect(screen.queryByText(today)).not.toBeInTheDocument()
   })
@@ -2933,14 +3358,18 @@ describe('TrackerTab', () => {
   it('Save changes updates an existing food entry (editIndex branch)', () => {
     render(<TrackerTab user={FAKE_USER} />)
     // Log a food first
-    fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), { target: { value: 'Oatmeal' } })
+    fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), {
+      target: { value: 'Oatmeal' },
+    })
     fireEvent.change(screen.getByPlaceholderText('kcal'), { target: { value: '300' } })
     fireEvent.click(screen.getByText('+ Log food'))
     // Edit it
     fireEvent.click(screen.getByTitle('Edit'))
     expect(screen.getByText('✓ Save changes')).toBeInTheDocument()
     // Change the name and save → covers lines 250-253
-    fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), { target: { value: 'Steel-cut Oats' } })
+    fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), {
+      target: { value: 'Steel-cut Oats' },
+    })
     fireEvent.click(screen.getByText('✓ Save changes'))
     expect(screen.getByText('Steel-cut Oats')).toBeInTheDocument()
   })
@@ -2948,14 +3377,18 @@ describe('TrackerTab', () => {
   it('quick-add from recent meals adds the food entry (quickAdd)', () => {
     render(<TrackerTab user={FAKE_USER} />)
     // Log Oatmeal today — it becomes a recent meal
-    fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), { target: { value: 'Oatmeal' } })
+    fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), {
+      target: { value: 'Oatmeal' },
+    })
     fireEvent.change(screen.getByPlaceholderText('kcal'), { target: { value: '300' } })
     fireEvent.click(screen.getByText('+ Log food'))
     // Navigate away and back to re-compute recentMeals from store
     fireEvent.click(screen.getByText('‹ Prev'))
     fireEvent.click(screen.getByText('Next ›'))
     // Now recentMeals should contain Oatmeal
-    const recentBtn = document.querySelector('[style*="cursor: pointer"][style*="border"]') as HTMLElement
+    const recentBtn = document.querySelector(
+      '[style*="cursor: pointer"][style*="border"]',
+    ) as HTMLElement
     if (recentBtn && recentBtn.textContent?.includes('Oatmeal')) {
       fireEvent.click(recentBtn)
     }
@@ -3016,7 +3449,9 @@ describe('TrackerTab', () => {
     fireEvent.click(screen.getByText('+ Add'))
     expect(screen.getByPlaceholderText('Title (e.g. Morning Calm · 13 min)')).toBeInTheDocument()
     fireEvent.click(screen.getByText('Cancel'))
-    expect(screen.queryByPlaceholderText('Title (e.g. Morning Calm · 13 min)')).not.toBeInTheDocument()
+    expect(
+      screen.queryByPlaceholderText('Title (e.g. Morning Calm · 13 min)'),
+    ).not.toBeInTheDocument()
   })
 
   it('Add guide button adds guide with title and URL', () => {
@@ -3141,7 +3576,9 @@ describe('TrackerTab', () => {
   it('logs a food carrying its hunger type (icon on the row)', () => {
     render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText(/Emotional/))
-    fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), { target: { value: 'Cookies' } })
+    fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), {
+      target: { value: 'Cookies' },
+    })
     fireEvent.change(screen.getByPlaceholderText('kcal'), { target: { value: '200' } })
     fireEvent.click(screen.getByText('+ Log food'))
     expect(screen.getByTitle('Emotional hunger')).toBeInTheDocument()
@@ -3156,7 +3593,9 @@ describe('TrackerTab', () => {
   it('can save a weekly goal', () => {
     render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
-    fireEvent.change(screen.getByPlaceholderText(/Protein at every meal/), { target: { value: 'Walk daily' } })
+    fireEvent.change(screen.getByPlaceholderText(/Protein at every meal/), {
+      target: { value: 'Walk daily' },
+    })
     fireEvent.click(screen.getByText('Save weekly'))
     expect(screen.getByText('Saved!')).toBeInTheDocument()
   })
@@ -3173,7 +3612,9 @@ describe('TrackerTab', () => {
     fireEvent.click(screen.getByText('Meditation'))
     const weekCard = screen.getByText('Weekly goal').closest('.tcard') as HTMLElement
     fireEvent.click(within(weekCard).getByText('Protein at every meal'))
-    const textarea = container.querySelector('textarea[placeholder^="e.g. Protein"]') as HTMLTextAreaElement
+    const textarea = container.querySelector(
+      'textarea[placeholder^="e.g. Protein"]',
+    ) as HTMLTextAreaElement
     expect(textarea.value).toBe('Protein at every meal')
   })
 
@@ -3292,7 +3733,9 @@ describe('RemindersSection', () => {
 
   it('adds a reminder when text is typed and Add is clicked', () => {
     render(<RemindersSection />)
-    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Buy oat milk' } })
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), {
+      target: { value: 'Buy oat milk' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /add/i }))
     expect(screen.getByText('Buy oat milk')).toBeInTheDocument()
     expect(screen.queryByText(/No reminders yet/i)).not.toBeInTheDocument()
@@ -3316,7 +3759,9 @@ describe('RemindersSection', () => {
 
   it('checks (strikes through) a reminder when its checkbox is clicked', () => {
     render(<RemindersSection />)
-    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Meditate' } })
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), {
+      target: { value: 'Meditate' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /add/i }))
 
     fireEvent.click(screen.getByRole('button', { name: /check reminder/i }))
@@ -3345,7 +3790,9 @@ describe('RemindersSection', () => {
 
   it('removes a reminder when × is clicked', () => {
     render(<RemindersSection />)
-    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Call mom' } })
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), {
+      target: { value: 'Call mom' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /add/i }))
     expect(screen.getByText('Call mom')).toBeInTheDocument()
 
@@ -3356,7 +3803,9 @@ describe('RemindersSection', () => {
 
   it('shows the edit button (✎) only on unchecked reminders', () => {
     render(<RemindersSection />)
-    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Read 10 pages' } })
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), {
+      target: { value: 'Read 10 pages' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /add/i }))
 
     expect(screen.getByRole('button', { name: /edit reminder/i })).toBeInTheDocument()
@@ -3367,7 +3816,9 @@ describe('RemindersSection', () => {
 
   it('clicking ✎ opens an inline edit input pre-filled with the current text', () => {
     render(<RemindersSection />)
-    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Walk the dog' } })
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), {
+      target: { value: 'Walk the dog' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /add/i }))
 
     fireEvent.click(screen.getByRole('button', { name: /edit reminder/i }))
@@ -3377,7 +3828,9 @@ describe('RemindersSection', () => {
 
   it('saves the edited text when Save is clicked', () => {
     render(<RemindersSection />)
-    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Old text' } })
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), {
+      target: { value: 'Old text' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /add/i }))
 
     fireEvent.click(screen.getByRole('button', { name: /edit reminder/i }))
@@ -3392,7 +3845,9 @@ describe('RemindersSection', () => {
 
   it('saves the edit when Enter is pressed in the edit input', () => {
     render(<RemindersSection />)
-    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Original' } })
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), {
+      target: { value: 'Original' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /add/i }))
 
     fireEvent.click(screen.getByRole('button', { name: /edit reminder/i }))
@@ -3406,7 +3861,9 @@ describe('RemindersSection', () => {
 
   it('cancels the edit when × (cancel) is clicked, restoring original text', () => {
     render(<RemindersSection />)
-    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Keep this' } })
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), {
+      target: { value: 'Keep this' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /add/i }))
 
     fireEvent.click(screen.getByRole('button', { name: /edit reminder/i }))
@@ -3433,7 +3890,9 @@ describe('RemindersSection', () => {
 
   it('Save edit button is disabled when the edit text is blank', () => {
     render(<RemindersSection />)
-    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Non-blank' } })
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), {
+      target: { value: 'Non-blank' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /add/i }))
 
     fireEvent.click(screen.getByRole('button', { name: /edit reminder/i }))
@@ -3445,7 +3904,9 @@ describe('RemindersSection', () => {
 
   it('persists reminders in localStorage so they survive a remount', () => {
     const { unmount } = render(<RemindersSection />)
-    fireEvent.change(screen.getByPlaceholderText('New reminder…'), { target: { value: 'Persisted item' } })
+    fireEvent.change(screen.getByPlaceholderText('New reminder…'), {
+      target: { value: 'Persisted item' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /add/i }))
     unmount()
 
@@ -3457,25 +3918,25 @@ describe('RemindersSection', () => {
 // ── GroceryPanel — nutrition lookup ─────────────────────────────
 // Helpers shared across tests in this block
 const USDA_HIT = {
-  foods: [{
-    servingSize: 100,
-    servingSizeUnit: 'g',
-    foodNutrients: [
-      { nutrientId: 1008, value: 23 },   // kcal
-      { nutrientId: 1003, value: 1.8 },  // protein
-      { nutrientId: 1005, value: 3.6 },  // carbs
-      { nutrientId: 1004, value: 0.5 },  // fat
-      { nutrientId: 1079, value: 1.6 },  // fiber
-    ],
-  }],
+  foods: [
+    {
+      servingSize: 100,
+      servingSizeUnit: 'g',
+      foodNutrients: [
+        { nutrientId: 1008, value: 23 }, // kcal
+        { nutrientId: 1003, value: 1.8 }, // protein
+        { nutrientId: 1005, value: 3.6 }, // carbs
+        { nutrientId: 1004, value: 0.5 }, // fat
+        { nutrientId: 1079, value: 1.6 }, // fiber
+      ],
+    },
+  ],
 }
 const USDA_MISS = { foods: [] }
 
 function mockUSDA(payload: object) {
   vi.spyOn(foodSearch, 'searchUSDA').mockResolvedValue(
-    payload === USDA_MISS
-      ? null
-      : { srv: '100g', cal: 23, p: 1.8, c: 3.6, f: 0.5, fi: 1.6 }
+    payload === USDA_MISS ? null : { srv: '100g', cal: 23, p: 1.8, c: 3.6, f: 0.5, fi: 1.6 },
   )
 }
 
@@ -3588,7 +4049,7 @@ describe('GroceryPanel — nutrition lookup', () => {
   it('can add an item without running a lookup (no nutrition data)', () => {
     render(<GroceryPanel user={FAKE_USER} />)
     openAddForm()
-    typeName('Tempeh')   // not in seeded catalog
+    typeName('Tempeh') // not in seeded catalog
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
     const row = screen.getByText('Tempeh').closest('.gitem') as HTMLElement
     // This specific item has no nutrition sub-line
@@ -3598,12 +4059,12 @@ describe('GroceryPanel — nutrition lookup', () => {
   it('can add an item with manually entered nutrition (no lookup)', () => {
     render(<GroceryPanel user={FAKE_USER} />)
     openAddForm()
-    typeName('Natto')    // not in seeded catalog
+    typeName('Natto') // not in seeded catalog
     fireEvent.change(screen.getByLabelText('Serving size'), { target: { value: '1 cup' } })
-    fireEvent.change(screen.getByLabelText('Calories'),     { target: { value: '187' } })
-    fireEvent.change(screen.getByLabelText('Protein'),      { target: { value: '18' } })
-    fireEvent.change(screen.getByLabelText('Carbs'),        { target: { value: '12' } })
-    fireEvent.change(screen.getByLabelText('Fat'),          { target: { value: '10' } })
+    fireEvent.change(screen.getByLabelText('Calories'), { target: { value: '187' } })
+    fireEvent.change(screen.getByLabelText('Protein'), { target: { value: '18' } })
+    fireEvent.change(screen.getByLabelText('Carbs'), { target: { value: '12' } })
+    fireEvent.change(screen.getByLabelText('Fat'), { target: { value: '10' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
     const row = screen.getByText('Natto').closest('.gitem') as HTMLElement
     expect(within(row).getByText(/187 kcal/)).toBeInTheDocument()
@@ -3722,8 +4183,14 @@ describe('TrackerTab — food search', () => {
   it('"Estimate with AI" fills the form with the AI estimate', async () => {
     vi.spyOn(foodSearch, 'searchUSDAFoods').mockResolvedValue([])
     vi.spyOn(foodSearch, 'estimateFoodMacros').mockResolvedValue({
-      name: 'Pozole Rojo', kcal: 320, protein: 22, carbs: 28, fat: 14, fiber: 5,
-      confidence: 'medium', notes: 'Assumes 1 bowl (~400 g)',
+      name: 'Pozole Rojo',
+      kcal: 320,
+      protein: 22,
+      carbs: 28,
+      fat: 14,
+      fiber: 5,
+      confidence: 'medium',
+      notes: 'Assumes 1 bowl (~400 g)',
     })
     render(<TrackerTab user={FAKE_USER} />)
     typeQuery('pozole')
@@ -3788,7 +4255,13 @@ describe('TrackerTab — builtin catalog search', () => {
   it('a forked builtin (custom with defaultId) replaces the original in search', () => {
     ls['whub_builtin_recipes_v1'] = JSON.stringify([{ ...BASE_RECIPE, custom: false }])
     ls['whub_custom_recipes_v1'] = JSON.stringify([
-      { ...BASE_RECIPE, id: 9501, name: 'My Test Dish Fork', custom: true, defaultId: BASE_RECIPE.id },
+      {
+        ...BASE_RECIPE,
+        id: 9501,
+        name: 'My Test Dish Fork',
+        custom: true,
+        defaultId: BASE_RECIPE.id,
+      },
     ])
     render(<TrackerTab user={FAKE_USER} />)
     typeQuery('test dish')
@@ -3819,22 +4292,36 @@ describe('TrackerTab — builtin catalog search', () => {
 describe('RecipesTab — open request from tracker', () => {
   it('expands the matching recipe card', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
-    render(<RecipesTab user={FAKE_USER} openRequest={{ id: CUSTOM_RECIPE.id, name: CUSTOM_RECIPE.name, seq: 1 }} />)
+    render(
+      <RecipesTab
+        user={FAKE_USER}
+        openRequest={{ id: CUSTOM_RECIPE.id, name: CUSTOM_RECIPE.name, seq: 1 }}
+      />,
+    )
     await waitFor(() => expect(screen.getByText('tap to collapse')).toBeInTheDocument())
     expect(screen.getByText(CUSTOM_RECIPE.name)).toBeInTheDocument()
   })
 
   it('falls back to a name match when the id is stale', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
-    render(<RecipesTab user={FAKE_USER} openRequest={{ id: 424242, name: CUSTOM_RECIPE.name, seq: 1 }} />)
+    render(
+      <RecipesTab
+        user={FAKE_USER}
+        openRequest={{ id: 424242, name: CUSTOM_RECIPE.name, seq: 1 }}
+      />,
+    )
     await waitFor(() => expect(screen.getByText('tap to collapse')).toBeInTheDocument())
   })
 
   it('surfaces unknown recipes as a search query', async () => {
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
-    render(<RecipesTab user={FAKE_USER} openRequest={{ id: 424242, name: 'Ghost Recipe', seq: 1 }} />)
+    render(
+      <RecipesTab user={FAKE_USER} openRequest={{ id: 424242, name: 'Ghost Recipe', seq: 1 }} />,
+    )
     await waitFor(() =>
-      expect(screen.getByPlaceholderText('Search recipes, ingredients…')).toHaveValue('Ghost Recipe')
+      expect(screen.getByPlaceholderText('Search recipes, ingredients…')).toHaveValue(
+        'Ghost Recipe',
+      ),
     )
     expect(screen.queryByText('tap to collapse')).not.toBeInTheDocument()
   })
@@ -3845,7 +4332,12 @@ describe('RecipesTab — open request from tracker', () => {
     expect(screen.queryByText(CUSTOM_RECIPE.name)).not.toBeInTheDocument()
     // Recipe arrives via an external write (sync, another tab, e2e seeding)
     ls['whub_custom_recipes_v1'] = JSON.stringify([CUSTOM_RECIPE])
-    rerender(<RecipesTab user={FAKE_USER} openRequest={{ id: CUSTOM_RECIPE.id, name: CUSTOM_RECIPE.name, seq: 1 }} />)
+    rerender(
+      <RecipesTab
+        user={FAKE_USER}
+        openRequest={{ id: CUSTOM_RECIPE.id, name: CUSTOM_RECIPE.name, seq: 1 }}
+      />,
+    )
     await waitFor(() => expect(screen.getByText('tap to collapse')).toBeInTheDocument())
     expect(screen.getByText(CUSTOM_RECIPE.name)).toBeInTheDocument()
   })

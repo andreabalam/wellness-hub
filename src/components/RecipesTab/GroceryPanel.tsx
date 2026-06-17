@@ -13,20 +13,27 @@ function uid() {
 
 type LookupState = 'idle' | 'loading' | 'found' | 'not-found' | 'error'
 
-function buildNutri(srv: string, cal: string, p: string, c: string, f: string, fi: string): NutriInfo | undefined {
+function buildNutri(
+  srv: string,
+  cal: string,
+  p: string,
+  c: string,
+  f: string,
+  fi: string,
+): NutriInfo | undefined {
   const calN = parseFloat(cal)
-  const pN   = parseFloat(p)
-  const cN   = parseFloat(c)
-  const fN   = parseFloat(f)
+  const pN = parseFloat(p)
+  const cN = parseFloat(c)
+  const fN = parseFloat(f)
   if (isNaN(calN) || isNaN(pN) || isNaN(cN) || isNaN(fN)) return undefined
   const fiN = parseFloat(fi)
   return {
     srv: srv.trim() || '100g',
     cal: Math.round(calN),
-    p:   Math.round(pN * 10) / 10,
-    c:   Math.round(cN * 10) / 10,
-    f:   Math.round(fN * 10) / 10,
-    fi:  !isNaN(fiN) ? Math.round(fiN * 10) / 10 : undefined,
+    p: Math.round(pN * 10) / 10,
+    c: Math.round(cN * 10) / 10,
+    f: Math.round(fN * 10) / 10,
+    fi: !isNaN(fiN) ? Math.round(fiN * 10) / 10 : undefined,
   }
 }
 
@@ -44,7 +51,10 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
   const [editing, setEditing] = useState(false)
   const [editVal, setEditVal] = useState(item.n)
 
-  const startEdit = () => { setEditVal(item.n); setEditing(true) }
+  const startEdit = () => {
+    setEditVal(item.n)
+    setEditing(true)
+  }
 
   const commitEdit = () => {
     const trimmed = editVal.trim()
@@ -60,49 +70,69 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
           value={editVal}
           onChange={e => setEditVal(e.target.value)}
           onKeyDown={e => {
-            if (e.key === 'Enter')  { e.preventDefault(); commitEdit() }
-            if (e.key === 'Escape') { setEditing(false); setEditVal(item.n) }
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              commitEdit()
+            }
+            if (e.key === 'Escape') {
+              setEditing(false)
+              setEditVal(item.n)
+            }
           }}
           autoFocus
         />
-        <button aria-label="Save" onClick={commitEdit} className="edit-confirm-btn">✓</button>
+        <button aria-label="Save" onClick={commitEdit} className="edit-confirm-btn">
+          ✓
+        </button>
         <button
           aria-label="Cancel edit"
-          onClick={() => { setEditing(false); setEditVal(item.n) }}
+          onClick={() => {
+            setEditing(false)
+            setEditVal(item.n)
+          }}
           className="edit-discard-btn"
-        >✕</button>
+        >
+          ✕
+        </button>
       </div>
     )
   }
 
   return (
-    <div
-      className={`gitem${checked ? ' gchecked' : ''}`}
-      onClick={() => onToggle(item.n)}
-    >
+    <div className={`gitem${checked ? ' gchecked' : ''}`} onClick={() => onToggle(item.n)}>
       <div className="gcheck">✓</div>
       <span className="flex-1">
         {item.n}
         {item.nutri && (
           <span className="item-nutri">
-            {item.nutri.srv} · {item.nutri.cal} kcal · {item.nutri.p}g P · {item.nutri.c}g C · {item.nutri.f}g F
-            {item.nutri.fi != null ? ` · ${item.nutri.fi}g fi` : ''}
+            {item.nutri.srv} · {item.nutri.cal} kcal · {item.nutri.p}g P · {item.nutri.c}g C ·{' '}
+            {item.nutri.f}g F{item.nutri.fi != null ? ` · ${item.nutri.fi}g fi` : ''}
           </span>
         )}
       </span>
       <button
         aria-label={`Edit ${item.n}`}
         title="Edit"
-        onClick={e => { e.stopPropagation(); startEdit() }}
+        onClick={e => {
+          e.stopPropagation()
+          startEdit()
+        }}
         className="item-icon-btn"
         style={{ fontSize: 12 }}
-      >✎</button>
+      >
+        ✎
+      </button>
       <button
         aria-label={`Remove ${item.n}`}
-        onClick={e => { e.stopPropagation(); onRemove(item.id) }}
+        onClick={e => {
+          e.stopPropagation()
+          onRemove(item.id)
+        }}
         className="item-icon-btn"
         style={{ fontSize: 14, padding: '0 2px' }}
-      >×</button>
+      >
+        ×
+      </button>
     </div>
   )
 }
@@ -110,25 +140,25 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
 // ── Main component ───────────────────────────────────────────────
 
 export default function GroceryPanel({ user }: { user?: User | null }) {
-  const store        = useGroceryStore()
+  const store = useGroceryStore()
   const catalogStore = useGroceryCatalogStore()
 
-  const [checked,   setChecked]   = useState<string[]>(() => store.getChecked())
+  const [checked, setChecked] = useState<string[]>(() => store.getChecked())
   const [userItems, setUserItems] = useState<GroceryCatalogItem[]>(() => catalogStore.getAll())
 
   // Add-item form state
-  const [addName,     setAddName]     = useState('')
-  const [addCat,      setAddCat]      = useState<string>(GROCERY_CATEGORIES[0])
+  const [addName, setAddName] = useState('')
+  const [addCat, setAddCat] = useState<string>(GROCERY_CATEGORIES[0])
   const [showAddForm, setShowAddForm] = useState(false)
 
   // Nutrition lookup state
   const [lookupState, setLookupState] = useState<LookupState>('idle')
   const [nutSrv, setNutSrv] = useState('')
   const [nutCal, setNutCal] = useState('')
-  const [nutP,   setNutP]   = useState('')
-  const [nutC,   setNutC]   = useState('')
-  const [nutF,   setNutF]   = useState('')
-  const [nutFi,  setNutFi]  = useState('')
+  const [nutP, setNutP] = useState('')
+  const [nutC, setNutC] = useState('')
+  const [nutF, setNutF] = useState('')
+  const [nutFi, setNutFi] = useState('')
   const abortRef = useRef<AbortController | null>(null)
 
   const resetForm = useCallback(() => {
@@ -136,7 +166,12 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
     setAddCat(GROCERY_CATEGORIES[0])
     setShowAddForm(false)
     setLookupState('idle')
-    setNutSrv(''); setNutCal(''); setNutP(''); setNutC(''); setNutF(''); setNutFi('')
+    setNutSrv('')
+    setNutCal('')
+    setNutP('')
+    setNutC('')
+    setNutF('')
+    setNutFi('')
     abortRef.current?.abort()
   }, [])
 
@@ -144,7 +179,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
     if (!user) return
     if (localStorage.getItem(SEEDED_KEY)) return
     const seeds: GroceryCatalogItem[] = Object.entries(GROCERY_DATA).flatMap(([cat, items]) =>
-      items.map(item => ({ id: uid(), n: item.n, cat, nutri: item.nutri }))
+      items.map(item => ({ id: uid(), n: item.n, cat, nutri: item.nutri })),
     )
     seeds.forEach(item => catalogStore.add(item))
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -157,7 +192,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
     for (const item of userItems) (map[item.cat] ??= []).push(item)
     const stdSet = new Set(GROCERY_CATEGORIES as readonly string[])
     const ordered = GROCERY_CATEGORIES.filter(c => map[c]?.length)
-    const custom  = Object.keys(map).filter(c => !stdSet.has(c))
+    const custom = Object.keys(map).filter(c => !stdSet.has(c))
     return { orderedCats: [...ordered, ...custom], byCategory: map }
   }, [userItems])
 
@@ -205,15 +240,21 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
     resetForm()
   }, [addName, addCat, nutSrv, nutCal, nutP, nutC, nutF, nutFi, catalogStore, resetForm])
 
-  const handleEditItem = useCallback((id: string, newName: string) => {
-    catalogStore.update(id, { n: newName })
-    setUserItems(catalogStore.getAll())
-  }, [catalogStore])
+  const handleEditItem = useCallback(
+    (id: string, newName: string) => {
+      catalogStore.update(id, { n: newName })
+      setUserItems(catalogStore.getAll())
+    },
+    [catalogStore],
+  )
 
-  const handleRemoveItem = useCallback((id: string) => {
-    catalogStore.remove(id)
-    setUserItems(catalogStore.getAll())
-  }, [catalogStore])
+  const handleRemoveItem = useCallback(
+    (id: string) => {
+      catalogStore.remove(id)
+      setUserItems(catalogStore.getAll())
+    },
+    [catalogStore],
+  )
 
   // ── Guest gate ─────────────────────────────────────────────────
   if (!user) {
@@ -223,9 +264,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
         <div className="guest-gate-title">
           Your <em className="text-green">Grocery List</em>
         </div>
-        <div className="guest-gate-body">
-          Sign in to manage your personalised grocery list.
-        </div>
+        <div className="guest-gate-body">Sign in to manage your personalised grocery list.</div>
       </div>
     )
   }
@@ -241,7 +280,9 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
       </div>
 
       <div className="grocery-toolbar">
-        <button className="grocery-clear-btn" onClick={clearAll}>Clear all</button>
+        <button className="grocery-clear-btn" onClick={clearAll}>
+          Clear all
+        </button>
       </div>
 
       {/* Add item */}
@@ -252,7 +293,10 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
             className="add-trigger"
             onClick={() => setShowAddForm(true)}
           >
-            <span className="text-lg" style={{ lineHeight: 1 }}>+</span> Add item to my list
+            <span className="text-lg" style={{ lineHeight: 1 }}>
+              +
+            </span>{' '}
+            Add item to my list
           </button>
         ) : (
           <div className="add-form">
@@ -274,7 +318,11 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
                 value={addCat}
                 onChange={e => setAddCat(e.target.value)}
               >
-                {GROCERY_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                {GROCERY_CATEGORIES.map(c => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
                 <option value="My Custom Items">My Custom Items</option>
               </select>
             </div>
@@ -315,13 +363,15 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
               />
 
               <div className="nutri-grid">
-                {([
-                  ['kcal', nutCal, setNutCal, 'Calories'],
-                  ['P g',  nutP,   setNutP,   'Protein'],
-                  ['C g',  nutC,   setNutC,   'Carbs'],
-                  ['F g',  nutF,   setNutF,   'Fat'],
-                  ['Fi g', nutFi,  setNutFi,  'Fiber'],
-                ] as const).map(([label, val, setter, ariaLabel]) => (
+                {(
+                  [
+                    ['kcal', nutCal, setNutCal, 'Calories'],
+                    ['P g', nutP, setNutP, 'Protein'],
+                    ['C g', nutC, setNutC, 'Carbs'],
+                    ['F g', nutF, setNutF, 'Fat'],
+                    ['Fi g', nutFi, setNutFi, 'Fiber'],
+                  ] as const
+                ).map(([label, val, setter, ariaLabel]) => (
                   <label key={label} className="nutri-field">
                     {label}
                     <input
@@ -339,12 +389,12 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
             </div>
 
             <div className="add-actions">
-              <button
-                className="add-submit"
-                onClick={handleAddItem}
-                disabled={!addName.trim()}
-              >Add item</button>
-              <button className="add-cancel" onClick={resetForm}>Cancel</button>
+              <button className="add-submit" onClick={handleAddItem} disabled={!addName.trim()}>
+                Add item
+              </button>
+              <button className="add-cancel" onClick={resetForm}>
+                Cancel
+              </button>
             </div>
           </div>
         )}

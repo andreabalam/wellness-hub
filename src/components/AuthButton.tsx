@@ -15,24 +15,35 @@ interface Props {
 
 type PanelState = 'idle' | 'sending' | 'sent' | 'verifying'
 
-export default function AuthButton({ user, syncing, lastSynced, syncPending, onSynced, onExport, onImportFile }: Props) {
-  const [open, setOpen]               = useState(false)
-  const [email, setEmail]             = useState('')
-  const [code, setCode]               = useState('')
-  const [panelState, setPanelState]   = useState<PanelState>('idle')
-  const [error, setError]             = useState('')
+export default function AuthButton({
+  user,
+  syncing,
+  lastSynced,
+  syncPending,
+  onSynced,
+  onExport,
+  onImportFile,
+}: Props) {
+  const [open, setOpen] = useState(false)
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
+  const [panelState, setPanelState] = useState<PanelState>('idle')
+  const [error, setError] = useState('')
   const panelRef = useRef<HTMLDivElement>(null)
-  const btnRef   = useRef<HTMLButtonElement>(null)
-  const codeRef  = useRef<HTMLInputElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const codeRef = useRef<HTMLInputElement>(null)
 
   // Close on outside click
   useEffect(() => {
     if (!open) return
     const handler = (e: MouseEvent) => {
       if (
-        panelRef.current && !panelRef.current.contains(e.target as Node) &&
-        btnRef.current   && !btnRef.current.contains(e.target as Node)
-      ) setOpen(false)
+        panelRef.current &&
+        !panelRef.current.contains(e.target as Node) &&
+        btnRef.current &&
+        !btnRef.current.contains(e.target as Node)
+      )
+        setOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -48,8 +59,8 @@ export default function AuthButton({ user, syncing, lastSynced, syncPending, onS
     if (!lastSynced) return 'not yet'
     // eslint-disable-next-line react-hooks/purity -- Date.now() in useMemo is intentional
     const diff = Math.round((Date.now() - lastSynced.getTime()) / 1000)
-    if (diff < 10)   return 'just now'
-    if (diff < 60)   return `${diff}s ago`
+    if (diff < 10) return 'just now'
+    if (diff < 60) return `${diff}s ago`
     if (diff < 3600) return `${Math.round(diff / 60)}m ago`
     return lastSynced.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }, [lastSynced])
@@ -73,14 +84,25 @@ export default function AuthButton({ user, syncing, lastSynced, syncPending, onS
             <div className="auth-panel-label">Data backup</div>
             <div className="auth-panel-btn-row">
               <button
-                onClick={() => { onExport(); setOpen(false) }}
+                onClick={() => {
+                  onExport()
+                  setOpen(false)
+                }}
                 className="auth-panel-btn"
               >
                 ↓ Export
               </button>
               <label className="auth-panel-btn">
                 ↑ Import
-                <input type="file" accept=".json" className="hidden" onChange={e => { onImportFile(e); setOpen(false) }} />
+                <input
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={e => {
+                    onImportFile(e)
+                    setOpen(false)
+                  }}
+                />
               </label>
             </div>
           </div>
@@ -102,13 +124,21 @@ export default function AuthButton({ user, syncing, lastSynced, syncPending, onS
         shouldCreateUser: true,
       },
     })
-    if (err) { setError(err.message); setPanelState('idle') }
-    else { setCode(''); setPanelState('sent') }
+    if (err) {
+      setError(err.message)
+      setPanelState('idle')
+    } else {
+      setCode('')
+      setPanelState('sent')
+    }
   }
 
   const verifyCode = async () => {
     const token = code.replace(/\D/g, '').slice(0, 8)
-    if (token.length < 8) { setError('Enter the full 8-digit code.'); return }
+    if (token.length < 8) {
+      setError('Enter the full 8-digit code.')
+      return
+    }
     setError('')
     setPanelState('verifying')
     const { error: err } = await supabase!.auth.verifyOtp({
@@ -116,14 +146,25 @@ export default function AuthButton({ user, syncing, lastSynced, syncPending, onS
       token,
       type: 'email',
     })
-    if (err) { setError(err.message); setPanelState('sent') }
+    if (err) {
+      setError(err.message)
+      setPanelState('sent')
+    }
     // On success the onAuthStateChange listener in App.tsx fires automatically
     else setOpen(false)
   }
 
-  const reset = () => { setPanelState('idle'); setEmail(''); setCode(''); setError('') }
+  const reset = () => {
+    setPanelState('idle')
+    setEmail('')
+    setCode('')
+    setError('')
+  }
 
-  const signOut = async () => { await supabase!.auth.signOut(); setOpen(false) }
+  const signOut = async () => {
+    await supabase!.auth.signOut()
+    setOpen(false)
+  }
 
   const initials = user?.email?.slice(0, 2).toUpperCase() ?? ''
 
@@ -136,14 +177,27 @@ export default function AuthButton({ user, syncing, lastSynced, syncPending, onS
         title={user ? user.email : 'Sign in to sync'}
         className={`auth-avatar${user ? ' auth-avatar--signed-in' : ''}`}
       >
-        {user ? initials : (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {user ? (
+          initials
+        ) : (
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <circle cx="12" cy="8" r="4" />
             <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
           </svg>
         )}
         {syncing && <span className="auth-avatar__badge" />}
-        {!syncing && syncPending && <span className="auth-avatar__badge auth-avatar__badge--pending" />}
+        {!syncing && syncPending && (
+          <span className="auth-avatar__badge auth-avatar__badge--pending" />
+        )}
       </button>
 
       {/* ── Panel ── */}
@@ -183,8 +237,8 @@ export default function AuthButton({ user, syncing, lastSynced, syncPending, onS
                 <>
                   <div className="auth-panel-heading">Enter your code</div>
                   <div className="auth-panel-sub">
-                    Check <strong className="text-teal">{email}</strong> for a
-                    8-digit code and enter it below.
+                    Check <strong className="text-teal">{email}</strong> for a 8-digit code and
+                    enter it below.
                   </div>
                   <input
                     ref={codeRef}
@@ -225,18 +279,24 @@ export default function AuthButton({ user, syncing, lastSynced, syncPending, onS
                 <div className="auth-user-info">
                   <div className="auth-user-email">{user.email}</div>
                   <div className="auth-user-status">
-                    {syncing
-                      ? <span className="text-amber">syncing…</span>
-                      : syncPending
-                        ? <span className="text-coral">changes not synced</span>
-                        : <span>synced: <span className="text-teal">{lastSyncedLabel}</span></span>
-                    }
+                    {syncing ? (
+                      <span className="text-amber">syncing…</span>
+                    ) : syncPending ? (
+                      <span className="text-coral">changes not synced</span>
+                    ) : (
+                      <span>
+                        synced: <span className="text-teal">{lastSyncedLabel}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
 
               <button
-                onClick={() => { onSynced(); setOpen(false) }}
+                onClick={() => {
+                  onSynced()
+                  setOpen(false)
+                }}
                 disabled={syncing}
                 className={`auth-panel-btn ${syncing ? 'syncing' : ''}`}
               >
@@ -246,14 +306,25 @@ export default function AuthButton({ user, syncing, lastSynced, syncPending, onS
               {/* Data backup */}
               <div className="auth-panel-btn-row">
                 <button
-                  onClick={() => { onExport(); setOpen(false) }}
+                  onClick={() => {
+                    onExport()
+                    setOpen(false)
+                  }}
                   className="auth-panel-btn"
                 >
                   ↓ Export
                 </button>
                 <label className="auth-panel-btn">
                   ↑ Import
-                  <input type="file" accept=".json" className="hidden" onChange={e => { onImportFile(e); setOpen(false) }} />
+                  <input
+                    type="file"
+                    accept=".json"
+                    className="hidden"
+                    onChange={e => {
+                      onImportFile(e)
+                      setOpen(false)
+                    }}
+                  />
                 </label>
               </div>
 

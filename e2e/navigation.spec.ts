@@ -17,7 +17,9 @@ test.describe('Tab navigation', () => {
   })
 
   test('switches to Schedule tab', async ({ page }) => {
-    await tabBar(page).getByRole('button', { name: /Schedule/i }).click()
+    await tabBar(page)
+      .getByRole('button', { name: /Schedule/i })
+      .click()
     await expect(tabBar(page).getByRole('button', { name: /Schedule/i })).toHaveClass(/active/)
     // Unauthenticated users see the sign-in gate
     await expect(page.getByText(/Sign in to save your schedule/i)).toBeVisible()
@@ -39,8 +41,12 @@ test.describe('Tab navigation', () => {
 
   test('switches to Tracker tab', async ({ page }) => {
     // Navigate away first, then switch back
-    await tabBar(page).getByRole('button', { name: /Schedule/i }).click()
-    await tabBar(page).getByRole('button', { name: /Tracker/i }).click()
+    await tabBar(page)
+      .getByRole('button', { name: /Schedule/i })
+      .click()
+    await tabBar(page)
+      .getByRole('button', { name: /Tracker/i })
+      .click()
     // TrackerTab shows the auth gate for unauthenticated users
     await expect(page.getByText(/Sign in to use/i)).toBeVisible()
   })
@@ -59,7 +65,9 @@ test.describe('Tab navigation', () => {
     await expect(page.getByText(/Progressive Overload/)).toBeVisible()
 
     // Switch away and back
-    await tabBar(page).getByRole('button', { name: /Schedule/i }).click()
+    await tabBar(page)
+      .getByRole('button', { name: /Schedule/i })
+      .click()
     await page.getByRole('button', { name: /Workouts/i }).click()
     // Week 2 content still showing (React state preserved)
     await expect(page.getByText(/Progressive Overload/)).toBeVisible()

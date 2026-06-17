@@ -21,35 +21,35 @@ vi.mock('../lib/supabase', () => ({
 }))
 
 vi.mock('../lib/sync', () => ({
-  fetchBuiltinRecipes:      vi.fn(),
-  fetchUserRecipes:         vi.fn(),
-  upsertUserRecipe:         vi.fn(),
-  deleteUserRecipe:         vi.fn(),
-  pullAllDays:              vi.fn(),
-  pullTags:                 vi.fn(),
-  pullGrocery:              vi.fn(),
-  pullFoodLibrary:          vi.fn(),
-  pullSchedule:             vi.fn(),
-  pullWeekSchedule:         vi.fn(),
-  pullMedGuides:            vi.fn(),
-  pullGroceryCatalog:       vi.fn(),
-  pullUserGroceryCatalog:   vi.fn(),
-  pushDay:                  vi.fn(),
-  pushTags:                 vi.fn(),
-  pushGrocery:              vi.fn(),
-  pushFoodLibrary:          vi.fn(),
-  pushSchedule:             vi.fn(),
-  pushWeekSchedule:         vi.fn(),
-  pushMedGuides:            vi.fn(),
-  pushUserGroceryCatalog:   vi.fn(),
-  fetchReminders:           vi.fn(),
-  upsertReminder:           vi.fn(),
-  deleteReminder:           vi.fn(),
-  fetchUserSettings:        vi.fn(),
-  upsertUserSettings:       vi.fn(),
-  fetchUserBodyStats:       vi.fn(),
-  fetchUserWorkoutPlan:     vi.fn(),
-  pushErrorLog:             vi.fn(),
+  fetchBuiltinRecipes: vi.fn(),
+  fetchUserRecipes: vi.fn(),
+  upsertUserRecipe: vi.fn(),
+  deleteUserRecipe: vi.fn(),
+  pullAllDays: vi.fn(),
+  pullTags: vi.fn(),
+  pullGrocery: vi.fn(),
+  pullFoodLibrary: vi.fn(),
+  pullSchedule: vi.fn(),
+  pullWeekSchedule: vi.fn(),
+  pullMedGuides: vi.fn(),
+  pullGroceryCatalog: vi.fn(),
+  pullUserGroceryCatalog: vi.fn(),
+  pushDay: vi.fn(),
+  pushTags: vi.fn(),
+  pushGrocery: vi.fn(),
+  pushFoodLibrary: vi.fn(),
+  pushSchedule: vi.fn(),
+  pushWeekSchedule: vi.fn(),
+  pushMedGuides: vi.fn(),
+  pushUserGroceryCatalog: vi.fn(),
+  fetchReminders: vi.fn(),
+  upsertReminder: vi.fn(),
+  deleteReminder: vi.fn(),
+  fetchUserSettings: vi.fn(),
+  upsertUserSettings: vi.fn(),
+  fetchUserBodyStats: vi.fn(),
+  fetchUserWorkoutPlan: vi.fn(),
+  pushErrorLog: vi.fn(),
 }))
 
 // ── Imports (after mocks) ─────────────────────────────────────────
@@ -72,13 +72,20 @@ const ls: Record<string, string> = {}
 beforeEach(() => {
   Object.keys(ls).forEach(k => delete ls[k])
   vi.stubGlobal('localStorage', {
-    getItem:    (k: string) => ls[k] ?? null,
-    setItem:    (k: string, v: string) => { ls[k] = v },
-    removeItem: (k: string) => { delete ls[k] },
-    clear:      () => Object.keys(ls).forEach(k => delete ls[k]),
+    getItem: (k: string) => ls[k] ?? null,
+    setItem: (k: string, v: string) => {
+      ls[k] = v
+    },
+    removeItem: (k: string) => {
+      delete ls[k]
+    },
+    clear: () => Object.keys(ls).forEach(k => delete ls[k]),
   })
   vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:mock'), revokeObjectURL: vi.fn() })
-  vi.stubGlobal('confirm', vi.fn(() => true))
+  vi.stubGlobal(
+    'confirm',
+    vi.fn(() => true),
+  )
   vi.stubGlobal('alert', vi.fn())
 
   // Default: no session, stable subscription
@@ -141,9 +148,12 @@ describe('App (with mocked Supabase)', () => {
       error: null,
     })
     render(<App />)
-    await waitFor(() => {
-      expect(mockSync['pullAllDays']).toHaveBeenCalledWith(MOCK_USER.id)
-    }, { timeout: 3000 })
+    await waitFor(
+      () => {
+        expect(mockSync['pullAllDays']).toHaveBeenCalledWith(MOCK_USER.id)
+      },
+      { timeout: 3000 },
+    )
   })
 
   it('calls all pull functions during syncAll', async () => {
@@ -152,9 +162,12 @@ describe('App (with mocked Supabase)', () => {
       error: null,
     })
     render(<App />)
-    await waitFor(() => {
-      expect(mockSync['pullAllDays']).toHaveBeenCalledWith(MOCK_USER.id)
-    }, { timeout: 3000 })
+    await waitFor(
+      () => {
+        expect(mockSync['pullAllDays']).toHaveBeenCalledWith(MOCK_USER.id)
+      },
+      { timeout: 3000 },
+    )
     expect(mockSync['pullTags']).toHaveBeenCalledWith(MOCK_USER.id)
     expect(mockSync['pullGrocery']).toHaveBeenCalledWith(MOCK_USER.id)
     expect(mockSync['pullFoodLibrary']).toHaveBeenCalledWith(MOCK_USER.id)
@@ -162,14 +175,21 @@ describe('App (with mocked Supabase)', () => {
   })
 
   it('local-only grocery catalog items survive the merge', async () => {
-    ls['whub_grocery_catalog_v1'] = JSON.stringify([{ id: 'local-1', n: 'Local Kale', cat: 'Produce - Vegetables' }])
+    ls['whub_grocery_catalog_v1'] = JSON.stringify([
+      { id: 'local-1', n: 'Local Kale', cat: 'Produce - Vegetables' },
+    ])
     mockAuth.getSession.mockResolvedValue({ data: { session: { user: MOCK_USER } }, error: null })
-    mockSync['pullUserGroceryCatalog'].mockResolvedValue([{ id: 'remote-1', n: 'Remote Salmon', cat: 'Protein - Animal' }])
+    mockSync['pullUserGroceryCatalog'].mockResolvedValue([
+      { id: 'remote-1', n: 'Remote Salmon', cat: 'Protein - Animal' },
+    ])
 
     render(<App />)
-    await waitFor(() => {
-      expect(mockSync['pushUserGroceryCatalog']).toHaveBeenCalled()
-    }, { timeout: 3000 })
+    await waitFor(
+      () => {
+        expect(mockSync['pushUserGroceryCatalog']).toHaveBeenCalled()
+      },
+      { timeout: 3000 },
+    )
     const pushed = mockSync['pushUserGroceryCatalog'].mock.calls[0]?.[1]
     expect(pushed?.find((i: any) => i.id === 'local-1')).toBeDefined()
     expect(pushed?.find((i: any) => i.id === 'remote-1')).toBeDefined()
@@ -181,9 +201,12 @@ describe('App (with mocked Supabase)', () => {
       error: null,
     })
     render(<App />)
-    await waitFor(() => {
-      expect(mockSync['pushTags']).toHaveBeenCalled()
-    }, { timeout: 3000 })
+    await waitFor(
+      () => {
+        expect(mockSync['pushTags']).toHaveBeenCalled()
+      },
+      { timeout: 3000 },
+    )
     expect(mockSync['pushGrocery']).toHaveBeenCalled()
     expect(mockSync['pushFoodLibrary']).toHaveBeenCalled()
   })
@@ -196,7 +219,7 @@ describe('App (with mocked Supabase)', () => {
     })
 
     render(<App />)
-    await new Promise(r => setTimeout(r, 30))  // let mount effects settle
+    await new Promise(r => setTimeout(r, 30)) // let mount effects settle
 
     vi.clearAllMocks()
     mockSync['pullAllDays'].mockResolvedValue({})
@@ -219,9 +242,12 @@ describe('App (with mocked Supabase)', () => {
 
     authCb!('SIGNED_IN', { user: MOCK_USER })
 
-    await waitFor(() => {
-      expect(mockSync['pullAllDays']).toHaveBeenCalledWith(MOCK_USER.id)
-    }, { timeout: 3000 })
+    await waitFor(
+      () => {
+        expect(mockSync['pullAllDays']).toHaveBeenCalledWith(MOCK_USER.id)
+      },
+      { timeout: 3000 },
+    )
   })
 
   it('auth state change with null user clears sync (no pullAllDays)', async () => {
@@ -287,9 +313,12 @@ describe('App (with mocked Supabase)', () => {
     mockSync['pullTags'].mockResolvedValue(['vegan'])
 
     render(<App />)
-    await waitFor(() => {
-      expect(mockSync['pushTags']).toHaveBeenCalled()
-    }, { timeout: 3000 })
+    await waitFor(
+      () => {
+        expect(mockSync['pushTags']).toHaveBeenCalled()
+      },
+      { timeout: 3000 },
+    )
     const pushed = mockSync['pushTags'].mock.calls[0]?.[1]
     // Both local and remote tags should be present in the merged push
     expect(pushed).toContain('keto')
@@ -297,31 +326,53 @@ describe('App (with mocked Supabase)', () => {
   })
 
   it('local-only food library entries survive the merge filter (line 63)', async () => {
-    ls['whub_food_library_v1'] = JSON.stringify([{ n: 'Local Food', k: 100, p: 5, c: 10, f: 3, fi: 2 }])
+    ls['whub_food_library_v1'] = JSON.stringify([
+      { n: 'Local Food', k: 100, p: 5, c: 10, f: 3, fi: 2 },
+    ])
     mockAuth.getSession.mockResolvedValue({ data: { session: { user: MOCK_USER } }, error: null })
-    mockSync['pullFoodLibrary'].mockResolvedValue([{ n: 'Remote Food', k: 200, p: 10, c: 20, f: 6, fi: 4 }])
+    mockSync['pullFoodLibrary'].mockResolvedValue([
+      { n: 'Remote Food', k: 200, p: 10, c: 20, f: 6, fi: 4 },
+    ])
 
     render(<App />)
-    await waitFor(() => {
-      expect(mockSync['pushFoodLibrary']).toHaveBeenCalled()
-    }, { timeout: 3000 })
+    await waitFor(
+      () => {
+        expect(mockSync['pushFoodLibrary']).toHaveBeenCalled()
+      },
+      { timeout: 3000 },
+    )
     const pushed = mockSync['pushFoodLibrary'].mock.calls[0]?.[1]
     expect(pushed?.find((f: any) => f.n === 'Local Food')).toBeDefined()
   })
 
   it('tracker days are pushed individually via pushDay (line 78)', async () => {
     const dayData = {
-      foods: [], workout: 'pilates', wkNotes: '', energy: 3,
-      mood: 4, sleep: 5, stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '',
+      foods: [],
+      workout: 'pilates',
+      wkNotes: '',
+      energy: 3,
+      mood: 4,
+      sleep: 5,
+      stress: 0,
+      water: 0,
+      phase: '',
+      notes: '',
+      medMin: 0,
+      medStyle: '',
     }
     ls['whub_tracker_v3'] = JSON.stringify({ '2026-01-15': dayData })
     mockAuth.getSession.mockResolvedValue({ data: { session: { user: MOCK_USER } }, error: null })
 
     render(<App />)
-    await waitFor(() => {
-      expect(mockSync['pushDay']).toHaveBeenCalledWith(
-        MOCK_USER.id, '2026-01-15', expect.objectContaining({ workout: 'pilates' })
-      )
-    }, { timeout: 3000 })
+    await waitFor(
+      () => {
+        expect(mockSync['pushDay']).toHaveBeenCalledWith(
+          MOCK_USER.id,
+          '2026-01-15',
+          expect.objectContaining({ workout: 'pilates' }),
+        )
+      },
+      { timeout: 3000 },
+    )
   })
 })

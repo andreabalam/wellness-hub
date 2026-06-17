@@ -20,10 +20,14 @@ beforeEach(() => {
   vi.unstubAllGlobals()
   Object.keys(store).forEach(k => delete store[k])
   vi.stubGlobal('localStorage', {
-    getItem:    (k: string) => store[k] ?? null,
-    setItem:    (k: string, v: string) => { store[k] = v },
-    removeItem: (k: string) => { delete store[k] },
-    clear:      () => Object.keys(store).forEach(k => delete store[k]),
+    getItem: (k: string) => store[k] ?? null,
+    setItem: (k: string, v: string) => {
+      store[k] = v
+    },
+    removeItem: (k: string) => {
+      delete store[k]
+    },
+    clear: () => Object.keys(store).forEach(k => delete store[k]),
   })
 })
 
@@ -74,7 +78,10 @@ describe('parseIngredientAmount', () => {
 
   it('resolves count-style units independent of name', () => {
     expect(parseIngredientAmount('2 cloves', 'garlic')).toEqual({ grams: 6, method: 'piece' })
-    expect(parseIngredientAmount('1 scoop', 'protein powder')).toEqual({ grams: 30, method: 'piece' })
+    expect(parseIngredientAmount('1 scoop', 'protein powder')).toEqual({
+      grams: 30,
+      method: 'piece',
+    })
   })
 
   it('treats a unit without a number as quantity 1', () => {
@@ -86,15 +93,15 @@ describe('parseIngredientAmount', () => {
     expect(parseIngredientAmount('to taste', 'pepper')).toBeNull()
     expect(parseIngredientAmount('a pinch', 'nutmeg')).toBeNull()
     expect(parseIngredientAmount('1 bunch', 'cilantro')).toBeNull()
-    expect(parseIngredientAmount('2', 'star anise')).toBeNull()   // no piece weight
+    expect(parseIngredientAmount('2', 'star anise')).toBeNull() // no piece weight
     expect(parseIngredientAmount('', 'salt')).toBeNull()
   })
 })
 
 // ── computeRecipeMacros ───────────────────────────────────────────
 
-const OATS: UsdaPer100g    = { name: 'Oats, raw',      k: 379, p: 13.2, c: 67.7, f: 6.5, fi: 10.1 }
-const BANANA: UsdaPer100g  = { name: 'Bananas, raw',   k: 89,  p: 1.1,  c: 22.8, f: 0.3, fi: 2.6 }
+const OATS: UsdaPer100g = { name: 'Oats, raw', k: 379, p: 13.2, c: 67.7, f: 6.5, fi: 10.1 }
+const BANANA: UsdaPer100g = { name: 'Bananas, raw', k: 89, p: 1.1, c: 22.8, f: 0.3, fi: 2.6 }
 
 function stubLookup(map: Record<string, UsdaPer100g | null>): Per100gLookup {
   return async (name: string) => map[name] ?? null
@@ -103,7 +110,10 @@ function stubLookup(map: Record<string, UsdaPer100g | null>): Per100gLookup {
 describe('computeRecipeMacros', () => {
   it('sums matched ingredients and divides by servings', async () => {
     const res = await computeRecipeMacros(
-      [['oats', '100g'], ['banana', '2']],
+      [
+        ['oats', '100g'],
+        ['banana', '2'],
+      ],
       2,
       stubLookup({ oats: OATS, banana: BANANA }),
     )
@@ -112,12 +122,21 @@ describe('computeRecipeMacros', () => {
     expect(res.totals.p).toBe(Math.round((13.2 + 1.1 * 2.36) / 2))
     expect(res.matched).toBe(2)
     expect(res.rows).toHaveLength(2)
-    expect(res.rows[0]).toMatchObject({ status: 'ok', grams: 100, matchName: 'Oats, raw', kcal: 379 })
+    expect(res.rows[0]).toMatchObject({
+      status: 'ok',
+      grams: 100,
+      matchName: 'Oats, raw',
+      kcal: 379,
+    })
   })
 
   it('flags unparseable amounts and missing matches without failing', async () => {
     const res = await computeRecipeMacros(
-      [['salt', 'to taste'], ['mystery sauce', '2 tbsp'], ['oats', '50g']],
+      [
+        ['salt', 'to taste'],
+        ['mystery sauce', '2 tbsp'],
+        ['oats', '50g'],
+      ],
       1,
       stubLookup({ oats: OATS }),
     )
@@ -134,13 +153,22 @@ describe('computeRecipeMacros', () => {
   })
 
   it('returns matched 0 and zero totals when nothing resolves', async () => {
-    const res = await computeRecipeMacros([['x', '—'], ['y', '1 cup']], 1, stubLookup({}))
+    const res = await computeRecipeMacros(
+      [
+        ['x', '—'],
+        ['y', '1 cup'],
+      ],
+      1,
+      stubLookup({}),
+    )
     expect(res.matched).toBe(0)
     expect(res.totals).toEqual({ k: 0, p: 0, c: 0, f: 0, fi: 0 })
   })
 
   it('propagates lookup errors', async () => {
-    const failing: Per100gLookup = async () => { throw new Error('USDA 429') }
+    const failing: Per100gLookup = async () => {
+      throw new Error('USDA 429')
+    }
     await expect(computeRecipeMacros([['oats', '100g']], 1, failing)).rejects.toThrow('USDA 429')
   })
 })
@@ -196,13 +224,21 @@ describe('makeCachedUsdaLookup', () => {
 
 describe('searchUSDAPer100g', () => {
   it('returns per-100g macros without serving scaling', async () => {
-    mockUSDA([{
-      description: 'Oats, raw',
-      servingSize: 40, servingSizeUnit: 'G',   // would scale searchUSDAFoods; must NOT scale here
-      foodNutrients: NUTRIENTS_100G,
-    }])
+    mockUSDA([
+      {
+        description: 'Oats, raw',
+        servingSize: 40,
+        servingSizeUnit: 'G', // would scale searchUSDAFoods; must NOT scale here
+        foodNutrients: NUTRIENTS_100G,
+      },
+    ])
     expect(await searchUSDAPer100g('oats')).toEqual({
-      name: 'Oats, raw', k: 379, p: 13.2, c: 67.7, f: 6.5, fi: 10.1,
+      name: 'Oats, raw',
+      k: 379,
+      p: 13.2,
+      c: 67.7,
+      f: 6.5,
+      fi: 10.1,
     })
   })
 

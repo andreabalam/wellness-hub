@@ -2,7 +2,13 @@ import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Recipe, DietTag } from '../../data/recipes'
 import { BUILTIN_RECIPES, DIET_TAGS } from '../../data/recipes'
-import { useRecipeStore, useTrackerStore, useHiddenRecipeStore, useGroceryCatalogStore, builtinRecipeCacheStore } from '../../hooks/useStore'
+import {
+  useRecipeStore,
+  useTrackerStore,
+  useHiddenRecipeStore,
+  useGroceryCatalogStore,
+  builtinRecipeCacheStore,
+} from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
 import { reportError } from '../../lib/errorLog'
@@ -14,7 +20,16 @@ import GroceryPanel from './GroceryPanel'
 import CookingMode from './CookingMode'
 import GroceryIngredientModal from './GroceryIngredientModal'
 
-type Filter = 'all' | 'breakfast' | 'smoothie' | 'meal' | 'dessert' | 'snack' | 'ferments' | 'drinks' | 'grocery'
+type Filter =
+  | 'all'
+  | 'breakfast'
+  | 'smoothie'
+  | 'meal'
+  | 'dessert'
+  | 'snack'
+  | 'ferments'
+  | 'drinks'
+  | 'grocery'
 
 const FILTER_BTNS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -29,16 +44,23 @@ const FILTER_BTNS: { id: Filter; label: string }[] = [
 
 /** Request to open a specific recipe (from the tracker's 📖 badge).
  *  `seq` changes on every request so repeat opens of the same recipe re-fire. */
-export interface OpenRecipeRequest { id?: number; name: string; seq: number }
+export interface OpenRecipeRequest {
+  id?: number
+  name: string
+  seq: number
+}
 
-export default function RecipesTab({ user, openRequest }: {
+export default function RecipesTab({
+  user,
+  openRequest,
+}: {
   user?: User | null
   openRequest?: OpenRecipeRequest | null
 }) {
   const isAuth = !!user
-  const store        = useRecipeStore()
+  const store = useRecipeStore()
   const trackerStore = useTrackerStore()
-  const hiddenStore  = useHiddenRecipeStore()
+  const hiddenStore = useHiddenRecipeStore()
   const catalogStore = useGroceryCatalogStore()
 
   /** Map of recipe name (lowercase) → number of times logged in the tracker */
@@ -54,21 +76,21 @@ export default function RecipesTab({ user, openRequest }: {
     return counts
   }, [trackerStore])
 
-  const [filter, setFilter]         = useState<Filter>('all')
+  const [filter, setFilter] = useState<Filter>('all')
   const [dietFilter, setDietFilter] = useState<DietTag | 'all'>('all')
-  const [showModal, setShowModal]   = useState(false)
-  const [cookingRecipe, setCookingRecipe]   = useState<Recipe | null>(null)
-  const [groceryRecipe, setGroceryRecipe]   = useState<Recipe | null>(null)
+  const [showModal, setShowModal] = useState(false)
+  const [cookingRecipe, setCookingRecipe] = useState<Recipe | null>(null)
+  const [groceryRecipe, setGroceryRecipe] = useState<Recipe | null>(null)
   const [editRecipe, setEditRecipe] = useState<Recipe | null>(null)
   const [customRecipes, setCustomRecipes] = useState<Recipe[]>(() => store.getRecipes())
   const [customTags, setCustomTags] = useState<string[]>(() => store.getTags())
-  const [query, setQuery]           = useState('')
+  const [query, setQuery] = useState('')
   // Seed with the static fallback so the UI is never empty without Supabase.
   // If Supabase is configured, the effect below upgrades this to the full DB catalog.
   const [builtinRecipes, setBuiltinRecipes] = useState<Recipe[]>(BUILTIN_RECIPES)
-  const [hiddenIds, setHiddenIds]   = useState<number[]>(() => hiddenStore.getAll())
-  const [loading, setLoading]       = useState(false)
-  const [loadError]   = useState(false)
+  const [hiddenIds, setHiddenIds] = useState<number[]>(() => hiddenStore.getAll())
+  const [loading, setLoading] = useState(false)
+  const [loadError] = useState(false)
 
   // When Supabase is available, upgrade the static fallback to the full DB catalog.
   // Re-runs when the signed-in user changes so sign-in on any device loads their recipes.
@@ -82,8 +104,11 @@ export default function RecipesTab({ user, openRequest }: {
       // merge/prune against (an error must not wipe synced recipes).
       let userRecipes: Recipe[] | null = null
       if (user) {
-        try { userRecipes = await sync.fetchUserRecipes(user.id) }
-        catch (err) { reportError('recipe-sync:pull', err) }
+        try {
+          userRecipes = await sync.fetchUserRecipes(user.id)
+        } catch (err) {
+          reportError('recipe-sync:pull', err)
+        }
       }
       if (cancelled) return
 
@@ -108,11 +133,15 @@ export default function RecipesTab({ user, openRequest }: {
       let finalMerged = merged
       if (user && toPush.length) {
         const idMap = new Map<number, number>() // old placeholder id → new DB id
-        await Promise.all(toPush.map(async r => {
-          const dbId = await sync.upsertUserRecipe(user.id, r)
-            .catch(err => { reportError('recipe-sync:push', err); return null })
-          if (dbId != null && dbId !== r.id) idMap.set(r.id!, dbId)
-        }))
+        await Promise.all(
+          toPush.map(async r => {
+            const dbId = await sync.upsertUserRecipe(user.id, r).catch(err => {
+              reportError('recipe-sync:push', err)
+              return null
+            })
+            if (dbId != null && dbId !== r.id) idMap.set(r.id!, dbId)
+          }),
+        )
         if (cancelled) return
         finalMerged = applyIdMap(merged, idMap)
       }
@@ -123,7 +152,9 @@ export default function RecipesTab({ user, openRequest }: {
       setCustomRecipes(finalMerged)
       setLoading(false)
     })()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [user?.id])
 
   // Open-from-tracker: when a 📖 badge is tapped, expand the linked recipe.
@@ -150,9 +181,9 @@ export default function RecipesTab({ user, openRequest }: {
       // list yet — state is seeded at mount, and without Supabase there is no
       // fetch effect to re-merge it. Inject it so there is a card to expand.
       if (match.custom) {
-        setCustomRecipes(prev => prev.some(r => r.id === match.id) ? prev : [...prev, match])
+        setCustomRecipes(prev => (prev.some(r => r.id === match.id) ? prev : [...prev, match]))
       } else {
-        setBuiltinRecipes(prev => prev.some(r => r.id === match.id) ? prev : [...prev, match])
+        setBuiltinRecipes(prev => (prev.some(r => r.id === match.id) ? prev : [...prev, match]))
       }
       setFilter('all')
       setQuery('')
@@ -162,7 +193,7 @@ export default function RecipesTab({ user, openRequest }: {
       setAutoOpenName(null)
     }
     /* eslint-enable react-hooks/set-state-in-effect */
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRequest?.seq])
 
   const activeFilter: Filter = filter
@@ -176,12 +207,12 @@ export default function RecipesTab({ user, openRequest }: {
     if (isUpdate) {
       // Update localStorage only if the recipe was there (it may be DB-only on a fresh device)
       if (existingLocal.some(x => x.id === r.id)) {
-        store.saveRecipes(existingLocal.map(x => x.id === r.id ? r : x))
+        store.saveRecipes(existingLocal.map(x => (x.id === r.id ? r : x)))
       } else {
         store.addRecipe(r)
       }
       // Replace in React state — preserves Supabase-loaded recipes not in localStorage
-      setCustomRecipes(prev => prev.map(x => x.id === r.id ? r : x))
+      setCustomRecipes(prev => prev.map(x => (x.id === r.id ? r : x)))
     } else {
       store.addRecipe(r)
       // Prepend to React state — preserves all existing recipes
@@ -192,21 +223,26 @@ export default function RecipesTab({ user, openRequest }: {
     // Sync to Supabase when logged in
     if (supabase) {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
         if (user) {
           const dbId = await sync.upsertUserRecipe(user.id, r)
           if (dbId == null) {
             // DB write failed — the recipe is saved locally and the next sign-in
             // sync will retry the push. Treat null as a hard failure: do NOT keep
             // believing it synced, and surface it to the user + the error log.
-            showToast(reportError('recipe-save', new Error(`recipe sync failed: ${r.name}`)), 'error')
+            showToast(
+              reportError('recipe-save', new Error(`recipe sync failed: ${r.name}`)),
+              'error',
+            )
           } else if (dbId !== r.id) {
             // Swap the local placeholder id for the DB-assigned one. Runs for both
             // new recipes and updates whose id was still a placeholder, so repeated
             // edits update the same row instead of inserting duplicates.
             store.deleteRecipe(r.id!)
             store.addRecipe({ ...r, id: dbId })
-            setCustomRecipes(prev => prev.map(x => x.id === r.id ? { ...r, id: dbId } : x))
+            setCustomRecipes(prev => prev.map(x => (x.id === r.id ? { ...r, id: dbId } : x)))
           }
         }
       } catch (err) {
@@ -221,9 +257,13 @@ export default function RecipesTab({ user, openRequest }: {
     setCustomRecipes(prev => prev.filter(r => r.id !== id))
     if (supabase) {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
         if (user) await sync.deleteUserRecipe(id)
-      } catch { /* offline */ }
+      } catch {
+        /* offline */
+      }
     }
   }
 
@@ -237,42 +277,48 @@ export default function RecipesTab({ user, openRequest }: {
    * A fork is a custom copy with `defaultId` pointing to the original.
    * If the user already has a fork for this built-in, open that instead.
    */
-  const handleEdit = useCallback((recipe: Recipe) => {
-    if (!recipe.custom && recipe.id != null) {
-      // Check if a fork already exists in customRecipes
-      const existingFork = store.getRecipes().find(r => r.defaultId === recipe.id)
-      if (existingFork) {
-        setEditRecipe(existingFork)
-      } else {
-        // Create an in-memory fork — it will be saved by handleSave
-        const fork: Recipe = {
-          ...recipe,
-          id:        Date.now(),
-          defaultId: recipe.id,
-          source:    'user',
-          custom:    true,
-          color:     'var(--purple)',
-          sc:        'cp',
-          tag:       recipe.tag ?? 'My recipe',
-          prepL:     recipe.prepTime ?? recipe.prepL ?? 'Custom',
-          prepC:     'var(--purple)',
+  const handleEdit = useCallback(
+    (recipe: Recipe) => {
+      if (!recipe.custom && recipe.id != null) {
+        // Check if a fork already exists in customRecipes
+        const existingFork = store.getRecipes().find(r => r.defaultId === recipe.id)
+        if (existingFork) {
+          setEditRecipe(existingFork)
+        } else {
+          // Create an in-memory fork — it will be saved by handleSave
+          const fork: Recipe = {
+            ...recipe,
+            id: Date.now(),
+            defaultId: recipe.id,
+            source: 'user',
+            custom: true,
+            color: 'var(--purple)',
+            sc: 'cp',
+            tag: recipe.tag ?? 'My recipe',
+            prepL: recipe.prepTime ?? recipe.prepL ?? 'Custom',
+            prepC: 'var(--purple)',
+          }
+          setEditRecipe(fork)
         }
-        setEditRecipe(fork)
+      } else {
+        setEditRecipe(recipe)
       }
-    } else {
-      setEditRecipe(recipe)
-    }
-    setShowModal(true)
-  }, [store])
+      setShowModal(true)
+    },
+    [store],
+  )
 
   const handleCook = useCallback((recipe: Recipe) => {
     setCookingRecipe(recipe)
   }, [])
 
-  const handleHide = useCallback((id: number) => {
-    hiddenStore.hide(id)
-    setHiddenIds(hiddenStore.getAll())
-  }, [hiddenStore])
+  const handleHide = useCallback(
+    (id: number) => {
+      hiddenStore.hide(id)
+      setHiddenIds(hiddenStore.getAll())
+    },
+    [hiddenStore],
+  )
 
   const handleRestoreAll = useCallback(() => {
     hiddenStore.restoreAll()
@@ -286,7 +332,7 @@ export default function RecipesTab({ user, openRequest }: {
   // Built-in recipes excluding the ones the user has hidden
   const visibleBuiltins = useMemo(
     () => builtinRecipes.filter(r => r.id == null || !hiddenIds.includes(r.id)),
-    [builtinRecipes, hiddenIds]
+    [builtinRecipes, hiddenIds],
   )
 
   const filterCounts = useMemo<Record<string, number>>(() => {
@@ -301,7 +347,7 @@ export default function RecipesTab({ user, openRequest }: {
   // True when at least one visible recipe carries a diet tag — gates the diet filter row
   const hasDietTags = useMemo(
     () => [...customRecipes, ...visibleBuiltins].some(r => r.dietTag),
-    [customRecipes, visibleBuiltins]
+    [customRecipes, visibleBuiltins],
   )
 
   // Displayed recipes
@@ -313,16 +359,22 @@ export default function RecipesTab({ user, openRequest }: {
     // When searching, scan everything (built-in + custom) regardless of filter
     if (q) {
       const all = [...customRecipes, ...visibleBuiltins]
-      return applyDiet(all.filter(r =>
-        r.name.toLowerCase().includes(q) ||
-        (r.tag  ?? '').toLowerCase().includes(q) ||
-        (r.type ?? '').toLowerCase().includes(q) ||
-        r.ings.some(([ing]) => ing.toLowerCase().includes(q))
-      ))
+      return applyDiet(
+        all.filter(
+          r =>
+            r.name.toLowerCase().includes(q) ||
+            (r.tag ?? '').toLowerCase().includes(q) ||
+            (r.type ?? '').toLowerCase().includes(q) ||
+            r.ings.some(([ing]) => ing.toLowerCase().includes(q)),
+        ),
+      )
     }
 
     if (activeFilter === 'all') return applyDiet([...customRecipes, ...visibleBuiltins])
-    return applyDiet([...customRecipes.filter(r => r.cat === activeFilter), ...visibleBuiltins.filter(r => r.cat === activeFilter)])
+    return applyDiet([
+      ...customRecipes.filter(r => r.cat === activeFilter),
+      ...visibleBuiltins.filter(r => r.cat === activeFilter),
+    ])
   }, [query, activeFilter, dietFilter, visibleBuiltins, customRecipes])
 
   if (!user) {
@@ -333,7 +385,8 @@ export default function RecipesTab({ user, openRequest }: {
           Sign in to save <em className="text-purple">Recipes</em>
         </div>
         <div className="guest-gate-body">
-          Create, save and organise your personal recipes. Your collection stays private and syncs across devices.
+          Create, save and organise your personal recipes. Your collection stays private and syncs
+          across devices.
         </div>
       </div>
     )
@@ -350,9 +403,7 @@ export default function RecipesTab({ user, openRequest }: {
             onClick={() => setFilter(btn.id)}
           >
             {btn.label}
-            {!!filterCounts[btn.id] && (
-              <span className="rfbtn-count">{filterCounts[btn.id]}</span>
-            )}
+            {!!filterCounts[btn.id] && <span className="rfbtn-count">{filterCounts[btn.id]}</span>}
           </button>
         ))}
         <button
@@ -367,11 +418,18 @@ export default function RecipesTab({ user, openRequest }: {
       {activeFilter !== 'grocery' && (
         <div className="recipe-search-wrap">
           <svg
-            width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             className="recipe-search-icon"
           >
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
             type="search"
@@ -381,7 +439,9 @@ export default function RecipesTab({ user, openRequest }: {
             className="recipe-search-input"
           />
           {query && (
-            <button onClick={() => setQuery('')} className="recipe-search-clear">×</button>
+            <button onClick={() => setQuery('')} className="recipe-search-clear">
+              ×
+            </button>
           )}
         </div>
       )}
@@ -422,7 +482,9 @@ export default function RecipesTab({ user, openRequest }: {
       {/* Restore hidden banner — shown when the user has hidden built-in recipes */}
       {hiddenIds.length > 0 && activeFilter !== 'grocery' && (
         <div role="status" aria-label="restore hidden recipes" className="ai-badge mb-14">
-          <span>{hiddenIds.length} suggestion{hiddenIds.length !== 1 ? 's' : ''} hidden</span>
+          <span>
+            {hiddenIds.length} suggestion{hiddenIds.length !== 1 ? 's' : ''} hidden
+          </span>
           <button onClick={handleRestoreAll} className="ai-badge__dismiss">
             Restore all
           </button>
@@ -440,12 +502,18 @@ export default function RecipesTab({ user, openRequest }: {
             </div>
           ) : visibleRecipes.length === 0 ? (
             <div className="empty-state">
-              {query.trim()
-                ? <>No recipes found for <strong className="text-default">"{query.trim()}"</strong>.</>
-                : isAuth
-                  ? <>No recipes yet. Tap <strong className="text-purple">+ Add my recipe</strong> to create your first one.</>
-                  : <>Sign in to add and view your recipes.</>
-              }
+              {query.trim() ? (
+                <>
+                  No recipes found for <strong className="text-default">"{query.trim()}"</strong>.
+                </>
+              ) : isAuth ? (
+                <>
+                  No recipes yet. Tap <strong className="text-purple">+ Add my recipe</strong> to
+                  create your first one.
+                </>
+              ) : (
+                <>Sign in to add and view your recipes.</>
+              )}
             </div>
           ) : (
             visibleRecipes.map((r, i) => (
@@ -473,16 +541,16 @@ export default function RecipesTab({ user, openRequest }: {
           initialRecipe={editRecipe ?? undefined}
           onSave={handleSave}
           onAddTag={handleAddTag}
-          onClose={() => { setShowModal(false); setEditRecipe(null) }}
+          onClose={() => {
+            setShowModal(false)
+            setEditRecipe(null)
+          }}
         />
       )}
 
       {/* Cooking mode overlay */}
       {cookingRecipe && (
-        <CookingMode
-          recipe={cookingRecipe}
-          onClose={() => setCookingRecipe(null)}
-        />
+        <CookingMode recipe={cookingRecipe} onClose={() => setCookingRecipe(null)} />
       )}
 
       {/* Grocery ingredient picker */}

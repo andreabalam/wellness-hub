@@ -2,16 +2,27 @@ import { test, expect } from '@playwright/test'
 import { SCHEDULE_BLOCKS } from '../src/data/schedule'
 
 const FAKE_USER = JSON.stringify({
-  id: 'e2e-test-id', email: 'test@e2e.com',
-  app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
+  id: 'e2e-test-id',
+  email: 'test@e2e.com',
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  created_at: '',
 })
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    sessionStorage.setItem('__e2e_user__', JSON.stringify({
-      id: 'e2e-test-id', email: 'test@e2e.com',
-      app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
-    }))
+    sessionStorage.setItem(
+      '__e2e_user__',
+      JSON.stringify({
+        id: 'e2e-test-id',
+        email: 'test@e2e.com',
+        app_metadata: {},
+        user_metadata: {},
+        aud: 'authenticated',
+        created_at: '',
+      }),
+    )
   })
 })
 
@@ -22,14 +33,26 @@ test('edit with pre-existing v1 schedule data', async ({ page }) => {
     localStorage.clear()
     // Simulate old v1 data with a custom title
     const v1Blocks = [
-      { id: 'default-8:00-Wake', time: '08:00', title: 'ORIGINAL TITLE', dur: '5 min',
-        color: 'green', whyTxt: 'test', desc: '', phase: 'Morning' },
+      {
+        id: 'default-8:00-Wake',
+        time: '08:00',
+        title: 'ORIGINAL TITLE',
+        dur: '5 min',
+        color: 'green',
+        whyTxt: 'test',
+        desc: '',
+        phase: 'Morning',
+      },
     ]
     localStorage.setItem('whub_schedule_v1', JSON.stringify(v1Blocks))
   })
   await page.reload()
 
-  await page.locator('button').filter({ hasText: /Schedule/ }).first().click()
+  await page
+    .locator('button')
+    .filter({ hasText: /Schedule/ })
+    .first()
+    .click()
   await page.waitForTimeout(500)
 
   // Should show the v1 title in timeline
@@ -58,10 +81,16 @@ test('edit with pre-existing v1 schedule data', async ({ page }) => {
 
 test('edit shows immediately without needing to switch days', async ({ page }) => {
   await page.goto('/')
-  await page.evaluate(() => { localStorage.clear() })
+  await page.evaluate(() => {
+    localStorage.clear()
+  })
   await page.reload()
 
-  await page.locator('button').filter({ hasText: /Schedule/ }).first().click()
+  await page
+    .locator('button')
+    .filter({ hasText: /Schedule/ })
+    .first()
+    .click()
   await page.waitForTimeout(400)
 
   const dayBefore = await page.locator('.ttitle').first().textContent()
@@ -72,9 +101,13 @@ test('edit shows immediately without needing to switch days', async ({ page }) =
   await page.waitForTimeout(400)
 
   // Confirm scope default
-  const scopeStyle = await page.locator('button', { hasText: 'This day only' })
+  const scopeStyle = await page
+    .locator('button', { hasText: 'This day only' })
     .evaluate(el => window.getComputedStyle(el).background)
-  console.log('This day only background:', scopeStyle.includes('58') ? 'TEAL (active)' : 'NOT ACTIVE')
+  console.log(
+    'This day only background:',
+    scopeStyle.includes('58') ? 'TEAL (active)' : 'NOT ACTIVE',
+  )
 
   // Make the edit
   await page.locator('button[title="Edit"]').first().click()
@@ -107,7 +140,7 @@ test('edit shows immediately without needing to switch days', async ({ page }) =
     console.log('localStorage v2 length:', ls.v2?.length)
     if (ls.v2) {
       const v2 = JSON.parse(ls.v2)
-      const todayKey = ['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()]
+      const todayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()]
       console.log('v2 today blocks first title:', v2[todayKey]?.[0]?.title)
     }
   }

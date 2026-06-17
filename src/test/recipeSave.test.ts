@@ -17,19 +17,26 @@ const _ls: Record<string, string> = {}
 beforeEach(() => {
   Object.keys(_ls).forEach(k => delete _ls[k])
   vi.stubGlobal('localStorage', {
-    getItem:    (k: string) => _ls[k] ?? null,
-    setItem:    (k: string, v: string) => { _ls[k] = v },
-    removeItem: (k: string) => { delete _ls[k] },
-    clear:      () => Object.keys(_ls).forEach(k => delete _ls[k]),
+    getItem: (k: string) => _ls[k] ?? null,
+    setItem: (k: string, v: string) => {
+      _ls[k] = v
+    },
+    removeItem: (k: string) => {
+      delete _ls[k]
+    },
+    clear: () => Object.keys(_ls).forEach(k => delete _ls[k]),
   })
 })
 
 const RECIPES_KEY = 'whub_recipes_v1'
-const TAGS_KEY    = 'whub_tags_v1'
+const TAGS_KEY = 'whub_tags_v1'
 
 function safeGet<T>(key: string, fallback: T): T {
-  try { return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback }
-  catch { return fallback }
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback
+  } catch {
+    return fallback
+  }
 }
 function safeSet(key: string, val: unknown) {
   localStorage.setItem(key, JSON.stringify(val))
@@ -38,23 +45,43 @@ function safeSet(key: string, val: unknown) {
 // Minimal store implementation matching useStore.ts — tested in isolation
 // so we don't need to import the full module with its Supabase side-effects.
 function makeStore() {
-  const getRecipes   = () => safeGet<unknown[]>(RECIPES_KEY, [])
-  const saveRecipes  = (arr: unknown[]) => safeSet(RECIPES_KEY, arr)
-  const addRecipe    = (r: unknown) => saveRecipes([...getRecipes(), r])
-  const deleteRecipe = (id: number) => saveRecipes(getRecipes().filter((r: unknown) => (r as { id: number }).id !== id))
-  const getTags      = () => safeGet<string[]>(TAGS_KEY, [])
-  const addTag       = (t: string) => { const ts = getTags(); if (!ts.includes(t)) safeSet(TAGS_KEY, [...ts, t]) }
+  const getRecipes = () => safeGet<unknown[]>(RECIPES_KEY, [])
+  const saveRecipes = (arr: unknown[]) => safeSet(RECIPES_KEY, arr)
+  const addRecipe = (r: unknown) => saveRecipes([...getRecipes(), r])
+  const deleteRecipe = (id: number) =>
+    saveRecipes(getRecipes().filter((r: unknown) => (r as { id: number }).id !== id))
+  const getTags = () => safeGet<string[]>(TAGS_KEY, [])
+  const addTag = (t: string) => {
+    const ts = getTags()
+    if (!ts.includes(t)) safeSet(TAGS_KEY, [...ts, t])
+  }
   return { getRecipes, saveRecipes, addRecipe, deleteRecipe, getTags, addTag }
 }
 
 function makeRecipe(id: number, name = `Recipe ${id}`) {
   return {
-    id, name, cat: 'meal', type: 'Meal', color: 'var(--purple)', sc: 'cp',
-    tag: 'Test', prepL: '20 min', prepC: 'var(--purple)',
-    hk: 400, hp: '30g', hc: '40g', hf: '10g',
-    mk: 400, mp: '30g', mc: '40g', mf: '10g',
-    ings: [['Chicken', '200g']], steps: ['Cook it'], tip: '',
-    custom: true, source: 'user',
+    id,
+    name,
+    cat: 'meal',
+    type: 'Meal',
+    color: 'var(--purple)',
+    sc: 'cp',
+    tag: 'Test',
+    prepL: '20 min',
+    prepC: 'var(--purple)',
+    hk: 400,
+    hp: '30g',
+    hc: '40g',
+    hf: '10g',
+    mk: 400,
+    mp: '30g',
+    mc: '40g',
+    mf: '10g',
+    ings: [['Chicken', '200g']],
+    steps: ['Cook it'],
+    tip: '',
+    custom: true,
+    source: 'user',
   }
 }
 
@@ -97,7 +124,7 @@ describe('id-swap after Supabase sync', () => {
   it('replaces local Date.now() id with DB-assigned id', () => {
     const store = makeStore()
     const localId = Date.now()
-    const dbId    = 42
+    const dbId = 42
 
     store.addRecipe(makeRecipe(localId, 'My Recipe'))
     expect(store.getRecipes()).toHaveLength(1)
@@ -118,7 +145,7 @@ describe('id-swap after Supabase sync', () => {
     store.addRecipe(makeRecipe(2, 'Existing B'))
 
     const localId = Date.now()
-    const dbId    = 99
+    const dbId = 99
     store.addRecipe(makeRecipe(localId, 'New Recipe'))
     expect(store.getRecipes()).toHaveLength(3)
 
@@ -179,7 +206,7 @@ describe('Supabase-fetch merge logic', () => {
   }
 
   it('keeps local-only recipes when Supabase returns other recipes', () => {
-    const prev   = [makeRecipe(1001, 'Local Only')]
+    const prev = [makeRecipe(1001, 'Local Only')]
     const fromDb = [makeRecipe(1, 'DB Recipe A'), makeRecipe(2, 'DB Recipe B')]
     const result = merge(prev, fromDb)
     expect(result).toHaveLength(3)
@@ -194,7 +221,7 @@ describe('Supabase-fetch merge logic', () => {
   })
 
   it('prefers Supabase version when same id exists in both', () => {
-    const prev   = [{ ...makeRecipe(1), name: 'Old Name' }]
+    const prev = [{ ...makeRecipe(1), name: 'Old Name' }]
     const fromDb = [{ ...makeRecipe(1), name: 'Updated Name' }]
     const result = merge(prev, fromDb)
     expect(result[0].name).toBe('Updated Name')
@@ -215,7 +242,7 @@ describe('handleSave id reconciliation (A2)', () => {
   // keep the local recipe untouched when the DB write failed (null).
   type R = ReturnType<typeof makeRecipe>
   function reconcile(store: ReturnType<typeof makeStore>, r: R, dbId: number | null) {
-    if (dbId == null) return                 // hard failure: keep local id, surface error elsewhere
+    if (dbId == null) return // hard failure: keep local id, surface error elsewhere
     if (dbId !== r.id) {
       store.deleteRecipe(r.id)
       store.addRecipe({ ...r, id: dbId })

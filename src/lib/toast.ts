@@ -26,7 +26,9 @@ function emit() {
 export function subscribeToasts(listener: Listener): () => void {
   listeners.add(listener)
   listener(toasts)
-  return () => { listeners.delete(listener) }
+  return () => {
+    listeners.delete(listener)
+  }
 }
 
 /** Show a toast; returns its id so callers can dismiss it early. */

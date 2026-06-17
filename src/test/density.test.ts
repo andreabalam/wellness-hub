@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
-  densityTier, densityTierFor, isDrinkCategory,
-  DENSITY_COLORS, DENSITY_LABELS,
+  densityTier,
+  densityTierFor,
+  isDrinkCategory,
+  DENSITY_COLORS,
+  DENSITY_LABELS,
 } from '../lib/density'
 
 describe('densityTierFor (solids)', () => {
@@ -31,9 +34,9 @@ describe('densityTierFor (drinks)', () => {
 
 describe('densityTier (kcal + grams)', () => {
   it('computes tier from kcal and grams', () => {
-    expect(densityTier(150, 300)).toBe('green')   // 0.5 cal/g
-    expect(densityTier(400, 200)).toBe('yellow')  // 2.0 cal/g
-    expect(densityTier(500, 100)).toBe('orange')  // 5.0 cal/g
+    expect(densityTier(150, 300)).toBe('green') // 0.5 cal/g
+    expect(densityTier(400, 200)).toBe('yellow') // 2.0 cal/g
+    expect(densityTier(500, 100)).toBe('orange') // 5.0 cal/g
   })
   it('returns null when grams is missing or zero', () => {
     expect(densityTier(300, 0)).toBeNull()
