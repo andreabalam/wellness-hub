@@ -16,8 +16,6 @@ import ProfileStatsCard from './ProfileStatsCard'
 import {
   QUICK_FOODS,
   SESSION_OPTS,
-  MED_MINS,
-  MED_STYLES,
   PHASE_NOTES,
   WATER_MAX,
   HUNGER_TYPES,
@@ -44,10 +42,7 @@ import {
   isOuraConnected,
   fetchOuraWorkouts,
   fetchOuraReadiness,
-  fetchOuraSessions,
   OURA_ACTIVITY_MAP,
-  OURA_SESSION_MAP,
-  roundToMedMin,
   readinessColor,
   readinessLabel,
 } from '../../lib/oura'
@@ -64,6 +59,7 @@ import MacroBar from './MacroBar'
 import SatietyRow from './SatietyRow'
 import WeekStrip from './WeekStrip'
 import CheckIn from './CheckIn'
+import MeditationLog from './MeditationLog'
 import MeditationGuides from './MeditationGuides'
 import { dkey } from './dateKey'
 
@@ -178,9 +174,6 @@ export default function TrackerTab({
   const [selSession, setSess] = useState<string | null>(null)
   const [wkNotes, setWkNotes] = useState('')
   const [wkSaved, setWkSaved] = useState(false)
-  const [medMin, setMedMin] = useState(0)
-  const [medStyle, setMedStyle] = useState('')
-  const [medSaved, setMedSaved] = useState(false)
   const [water, setWater] = useState(0)
   const [phase, setPhase] = useState('')
   const [dayNotes, setDayNotes] = useState('')
@@ -200,8 +193,6 @@ export default function TrackerTab({
       setDay(data)
       setSess(data.workout ?? null)
       setWkNotes(data.wkNotes ?? '')
-      setMedMin(data.medMin ?? 0)
-      setMedStyle(data.medStyle ?? '')
       setWater(data.water ?? 0)
       setPhase(data.phase ?? '')
       setDayNotes(data.notes ?? '')
@@ -212,7 +203,6 @@ export default function TrackerTab({
       setWeekGoalResult(wk.weekGoalResult ?? '')
       setWeekGoalNote(wk.weekGoalNote ?? '')
       setWkSaved(!!data.workout)
-      setMedSaved(!!data.medMin)
       setEditIndex(null)
       setFName('')
       setFKcal('')
@@ -614,16 +604,6 @@ export default function TrackerTab({
     setWkSaved(true)
   }
 
-  const logMed = () => {
-    if (!medMin) {
-      alert('Select a duration first.')
-      return
-    }
-    save({ medMin, medStyle })
-    setMedSaved(true)
-    setTimeout(() => setMedSaved(false), 1600)
-  }
-
   const saveNotes = () => {
     save({ notes: dayNotes })
     setNotesSaved(true)
@@ -661,17 +641,12 @@ export default function TrackerTab({
   // Fresh read of the selected day's check-in values to seed <CheckIn>. The
   // `day` state lags `date` by one render (it's loaded in an effect), so seeding
   // the date-keyed CheckIn from `day` would show the previous day's stars.
-  const checkInDay = useMemo(() => store.getDay(dkey(date)), [date, store])
+  const dayForDate = useMemo(() => store.getDay(dkey(date)), [date, store])
 
   // ── Oura state ──────────────────────────────────────────────────
   const [ouraConnected, setOuraConnected] = useState(false)
   const [readiness, setReadiness] = useState<OuraReadiness | null>(null)
   const [wkSyncing, setWkSyncing] = useState(false)
-  const [medSyncing, setMedSyncing] = useState(false)
-  const [ouraHRV, setOuraHRV] = useState<number | null>(null)
-  const [ouraHR, setOuraHR] = useState<number | null>(null)
-  const [ouraMood, setOuraMood] = useState<string | null>(null)
-  const [ouraActualMin, setOuraActualMin] = useState<number | null>(null)
 
   // Check connection status on mount
   useEffect(() => {
@@ -683,10 +658,6 @@ export default function TrackerTab({
   // Load readiness from cache on date change; auto-fetch from Oura if not cached
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    setOuraHRV(null)
-    setOuraHR(null)
-    setOuraMood(null)
-    setOuraActualMin(null)
     const dateStr = dkey(date)
     const cached = getCachedReadiness(dateStr)
     if (cached) {
@@ -735,30 +706,6 @@ export default function TrackerTab({
       showToast(reportError('oura-sync:workout', err), 'error')
     } finally {
       setWkSyncing(false)
-    }
-  }
-
-  const syncMedFromOura = async () => {
-    setMedSyncing(true)
-    try {
-      const sessions = await fetchOuraSessions(dkey(date))
-      const med = sessions.find(s => s.type !== 'nap')
-      if (!med) {
-        showToast('No meditation session found for this date in Oura.', 'info')
-        return
-      }
-      const dSec =
-        (new Date(med.end_datetime).getTime() - new Date(med.start_datetime).getTime()) / 1000
-      setMedMin(roundToMedMin(dSec))
-      if (OURA_SESSION_MAP[med.type]) setMedStyle(OURA_SESSION_MAP[med.type])
-      setOuraHRV(med.average_hrv)
-      setOuraHR(med.average_heart_rate)
-      setOuraMood(med.mood)
-      setOuraActualMin(Math.round(dSec / 60))
-    } catch (err: unknown) {
-      showToast(reportError('oura-sync:meditation', err), 'error')
-    } finally {
-      setMedSyncing(false)
     }
   }
 
@@ -1506,81 +1453,17 @@ export default function TrackerTab({
       {/* ── Meditation ── */}
       {innerTab === 'meditation' && (
         <div className="flex flex-col gap-12">
-          {/* Meditation */}
-          <div className="tcard">
-            <div className="flex-between mb-6">
-              <div className="tlabel" style={{ color: 'var(--gold)', marginBottom: 0 }}>
-                Meditation · 8:45 AM
-              </div>
-              {ouraConnected && (
-                <button
-                  onClick={syncMedFromOura}
-                  disabled={medSyncing}
-                  className={`oura-sync-btn oura-sync-btn--gold ${medSyncing ? 'loading' : ''}`}
-                >
-                  {medSyncing ? 'Syncing…' : '⟳ Sync Oura'}
-                </button>
-              )}
-            </div>
-
-            {/* Oura meditation data badges */}
-            {ouraHRV !== null && (
-              <div className="flex flex-wrap gap-8 mb-10">
-                <span className="oura-badge oura-badge--teal">HRV {ouraHRV}</span>
-                {ouraHR !== null && (
-                  <span className="oura-badge oura-badge--green">HR {ouraHR} bpm</span>
-                )}
-                {ouraActualMin !== null && ouraActualMin !== medMin && (
-                  <span
-                    className="oura-badge oura-badge--muted"
-                    title={`Actual: ${ouraActualMin} min — rounded to nearest option`}
-                  >
-                    actual {ouraActualMin} min
-                  </span>
-                )}
-                {ouraMood && (
-                  <span className="oura-badge oura-badge--purple">feeling: {ouraMood}</span>
-                )}
-              </div>
-            )}
-
-            <div className="text-sm text-muted mb-10 lh-15">
-              Optimal post-CAR window. Even 13 minutes measurably improves focus and working memory
-              for hours.
-            </div>
-            <div className="text-sm text-muted mb-6">Duration:</div>
-            <div className="flex flex-wrap gap-6 mb-10">
-              {MED_MINS.map(m => (
-                <button
-                  key={m}
-                  onClick={() => setMedMin(medMin === m ? 0 : m)}
-                  className={`med-min-btn ${medMin === m ? 'active' : ''}`}
-                >
-                  {m} min
-                </button>
-              ))}
-            </div>
-            <div className="text-sm text-muted mb-6">Style:</div>
-            <div className="flex flex-wrap gap-6 mb-10">
-              {MED_STYLES.map(s => (
-                <button
-                  key={s}
-                  onClick={() => setMedStyle(medStyle === s ? '' : s)}
-                  className={`med-style-btn ${medStyle === s ? 'active' : ''}`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-            {day.medMin > 0 && (
-              <div className="med-done">
-                Done: {day.medMin} min{day.medStyle ? ` - ${day.medStyle}` : ''}
-              </div>
-            )}
-            <button onClick={logMed} className={`tbtn btn-gold ${medSaved ? 'saved' : ''}`}>
-              {medSaved ? 'Saved!' : 'Log meditation'}
-            </button>
-          </div>
+          {/* Meditation — keyed by date so the picker re-seeds on day change */}
+          <MeditationLog
+            key={dkey(date)}
+            initialMedMin={dayForDate.medMin}
+            initialMedStyle={dayForDate.medStyle}
+            savedMedMin={day.medMin}
+            savedMedStyle={day.medStyle}
+            ouraConnected={ouraConnected}
+            date={date}
+            onSave={save}
+          />
 
           {/* Favorite guides */}
           <MeditationGuides />
@@ -1588,10 +1471,10 @@ export default function TrackerTab({
           {/* Daily check-in — keyed by date so it re-seeds its stars on day change */}
           <CheckIn
             key={dkey(date)}
-            initialEnergy={checkInDay.energy}
-            initialMood={checkInDay.mood}
-            initialSleep={checkInDay.sleep}
-            initialStress={checkInDay.stress}
+            initialEnergy={dayForDate.energy}
+            initialMood={dayForDate.mood}
+            initialSleep={dayForDate.sleep}
+            initialStress={dayForDate.stress}
             phase={phase}
             onSetPhase={setPhase}
             ouraConnected={ouraConnected}
