@@ -2,6 +2,8 @@ name: E2E
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]   # catch E2E regressions before merge, not only after
 jobs:
   e2e:
     runs-on: ubuntu-latest
@@ -15,6 +17,8 @@ jobs:
 
   deploy:
     needs: e2e          # only runs if e2e job succeeds
+    # Deploy only on push to main — never on pull_request runs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write   # needed to push to the gh-pages branch

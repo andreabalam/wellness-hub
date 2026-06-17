@@ -10,8 +10,10 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20, cache: npm }
       - run: npm ci
-      - run: npm run lint  # fails on errors; warnings are allowed
-      - run: npm test
+      - run: npm run lint           # fails on errors; warnings are allowed
+      - run: npm run typecheck      # explicit type-check (not just implied by build)
+      - run: npm run test:coverage  # unit tests + enforced coverage thresholds
       - run: npm run build
-      - name: report-build-status
-        run: echo "Build succeeded"
+      - name: Audit dependencies (advisory)
+        run: npm audit --audit-level=high
+        continue-on-error: true     # surface advisories without blocking the PR
