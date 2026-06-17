@@ -27,15 +27,45 @@ const USER_SETTINGS_KEY       = 'whub_user_settings_v1'
 const BODY_STATS_KEY          = 'whub_body_stats_v1'
 const WORKOUT_PLAN_KEY        = 'whub_workout_plan_v1'
 
+// ── Sync status ── whether local writes are pending a confirmed push ─────
+// Persisted so the "changes not yet synced" hint survives a reload (e.g. edits
+// made offline). Cleared by syncAll once every push succeeds.
+const SYNC_DIRTY_KEY = 'whub_sync_dirty'
+type SyncStatusListener = (pending: boolean) => void
+const syncStatusListeners = new Set<SyncStatusListener>()
+
+export const syncStatusStore = {
+  isPending: (): boolean => safeGet<boolean>(SYNC_DIRTY_KEY, false),
+  markPending: () => {
+    if (syncStatusStore.isPending()) return
+    safeSet(SYNC_DIRTY_KEY, true)
+    syncStatusListeners.forEach(l => l(true))
+  },
+  clear: () => {
+    if (!syncStatusStore.isPending()) return
+    safeSet(SYNC_DIRTY_KEY, false)
+    syncStatusListeners.forEach(l => l(false))
+  },
+  subscribe: (l: SyncStatusListener): (() => void) => {
+    syncStatusListeners.add(l)
+    return () => { syncStatusListeners.delete(l) }
+  },
+}
+
 /**
  * Fire-and-forget push to Supabase — only runs when a user is signed in.
- * Errors are swallowed; local store is always the source of truth.
+ * The local store is the source of truth; a failed push is logged and flips the
+ * sync-pending flag so the next syncAll reconciles it (syncAll re-pushes all
+ * local data), and the UI can show a "changes not yet synced" hint.
  */
 async function tryPush(fn: (userId: string) => Promise<void>) {
   if (!supabase) return // not configured (tests / dev without .env.local)
   try {
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) fn(user.id).catch(err => reportError('tryPush:push', err))
+    if (user) fn(user.id).catch(err => {
+      reportError('tryPush:push', err)
+      syncStatusStore.markPending()
+    })
   } catch (err) { reportError('tryPush:getUser', err) }
 }
 
@@ -337,6 +367,11 @@ export function importRemoteData(remote: {
 }
 
 // ── Full export / import (JSON backup) ───────────────────────────
+// Versions importAllData accepts. v2 added reminders, medGuides, bodyStats and
+// workoutPlan; v1 backups still import cleanly because every key is optional.
+const BACKUP_VERSION = 'whub_v2'
+const SUPPORTED_BACKUP_VERSIONS = ['whub_v1', 'whub_v2']
+
 export function exportAllData() {
   return {
     tracker:        safeGet(TRACKER_KEY, {}),
@@ -348,15 +383,19 @@ export function exportAllData() {
     hiddenRecipes:  safeGet<number[]>(HIDDEN_RECIPES_KEY, []),
     userSettings:   safeGet<UserSettings>(USER_SETTINGS_KEY, USER_SETTINGS_DEFAULTS),
     weekSchedule:   safeGet(WEEK_SCHEDULE_KEY, null),
+    reminders:      safeGet<Reminder[]>(REMINDERS_KEY, []),
+    medGuides:      safeGet<MedGuide[] | null>(MED_GUIDES_KEY, null),
+    bodyStats:      safeGet<UserBodyStats>(BODY_STATS_KEY, BODY_STATS_DEFAULTS),
+    workoutPlan:    safeGet<UserWorkoutPlan | null>(WORKOUT_PLAN_KEY, null),
     exportedAt:     new Date().toISOString(),
-    version:        'whub_v1',
+    version:        BACKUP_VERSION,
   }
 }
 
 export function importAllData(json: string): boolean {
   try {
     const data = JSON.parse(json)
-    if (data.version !== 'whub_v1') throw new Error('bad version')
+    if (!SUPPORTED_BACKUP_VERSIONS.includes(data.version)) throw new Error('bad version')
     if (data.tracker)        safeSet(TRACKER_KEY,         data.tracker)
     if (data.customRecipes)  safeSet(RECIPES_KEY,         data.customRecipes)
     if (data.customTags)     safeSet(TAGS_KEY,            data.customTags)
@@ -367,6 +406,10 @@ export function importAllData(json: string): boolean {
     if (data.userSettings)   safeSet(USER_SETTINGS_KEY,   data.userSettings)
     if (data.weekSchedule)   safeSet(WEEK_SCHEDULE_KEY,   data.weekSchedule)
     else if (data.schedule)  safeSet(SCHEDULE_KEY,        data.schedule)
+    if (data.reminders)      safeSet(REMINDERS_KEY,       data.reminders)
+    if (data.medGuides)      safeSet(MED_GUIDES_KEY,      data.medGuides)
+    if (data.bodyStats)      safeSet(BODY_STATS_KEY,      data.bodyStats)
+    if (data.workoutPlan)    safeSet(WORKOUT_PLAN_KEY,    data.workoutPlan)
     return true
   } catch { return false }
 }

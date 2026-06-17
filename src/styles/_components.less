@@ -141,6 +141,10 @@
   background: var(--amber); border: 1.5px solid var(--bg);
   animation: pulse 1s infinite;
 }
+// Steady (no pulse) coral dot: local changes await a successful push.
+.auth-avatar__badge--pending {
+  background: var(--coral); animation: none;
+}
 .auth-panel {
   position: absolute; top: 40px; right: 0; z-index: 200;
   width: 278px;

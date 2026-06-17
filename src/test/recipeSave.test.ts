@@ -206,6 +206,55 @@ describe('Supabase-fetch merge logic', () => {
 })
 
 // ═════════════════════════════════════════════════════════════════
+// handleSave id reconciliation (A2)
+// ═════════════════════════════════════════════════════════════════
+
+describe('handleSave id reconciliation (A2)', () => {
+  // Mirrors the swap block in RecipesTab.handleSave after the A2 fix: swap the
+  // local id for the DB id whenever they differ — NOT gated on isUpdate — and
+  // keep the local recipe untouched when the DB write failed (null).
+  type R = ReturnType<typeof makeRecipe>
+  function reconcile(store: ReturnType<typeof makeStore>, r: R, dbId: number | null) {
+    if (dbId == null) return                 // hard failure: keep local id, surface error elsewhere
+    if (dbId !== r.id) {
+      store.deleteRecipe(r.id)
+      store.addRecipe({ ...r, id: dbId })
+    }
+  }
+
+  it('swaps a placeholder id on an update so repeated edits do not duplicate', () => {
+    const store = makeStore()
+    const tempId = Date.now()
+    store.addRecipe(makeRecipe(tempId, 'Soup'))
+    // An "update" (id matches React state) whose id is still a placeholder; the
+    // DB insert returns a fresh small id. Pre-fix this branch was skipped → dupes.
+    reconcile(store, { ...makeRecipe(tempId, 'Soup'), id: tempId }, 7)
+    const recipes = store.getRecipes() as R[]
+    expect(recipes).toHaveLength(1)
+    expect(recipes[0].id).toBe(7)
+  })
+
+  it('does not swap when the DB id already matches (genuine update)', () => {
+    const store = makeStore()
+    store.addRecipe(makeRecipe(7, 'Stew'))
+    reconcile(store, { ...makeRecipe(7, 'Stew'), id: 7 }, 7)
+    const recipes = store.getRecipes() as R[]
+    expect(recipes).toHaveLength(1)
+    expect(recipes[0].id).toBe(7)
+  })
+
+  it('keeps the local recipe (placeholder id) when the DB write fails', () => {
+    const store = makeStore()
+    const tempId = Date.now()
+    store.addRecipe(makeRecipe(tempId, 'Salad'))
+    reconcile(store, { ...makeRecipe(tempId, 'Salad'), id: tempId }, null)
+    const recipes = store.getRecipes() as R[]
+    expect(recipes).toHaveLength(1)
+    expect(recipes[0].id).toBe(tempId)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
 // upsertUserRecipe id-in-payload logic
 // ═════════════════════════════════════════════════════════════════
 

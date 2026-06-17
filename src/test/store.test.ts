@@ -7,7 +7,7 @@ import {
   exportAllData, importAllData,
   bodyStatsStore, workoutPlanStore,
   useBodyStatsStore, useWorkoutPlanStore,
-  userSettingsStore,
+  userSettingsStore, remindersStore, syncStatusStore,
 } from '../hooks/useStore'
 import { EMPTY_DAY } from '../data/tracker'
 import type { CustomBlock } from '../data/schedule'
@@ -153,14 +153,17 @@ describe('groceryStore', () => {
 
 // ── exportAllData / importAllData ────────────────────────────────
 describe('export / import round-trip', () => {
-  it('exports a valid whub_v1 object', () => {
+  it('exports a valid whub_v2 object', () => {
     const data = exportAllData()
-    expect(data.version).toBe('whub_v1')
+    expect(data.version).toBe('whub_v2')
     expect(data).toHaveProperty('tracker')
     expect(data).toHaveProperty('customRecipes')
     expect(data).toHaveProperty('customTags')
     expect(data).toHaveProperty('groceryChecked')
     expect(data).toHaveProperty('groceryCatalog')
+    expect(data).toHaveProperty('reminders')
+    expect(data).toHaveProperty('bodyStats')
+    expect(data).toHaveProperty('workoutPlan')
     expect(data).toHaveProperty('exportedAt')
   })
 
@@ -175,6 +178,10 @@ describe('export / import round-trip', () => {
     const catItem: GroceryCatalogItem = { id: 'e1', n: 'Exported Kale', cat: 'Produce - Vegetables' }
     groceryCatalogStore.add(catItem)
 
+    remindersStore.add({ id: 'r1', text: 'Take vitamins', checked: false, checkedAt: null, createdAt: '2026-05-25T00:00:00.000Z' })
+    bodyStatsStore.set({ weightKg: 62 })
+    workoutPlanStore.set({ gender: 'female', numWeeks: 4, planData: [] })
+
     const json = JSON.stringify(exportAllData())
     Object.keys(store).forEach(k => delete store[k])
 
@@ -183,6 +190,15 @@ describe('export / import round-trip', () => {
     expect(recipeStore.getRecipes()[0].name).toBe('Exported Recipe')
     expect(groceryStore.getChecked()).toContain('Avocados')
     expect(groceryCatalogStore.getAll().find(i => i.id === 'e1')?.n).toBe('Exported Kale')
+    expect(remindersStore.getAll().find(r => r.id === 'r1')?.text).toBe('Take vitamins')
+    expect(bodyStatsStore.get().weightKg).toBe(62)
+    expect(workoutPlanStore.get()?.numWeeks).toBe(4)
+  })
+
+  it('still imports a legacy whub_v1 backup (backward compatible)', () => {
+    const v1 = { version: 'whub_v1', customTags: ['legacy-tag'] }
+    expect(importAllData(JSON.stringify(v1))).toBe(true)
+    expect(recipeStore.getTags()).toContain('legacy-tag')
   })
 
   it('importAllData rejects a bad version', () => {
@@ -210,6 +226,38 @@ describe('export / import round-trip', () => {
     const data = exportAllData()
     expect(() => new Date(data.exportedAt)).not.toThrow()
     expect(new Date(data.exportedAt).getFullYear()).toBeGreaterThan(2020)
+  })
+})
+
+// ── syncStatusStore (A4) ─────────────────────────────────────────
+describe('syncStatusStore', () => {
+  it('defaults to not pending', () => {
+    expect(syncStatusStore.isPending()).toBe(false)
+  })
+
+  it('markPending sets the flag and persists it', () => {
+    syncStatusStore.markPending()
+    expect(syncStatusStore.isPending()).toBe(true)
+    // Persisted in localStorage so it survives a reload
+    expect(store['whub_sync_dirty']).toBe('true')
+  })
+
+  it('clear resets the flag', () => {
+    syncStatusStore.markPending()
+    syncStatusStore.clear()
+    expect(syncStatusStore.isPending()).toBe(false)
+  })
+
+  it('notifies subscribers on change and only on actual transitions', () => {
+    const seen: boolean[] = []
+    const unsub = syncStatusStore.subscribe(p => seen.push(p))
+    syncStatusStore.markPending()
+    syncStatusStore.markPending()   // already pending → no extra notification
+    syncStatusStore.clear()
+    syncStatusStore.clear()         // already clear → no extra notification
+    unsub()
+    syncStatusStore.markPending()   // unsubscribed → not seen
+    expect(seen).toEqual([true, false])
   })
 })
 

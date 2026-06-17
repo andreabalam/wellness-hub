@@ -56,6 +56,7 @@ vi.mock('../lib/sync', () => ({
 import App from '../App'
 import { supabase } from '../lib/supabase'
 import * as sync from '../lib/sync'
+import { syncStatusStore } from '../hooks/useStore'
 
 const mockAuth = supabase!.auth as unknown as {
   getSession: ReturnType<typeof vi.fn>
@@ -248,6 +249,27 @@ describe('App (with mocked Supabase)', () => {
     // Error is caught inside syncAll — app should not crash
     await new Promise(r => setTimeout(r, 100))
     expect(screen.getByText(/Wellness Hub/)).toBeInTheDocument()
+  })
+
+  it('A4: a failed push flips the sync-pending flag', async () => {
+    mockAuth.getSession.mockResolvedValue({
+      data: { session: { user: MOCK_USER } },
+      error: null,
+    })
+    mockSync['pushTags'].mockRejectedValue(new Error('push failed'))
+    render(<App />)
+    await waitFor(() => expect(syncStatusStore.isPending()).toBe(true), { timeout: 3000 })
+  })
+
+  it('A4: a fully successful sync clears a pre-existing pending flag', async () => {
+    syncStatusStore.markPending()
+    expect(syncStatusStore.isPending()).toBe(true)
+    mockAuth.getSession.mockResolvedValue({
+      data: { session: { user: MOCK_USER } },
+      error: null,
+    })
+    render(<App />)
+    await waitFor(() => expect(syncStatusStore.isPending()).toBe(false), { timeout: 3000 })
   })
 
   it('subscription is unsubscribed on unmount', async () => {

@@ -5,6 +5,9 @@ import { BUILTIN_RECIPES, DIET_TAGS } from '../../data/recipes'
 import { useRecipeStore, useTrackerStore, useHiddenRecipeStore, useGroceryCatalogStore, builtinRecipeCacheStore } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
+import { reportError } from '../../lib/errorLog'
+import { showToast } from '../../lib/toast'
+import { mergeRecipes, applyIdMap } from '../../lib/recipeSync'
 import RecipeCard from './RecipeCard'
 import RecipeModal from './RecipeModal'
 import GroceryPanel from './GroceryPanel'
@@ -74,43 +77,50 @@ export default function RecipesTab({ user, openRequest }: {
     let cancelled = false
     ;(async () => {
       setLoading(true)
-      const [remote, userRecipes] = await Promise.all([
-        sync.fetchBuiltinRecipes().catch(() => null),
-        user ? sync.fetchUserRecipes(user.id).catch(() => []) : Promise.resolve([] as Recipe[]),
-      ])
+      const remote = await sync.fetchBuiltinRecipes().catch(() => null)
+      // null = no user or the fetch failed; only a successful fetch is safe to
+      // merge/prune against (an error must not wipe synced recipes).
+      let userRecipes: Recipe[] | null = null
+      if (user) {
+        try { userRecipes = await sync.fetchUserRecipes(user.id) }
+        catch (err) { reportError('recipe-sync:pull', err) }
+      }
       if (cancelled) return
+
       if (remote) {
         // Full DB catalog replaces the static fallback
         setBuiltinRecipes(remote)
         // Cache for the tracker's log-food search (read-only consumer)
         builtinRecipeCacheStore.save(remote)
       }
-      // If fetch failed we silently keep the static fallback — no error banner
-      // Merge: keep any localStorage-only recipes (not yet synced or failed to sync)
-      const dbIds = new Set(userRecipes.map(r => r.id))
-      const localRecipes = store.getRecipes()
-      // All local recipes not already in DB (for state merge)
-      const localNotInDb = localRecipes.filter(r => r.id != null && !dbIds.has(r.id))
-      // Subset that should be pushed: custom recipes with unsynced (timestamp) IDs
-      const localCustomUnsynced = localNotInDb.filter(r => r.custom)
 
-      // Push local-only custom recipes to Supabase, get DB-assigned IDs back
-      let syncedLocalOnly = localNotInDb
-      if (user && localCustomUnsynced.length) {
-        const idMap = new Map<number, number>() // old (timestamp) id → new DB id
-        await Promise.all(localCustomUnsynced.map(async r => {
-          const dbId = await sync.upsertUserRecipe(user.id, r).catch(() => null)
+      if (userRecipes === null) {
+        // No successful user fetch — keep whatever is local, untouched.
+        setCustomRecipes(store.getRecipes())
+        setLoading(false)
+        return
+      }
+
+      // Merge against the DB: prune recipes deleted on other devices, push
+      // never-synced local ones. See mergeRecipes for the id-as-tombstone rule.
+      const { merged, toPush } = mergeRecipes(store.getRecipes(), userRecipes)
+
+      let finalMerged = merged
+      if (user && toPush.length) {
+        const idMap = new Map<number, number>() // old placeholder id → new DB id
+        await Promise.all(toPush.map(async r => {
+          const dbId = await sync.upsertUserRecipe(user.id, r)
+            .catch(err => { reportError('recipe-sync:push', err); return null })
           if (dbId != null && dbId !== r.id) idMap.set(r.id!, dbId)
         }))
         if (cancelled) return
-        if (idMap.size) {
-          store.saveRecipes(localRecipes.map(r => r.id != null && idMap.has(r.id) ? { ...r, id: idMap.get(r.id)! } : r))
-          syncedLocalOnly = localNotInDb.map(r => r.id != null && idMap.has(r.id) ? { ...r, id: idMap.get(r.id)! } : r)
-        }
+        finalMerged = applyIdMap(merged, idMap)
       }
 
-      const merged = [...userRecipes, ...syncedLocalOnly]
-      if (merged.length) setCustomRecipes(merged)
+      // Persist the reconciled set to localStorage so custom recipes survive
+      // reloads, work offline, and appear in JSON backups; prunes are dropped here.
+      store.saveRecipes(finalMerged)
+      setCustomRecipes(finalMerged)
       setLoading(false)
     })()
     return () => { cancelled = true }
@@ -185,19 +195,22 @@ export default function RecipesTab({ user, openRequest }: {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
           const dbId = await sync.upsertUserRecipe(user.id, r)
-          if (dbId && !isUpdate) {
-            // Swap the local-generated id for the DB-assigned one
+          if (dbId == null) {
+            // DB write failed — the recipe is saved locally and the next sign-in
+            // sync will retry the push. Treat null as a hard failure: do NOT keep
+            // believing it synced, and surface it to the user + the error log.
+            showToast(reportError('recipe-save', new Error(`recipe sync failed: ${r.name}`)), 'error')
+          } else if (dbId !== r.id) {
+            // Swap the local placeholder id for the DB-assigned one. Runs for both
+            // new recipes and updates whose id was still a placeholder, so repeated
+            // edits update the same row instead of inserting duplicates.
             store.deleteRecipe(r.id!)
             store.addRecipe({ ...r, id: dbId })
             setCustomRecipes(prev => prev.map(x => x.id === r.id ? { ...r, id: dbId } : x))
           }
-          if (!dbId) {
-            // upsertUserRecipe returned null — DB write failed (check console for error)
-            console.warn('[RecipesTab] recipe saved locally but DB sync failed for:', r.name)
-          }
         }
       } catch (err) {
-        console.error('[RecipesTab] handleSave DB sync error:', err)
+        showToast(reportError('recipe-save', err), 'error')
       }
     }
   }
