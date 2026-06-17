@@ -39,6 +39,7 @@ The E2E suite starts the dev server automatically. Make sure `npm install` has b
 | `npm run preview` | Preview the production build locally |
 | `npm run deploy` | Build + publish to GitHub Pages (`gh-pages` branch) |
 | `npm run lint` | ESLint — exits non-zero on errors, warns only |
+| `npm run typecheck` | Type-check with `tsc -b` (no emit) |
 | `npm test` | Unit tests (Vitest) |
 | `npm run test:e2e` | E2E tests (Playwright, Chromium) |
 
@@ -46,8 +47,13 @@ The E2E suite starts the dev server automatically. Make sure `npm install` has b
 
 | Trigger | Workflow | What it does |
 |---|---|---|
-| Pull request → `main` | `ci.yml` | Lint, unit tests, build |
+| Pull request → `main` | `ci.yml` | Lint, typecheck, unit tests + coverage thresholds, build, advisory `npm audit` |
+| Pull request → `main` | `e2e.yml` | E2E tests (Chromium) — catches regressions before merge |
 | Push to `main` (merge) | `e2e.yml` | E2E tests → deploy to GitHub Pages if green |
+
+Dependency updates (minor/patch, grouped) and GitHub Actions bumps are proposed weekly by [Dependabot](.github/dependabot.yml); major framework upgrades are done deliberately as separate PRs.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch workflow and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how local-first sync works.
 
 ## Stack
 

@@ -1,0 +1,27 @@
+version: 2
+updates:
+  # npm dependencies — weekly, grouped to reduce PR noise. Major framework
+  # upgrades (React, Vite, Vitest, TypeScript) are handled deliberately as their
+  # own isolated PRs (see plan/architecture-audit-improvement.md, Phase D), so
+  # they are excluded here.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+
+  # Keep GitHub Actions pinned versions current too.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
