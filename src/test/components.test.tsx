@@ -2052,11 +2052,11 @@ describe('ScheduleTab', () => {
     expect(screen.getByText('Wake + no-phone rule')).toBeInTheDocument()
   })
 
-  it('opens ScheduleEditor on Edit schedule click', () => {
+  it('opens ScheduleEditor on Edit schedule click', async () => {
     render(<ScheduleTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('✎ Edit schedule'))
-    // ScheduleEditor renders scope toggle buttons
-    expect(screen.getByText('This day only')).toBeInTheDocument()
+    // ScheduleEditor is lazy-loaded — await the chunk, then assert its scope toggle
+    expect(await screen.findByText('This day only')).toBeInTheDocument()
   })
 
   it('closing editor returns to the timeline view', () => {
@@ -2845,10 +2845,11 @@ describe('RecipesTab', () => {
     expect(screen.queryByRole('button', { name: '+ Add my recipe' })).not.toBeInTheDocument()
   })
 
-  it('+ Add my recipe opens the modal', () => {
+  it('+ Add my recipe opens the modal', async () => {
     render(<RecipesTab user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: '+ Add my recipe' }))
-    expect(screen.getByText('Recipe')).toBeInTheDocument()
+    // RecipeModal is lazy-loaded — await the chunk
+    expect(await screen.findByText('Recipe')).toBeInTheDocument()
   })
 
   it('deleting a custom recipe removes it from the list', async () => {
@@ -2931,8 +2932,8 @@ describe('RecipesTab', () => {
     const card = screen.getByText('My Smoothie').closest('.rcard') as HTMLElement
     fireEvent.click(card)
     fireEvent.click(within(card).getByRole('button', { name: /cook/i }))
-    // CookingMode shows "Exit cooking mode" and the recipe name
-    expect(screen.getByText(/Exit cooking mode/)).toBeInTheDocument()
+    // CookingMode is lazy-loaded — await the chunk; it shows "Exit cooking mode"
+    expect(await screen.findByText(/Exit cooking mode/)).toBeInTheDocument()
   })
 
   it('exiting CookingMode closes the overlay', async () => {
