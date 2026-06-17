@@ -13,10 +13,8 @@ import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
 import { macrosFromKcal } from '../../lib/stats'
 import ProfileStatsCard from './ProfileStatsCard'
-import { QUICK_FOODS, PHASE_NOTES, WATER_MAX, HUNGER_TYPES } from '../../data/tracker'
+import { QUICK_FOODS, PHASE_NOTES, WATER_MAX } from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
-import { CRAVING_TYPES, swapsFor } from '../../data/swaps'
-import type { CravingType } from '../../data/swaps'
 import { BUILTIN_RECIPES } from '../../data/recipes'
 import type { Recipe } from '../../data/recipes'
 import { searchLocalFoods, historyFoods } from '../../lib/localFoodSearch'
@@ -39,6 +37,9 @@ import WeekGoal from './WeekGoal'
 import type { WeekGoalPayload } from './WeekGoal'
 import MealList from './MealList'
 import PasteToLog from './PasteToLog'
+import HungerCravingPicker from './HungerCravingPicker'
+import QuickAddRow from './QuickAddRow'
+import CravingSwapReference from './CravingSwapReference'
 import { dkey } from './dateKey'
 
 /** Local Monday (week anchor) of the week containing d. */
@@ -97,7 +98,6 @@ export default function TrackerTab({
   const [fServings, setFServings] = useState('1')
   const [fSat, setFSat] = useState(0)
   const [fHunger, setFHunger] = useState('')
-  const [craving, setCraving] = useState<CravingType | null>(null)
   const [editIndex, setEditIndex] = useState<number | null>(null)
   const [showSugg, setShowSugg] = useState(false)
   const [foodLib, setFoodLib] = useState<QuickFood[]>(() => libStore.getAll())
@@ -762,51 +762,7 @@ export default function TrackerTab({
                 )}
 
                 {/* Hunger type — feed what's actually hungry (optional) */}
-                <div className="mb-8">
-                  <div className="text-xs text-muted2 mb-6">What kind of hunger? (optional)</div>
-                  <div className="flex flex-wrap gap-6">
-                    {HUNGER_TYPES.map(h => (
-                      <button
-                        key={h.id}
-                        onClick={() => {
-                          setFHunger(fHunger === h.id ? '' : h.id)
-                          setCraving(null)
-                        }}
-                        className={`hunger-chip${fHunger === h.id ? ' active' : ''}`}
-                      >
-                        {h.icon} {h.label}
-                      </button>
-                    ))}
-                  </div>
-                  {(fHunger === 'mouth' || fHunger === 'emotional') && (
-                    <div className="craving-helper">
-                      <div className="text-2xs text-muted2 mb-6">
-                        Craving something? A swap can hit the same note:
-                      </div>
-                      <div className="flex flex-wrap gap-6">
-                        {CRAVING_TYPES.map(c => (
-                          <button
-                            key={c}
-                            onClick={() => setCraving(craving === c ? null : c)}
-                            className={`craving-chip${craving === c ? ' active' : ''}`}
-                          >
-                            {c}
-                          </button>
-                        ))}
-                      </div>
-                      {craving && (
-                        <ul className="swap-list">
-                          {swapsFor(craving).map((s, i) => (
-                            <li key={i}>
-                              <span className="swap-from">{s.from}</span> →{' '}
-                              <span className="swap-to">{s.to}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <HungerCravingPicker fHunger={fHunger} onHungerChange={setFHunger} />
 
                 <div className="flex gap-6 mb-8 items-center">
                   <button
@@ -976,21 +932,7 @@ export default function TrackerTab({
                   </div>
                   <SatietyRow value={fSat} onChange={setFSat} />
                 </div>
-                <div className="text-xs text-muted2 mb-6">Quick-add from recent meals:</div>
-                <div className="flex flex-wrap gap-6 mb-8">
-                  {recentMeals.length === 0 ? (
-                    <span className="text-muted2 italic text-2xs">
-                      Meals you log will appear here.
-                    </span>
-                  ) : (
-                    recentMeals.map((f, i) => (
-                      <button key={i} onClick={() => quickAdd(f)} className="quick-food-btn">
-                        {f.n} ({f.k}
-                        {f.s && f.s !== 1 ? ` ×${f.s}srv` : ''})
-                      </button>
-                    ))
-                  )}
-                </div>
+                <QuickAddRow recentMeals={recentMeals} onQuickAdd={quickAdd} />
                 <button
                   onClick={addFood}
                   className={`tbtn ${editIndex !== null ? 'tbtn--amber' : 'tbtn--teal'}`}
@@ -1002,22 +944,7 @@ export default function TrackerTab({
           </div>
 
           {/* Browsable craving-swap reference */}
-          <details className="swap-reference tcard">
-            <summary>🔁 Craving swaps — lower-density picks that hit the same note</summary>
-            {CRAVING_TYPES.map(c => (
-              <div key={c}>
-                <div className="swap-group-title">{c}</div>
-                <ul className="swap-list">
-                  {swapsFor(c).map((s, i) => (
-                    <li key={i}>
-                      <span className="swap-from">{s.from}</span> →{' '}
-                      <span className="swap-to">{s.to}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </details>
+          <CravingSwapReference />
 
           {/* Profile & Targets — consolidated stats module */}
           <ProfileStatsCard
