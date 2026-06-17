@@ -10,6 +10,8 @@ import type { CustomBlock, WeekSchedule } from '../data/schedule'
 import type { GroceryItem, GroceryCatalogItem } from '../data/grocery'
 import type { Reminder } from '../data/reminders'
 import type { WorkoutWeek } from '../data/workouts'
+import { isDayData, isRecipe, isQuickFood, isArrayOf } from './schema'
+import { reportError } from './errorLog'
 
 /**
  * Throw when a Supabase write returns an error, so callers (tryPush, syncAll)
@@ -37,7 +39,17 @@ export async function pullAllDays(userId: string): Promise<Record<string, DayDat
     .select('date, data')
     .eq('user_id', userId)
   if (error || !data) return {}
-  return Object.fromEntries(data.map(r => [r.date as string, r.data as DayData]))
+  // Validate each row's JSON payload — skip (and log) any that don't match the
+  // DayData shape rather than letting a bad row crash the tracker.
+  const out: Record<string, DayData> = {}
+  for (const r of data) {
+    if (isDayData(r.data)) out[r.date as string] = r.data
+    else
+      reportError('sync:pullAllDays:invalid', new Error(`bad day row: ${r.date}`), {
+        severity: 'warn',
+      })
+  }
+  return out
 }
 
 // ── Built-in recipes (public recipes table) ───────────────────────
@@ -105,7 +117,15 @@ export async function fetchUserRecipes(userId: string): Promise<Recipe[]> {
     .eq('custom', true)
     .order('id')
   assertOk('fetchUserRecipes', error)
-  return (data ?? []).map(rowToRecipe)
+  // Drop any row that doesn't map to a valid Recipe (schema drift / bad data)
+  // rather than surfacing a malformed recipe into the UI.
+  return (data ?? []).map(rowToRecipe).filter(r => {
+    if (isRecipe(r)) return true
+    reportError('sync:fetchUserRecipes:invalid', new Error('recipe row failed validation'), {
+      severity: 'warn',
+    })
+    return false
+  })
 }
 
 /** Insert or update a custom recipe for the logged-in user. Returns the DB id. */
@@ -216,7 +236,7 @@ export async function pullFoodLibrary(userId: string): Promise<QuickFood[]> {
     .select('library')
     .eq('user_id', userId)
     .maybeSingle()
-  return (data?.library as QuickFood[]) ?? []
+  return isArrayOf(data?.library, isQuickFood) ? data.library : []
 }
 
 // ── Schedule blocks (per user) ────────────────────────────────────

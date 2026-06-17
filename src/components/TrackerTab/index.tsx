@@ -112,14 +112,10 @@ const DEFAULT_GUIDES: MedGuide[] = [
   },
 ]
 function loadGuides(): MedGuide[] {
-  try {
-    return JSON.parse(localStorage.getItem(MED_GUIDES_KEY) ?? 'null') ?? DEFAULT_GUIDES
-  } catch {
-    return DEFAULT_GUIDES
-  }
+  return safeGet<MedGuide[]>(MED_GUIDES_KEY, DEFAULT_GUIDES)
 }
 async function saveGuides(g: MedGuide[]) {
-  localStorage.setItem(MED_GUIDES_KEY, JSON.stringify(g))
+  safeSet(MED_GUIDES_KEY, g)
   if (!supabase) return
   try {
     const {

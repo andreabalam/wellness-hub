@@ -1,5 +1,6 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react'
 import { reportError, GENERIC_ERROR_MESSAGE } from '../lib/errorLog'
+import { safeClear } from '../lib/storage'
 
 interface Props {
   children: ReactNode
@@ -29,7 +30,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   private resetStorage = () => {
-    localStorage.clear()
+    safeClear()
     window.location.reload()
   }
 

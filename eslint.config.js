@@ -24,14 +24,29 @@ export default tseslint.config(
       // Downgrade to warn so CI flags regressions without blocking valid patterns.
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/purity': 'warn',
+      // All localStorage access must go through lib/storage (safeGet/safeSet/etc.)
+      // so error handling and validation live in one place.
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'localStorage',
+          message: 'Use safeGet/safeSet/safeRemove/safeHas/safeClear from lib/storage instead.',
+        },
+      ],
     },
   },
-  // Relax type-checking rules in test files
+  // storage.ts is the one place allowed to touch localStorage directly.
+  {
+    files: ['src/lib/storage.ts'],
+    rules: { 'no-restricted-globals': 'off' },
+  },
+  // Relax type-checking + storage rules in test files (they stub localStorage)
   {
     files: ['src/test/**/*.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': 'warn',
+      'no-restricted-globals': 'off',
     },
   },
   // Must be last: turns off ESLint rules that conflict with Prettier formatting.
