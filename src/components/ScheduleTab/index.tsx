@@ -1,10 +1,11 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, lazy, Suspense } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { customToScheduleBlock, DAY_KEYS, DAY_LABELS, sortByTime } from '../../data/schedule'
 import type { CustomBlock, DayKey, WeekSchedule } from '../../data/schedule'
 import { scheduleStore, useUserSettingsStore } from '../../hooks/useStore'
 import { generateWeekIcs, downloadIcs } from '../../lib/ics'
-import ScheduleEditor from './ScheduleEditor'
+// Heavy editor modal — code-split so it stays out of the initial bundle.
+const ScheduleEditor = lazy(() => import('./ScheduleEditor'))
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -303,17 +304,19 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
         })}
       </div>
 
-      {/* ── Editor modal ── */}
-      {showEditor && (
-        <ScheduleEditor
-          blocks={blocks}
-          onChange={handleBlocksChange}
-          onSaveAll={handleSaveAll}
-          onReset={handleResetDay}
-          onResetAll={handleResetAll}
-          onClose={() => setShowEditor(false)}
-        />
-      )}
+      {/* ── Editor modal (lazy-loaded) ── */}
+      <Suspense fallback={null}>
+        {showEditor && (
+          <ScheduleEditor
+            blocks={blocks}
+            onChange={handleBlocksChange}
+            onSaveAll={handleSaveAll}
+            onReset={handleResetDay}
+            onResetAll={handleResetAll}
+            onClose={() => setShowEditor(false)}
+          />
+        )}
+      </Suspense>
     </>
   )
 }
