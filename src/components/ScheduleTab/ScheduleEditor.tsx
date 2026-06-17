@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from 'react'
+import { useState, useEffect, type Dispatch, type SetStateAction } from 'react'
 import type { CustomBlock } from '../../data/schedule'
 import { BLOCK_COLORS, sortByTime, normalizeTime } from '../../data/schedule'
 
@@ -193,6 +193,15 @@ export default function ScheduleEditor({
   const [form, setForm] = useState<Omit<CustomBlock, 'id'>>(EMPTY_FORM)
   const [scope, setScope] = useState<Scope>('day')
 
+  // Close on Escape (matches the click-outside affordance)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   // ── helpers ──────────────────────────────────────────────────────
 
   const save = (updated: CustomBlock[], autoSort = true) => {
@@ -269,10 +278,15 @@ export default function ScheduleEditor({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="modal-panel modal-panel--lg">
+      <div
+        className="modal-panel modal-panel--lg"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="schedule-editor-title"
+      >
         {/* Header */}
         <div className="modal-header modal-header--center">
-          <div className="modal-title">
+          <div className="modal-title" id="schedule-editor-title">
             Edit <em className="italic text-teal">Schedule</em>
           </div>
           <button onClick={onClose} className="modal-close">

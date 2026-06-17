@@ -101,7 +101,19 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
 
   return (
     <div className={`gitem${checked ? ' gchecked' : ''}`} onClick={() => onToggle(item.n)}>
-      <div className="gcheck">✓</div>
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={checked}
+        aria-label={item.n}
+        className="gcheck"
+        onClick={e => {
+          e.stopPropagation()
+          onToggle(item.n)
+        }}
+      >
+        ✓
+      </button>
       <span className="flex-1">
         {item.n}
         {item.nutri && (

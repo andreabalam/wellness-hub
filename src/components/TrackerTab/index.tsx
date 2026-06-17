@@ -315,7 +315,17 @@ const WeekStrip = memo(function WeekStrip({
           return (
             <div
               key={i}
+              role="button"
+              tabIndex={0}
+              aria-label={`${lbl} ${d.getDate()}${isCur ? ', selected' : ''}`}
+              aria-current={isCur ? 'date' : undefined}
               onClick={() => onSelect(new Date(d))}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onSelect(new Date(d))
+                }
+              }}
               className={`week-strip-cell ${isCur ? 'week-strip-cell--cur' : isToday ? 'week-strip-cell--today' : ''}`}
             >
               <div

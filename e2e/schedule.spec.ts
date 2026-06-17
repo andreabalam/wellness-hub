@@ -24,7 +24,7 @@ test.describe('Schedule tab', () => {
     // Use the tab bar to avoid matching the in-page "✎ Edit schedule" button
     await page
       .locator('nav.tabs')
-      .getByRole('button', { name: /Schedule/i })
+      .getByRole('tab', { name: /Schedule/i })
       .click()
   })
 

@@ -20,7 +20,7 @@ async function goToTrackerStats(page: import('@playwright/test').Page) {
 async function goToWorkoutsStats(page: import('@playwright/test').Page) {
   await page
     .locator('nav.tabs')
-    .getByRole('button', { name: /Workouts/i })
+    .getByRole('tab', { name: /Workouts/i })
     .click()
 }
 
@@ -164,7 +164,7 @@ test.describe('ProfileStatsCard', () => {
 
     await page
       .locator('nav.tabs')
-      .getByRole('button', { name: /Tracker/i })
+      .getByRole('tab', { name: /Tracker/i })
       .click()
     await goToTrackerStats(page)
     await expect(activeView(page).getByText('63 kg', { exact: true })).toBeVisible()
