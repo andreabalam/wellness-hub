@@ -16,11 +16,11 @@ test.describe('Oura tab — unauthenticated', () => {
   })
 
   test('Oura tab is visible in the nav bar', async ({ page }) => {
-    await expect(page.locator('nav.tabs').getByRole('button', { name: /Oura/i })).toBeVisible()
+    await expect(page.locator('nav.tabs').getByRole('tab', { name: /Oura/i })).toBeVisible()
   })
 
   test('shows sign-in gate for unauthenticated users', async ({ page }) => {
-    await page.locator('nav.tabs').getByRole('button', { name: /Oura/i }).click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Oura/i }).click()
     await expect(page.getByText(/Sign in to view your Oura dashboard/i)).toBeVisible()
   })
 })
@@ -35,7 +35,7 @@ test.describe('Oura tab — authenticated, no token', () => {
       localStorage.clear()
     })
     await page.reload()
-    await page.locator('nav.tabs').getByRole('button', { name: /Oura/i }).click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Oura/i }).click()
   })
 
   test('shows OAuth connect screen instead of PAT form', async ({ page }) => {
@@ -107,7 +107,7 @@ test.describe('Oura tab — OAuth callback handling', () => {
     await page.goto('?code=fake-auth-code&state=test-state-value')
 
     // consumeOAuthCallback() should switch the app to the Oura tab
-    await expect(page.locator('nav.tabs').getByRole('button', { name: /Oura/i })).toHaveClass(
+    await expect(page.locator('nav.tabs').getByRole('tab', { name: /Oura/i })).toHaveClass(
       /active/,
       { timeout: 5000 },
     )
@@ -121,7 +121,7 @@ test.describe('Oura tab — OAuth callback handling', () => {
     // No matching state in sessionStorage → callback is a CSRF attempt, ignore it
     await page.goto('?code=fake-code&state=wrong-state')
     // Should stay on Tracker tab (default), not switch to Oura
-    await expect(page.locator('nav.tabs').getByRole('button', { name: /Tracker/i })).toHaveClass(
+    await expect(page.locator('nav.tabs').getByRole('tab', { name: /Tracker/i })).toHaveClass(
       /active/,
     )
   })

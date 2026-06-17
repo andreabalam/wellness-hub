@@ -31,7 +31,7 @@ test.describe('Recipe import UI', () => {
       localStorage.clear()
     })
     await page.reload()
-    await page.getByRole('button', { name: /Recipes/i }).click()
+    await page.getByRole('tab', { name: /Recipes/i }).click()
   })
 
   test('import zone is visible when opening "Add my recipe" modal', async ({ page }) => {
@@ -87,7 +87,7 @@ test.describe('Recipe import UI', () => {
       )
     })
     await page.reload()
-    await page.getByRole('button', { name: /Recipes/i }).click()
+    await page.getByRole('tab', { name: /Recipes/i }).click()
 
     // Expand the recipe card and click Edit
     const card = page.locator('.rcard').first()

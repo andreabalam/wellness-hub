@@ -328,10 +328,14 @@ export default function App() {
             onImportFile={handleImport}
           />
         </div>
-        <nav className="tabs">
+        <nav className="tabs" role="tablist" aria-label="Main sections">
           {TABS.map(t => (
             <button
               key={t.id}
+              role="tab"
+              id={`tab-${t.id}`}
+              aria-selected={active === t.id}
+              aria-controls={`panel-${t.id}`}
               className={`tab${active === t.id ? ' active' : ''}`}
               onClick={() => setActive(t.id)}
             >
@@ -342,22 +346,46 @@ export default function App() {
       </header>
 
       <ErrorBoundary name="Schedule">
-        <div className={`view${active === 'schedule' ? ' active' : ''}`}>
+        <div
+          role="tabpanel"
+          id="panel-schedule"
+          aria-labelledby="tab-schedule"
+          hidden={active !== 'schedule'}
+          className={`view${active === 'schedule' ? ' active' : ''}`}
+        >
           <ScheduleTab user={user} />
         </div>
       </ErrorBoundary>
       <ErrorBoundary name="Workouts">
-        <div className={`view${active === 'workouts' ? ' active' : ''}`}>
+        <div
+          role="tabpanel"
+          id="panel-workouts"
+          aria-labelledby="tab-workouts"
+          hidden={active !== 'workouts'}
+          className={`view${active === 'workouts' ? ' active' : ''}`}
+        >
           <WorkoutsTab user={user} />
         </div>
       </ErrorBoundary>
       <ErrorBoundary name="Recipes">
-        <div className={`view${active === 'recipes' ? ' active' : ''}`}>
+        <div
+          role="tabpanel"
+          id="panel-recipes"
+          aria-labelledby="tab-recipes"
+          hidden={active !== 'recipes'}
+          className={`view${active === 'recipes' ? ' active' : ''}`}
+        >
           <RecipesTab user={user} openRequest={recipeOpenReq} />
         </div>
       </ErrorBoundary>
       <ErrorBoundary name="Tracker">
-        <div className={`view${active === 'tracker' ? ' active' : ''}`}>
+        <div
+          role="tabpanel"
+          id="panel-tracker"
+          aria-labelledby="tab-tracker"
+          hidden={active !== 'tracker'}
+          className={`view${active === 'tracker' ? ' active' : ''}`}
+        >
           {active === 'tracker' && (
             <TrackerTab key={syncVersion} user={user} onOpenRecipe={openRecipe} />
           )}
@@ -365,7 +393,13 @@ export default function App() {
       </ErrorBoundary>
 
       <ErrorBoundary name="Oura">
-        <div className={`view${active === 'oura' ? ' active' : ''}`}>
+        <div
+          role="tabpanel"
+          id="panel-oura"
+          aria-labelledby="tab-oura"
+          hidden={active !== 'oura'}
+          className={`view${active === 'oura' ? ' active' : ''}`}
+        >
           <OuraTab user={user} />
         </div>
       </ErrorBoundary>

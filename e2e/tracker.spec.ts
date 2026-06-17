@@ -148,11 +148,11 @@ test.describe('Tracker tab', () => {
     // Switch tab — TrackerTab unmounts, then remounts and re-reads localStorage
     await page
       .locator('nav.tabs')
-      .getByRole('button', { name: /Schedule/i })
+      .getByRole('tab', { name: /Schedule/i })
       .click()
     await page
       .locator('nav.tabs')
-      .getByRole('button', { name: /Tracker/i })
+      .getByRole('tab', { name: /Tracker/i })
       .click()
 
     await expect(page.getByText('350 / 1,380 kcal')).toBeVisible()

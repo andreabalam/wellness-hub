@@ -56,6 +56,7 @@ export default memo(function RecipeCard({
 }: Props) {
   const [open, setOpen] = useState(false)
   const [shareMsg, setShareMsg] = useState('')
+  const bodyId = `rcbody-${r.id ?? r.name}`
   const cardRef = useRef<HTMLDivElement>(null)
   const isFerment = r.cat === 'ferments'
 
@@ -205,9 +206,20 @@ export default memo(function RecipeCard({
         )}
       </div>
 
-      <div className="rchint">{open ? 'tap to collapse' : 'tap to see recipe'}</div>
+      <button
+        type="button"
+        className="rchint"
+        aria-expanded={open}
+        aria-controls={bodyId}
+        onClick={e => {
+          e.stopPropagation()
+          setOpen(o => !o)
+        }}
+      >
+        {open ? 'tap to collapse' : 'tap to see recipe'}
+      </button>
 
-      <div className="rcbody">
+      <div className="rcbody" id={bodyId}>
         {/* Image */}
         {r.image && <img src={r.image} alt={r.name} className="recipe-card-img" onClick={stop} />}
 

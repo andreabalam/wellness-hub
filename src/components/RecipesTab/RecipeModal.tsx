@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { PRESET_CATS, normalizeCat, catLabel, DIET_TAGS } from '../../data/recipes'
 import type { Recipe, DietTag } from '../../data/recipes'
 import { supabase } from '../../lib/supabase'
@@ -56,6 +56,15 @@ export default function RecipeModal({
   onClose,
 }: Props) {
   const isEdit = Boolean(initialRecipe)
+
+  // Close on Escape (matches the click-outside affordance)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   // ── Recipe form state ─────────────────────────────────────────
   const [name, setName] = useState(() => initialRecipe?.name ?? '')
@@ -414,9 +423,14 @@ export default function RecipeModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="modal-panel">
+      <div
+        className="modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="recipe-modal-title"
+      >
         <div className="modal-header modal-header--center">
-          <div className="modal-title">
+          <div className="modal-title" id="recipe-modal-title">
             {isEdit ? (
               <>
                 Edit my <em className="italic text-purple">Recipe</em>
@@ -427,7 +441,7 @@ export default function RecipeModal({
               </>
             )}
           </div>
-          <button onClick={onClose} className="modal-close">
+          <button onClick={onClose} className="modal-close" aria-label="Close">
             ×
           </button>
         </div>

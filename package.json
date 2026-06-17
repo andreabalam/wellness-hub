@@ -25,6 +25,7 @@
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.0",
     "@testing-library/jest-dom": "^6.9.1",
