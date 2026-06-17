@@ -14,6 +14,7 @@ import * as sync from '../../lib/sync'
 import { reportError } from '../../lib/errorLog'
 import { showToast } from '../../lib/toast'
 import { mergeRecipes, applyIdMap } from '../../lib/recipeSync'
+import { EmptyState } from '../common'
 import RecipeCard from './RecipeCard'
 import GroceryPanel from './GroceryPanel'
 // Heavy, render-on-demand modals — code-split so they stay out of the initial bundle.
@@ -496,13 +497,11 @@ export default function RecipesTab({
       {activeFilter !== 'grocery' && (
         <div className="rgrid">
           {loading ? (
-            <div className="empty-state">Loading recipes…</div>
+            <EmptyState>Loading recipes…</EmptyState>
           ) : loadError && !query.trim() ? (
-            <div className="empty-state">
-              Could not load recipes — check your connection and refresh.
-            </div>
+            <EmptyState>Could not load recipes — check your connection and refresh.</EmptyState>
           ) : visibleRecipes.length === 0 ? (
-            <div className="empty-state">
+            <EmptyState>
               {query.trim() ? (
                 <>
                   No recipes found for <strong className="text-default">"{query.trim()}"</strong>.
@@ -515,7 +514,7 @@ export default function RecipesTab({
               ) : (
                 <>Sign in to add and view your recipes.</>
               )}
-            </div>
+            </EmptyState>
           ) : (
             visibleRecipes.map((r, i) => (
               <RecipeCard

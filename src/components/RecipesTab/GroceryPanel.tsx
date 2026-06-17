@@ -5,6 +5,7 @@ import type { GroceryCatalogItem, NutriInfo } from '../../data/grocery'
 import { useGroceryStore, useGroceryCatalogStore } from '../../hooks/useStore'
 import { searchUSDA } from '../../lib/foodSearch'
 import { safeHas, safeSet } from '../../lib/storage'
+import { InlineEdit } from '../common'
 
 const SEEDED_KEY = 'whub_grocery_initialized_v1'
 
@@ -50,52 +51,27 @@ interface RowProps {
 
 function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps) {
   const [editing, setEditing] = useState(false)
-  const [editVal, setEditVal] = useState(item.n)
 
-  const startEdit = () => {
-    setEditVal(item.n)
-    setEditing(true)
-  }
-
-  const commitEdit = () => {
-    const trimmed = editVal.trim()
-    if (trimmed && trimmed !== item.n) onEdit(item.id, trimmed)
-    setEditing(false)
-  }
+  const startEdit = () => setEditing(true)
 
   if (editing) {
     return (
-      <div className="gitem gap-6" onClick={e => e.stopPropagation()}>
-        <input
-          className="tinput gitem-edit-input"
-          value={editVal}
-          onChange={e => setEditVal(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              commitEdit()
-            }
-            if (e.key === 'Escape') {
-              setEditing(false)
-              setEditVal(item.n)
-            }
-          }}
-          autoFocus
-        />
-        <button aria-label="Save" onClick={commitEdit} className="edit-confirm-btn">
-          ✓
-        </button>
-        <button
-          aria-label="Cancel edit"
-          onClick={() => {
-            setEditing(false)
-            setEditVal(item.n)
-          }}
-          className="edit-discard-btn"
-        >
-          ✕
-        </button>
-      </div>
+      <InlineEdit
+        initialValue={item.n}
+        onSave={v => {
+          if (v !== item.n) onEdit(item.id, v)
+          setEditing(false)
+        }}
+        onCancel={() => setEditing(false)}
+        className="gitem gap-6"
+        inputClassName="tinput gitem-edit-input"
+        saveClassName="edit-confirm-btn"
+        saveLabel="✓"
+        saveAriaLabel="Save"
+        cancelClassName="edit-discard-btn"
+        cancelLabel="✕"
+        stopPropagation
+      />
     )
   }
 
