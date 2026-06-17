@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Recipe, DietTag } from '../../data/recipes'
 import { BUILTIN_RECIPES, DIET_TAGS } from '../../data/recipes'
@@ -15,10 +15,11 @@ import { reportError } from '../../lib/errorLog'
 import { showToast } from '../../lib/toast'
 import { mergeRecipes, applyIdMap } from '../../lib/recipeSync'
 import RecipeCard from './RecipeCard'
-import RecipeModal from './RecipeModal'
 import GroceryPanel from './GroceryPanel'
-import CookingMode from './CookingMode'
-import GroceryIngredientModal from './GroceryIngredientModal'
+// Heavy, render-on-demand modals — code-split so they stay out of the initial bundle.
+const RecipeModal = lazy(() => import('./RecipeModal'))
+const CookingMode = lazy(() => import('./CookingMode'))
+const GroceryIngredientModal = lazy(() => import('./GroceryIngredientModal'))
 
 type Filter =
   | 'all'
@@ -533,36 +534,39 @@ export default function RecipesTab({
         </div>
       )}
 
-      {/* Add / Edit modal */}
-      {showModal && (
-        <RecipeModal
-          customTags={customTags}
-          existingNames={[...builtinRecipes, ...customRecipes].map(r => r.name)}
-          initialRecipe={editRecipe ?? undefined}
-          onSave={handleSave}
-          onAddTag={handleAddTag}
-          onClose={() => {
-            setShowModal(false)
-            setEditRecipe(null)
-          }}
-        />
-      )}
+      {/* Lazily-loaded modals — fallback is null (chunks are small and load fast) */}
+      <Suspense fallback={null}>
+        {/* Add / Edit modal */}
+        {showModal && (
+          <RecipeModal
+            customTags={customTags}
+            existingNames={[...builtinRecipes, ...customRecipes].map(r => r.name)}
+            initialRecipe={editRecipe ?? undefined}
+            onSave={handleSave}
+            onAddTag={handleAddTag}
+            onClose={() => {
+              setShowModal(false)
+              setEditRecipe(null)
+            }}
+          />
+        )}
 
-      {/* Cooking mode overlay */}
-      {cookingRecipe && (
-        <CookingMode recipe={cookingRecipe} onClose={() => setCookingRecipe(null)} />
-      )}
+        {/* Cooking mode overlay */}
+        {cookingRecipe && (
+          <CookingMode recipe={cookingRecipe} onClose={() => setCookingRecipe(null)} />
+        )}
 
-      {/* Grocery ingredient picker */}
-      {groceryRecipe && (
-        <GroceryIngredientModal
-          recipe={groceryRecipe}
-          onAdd={items => {
-            items.forEach(item => catalogStore.add(item))
-          }}
-          onClose={() => setGroceryRecipe(null)}
-        />
-      )}
+        {/* Grocery ingredient picker */}
+        {groceryRecipe && (
+          <GroceryIngredientModal
+            recipe={groceryRecipe}
+            onAdd={items => {
+              items.forEach(item => catalogStore.add(item))
+            }}
+            onClose={() => setGroceryRecipe(null)}
+          />
+        )}
+      </Suspense>
     </>
   )
 }
