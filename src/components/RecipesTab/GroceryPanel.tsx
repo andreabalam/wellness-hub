@@ -4,6 +4,7 @@ import { GROCERY_DATA, GROCERY_CATEGORIES } from '../../data/grocery'
 import type { GroceryCatalogItem, NutriInfo } from '../../data/grocery'
 import { useGroceryStore, useGroceryCatalogStore } from '../../hooks/useStore'
 import { searchUSDA } from '../../lib/foodSearch'
+import { safeHas, safeSet } from '../../lib/storage'
 
 const SEEDED_KEY = 'whub_grocery_initialized_v1'
 
@@ -177,14 +178,14 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
 
   useEffect(() => {
     if (!user) return
-    if (localStorage.getItem(SEEDED_KEY)) return
+    if (safeHas(SEEDED_KEY)) return
     const seeds: GroceryCatalogItem[] = Object.entries(GROCERY_DATA).flatMap(([cat, items]) =>
       items.map(item => ({ id: uid(), n: item.n, cat, nutri: item.nutri })),
     )
     seeds.forEach(item => catalogStore.add(item))
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setUserItems(catalogStore.getAll())
-    localStorage.setItem(SEEDED_KEY, '1')
+    safeSet(SEEDED_KEY, true)
   }, [user, catalogStore])
 
   const { orderedCats, byCategory } = useMemo(() => {

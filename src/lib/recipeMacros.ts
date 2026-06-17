@@ -6,6 +6,7 @@
  */
 import { parseIngredientAmount } from './ingredientAmount'
 import { searchUSDAPer100g, type UsdaPer100g } from './foodSearch'
+import { safeGet, safeSet } from './storage'
 
 export type ResolutionStatus = 'ok' | 'no-amount' | 'no-match'
 
@@ -109,19 +110,11 @@ interface CacheEntry extends UsdaPer100g {
 }
 
 function readCache(): Record<string, CacheEntry> {
-  try {
-    return JSON.parse(localStorage.getItem(USDA_CACHE_KEY) ?? '{}')
-  } catch {
-    return {}
-  }
+  return safeGet<Record<string, CacheEntry>>(USDA_CACHE_KEY, {})
 }
 
 function writeCache(cache: Record<string, CacheEntry>) {
-  try {
-    localStorage.setItem(USDA_CACHE_KEY, JSON.stringify(cache))
-  } catch {
-    /* quota exceeded — cache is best-effort */
-  }
+  safeSet(USDA_CACHE_KEY, cache)
 }
 
 function normalizeName(name: string): string {

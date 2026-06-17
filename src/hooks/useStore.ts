@@ -9,8 +9,12 @@ import type { Reminder } from '../data/reminders'
 import type { GroceryCatalogItem } from '../data/grocery'
 import { supabase } from '../lib/supabase'
 import * as sync from '../lib/sync'
-import { safeGet, safeSet } from '../lib/storage'
+import { safeGet, safeSet, safeRemove, safeHas } from '../lib/storage'
 import { reportError } from '../lib/errorLog'
+import { isDayDataMap, isRecipe, isQuickFood, isArrayOf } from '../lib/schema'
+
+const isRecipeArray = (v: unknown): v is Recipe[] => isArrayOf(v, isRecipe)
+const isQuickFoodArray = (v: unknown): v is QuickFood[] => isArrayOf(v, isQuickFood)
 
 const TRACKER_KEY = 'whub_tracker_v3'
 const RECIPES_KEY = 'whub_custom_recipes_v1'
@@ -78,15 +82,15 @@ async function tryPush(fn: (userId: string) => Promise<void>) {
 
 // ── Tracker ── plain functions, safe to call anywhere ────────────
 export const trackerStore = {
-  getAll: () => safeGet<Record<string, DayData>>(TRACKER_KEY, {}),
+  getAll: () => safeGet<Record<string, DayData>>(TRACKER_KEY, {}, isDayDataMap),
 
   getDay: (dateKey: string): DayData => {
-    const all = safeGet<Record<string, DayData>>(TRACKER_KEY, {})
+    const all = safeGet<Record<string, DayData>>(TRACKER_KEY, {}, isDayDataMap)
     return all[dateKey] ?? { ...EMPTY_DAY, foods: [] }
   },
 
   setDay: (dateKey: string, data: DayData) => {
-    const all = safeGet<Record<string, DayData>>(TRACKER_KEY, {})
+    const all = safeGet<Record<string, DayData>>(TRACKER_KEY, {}, isDayDataMap)
     all[dateKey] = data
     safeSet(TRACKER_KEY, all)
     tryPush(uid => sync.pushDay(uid, dateKey, data))
@@ -112,7 +116,7 @@ export const trackerStore = {
 // Note: recipe sync to Supabase is handled explicitly in RecipesTab
 // via upsertUserRecipe / deleteUserRecipe — not through tryPush here.
 export const recipeStore = {
-  getRecipes: () => safeGet<Recipe[]>(RECIPES_KEY, []),
+  getRecipes: () => safeGet<Recipe[]>(RECIPES_KEY, [], isRecipeArray),
   saveRecipes: (arr: Recipe[]) => safeSet(RECIPES_KEY, arr),
   addRecipe: (r: Recipe) => recipeStore.saveRecipes([...recipeStore.getRecipes(), r]),
   deleteRecipe: (id: number) =>
@@ -135,7 +139,7 @@ export const recipeStore = {
 // log-food search can match built-in recipes without its own network round-trip.
 const BUILTIN_CACHE_KEY = 'whub_builtin_recipes_v1'
 export const builtinRecipeCacheStore = {
-  getAll: (): Recipe[] => safeGet<Recipe[]>(BUILTIN_CACHE_KEY, []),
+  getAll: (): Recipe[] => safeGet<Recipe[]>(BUILTIN_CACHE_KEY, [], isRecipeArray),
   save: (arr: Recipe[]) => safeSet(BUILTIN_CACHE_KEY, arr),
 }
 
@@ -158,7 +162,7 @@ export const groceryStore = {
 
 // ── Food library ── remembers per-serving macros for previously logged foods ─
 export const foodLibraryStore = {
-  getAll: (): QuickFood[] => safeGet<QuickFood[]>(FOOD_LIBRARY_KEY, []),
+  getAll: (): QuickFood[] => safeGet<QuickFood[]>(FOOD_LIBRARY_KEY, [], isQuickFoodArray),
 
   upsert: (entry: QuickFood): QuickFood[] => {
     const lib = foodLibraryStore.getAll()
@@ -207,11 +211,7 @@ export const scheduleStore = {
   },
 
   reset() {
-    try {
-      localStorage.removeItem(WEEK_SCHEDULE_KEY)
-    } catch {
-      /* quota */
-    }
+    safeRemove(WEEK_SCHEDULE_KEY)
   },
 }
 
@@ -236,22 +236,10 @@ export const groceryCatalogStore = {
     groceryCatalogStore.save(groceryCatalogStore.getAll().filter(i => i.id !== id)),
 
   /** True when the key exists in localStorage (even if the array is empty) */
-  isInitialized: (): boolean => {
-    try {
-      return localStorage.getItem(GROCERY_CATALOG_KEY) !== null
-    } catch {
-      return false
-    }
-  },
+  isInitialized: (): boolean => safeHas(GROCERY_CATALOG_KEY),
 
   /** Wipe the key so it can be re-seeded from defaults */
-  reset: () => {
-    try {
-      localStorage.removeItem(GROCERY_CATALOG_KEY)
-    } catch {
-      /* quota */
-    }
-  },
+  reset: () => safeRemove(GROCERY_CATALOG_KEY),
 }
 
 // ── Hidden built-in recipes ── set of recipe IDs the user has hidden ─
