@@ -47,15 +47,11 @@ import {
   fetchOuraWorkouts,
   fetchOuraReadiness,
   fetchOuraSessions,
-  fetchOuraSleep,
-  fetchOuraStress,
   OURA_ACTIVITY_MAP,
   OURA_SESSION_MAP,
   roundToMedMin,
   readinessColor,
   readinessLabel,
-  sleepScoreToStars,
-  stressToScale,
 } from '../../lib/oura'
 import type { OuraReadiness } from '../../lib/oura'
 import { safeGet, safeSet } from '../../lib/storage'
@@ -67,9 +63,9 @@ import type { PhotoAnalysisResult } from '../../lib/analyzeFood'
 import { parseFoodLog, parseFoodLogLocal } from '../../lib/foodImport'
 import RemindersSection from './RemindersSection'
 import MacroBar from './MacroBar'
-import StarRow from './StarRow'
 import SatietyRow from './SatietyRow'
 import WeekStrip from './WeekStrip'
+import CheckIn from './CheckIn'
 import { dkey } from './dateKey'
 
 /** Local Monday (week anchor) of the week containing d. */
@@ -216,15 +212,10 @@ export default function TrackerTab({
   const [medMin, setMedMin] = useState(0)
   const [medStyle, setMedStyle] = useState('')
   const [medSaved, setMedSaved] = useState(false)
-  const [energy, setEnergy] = useState(0)
-  const [mood, setMood] = useState(0)
-  const [sleep, setSleep] = useState(0)
-  const [stress, setStress] = useState(0)
   const [water, setWater] = useState(0)
   const [phase, setPhase] = useState('')
   const [dayNotes, setDayNotes] = useState('')
   const [notesSaved, setNotesSaved] = useState(false)
-  const [checkInSaved, setCheckInSaved] = useState(false)
   const [weekGoal, setWeekGoal] = useState('')
   const [weekGoalKind, setWeekGoalKind] = useState<WeekGoalKind>('goal')
   const [weekGoalResult, setWeekGoalResult] = useState<WeekGoalResult | ''>('')
@@ -248,10 +239,6 @@ export default function TrackerTab({
       setWkNotes(data.wkNotes ?? '')
       setMedMin(data.medMin ?? 0)
       setMedStyle(data.medStyle ?? '')
-      setEnergy(data.energy ?? 0)
-      setMood(data.mood ?? 0)
-      setSleep(data.sleep ?? 0)
-      setStress(data.stress ?? 0)
       setWater(data.water ?? 0)
       setPhase(data.phase ?? '')
       setDayNotes(data.notes ?? '')
@@ -674,12 +661,6 @@ export default function TrackerTab({
     setTimeout(() => setMedSaved(false), 1600)
   }
 
-  const saveCheckIn = () => {
-    save({ energy, mood, sleep, stress, phase })
-    setCheckInSaved(true)
-    setTimeout(() => setCheckInSaved(false), 1600)
-  }
-
   const saveNotes = () => {
     save({ notes: dayNotes })
     setNotesSaved(true)
@@ -731,6 +712,11 @@ export default function TrackerTab({
   }
 
   const phaseNote = PHASE_NOTES[phase] ?? PHASE_NOTES['']
+
+  // Fresh read of the selected day's check-in values to seed <CheckIn>. The
+  // `day` state lags `date` by one render (it's loaded in an effect), so seeding
+  // the date-keyed CheckIn from `day` would show the previous day's stars.
+  const checkInDay = useMemo(() => store.getDay(dkey(date)), [date, store])
 
   // ── Oura state ──────────────────────────────────────────────────
   const [ouraConnected, setOuraConnected] = useState(false)
@@ -830,29 +816,6 @@ export default function TrackerTab({
       setMedSyncing(false)
     }
   }
-
-  // Auto-populate sleep stars from Oura when switching to check-in view
-  const syncSleepFromOura = useCallback(async () => {
-    if (!ouraConnected || sleep > 0) return // don't overwrite manually-set value
-    try {
-      const data = await fetchOuraSleep(dkey(date))
-      if (data) setSleep(sleepScoreToStars(data.score))
-    } catch {
-      /* silent — sleep sync is best-effort */
-    }
-  }, [ouraConnected, sleep, date])
-
-  // Auto-populate the stress scale from Oura daily_stress (same lazy pattern as sleep)
-  const syncStressFromOura = useCallback(async () => {
-    if (!ouraConnected || stress > 0) return // don't overwrite a manual/already-set value
-    try {
-      const data = await fetchOuraStress(dkey(date))
-      const scaled = data && stressToScale(data)
-      if (scaled) setStress(scaled)
-    } catch {
-      /* silent — stress sync is best-effort */
-    }
-  }, [ouraConnected, stress, date])
 
   // Hydration counter — persists immediately on each tap
   const adjustWater = (delta: number) => {
@@ -1734,108 +1697,19 @@ export default function TrackerTab({
             )}
           </div>
 
-          {/* Daily check-in */}
-          <div
-            className="tcard"
-            onFocus={() => {
-              syncSleepFromOura()
-              syncStressFromOura()
-            }}
-            onMouseEnter={() => {
-              syncSleepFromOura()
-              syncStressFromOura()
-            }}
-          >
-            <div className="tlabel" style={{ color: 'var(--purple)' }}>
-              Daily check-in
-            </div>
-            <div className="flex flex-col gap-12">
-              <div>
-                <div className="text-sm text-muted mb-6">Energy ⚡</div>
-                <StarRow
-                  value={energy}
-                  onChange={setEnergy}
-                  emoji="E"
-                  lowLabel="Drained"
-                  highLabel="Peaked"
-                />
-              </div>
-              <div>
-                <div className="text-sm text-muted mb-6">Mood 😊</div>
-                <StarRow
-                  value={mood}
-                  onChange={setMood}
-                  emoji="M"
-                  lowLabel="Low"
-                  highLabel="Bright"
-                />
-              </div>
-              <div>
-                <div className="text-sm text-muted mb-6">Sleep 🌙</div>
-                <StarRow
-                  value={sleep}
-                  onChange={setSleep}
-                  emoji="Z"
-                  lowLabel="Poor"
-                  highLabel="Restorative"
-                />
-              </div>
-              <div>
-                <div className="text-sm text-muted mb-6">
-                  Stress 🧠
-                  {ouraConnected && (
-                    <span className="text-2xs text-muted2" style={{ marginLeft: 6 }}>
-                      auto from Oura · tap to override
-                    </span>
-                  )}
-                </div>
-                <StarRow
-                  value={stress}
-                  onChange={setStress}
-                  emoji="S"
-                  lowLabel="Calm"
-                  highLabel="Stressed"
-                />
-              </div>
-              <div>
-                <div className="text-sm text-muted mb-6">Cycle phase</div>
-                <div className="flex gap-6 flex-wrap">
-                  {(['Menstrual', 'Follicular', 'Ovulatory', 'Luteal', 'Unsure'] as const).map(
-                    (p, i) => {
-                      const colors = [
-                        'var(--purple)',
-                        'var(--green)',
-                        'var(--teal)',
-                        'var(--amber)',
-                        'var(--muted2)',
-                      ]
-                      const active = phase === p
-                      return (
-                        <button
-                          key={p}
-                          onClick={() => setPhase(active ? '' : p)}
-                          className="phase-btn"
-                          style={{
-                            border: `1px solid ${active ? colors[i] : 'var(--border)'}`,
-                            background: active ? `${colors[i]}20` : 'var(--bg3)',
-                            color: active ? colors[i] : 'var(--muted)',
-                          }}
-                        >
-                          {p}
-                        </button>
-                      )
-                    },
-                  )}
-                </div>
-              </div>
-              <button
-                onClick={saveCheckIn}
-                className={`tbtn ${checkInSaved ? 'tbtn--green' : 'tbtn--secondary'}`}
-              >
-                {checkInSaved ? 'Saved!' : 'Save check-in'}
-              </button>
-            </div>
-          </div>
+          {/* Daily check-in — keyed by date so it re-seeds its stars on day change */}
+          <CheckIn
+            key={dkey(date)}
+            initialEnergy={checkInDay.energy}
+            initialMood={checkInDay.mood}
+            initialSleep={checkInDay.sleep}
+            initialStress={checkInDay.stress}
+            phase={phase}
+            onSetPhase={setPhase}
+            ouraConnected={ouraConnected}
+            date={date}
+            onSave={save}
+          />
 
           {/* Reminders */}
           <RemindersSection user={user} />
