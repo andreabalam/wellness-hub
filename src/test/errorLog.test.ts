@@ -30,7 +30,7 @@ describe('reportError', () => {
 
   it('uses console.warn for warn severity', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const err  = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
     reportError('soft:ctx', 'just a string', { severity: 'warn' })
     expect(warn).toHaveBeenCalledWith('[soft:ctx]', 'just a string')
     expect(err).not.toHaveBeenCalled()

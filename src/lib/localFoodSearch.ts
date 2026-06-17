@@ -62,8 +62,10 @@ export function historyFoods(days: Record<string, DayData>): QuickFood[] {
       const s = food.s && food.s > 0 ? food.s : 1
       result.push({
         n: food.n,
-        k: Math.round(food.k / s), p: Math.round(food.p / s),
-        c: Math.round(food.c / s), f: Math.round(food.f / s),
+        k: Math.round(food.k / s),
+        p: Math.round(food.p / s),
+        c: Math.round(food.c / s),
+        f: Math.round(food.f / s),
         fi: Math.round(food.fi / s),
       })
     }
@@ -72,7 +74,10 @@ export function historyFoods(days: Record<string, DayData>): QuickFood[] {
 }
 
 const SOURCE_RANK: Record<LocalFoodHit['source'], number> = {
-  library: 0, history: 1, recipe: 2, builtin: 3,
+  library: 0,
+  history: 1,
+  recipe: 2,
+  builtin: 3,
 }
 
 /**
@@ -87,7 +92,9 @@ export function searchLocalFoods(query: string, src: LocalSearchSources): LocalF
   const candidates: LocalFoodHit[] = [
     ...src.library.map(f => ({ ...f, source: 'library' as const })),
     ...src.history.map(f => ({ ...f, source: 'history' as const })),
-    ...src.recipes.filter(r => !r.hidden).map(recipeToHit)
+    ...src.recipes
+      .filter(r => !r.hidden)
+      .map(recipeToHit)
       .filter((h): h is LocalFoodHit => h !== null),
     ...src.quickFoods.map(f => ({ ...f, source: 'builtin' as const })),
   ]

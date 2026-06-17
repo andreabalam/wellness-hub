@@ -5,7 +5,13 @@
 
 export type MacroSplit = 'balanced' | 'high_protein' | 'low_carb' | 'custom'
 
-export interface MacroTargets { kcal: number; prot: number; carb: number; fat: number; fiber: number }
+export interface MacroTargets {
+  kcal: number
+  prot: number
+  carb: number
+  fat: number
+  fiber: number
+}
 
 /** Daily calorie deficit from a weekly fat-loss rate (7,700 kcal ≈ 1 kg of fat). */
 export function deficitFromRate(kgPerWeek: number): number {
@@ -22,11 +28,29 @@ export function kcalFromTdee(tdeeKcal: number, fatLossKgPerWeek: number): number
 export function macrosFromKcal(kcal: number, split: MacroSplit): MacroTargets | null {
   if (split === 'custom' || kcal <= 0) return null
   if (split === 'balanced')
-    return { kcal, prot: Math.round(kcal * 0.30 / 4), carb: Math.round(kcal * 0.40 / 4), fat: Math.round(kcal * 0.30 / 9), fiber: 25 }
+    return {
+      kcal,
+      prot: Math.round((kcal * 0.3) / 4),
+      carb: Math.round((kcal * 0.4) / 4),
+      fat: Math.round((kcal * 0.3) / 9),
+      fiber: 25,
+    }
   if (split === 'high_protein')
-    return { kcal, prot: Math.round(kcal * 0.35 / 4), carb: Math.round(kcal * 0.35 / 4), fat: Math.round(kcal * 0.30 / 9), fiber: 25 }
+    return {
+      kcal,
+      prot: Math.round((kcal * 0.35) / 4),
+      carb: Math.round((kcal * 0.35) / 4),
+      fat: Math.round((kcal * 0.3) / 9),
+      fiber: 25,
+    }
   if (split === 'low_carb')
-    return { kcal, prot: Math.round(kcal * 0.35 / 4), carb: Math.round(kcal * 0.20 / 4), fat: Math.round(kcal * 0.45 / 9), fiber: 25 }
+    return {
+      kcal,
+      prot: Math.round((kcal * 0.35) / 4),
+      carb: Math.round((kcal * 0.2) / 4),
+      fat: Math.round((kcal * 0.45) / 9),
+      fiber: 25,
+    }
   return null
 }
 

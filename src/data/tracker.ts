@@ -1,9 +1,16 @@
 export interface QuickFood {
-  n: string; k: number; p: number; c: number; f: number; fi: number
+  n: string
+  k: number
+  p: number
+  c: number
+  f: number
+  fi: number
 }
 
 export interface SessionOption {
-  id: string; label: string; color: string
+  id: string
+  label: string
+  color: string
 }
 
 export const KCAL_TARGET = 1380
@@ -44,7 +51,15 @@ export const SESSION_OPTS: SessionOption[] = [
 ]
 
 export const MED_MINS = [5, 10, 13, 15, 20]
-export const MED_STYLES = ['Breath focus', 'Box breathing', 'Long exhale', 'Body scan', 'Visualization', 'Guided', 'Silent']
+export const MED_STYLES = [
+  'Breath focus',
+  'Box breathing',
+  'Long exhale',
+  'Body scan',
+  'Visualization',
+  'Guided',
+  'Silent',
+]
 
 export const PHASE_NOTES: Record<string, string> = {
   Menstrual: 'Week 1: Low intensity. Pilates + gentle activation. Be kind to yourself.',
@@ -56,23 +71,28 @@ export const PHASE_NOTES: Record<string, string> = {
 }
 
 export interface FoodEntry {
-  n: string; k: number; p: number; c: number; f: number; fi: number
-  s?: number  // servings logged (stored so edit can reverse-calculate per-serving values)
-  r?: number  // recipe id when logged from a recipe hit (ids can go stale after first sync — resolve by id, fall back to name match)
-  sat?: number  // Noom satiety after this meal (1–7, optional; "Ravenous" → "Out of commission")
-  hunger?: string  // Noom hunger type when logging (see HUNGER_TYPES), optional
+  n: string
+  k: number
+  p: number
+  c: number
+  f: number
+  fi: number
+  s?: number // servings logged (stored so edit can reverse-calculate per-serving values)
+  r?: number // recipe id when logged from a recipe hit (ids can go stale after first sync — resolve by id, fall back to name match)
+  sat?: number // Noom satiety after this meal (1–7, optional; "Ravenous" → "Out of commission")
+  hunger?: string // Noom hunger type when logging (see HUNGER_TYPES), optional
 }
 
 /** Noom hunger types — "feed what's actually hungry". `id` is stored on the entry. */
 export const HUNGER_TYPES = [
-  { id: 'stomach',   label: 'Stomach',   icon: '🍽' },
-  { id: 'mouth',     label: 'Mouth',     icon: '👄' },
+  { id: 'stomach', label: 'Stomach', icon: '🍽' },
+  { id: 'mouth', label: 'Mouth', icon: '👄' },
   { id: 'emotional', label: 'Emotional', icon: '💭' },
-  { id: 'learned',   label: 'Learned',   icon: '⏰' },
-  { id: 'social',    label: 'Social',    icon: '👥' },
+  { id: 'learned', label: 'Learned', icon: '⏰' },
+  { id: 'social', label: 'Social', icon: '👥' },
 ] as const
 
-export type HungerType = typeof HUNGER_TYPES[number]['id']
+export type HungerType = (typeof HUNGER_TYPES)[number]['id']
 
 /** The icon for a hunger-type id, or '' if unknown. */
 export function hungerIcon(id: string | undefined): string {
@@ -91,15 +111,15 @@ export interface DayData {
   energy: number
   mood: number
   sleep: number
-  stress: number  // 1–5; auto-filled from Oura daily_stress when connected, else manual
-  water: number   // glasses of water (0–12)
+  stress: number // 1–5; auto-filled from Oura daily_stress when connected, else manual
+  water: number // glasses of water (0–12)
   phase: string
   notes: string
   medMin: number
   medStyle: string
   // Weekly check-in (Tier 2 #6) — populated only on a week's Monday anchor day.
   weekGoal?: string
-  weekGoalKind?: WeekGoalKind   // 'goal' (SMART) or 'experiment' (CMA "if X then Y")
+  weekGoalKind?: WeekGoalKind // 'goal' (SMART) or 'experiment' (CMA "if X then Y")
   weekGoalResult?: WeekGoalResult
   weekGoalNote?: string
 }
@@ -115,8 +135,18 @@ export const WEEK_GOAL_SUGGESTIONS = [
 ]
 
 export const EMPTY_DAY: DayData = {
-  foods: [], workout: null, wkNotes: '', energy: 0, mood: 0,
-  sleep: 0, stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '',
+  foods: [],
+  workout: null,
+  wkNotes: '',
+  energy: 0,
+  mood: 0,
+  sleep: 0,
+  stress: 0,
+  water: 0,
+  phase: '',
+  notes: '',
+  medMin: 0,
+  medStyle: '',
 }
 
 /** Max glasses the hydration counter allows. */

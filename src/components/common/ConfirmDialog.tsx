@@ -11,7 +11,7 @@ interface Props {
 export default memo(function ConfirmDialog({
   message,
   confirmLabel = 'Confirm',
-  cancelLabel  = 'Cancel',
+  cancelLabel = 'Cancel',
   onConfirm,
   onCancel,
 }: Props) {

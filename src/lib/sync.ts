@@ -49,34 +49,34 @@ function rowToRecipe(row: Record<string, unknown>): Recipe {
   // fold them into 'meal' so every recipe matches a filter chip
   const cat = normalizeCat(row.cat)
   return {
-    id:        row.id as number,
+    id: row.id as number,
     cat,
-    type:      cat === row.cat ? row.type as string : catLabel(cat),
-    color:     row.color as string,
-    sc:        row.sc as string,
-    name:      row.name as string,
-    tag:       row.tag as string,
-    prepL:     row.prep_l as string,
-    prepC:     row.prep_c as string,
-    prepTime:  row.prep_time as string | undefined,
+    type: cat === row.cat ? (row.type as string) : catLabel(cat),
+    color: row.color as string,
+    sc: row.sc as string,
+    name: row.name as string,
+    tag: row.tag as string,
+    prepL: row.prep_l as string,
+    prepC: row.prep_c as string,
+    prepTime: row.prep_time as string | undefined,
     healthTag: row.health_tag as Recipe['healthTag'],
-    dietTag:   (row.diet_tag as Recipe['dietTag']) ?? undefined,
+    dietTag: (row.diet_tag as Recipe['dietTag']) ?? undefined,
     gramsPerServing: (row.grams_per_serving as number) ?? undefined,
-    image:     row.image as string | undefined,
-    link:      row.link as string | undefined,
-    hk:        row.hk as number,
-    hp:        row.hp as string,
-    hc:        row.hc as string,
-    hf:        row.hf as string,
-    hfi:       row.hfi as string | undefined,
-    mk:        row.mk as number,
-    mp:        row.mp as string,
-    mc:        row.mc as string,
-    mf:        row.mf as string,
-    ings:      row.ings as Recipe['ings'],
-    steps:     row.steps as string[],
-    tip:       row.tip as string,
-    custom:    source === 'user',
+    image: row.image as string | undefined,
+    link: row.link as string | undefined,
+    hk: row.hk as number,
+    hp: row.hp as string,
+    hc: row.hc as string,
+    hf: row.hf as string,
+    hfi: row.hfi as string | undefined,
+    mk: row.mk as number,
+    mp: row.mp as string,
+    mc: row.mc as string,
+    mf: row.mf as string,
+    ings: row.ings as Recipe['ings'],
+    steps: row.steps as string[],
+    tip: row.tip as string,
+    custom: source === 'user',
     source,
   }
 }
@@ -117,16 +117,35 @@ export async function upsertUserRecipe(userId: string, r: Recipe): Promise<numbe
   const isDbId = r.id != null && r.id < 1e12
   const payload: Record<string, unknown> = {
     ...(isDbId ? { id: r.id } : {}),
-    cat: r.cat, type: r.type, color: r.color, sc: r.sc, name: r.name,
-    tag: r.tag, prep_l: r.prepL, prep_c: r.prepC,
-    prep_time: r.prepTime ?? null, health_tag: r.healthTag ?? null,
+    cat: r.cat,
+    type: r.type,
+    color: r.color,
+    sc: r.sc,
+    name: r.name,
+    tag: r.tag,
+    prep_l: r.prepL,
+    prep_c: r.prepC,
+    prep_time: r.prepTime ?? null,
+    health_tag: r.healthTag ?? null,
     diet_tag: r.dietTag ?? null,
     grams_per_serving: r.gramsPerServing ?? null,
-    image: r.image ?? null, link: r.link ?? null,
-    hk: r.hk, hp: r.hp, hc: r.hc, hf: r.hf, hfi: r.hfi ?? null,
-    mk: r.mk, mp: r.mp, mc: r.mc, mf: r.mf,
-    ings: r.ings, steps: r.steps, tip: r.tip,
-    custom: true, source: 'user', user_id: userId,
+    image: r.image ?? null,
+    link: r.link ?? null,
+    hk: r.hk,
+    hp: r.hp,
+    hc: r.hc,
+    hf: r.hf,
+    hfi: r.hfi ?? null,
+    mk: r.mk,
+    mp: r.mp,
+    mc: r.mc,
+    mf: r.mf,
+    ings: r.ings,
+    steps: r.steps,
+    tip: r.tip,
+    custom: true,
+    source: 'user',
+    user_id: userId,
     updated_at: new Date().toISOString(),
   }
   const { data, error } = await supabase!
@@ -145,7 +164,6 @@ export async function upsertUserRecipe(userId: string, r: Recipe): Promise<numbe
 export async function deleteUserRecipe(recipeId: number): Promise<void> {
   await supabase!.from('recipes').delete().eq('id', recipeId)
 }
-
 
 // ── Custom tags ───────────────────────────────────────────────────
 
@@ -244,7 +262,10 @@ export async function pullWeekSchedule(userId: string): Promise<WeekSchedule | n
 
 // ── Meditation guides (per user) ─────────────────────────────────
 
-export interface MedGuide { title: string; url: string }
+export interface MedGuide {
+  title: string
+  url: string
+}
 
 export async function pushMedGuides(userId: string, guides: MedGuide[]) {
   const { error } = await supabase!
@@ -271,25 +292,26 @@ export async function fetchReminders(userId: string): Promise<Reminder[]> {
     .order('created_at', { ascending: true })
   if (error || !data) return []
   return data.map(r => ({
-    id:        r.id as string,
-    text:      r.text as string,
-    checked:   r.checked as boolean,
+    id: r.id as string,
+    text: r.text as string,
+    checked: r.checked as boolean,
     checkedAt: r.checked_at as string | null,
     createdAt: r.created_at as string,
   }))
 }
 
 export async function upsertReminder(userId: string, r: Reminder): Promise<void> {
-  const { error } = await supabase!
-    .from('reminders')
-    .upsert({
-      id:         r.id,
-      user_id:    userId,
-      text:       r.text,
-      checked:    r.checked,
+  const { error } = await supabase!.from('reminders').upsert(
+    {
+      id: r.id,
+      user_id: userId,
+      text: r.text,
+      checked: r.checked,
       checked_at: r.checkedAt,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' })
+    },
+    { onConflict: 'id' },
+  )
   assertOk('upsertReminder', error)
 }
 
@@ -324,56 +346,59 @@ export async function pullGroceryCatalog(): Promise<Record<string, GroceryItem[]
     .select('category, items')
     .order('sort_order')
   if (error || !data?.length) return null
-  return Object.fromEntries(
-    data.map(r => [r.category as string, r.items as GroceryItem[]])
-  )
+  return Object.fromEntries(data.map(r => [r.category as string, r.items as GroceryItem[]]))
 }
 
 // ── User settings (macro targets + cognitive peak) ─────────────────────────
 
 export interface UserSettings {
-  kcalTarget:         number
-  protTarget:         number
-  carbTarget:         number
-  fatTarget:          number
-  fiberTarget:        number
-  macroSplit:         'balanced' | 'high_protein' | 'low_carb' | 'custom'
-  cognitivePeakStart: string   // "HH:MM" 24-h
-  cognitivePeakEnd:   string
+  kcalTarget: number
+  protTarget: number
+  carbTarget: number
+  fatTarget: number
+  fiberTarget: number
+  macroSplit: 'balanced' | 'high_protein' | 'low_carb' | 'custom'
+  cognitivePeakStart: string // "HH:MM" 24-h
+  cognitivePeakEnd: string
 }
 
 export async function fetchUserSettings(userId: string): Promise<UserSettings | null> {
   const { data, error } = await supabase!
     .from('user_settings')
-    .select('kcal_target, prot_target, carb_target, fat_target, fiber_target, macro_split, cognitive_peak_start, cognitive_peak_end')
+    .select(
+      'kcal_target, prot_target, carb_target, fat_target, fiber_target, macro_split, cognitive_peak_start, cognitive_peak_end',
+    )
     .eq('user_id', userId)
     .maybeSingle()
   if (error || !data) return null
   return {
-    kcalTarget:         data.kcal_target          as number,
-    protTarget:         data.prot_target          as number,
-    carbTarget:         data.carb_target          as number,
-    fatTarget:          data.fat_target           as number,
-    fiberTarget:        data.fiber_target         as number,
-    macroSplit:         data.macro_split          as UserSettings['macroSplit'],
+    kcalTarget: data.kcal_target as number,
+    protTarget: data.prot_target as number,
+    carbTarget: data.carb_target as number,
+    fatTarget: data.fat_target as number,
+    fiberTarget: data.fiber_target as number,
+    macroSplit: data.macro_split as UserSettings['macroSplit'],
     cognitivePeakStart: data.cognitive_peak_start as string,
-    cognitivePeakEnd:   data.cognitive_peak_end   as string,
+    cognitivePeakEnd: data.cognitive_peak_end as string,
   }
 }
 
 export async function upsertUserSettings(userId: string, s: UserSettings): Promise<void> {
-  const { error } = await supabase!.from('user_settings').upsert({
-    user_id:              userId,
-    kcal_target:          s.kcalTarget,
-    prot_target:          s.protTarget,
-    carb_target:          s.carbTarget,
-    fat_target:           s.fatTarget,
-    fiber_target:         s.fiberTarget,
-    macro_split:          s.macroSplit,
-    cognitive_peak_start: s.cognitivePeakStart,
-    cognitive_peak_end:   s.cognitivePeakEnd,
-    updated_at:           new Date().toISOString(),
-  }, { onConflict: 'user_id' })
+  const { error } = await supabase!.from('user_settings').upsert(
+    {
+      user_id: userId,
+      kcal_target: s.kcalTarget,
+      prot_target: s.protTarget,
+      carb_target: s.carbTarget,
+      fat_target: s.fatTarget,
+      fiber_target: s.fiberTarget,
+      macro_split: s.macroSplit,
+      cognitive_peak_start: s.cognitivePeakStart,
+      cognitive_peak_end: s.cognitivePeakEnd,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' },
+  )
   assertOk('upsertUserSettings', error)
 }
 
@@ -381,33 +406,33 @@ export async function upsertUserSettings(userId: string, s: UserSettings): Promi
 
 export interface UserBodyStats {
   // Measurements — auto-filled from Oura personal_info, user-editable
-  weightKg:      number
-  heightM:       number
-  age:           number
-  biologicalSex: string   // 'male' | 'female' | 'other' | ''
+  weightKg: number
+  heightM: number
+  age: number
+  biologicalSex: string // 'male' | 'female' | 'other' | ''
 
   // Circumference measurements — user-entered
-  waistCm:          number
-  glutesCm:         number
-  measurementUnit:  'cm' | 'in'
+  waistCm: number
+  glutesCm: number
+  measurementUnit: 'cm' | 'in'
 
   // Composition + lifestyle — user-entered
-  bodyFatPct:    number
-  cycleType:     'regular' | 'irregular' | 'none'
-  equipment:     string
-  chronotype:    'lion' | 'bear' | 'wolf' | 'dolphin' | ''
+  bodyFatPct: number
+  cycleType: 'regular' | 'irregular' | 'none'
+  equipment: string
+  chronotype: 'lion' | 'bear' | 'wolf' | 'dolphin' | ''
 
   // Goals — user-entered
-  fatLossRateKg: number   // kg/week: 0 | 0.25 | 0.5 | 0.75 | 1.0
-  macroSplit:    'balanced' | 'high_protein' | 'low_carb' | 'custom'
+  fatLossRateKg: number // kg/week: 0 | 0.25 | 0.5 | 0.75 | 1.0
+  macroSplit: 'balanced' | 'high_protein' | 'low_carb' | 'custom'
 
   // Computed / cached
-  tdeeKcal:      number   // 7-day avg from Oura daily_activity.total_calories
-  kcalTarget:    number   // = kcalFromTdee(tdee, fatLossRate) or user override
+  tdeeKcal: number // 7-day avg from Oura daily_activity.total_calories
+  kcalTarget: number // = kcalFromTdee(tdee, fatLossRate) or user override
 
   // Computed display strings (for WorkoutsTab stats strip)
-  protRange:     string
-  fatLossGoal:   string
+  protRange: string
+  fatLossGoal: string
 }
 
 /*
@@ -424,8 +449,10 @@ export interface UserBodyStats {
  */
 
 export async function fetchUserBodyStats(userId: string): Promise<UserBodyStats | null> {
-  const fullCols = 'weight_kg, body_fat_pct, height_m, age, biological_sex, cycle_type, equipment, tdee_kcal, kcal_target, prot_range, fat_loss_goal, chronotype, fat_loss_rate_kg, macro_split, waist_cm, glutes_cm, measurement_unit'
-  const coreCols = 'weight_kg, body_fat_pct, height_m, age, biological_sex, cycle_type, equipment, tdee_kcal, kcal_target, prot_range, fat_loss_goal, chronotype, fat_loss_rate_kg, macro_split'
+  const fullCols =
+    'weight_kg, body_fat_pct, height_m, age, biological_sex, cycle_type, equipment, tdee_kcal, kcal_target, prot_range, fat_loss_goal, chronotype, fat_loss_rate_kg, macro_split, waist_cm, glutes_cm, measurement_unit'
+  const coreCols =
+    'weight_kg, body_fat_pct, height_m, age, biological_sex, cycle_type, equipment, tdee_kcal, kcal_target, prot_range, fat_loss_goal, chronotype, fat_loss_rate_kg, macro_split'
   let { data, error } = await supabase!
     .from('user_body_stats')
     .select(fullCols)
@@ -433,62 +460,69 @@ export async function fetchUserBodyStats(userId: string): Promise<UserBodyStats 
     .maybeSingle()
   // If measurement columns don't exist yet (migration pending), retry without them
   if (error && (error as { code?: string }).code === '42703') {
-    const fallback = await supabase!.from('user_body_stats').select(coreCols).eq('user_id', userId).maybeSingle()
-    data  = fallback.data as typeof data
+    const fallback = await supabase!
+      .from('user_body_stats')
+      .select(coreCols)
+      .eq('user_id', userId)
+      .maybeSingle()
+    data = fallback.data as typeof data
     error = fallback.error
   }
   if (error || !data) return null
   const d = data as Record<string, unknown>
   return {
-    weightKg:        (d.weight_kg        as number) ?? 0,
-    heightM:         (d.height_m         as number) ?? 0,
-    age:             (d.age              as number) ?? 0,
-    biologicalSex:   (d.biological_sex   as string) ?? '',
-    waistCm:         (d.waist_cm         as number) ?? 0,
-    glutesCm:        (d.glutes_cm        as number) ?? 0,
+    weightKg: (d.weight_kg as number) ?? 0,
+    heightM: (d.height_m as number) ?? 0,
+    age: (d.age as number) ?? 0,
+    biologicalSex: (d.biological_sex as string) ?? '',
+    waistCm: (d.waist_cm as number) ?? 0,
+    glutesCm: (d.glutes_cm as number) ?? 0,
     measurementUnit: ((d.measurement_unit as string) || 'cm') as UserBodyStats['measurementUnit'],
-    bodyFatPct:      (data.body_fat_pct     as number) ?? 0,
-    cycleType:       (d.cycle_type       as UserBodyStats['cycleType'])  ?? 'none',
-    equipment:       (d.equipment        as string) ?? '',
-    chronotype:      (d.chronotype       as UserBodyStats['chronotype']) ?? '',
-    fatLossRateKg:   (d.fat_loss_rate_kg as number) ?? 0,
-    macroSplit:      (d.macro_split      as UserBodyStats['macroSplit']) ?? 'balanced',
-    tdeeKcal:        (d.tdee_kcal        as number) ?? 0,
-    kcalTarget:      (d.kcal_target      as number) ?? 0,
-    protRange:       (d.prot_range       as string) ?? '',
-    fatLossGoal:     (d.fat_loss_goal    as string) ?? '',
+    bodyFatPct: (data.body_fat_pct as number) ?? 0,
+    cycleType: (d.cycle_type as UserBodyStats['cycleType']) ?? 'none',
+    equipment: (d.equipment as string) ?? '',
+    chronotype: (d.chronotype as UserBodyStats['chronotype']) ?? '',
+    fatLossRateKg: (d.fat_loss_rate_kg as number) ?? 0,
+    macroSplit: (d.macro_split as UserBodyStats['macroSplit']) ?? 'balanced',
+    tdeeKcal: (d.tdee_kcal as number) ?? 0,
+    kcalTarget: (d.kcal_target as number) ?? 0,
+    protRange: (d.prot_range as string) ?? '',
+    fatLossGoal: (d.fat_loss_goal as string) ?? '',
   }
 }
 
 export async function upsertUserBodyStats(userId: string, s: UserBodyStats): Promise<void> {
-  const { error } = await supabase!.from('user_body_stats').upsert({
-    user_id:          userId,
-    weight_kg:        s.weightKg,
-    height_m:         s.heightM,
-    age:              s.age,
-    biological_sex:   s.biologicalSex,
-    waist_cm:         s.waistCm,
-    glutes_cm:        s.glutesCm,
-    measurement_unit: s.measurementUnit,
-    body_fat_pct:     s.bodyFatPct,
-    cycle_type:       s.cycleType,
-    equipment:        s.equipment,
-    chronotype:       s.chronotype,
-    fat_loss_rate_kg: s.fatLossRateKg,
-    macro_split:      s.macroSplit,
-    tdee_kcal:        s.tdeeKcal,
-    kcal_target:      s.kcalTarget,
-    prot_range:       s.protRange,
-    fat_loss_goal:    s.fatLossGoal,
-    updated_at:       new Date().toISOString(),
-  }, { onConflict: 'user_id' })
+  const { error } = await supabase!.from('user_body_stats').upsert(
+    {
+      user_id: userId,
+      weight_kg: s.weightKg,
+      height_m: s.heightM,
+      age: s.age,
+      biological_sex: s.biologicalSex,
+      waist_cm: s.waistCm,
+      glutes_cm: s.glutesCm,
+      measurement_unit: s.measurementUnit,
+      body_fat_pct: s.bodyFatPct,
+      cycle_type: s.cycleType,
+      equipment: s.equipment,
+      chronotype: s.chronotype,
+      fat_loss_rate_kg: s.fatLossRateKg,
+      macro_split: s.macroSplit,
+      tdee_kcal: s.tdeeKcal,
+      kcal_target: s.kcalTarget,
+      prot_range: s.protRange,
+      fat_loss_goal: s.fatLossGoal,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' },
+  )
   assertOk('upsertUserBodyStats', error)
 }
 
 // ── User workout plan ─────────────────────────────────────────────────
 
 export interface UserWorkoutPlan {
-  gender:   'female' | 'male'
+  gender: 'female' | 'male'
   numWeeks: number
   planData: WorkoutWeek[]
 }
@@ -501,20 +535,23 @@ export async function fetchUserWorkoutPlan(userId: string): Promise<UserWorkoutP
     .maybeSingle()
   if (error || !data) return null
   return {
-    gender:   data.gender    as 'female' | 'male',
-    numWeeks: data.num_weeks  as number,
-    planData: data.plan_data  as WorkoutWeek[],
+    gender: data.gender as 'female' | 'male',
+    numWeeks: data.num_weeks as number,
+    planData: data.plan_data as WorkoutWeek[],
   }
 }
 
 export async function upsertUserWorkoutPlan(userId: string, plan: UserWorkoutPlan): Promise<void> {
-  const { error } = await supabase!.from('user_workout_plans').upsert({
-    user_id:    userId,
-    gender:     plan.gender,
-    num_weeks:  plan.numWeeks,
-    plan_data:  plan.planData,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'user_id' })
+  const { error } = await supabase!.from('user_workout_plans').upsert(
+    {
+      user_id: userId,
+      gender: plan.gender,
+      num_weeks: plan.numWeeks,
+      plan_data: plan.planData,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' },
+  )
   assertOk('upsertUserWorkoutPlan', error)
 }
 
@@ -523,24 +560,24 @@ export async function upsertUserWorkoutPlan(userId: string, plan: UserWorkoutPla
 // because errors can happen signed-out. See src/lib/errorLog.ts for the caller.
 
 export interface ErrorLogRow {
-  userId?:     string | null
-  context:     string
-  message:     string
-  stack?:      string | null
-  severity?:   'error' | 'warn'
+  userId?: string | null
+  context: string
+  message: string
+  stack?: string | null
+  severity?: 'error' | 'warn'
   appVersion?: string | null
-  userAgent?:  string | null
+  userAgent?: string | null
 }
 
 export async function pushErrorLog(row: ErrorLogRow): Promise<void> {
   const { error } = await supabase!.from('client_error_log').insert({
-    user_id:     row.userId ?? null,
-    context:     row.context,
-    message:     row.message,
-    stack:       row.stack ?? null,
-    severity:    row.severity ?? 'error',
+    user_id: row.userId ?? null,
+    context: row.context,
+    message: row.message,
+    stack: row.stack ?? null,
+    severity: row.severity ?? 'error',
     app_version: row.appVersion ?? null,
-    user_agent:  row.userAgent ?? null,
+    user_agent: row.userAgent ?? null,
   })
   if (error) console.error('[sync] pushErrorLog failed:', error)
 }

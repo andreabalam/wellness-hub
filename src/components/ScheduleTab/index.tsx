@@ -42,18 +42,18 @@ function rebrandForDay(blocks: CustomBlock[], day: DayKey): CustomBlock[] {
 export default function ScheduleTab({ user }: { user?: User | null }) {
   const settingsStore = useUserSettingsStore()
 
-  const todayKey = (['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()]) as DayKey
+  const todayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()] as DayKey
 
   const [weekSchedule, setWeekSchedule] = useState<WeekSchedule>(loadWeek)
-  const [selectedDay, setSelectedDay]   = useState<DayKey>(todayKey)
-  const [openRows, setOpenRows]         = useState<Set<number>>(new Set())
-  const [showEditor, setShowEditor]     = useState(false)
-  const [showExport, setShowExport]     = useState(false)
-  const [startDate, setStartDate]       = useState(todayStr)
-  const [endDate, setEndDate]           = useState(oneMonthOut)
-  const [peakStart, setPeakStart]       = useState(() => settingsStore.get().cognitivePeakStart)
-  const [peakEnd,   setPeakEnd]         = useState(() => settingsStore.get().cognitivePeakEnd)
-  const [editingPeak, setEditingPeak]   = useState(false)
+  const [selectedDay, setSelectedDay] = useState<DayKey>(todayKey)
+  const [openRows, setOpenRows] = useState<Set<number>>(new Set())
+  const [showEditor, setShowEditor] = useState(false)
+  const [showExport, setShowExport] = useState(false)
+  const [startDate, setStartDate] = useState(todayStr)
+  const [endDate, setEndDate] = useState(oneMonthOut)
+  const [peakStart, setPeakStart] = useState(() => settingsStore.get().cognitivePeakStart)
+  const [peakEnd, setPeakEnd] = useState(() => settingsStore.get().cognitivePeakEnd)
+  const [editingPeak, setEditingPeak] = useState(false)
 
   // The blocks for the currently selected day
   const blocks = weekSchedule[selectedDay]
@@ -66,16 +66,20 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
   const toggleRow = (i: number) => {
     setOpenRows(prev => {
       const next = new Set(prev)
-      if (next.has(i)) next.delete(i); else next.add(i)
+      if (next.has(i)) next.delete(i)
+      else next.add(i)
       return next
     })
   }
 
-  const handleBlocksChange = useCallback((updated: CustomBlock[]) => {
-    scheduleStore.saveDay(selectedDay, updated)
-    setWeekSchedule(prev => ({ ...prev, [selectedDay]: updated }))
-    setOpenRows(new Set())
-  }, [selectedDay])
+  const handleBlocksChange = useCallback(
+    (updated: CustomBlock[]) => {
+      scheduleStore.saveDay(selectedDay, updated)
+      setWeekSchedule(prev => ({ ...prev, [selectedDay]: updated }))
+      setOpenRows(new Set())
+    },
+    [selectedDay],
+  )
 
   const handleResetDay = useCallback(() => {
     const fresh = scheduleStore.resetDay(selectedDay)
@@ -90,7 +94,7 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
   const handleSaveAll = useCallback((updated: CustomBlock[]) => {
     const sorted = sortByTime(updated)
     const newWeek = Object.fromEntries(
-      DAY_KEYS.map(d => [d, rebrandForDay(sorted, d)])
+      DAY_KEYS.map(d => [d, rebrandForDay(sorted, d)]),
     ) as WeekSchedule
     scheduleStore.saveWeek(newWeek)
     setWeekSchedule(newWeek)
@@ -99,11 +103,11 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
 
   const handleExport = () => {
     const weekBlocks = Object.fromEntries(
-      DAY_KEYS.map(d => [d, weekSchedule[d].map(customToScheduleBlock)])
+      DAY_KEYS.map(d => [d, weekSchedule[d].map(customToScheduleBlock)]),
     ) as Record<DayKey, ReturnType<typeof customToScheduleBlock>[]>
     const start = new Date(startDate + 'T00:00:00')
-    const end   = new Date(endDate   + 'T00:00:00')
-    const ics   = generateWeekIcs(weekBlocks, start, end)
+    const end = new Date(endDate + 'T00:00:00')
+    const ics = generateWeekIcs(weekBlocks, start, end)
     downloadIcs(ics, `wellness-schedule-${startDate}.ics`)
   }
 
@@ -114,9 +118,15 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
   const dayModified = useMemo(() => {
     const fp = (d: DayKey) => weekSchedule[d].map(b => `${b.time}|${b.title}`).join(',')
     const counts: Record<string, number> = {}
-    for (const d of DAY_KEYS) { const f = fp(d); counts[f] = (counts[f] ?? 0) + 1 }
+    for (const d of DAY_KEYS) {
+      const f = fp(d)
+      counts[f] = (counts[f] ?? 0) + 1
+    }
     const majorityFp = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
-    return Object.fromEntries(DAY_KEYS.map(d => [d, fp(d) !== majorityFp])) as Record<DayKey, boolean>
+    return Object.fromEntries(DAY_KEYS.map(d => [d, fp(d) !== majorityFp])) as Record<
+      DayKey,
+      boolean
+    >
   }, [weekSchedule])
 
   if (!user) {
@@ -135,7 +145,9 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
     <>
       {/* ── Toolbar ── */}
       <div className="flex items-center gap-8 mb-18 flex-wrap">
-        <button onClick={() => setShowEditor(true)} className="toolbar-btn">✎ Edit schedule</button>
+        <button onClick={() => setShowEditor(true)} className="toolbar-btn">
+          ✎ Edit schedule
+        </button>
         <button
           onClick={() => setShowExport(s => !s)}
           className="toolbar-btn"
@@ -156,7 +168,11 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
         {DAY_KEYS.map(day => (
           <button
             key={day}
-            onClick={() => { setSelectedDay(day); setShowEditor(false); setOpenRows(new Set()) }}
+            onClick={() => {
+              setSelectedDay(day)
+              setShowEditor(false)
+              setOpenRows(new Set())
+            }}
             className="inner-tab"
             style={{
               padding: '8px 14px',
@@ -175,17 +191,36 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
         <div className="sched-export-panel flex flex-wrap gap-12 items-start">
           <div>
             <div className="sched-export-lbl">From</div>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="blk-form-input" style={{ width: 'auto' }} />
+            <input
+              type="date"
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+              className="blk-form-input"
+              style={{ width: 'auto' }}
+            />
           </div>
           <div>
             <div className="sched-export-lbl">To</div>
-            <input type="date" value={endDate} min={startDate} onChange={e => setEndDate(e.target.value)} className="blk-form-input" style={{ width: 'auto' }} />
+            <input
+              type="date"
+              value={endDate}
+              min={startDate}
+              onChange={e => setEndDate(e.target.value)}
+              className="blk-form-input"
+              style={{ width: 'auto' }}
+            />
           </div>
-          <button onClick={handleExport} className="action-btn" style={{ background: 'var(--teal)', color: '#fff' }}>
+          <button
+            onClick={handleExport}
+            className="action-btn"
+            style={{ background: 'var(--teal)', color: '#fff' }}
+          >
             Download .ics
           </button>
           <div className="text-xs text-muted2 w-full lh-15">
-            Exports the full week schedule as <strong className="text-muted">recurring weekly events</strong>, one per day. Import the file into Apple Calendar, Google Calendar, or Outlook.
+            Exports the full week schedule as{' '}
+            <strong className="text-muted">recurring weekly events</strong>, one per day. Import the
+            file into Apple Calendar, Google Calendar, or Outlook.
           </div>
         </div>
       )}
@@ -197,18 +232,44 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
           {editingPeak ? (
             <span className="flex items-center gap-6 flex-wrap">
               <strong>Cognitive peak:</strong>
-              <input aria-label="Peak start time" type="time" value={peakStart} onChange={e => setPeakStart(e.target.value)} className="peak-time-input" />
+              <input
+                aria-label="Peak start time"
+                type="time"
+                value={peakStart}
+                onChange={e => setPeakStart(e.target.value)}
+                className="peak-time-input"
+              />
               <span>–</span>
-              <input aria-label="Peak end time" type="time" value={peakEnd} onChange={e => setPeakEnd(e.target.value)} className="peak-time-input" />
-              <button onClick={savePeak} className="peak-save-btn">Save</button>
-              <button onClick={() => setEditingPeak(false)} className="peak-cancel-btn">Cancel</button>
+              <input
+                aria-label="Peak end time"
+                type="time"
+                value={peakEnd}
+                onChange={e => setPeakEnd(e.target.value)}
+                className="peak-time-input"
+              />
+              <button onClick={savePeak} className="peak-save-btn">
+                Save
+              </button>
+              <button onClick={() => setEditingPeak(false)} className="peak-cancel-btn">
+                Cancel
+              </button>
             </span>
           ) : (
-            <span><strong>Cognitive peak: {formatPeakTime(peakStart)} – {formatPeakTime(peakEnd)}.</strong></span>
+            <span>
+              <strong>
+                Cognitive peak: {formatPeakTime(peakStart)} – {formatPeakTime(peakEnd)}.
+              </strong>
+            </span>
           )}
         </div>
         {!editingPeak && (
-          <button aria-label="Edit cognitive peak" onClick={() => setEditingPeak(true)} className="peak-edit-btn">✎</button>
+          <button
+            aria-label="Edit cognitive peak"
+            onClick={() => setEditingPeak(true)}
+            className="peak-edit-btn"
+          >
+            ✎
+          </button>
         )}
       </div>
 
@@ -219,10 +280,7 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
           return (
             <div key={bi}>
               {b.phase && <div className="phdr">{b.phase}</div>}
-              <div
-                className={`trow${isOpen ? ' open' : ''}`}
-                onClick={() => toggleRow(bi)}
-              >
+              <div className={`trow${isOpen ? ' open' : ''}`} onClick={() => toggleRow(bi)}>
                 <div className="ttime">{b.time}</div>
                 <div className="tline">
                   <div className={`tdot ${b.dot}`} />
@@ -259,4 +317,3 @@ export default function ScheduleTab({ user }: { user?: User | null }) {
     </>
   )
 }
-

@@ -10,7 +10,11 @@ export function safeGet<T>(key: string, fallback: T): T {
     return raw ? (JSON.parse(raw) as T) : fallback
   } catch (err) {
     reportError(`storage:get:${key}`, err, { severity: 'warn' })
-    try { localStorage.removeItem(key) } catch { /* quota or stubbed env */ }
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      /* quota or stubbed env */
+    }
     return fallback
   }
 }

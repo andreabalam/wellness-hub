@@ -10,8 +10,14 @@ vi.mock('../lib/supabase', () => ({ supabase: null }))
 import { estimateFoodMacros } from '../lib/foodSearch'
 
 const ESTIMATE = {
-  name: 'Pozole Rojo', kcal: 320, protein: 22, carbs: 28, fat: 14, fiber: 5,
-  confidence: 'medium', notes: 'Assumes 1 bowl (~400 g)',
+  name: 'Pozole Rojo',
+  kcal: 320,
+  protein: 22,
+  carbs: 28,
+  fat: 14,
+  fiber: 5,
+  confidence: 'medium',
+  notes: 'Assumes 1 bowl (~400 g)',
 }
 
 beforeEach(() => vi.unstubAllGlobals())
@@ -19,7 +25,8 @@ beforeEach(() => vi.unstubAllGlobals())
 describe('estimateFoodMacros — no supabase client (same-origin fallback)', () => {
   it('POSTs to the same-origin function path and returns the estimate', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
-      ok: true, json: async () => ({ estimate: ESTIMATE }),
+      ok: true,
+      json: async () => ({ estimate: ESTIMATE }),
     })
     vi.stubGlobal('fetch', mockFetch)
     expect(await estimateFoodMacros('pozole')).toEqual(ESTIMATE)

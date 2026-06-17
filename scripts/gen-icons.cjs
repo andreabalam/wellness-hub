@@ -2,7 +2,7 @@
 const { chromium } = require('playwright')
 const path = require('path')
 
-const svg = (size) => {
+const svg = size => {
   const cx = size / 2
   const scale = size / 512
 
@@ -79,4 +79,7 @@ async function main() {
   await browser.close()
 }
 
-main().catch(err => { console.error(err); process.exit(1) })
+main().catch(err => {
+  console.error(err)
+  process.exit(1)
+})

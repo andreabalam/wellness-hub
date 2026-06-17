@@ -5,9 +5,5 @@ interface Props {
 }
 
 export default memo(function EmptyState({ children }: Props) {
-  return (
-    <div className="empty-state">
-      {children}
-    </div>
-  )
+  return <div className="empty-state">{children}</div>
 })

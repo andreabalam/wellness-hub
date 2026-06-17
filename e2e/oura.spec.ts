@@ -2,8 +2,12 @@ import { test, expect } from '@playwright/test'
 
 // Shared mock user injected before every test
 const MOCK_USER = JSON.stringify({
-  id: 'e2e-test-id', email: 'test@e2e.com',
-  app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
+  id: 'e2e-test-id',
+  email: 'test@e2e.com',
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  created_at: '',
 })
 
 test.describe('Oura tab — unauthenticated', () => {
@@ -23,11 +27,13 @@ test.describe('Oura tab — unauthenticated', () => {
 
 test.describe('Oura tab — authenticated, no token', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript((user) => {
+    await page.addInitScript(user => {
       sessionStorage.setItem('__e2e_user__', user)
     }, MOCK_USER)
     await page.goto('/')
-    await page.evaluate(() => { localStorage.clear() })
+    await page.evaluate(() => {
+      localStorage.clear()
+    })
     await page.reload()
     await page.locator('nav.tabs').getByRole('button', { name: /Oura/i }).click()
   })
@@ -61,12 +67,17 @@ test.describe('Oura tab — authenticated, no token', () => {
     })
 
     // Don't await — navigation away from app is expected
-    page.getByRole('button', { name: /Connect with Oura/i }).click().catch(() => {})
+    page
+      .getByRole('button', { name: /Connect with Oura/i })
+      .click()
+      .catch(() => {})
     // Give the redirect a moment to fire
     await page.waitForTimeout(500)
 
     // sessionStorage should have the CSRF state set before navigation
-    const state = await page.evaluate(() => sessionStorage.getItem('oura_oauth_state')).catch(() => null)
+    const state = await page
+      .evaluate(() => sessionStorage.getItem('oura_oauth_state'))
+      .catch(() => null)
     // Either the redirect happened (Oura URL) or state was stored (redirect blocked by missing clientId)
     // Either outcome proves the button was handled correctly — no silent failure
     const url = page.url()
@@ -81,12 +92,14 @@ test.describe('Oura tab — OAuth callback handling', () => {
     // any navigation so consumeOAuthCallback() (which now runs at state-init
     // time) can validate them. oura_oauth_state is harmless during the initial
     // goto('/') because consumeOAuthCallback() returns early when ?code= is absent.
-    await page.addInitScript((user) => {
+    await page.addInitScript(user => {
       sessionStorage.setItem('__e2e_user__', user)
       sessionStorage.setItem('oura_oauth_state', 'test-state-value')
     }, MOCK_USER)
     await page.goto('/')
-    await page.evaluate(() => { localStorage.clear() })
+    await page.evaluate(() => {
+      localStorage.clear()
+    })
     await page.reload()
   })
 
@@ -94,9 +107,10 @@ test.describe('Oura tab — OAuth callback handling', () => {
     await page.goto('?code=fake-auth-code&state=test-state-value')
 
     // consumeOAuthCallback() should switch the app to the Oura tab
-    await expect(
-      page.locator('nav.tabs').getByRole('button', { name: /Oura/i }),
-    ).toHaveClass(/active/, { timeout: 5000 })
+    await expect(page.locator('nav.tabs').getByRole('button', { name: /Oura/i })).toHaveClass(
+      /active/,
+      { timeout: 5000 },
+    )
 
     // consumeOAuthCallback clears the query string with history.replaceState —
     // if this passes, the callback ran successfully (state matched, code consumed)
@@ -107,6 +121,8 @@ test.describe('Oura tab — OAuth callback handling', () => {
     // No matching state in sessionStorage → callback is a CSRF attempt, ignore it
     await page.goto('?code=fake-code&state=wrong-state')
     // Should stay on Tracker tab (default), not switch to Oura
-    await expect(page.locator('nav.tabs').getByRole('button', { name: /Tracker/i })).toHaveClass(/active/)
+    await expect(page.locator('nav.tabs').getByRole('button', { name: /Tracker/i })).toHaveClass(
+      /active/,
+    )
   })
 })

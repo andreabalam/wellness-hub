@@ -30,13 +30,13 @@ export function densityTier(kcal: number, grams: number, isDrink = false): Densi
 }
 
 export const DENSITY_COLORS: Record<DensityTier, string> = {
-  green:  'var(--green)',
+  green: 'var(--green)',
   yellow: 'var(--amber)',
   orange: 'var(--coral)',
 }
 
 export const DENSITY_LABELS: Record<DensityTier, string> = {
-  green:  'Low calorie density',
+  green: 'Low calorie density',
   yellow: 'Medium calorie density',
   orange: 'High calorie density',
 }

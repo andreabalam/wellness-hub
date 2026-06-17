@@ -6,16 +6,21 @@ type Scope = 'day' | 'all'
 
 interface Props {
   blocks: CustomBlock[]
-  onChange:   (blocks: CustomBlock[]) => void
-  onSaveAll?:  (blocks: CustomBlock[]) => void
+  onChange: (blocks: CustomBlock[]) => void
+  onSaveAll?: (blocks: CustomBlock[]) => void
   onClose: () => void
   onReset: () => void
   onResetAll?: () => void
 }
 
 const EMPTY_FORM: Omit<CustomBlock, 'id'> = {
-  time: '09:00', title: '', dur: '30 min', color: 'green',
-  whyTxt: '', desc: '', phase: '',
+  time: '09:00',
+  title: '',
+  dur: '30 min',
+  color: 'green',
+  whyTxt: '',
+  desc: '',
+  phase: '',
 }
 
 // ── BlockForm — defined at module level to avoid re-creation on every render ─
@@ -31,13 +36,13 @@ function parseDurForm(dur: string): { num: number; unit: 'min' | 'hr' } {
   const hasHr = /hr|hour/i.test(dur)
   const n = parseInt(dur.match(/\d+/)?.[0] ?? '30', 10)
   const unit: 'min' | 'hr' = hasHr ? 'hr' : 'min'
-  const clamped = isNaN(n) ? 30 : (unit === 'hr' ? Math.min(n, 24) : n)
+  const clamped = isNaN(n) ? 30 : unit === 'hr' ? Math.min(n, 24) : n
   return { num: clamped, unit }
 }
 
 function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
   const init = parseDurForm(form.dur)
-  const [durNum,  setDurNum]  = useState(init.num)
+  const [durNum, setDurNum] = useState(init.num)
   const [durUnit, setDurUnit] = useState<'min' | 'hr'>(init.unit)
 
   const applyNum = (raw: string) => {
@@ -134,7 +139,9 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
               className={`color-swatch ${form.color === c.key ? 'active' : ''}`}
               style={{
                 background: c.hex,
-                ...(form.color === c.key ? { outline: `2px solid ${c.hex}`, outlineOffset: 2 } : {}),
+                ...(form.color === c.key
+                  ? { outline: `2px solid ${c.hex}`, outlineOffset: 2 }
+                  : {}),
               }}
             />
           ))}
@@ -173,11 +180,18 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
   )
 }
 
-export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {}, onClose, onReset, onResetAll = () => {} }: Props) {
+export default function ScheduleEditor({
+  blocks,
+  onChange,
+  onSaveAll = () => {},
+  onClose,
+  onReset,
+  onResetAll = () => {},
+}: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [addingNew, setAddingNew] = useState(false)
-  const [form, setForm]           = useState<Omit<CustomBlock, 'id'>>(EMPTY_FORM)
-  const [scope, setScope]         = useState<Scope>('day')
+  const [form, setForm] = useState<Omit<CustomBlock, 'id'>>(EMPTY_FORM)
+  const [scope, setScope] = useState<Scope>('day')
 
   // ── helpers ──────────────────────────────────────────────────────
 
@@ -190,7 +204,15 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
   const startEdit = (b: CustomBlock) => {
     setAddingNew(false)
     setEditingId(b.id)
-    setForm({ time: normalizeTime(b.time), title: b.title, dur: b.dur, color: b.color, whyTxt: b.whyTxt, desc: b.desc, phase: b.phase })
+    setForm({
+      time: normalizeTime(b.time),
+      title: b.title,
+      dur: b.dur,
+      color: b.color,
+      whyTxt: b.whyTxt,
+      desc: b.desc,
+      phase: b.phase,
+    })
   }
 
   const startAdd = () => {
@@ -199,11 +221,14 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
     setForm(EMPTY_FORM)
   }
 
-  const cancelForm = () => { setEditingId(null); setAddingNew(false) }
+  const cancelForm = () => {
+    setEditingId(null)
+    setAddingNew(false)
+  }
 
   const commitEdit = () => {
     if (!form.title.trim()) return
-    const updated = blocks.map(b => b.id === editingId ? { ...b, ...form } : b)
+    const updated = blocks.map(b => (b.id === editingId ? { ...b, ...form } : b))
     save(updated)
     setEditingId(null)
   }
@@ -226,7 +251,7 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
     const swap = idx + dir
     if (swap < 0 || swap >= next.length) return
     ;[next[idx], next[swap]] = [next[swap], next[idx]]
-    save(next, false)  // manual reorder — don't auto-sort
+    save(next, false) // manual reorder — don't auto-sort
   }
 
   const resetToDefault = () => {
@@ -240,16 +265,19 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
   return (
     <div
       className="modal-overlay"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose()
+      }}
     >
       <div className="modal-panel modal-panel--lg">
-
         {/* Header */}
         <div className="modal-header modal-header--center">
           <div className="modal-title">
             Edit <em className="italic text-teal">Schedule</em>
           </div>
-          <button onClick={onClose} className="modal-close">×</button>
+          <button onClick={onClose} className="modal-close">
+            ×
+          </button>
         </div>
 
         {/* Scope toggle */}
@@ -259,10 +287,15 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
               key={s}
               onClick={() => setScope(s)}
               style={{
-                flex: 1, padding: '6px 0', fontSize: 12, borderRadius: 6, border: 'none',
+                flex: 1,
+                padding: '6px 0',
+                fontSize: 12,
+                borderRadius: 6,
+                border: 'none',
                 background: scope === s ? 'var(--teal)' : 'transparent',
                 color: scope === s ? '#fff' : 'var(--muted)',
-                cursor: 'pointer', fontFamily: 'sans-serif',
+                cursor: 'pointer',
+                fontFamily: 'sans-serif',
                 fontWeight: scope === s ? 500 : 400,
                 transition: 'all .15s',
               }}
@@ -285,7 +318,10 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
             <div key={b.id} style={{ marginBottom: 4 }}>
               {/* Phase header */}
               {b.phase && (
-                <div className="font-mono text-muted2 uppercase text-2xs" style={{ letterSpacing: '.1em', margin: '10px 0 4px', paddingLeft: 4 }}>
+                <div
+                  className="font-mono text-muted2 uppercase text-2xs"
+                  style={{ letterSpacing: '.1em', margin: '10px 0 4px', paddingLeft: 4 }}
+                >
                   {b.phase}
                 </div>
               )}
@@ -302,19 +338,43 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
                 <div className="block-list-info">
                   <span className="block-list-title">{b.title}</span>
                   <span className="block-list-meta">{b.time}</span>
-                  {b.dur && <span className="text-muted2" style={{ fontSize: 11, marginLeft: 6 }}>{b.dur}</span>}
+                  {b.dur && (
+                    <span className="text-muted2" style={{ fontSize: 11, marginLeft: 6 }}>
+                      {b.dur}
+                    </span>
+                  )}
                 </div>
                 {/* Actions */}
                 <div className="block-list-actions">
-                  <IconBtn title="Move up"   onClick={() => move(i, -1)} disabled={i === 0}>↑</IconBtn>
-                  <IconBtn title="Move down" onClick={() => move(i, 1)}  disabled={i === blocks.length - 1}>↓</IconBtn>
-                  <IconBtn title="Edit"      onClick={() => isEditing ? cancelForm() : startEdit(b)}>✎</IconBtn>
-                  <IconBtn title="Delete"    onClick={() => del(b.id)} danger>✕</IconBtn>
+                  <IconBtn title="Move up" onClick={() => move(i, -1)} disabled={i === 0}>
+                    ↑
+                  </IconBtn>
+                  <IconBtn
+                    title="Move down"
+                    onClick={() => move(i, 1)}
+                    disabled={i === blocks.length - 1}
+                  >
+                    ↓
+                  </IconBtn>
+                  <IconBtn title="Edit" onClick={() => (isEditing ? cancelForm() : startEdit(b))}>
+                    ✎
+                  </IconBtn>
+                  <IconBtn title="Delete" onClick={() => del(b.id)} danger>
+                    ✕
+                  </IconBtn>
                 </div>
               </div>
 
               {/* Inline edit form */}
-              {isEditing && <BlockForm key={b.id} form={form} setForm={setForm} onSave={commitEdit} onCancel={cancelForm} />}
+              {isEditing && (
+                <BlockForm
+                  key={b.id}
+                  form={form}
+                  setForm={setForm}
+                  onSave={commitEdit}
+                  onCancel={cancelForm}
+                />
+              )}
             </div>
           )
         })}
@@ -322,7 +382,13 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
         {/* Add new block form */}
         {addingNew && (
           <div className="mt-8">
-            <BlockForm key="new" form={form} setForm={setForm} onSave={commitAdd} onCancel={cancelForm} />
+            <BlockForm
+              key="new"
+              form={form}
+              setForm={setForm}
+              onSave={commitAdd}
+              onCancel={cancelForm}
+            />
           </div>
         )}
 
@@ -353,7 +419,13 @@ export default function ScheduleEditor({ blocks, onChange, onSaveAll = () => {},
 
 // ── Small helpers ─────────────────────────────────────────────────
 
-function IconBtn({ children, onClick, disabled, danger, title }: {
+function IconBtn({
+  children,
+  onClick,
+  disabled,
+  danger,
+  title,
+}: {
   children: React.ReactNode
   onClick: () => void
   disabled?: boolean

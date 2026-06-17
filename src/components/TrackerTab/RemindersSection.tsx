@@ -11,9 +11,9 @@ interface Props {
 
 function newReminder(text: string): Reminder {
   return {
-    id:        crypto.randomUUID(),
+    id: crypto.randomUUID(),
     text,
-    checked:   false,
+    checked: false,
     checkedAt: null,
     createdAt: new Date().toISOString(),
   }
@@ -21,25 +21,36 @@ function newReminder(text: string): Reminder {
 
 async function tryUpsert(user: User | null | undefined, r: Reminder) {
   if (!supabase || !user) return
-  try { await sync.upsertReminder(user.id, r) } catch { /* offline */ }
+  try {
+    await sync.upsertReminder(user.id, r)
+  } catch {
+    /* offline */
+  }
 }
 
 async function tryDelete(user: User | null | undefined, id: string) {
   if (!supabase || !user) return
-  try { await sync.deleteReminder(id) } catch { /* offline */ }
+  try {
+    await sync.deleteReminder(id)
+  } catch {
+    /* offline */
+  }
 }
 
 export default function RemindersSection({ user }: Props) {
   const store = useRemindersStore()
-  const [items, setItems]         = useState<Reminder[]>(() => store.getAll())
-  const [inputText, setInput]     = useState('')
+  const [items, setItems] = useState<Reminder[]>(() => store.getAll())
+  const [inputText, setInput] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editText, setEditText]   = useState('')
+  const [editText, setEditText] = useState('')
 
-  const commit = useCallback((next: Reminder[]) => {
-    store.save(next)
-    setItems(next)
-  }, [store])
+  const commit = useCallback(
+    (next: Reminder[]) => {
+      store.save(next)
+      setItems(next)
+    },
+    [store],
+  )
 
   const handleAdd = useCallback(() => {
     const text = inputText.trim()
@@ -50,45 +61,57 @@ export default function RemindersSection({ user }: Props) {
     tryUpsert(user, r)
   }, [inputText, items, commit, user])
 
-  const handleToggle = useCallback((id: string) => {
-    const now = new Date().toISOString()
-    const next = items.map(r => {
-      if (r.id !== id) return r
-      const updated: Reminder = r.checked
-        ? { ...r, checked: false, checkedAt: null }
-        : { ...r, checked: true,  checkedAt: now  }
-      tryUpsert(user, updated)
-      return updated
-    })
-    commit(next)
-  }, [items, commit, user])
+  const handleToggle = useCallback(
+    (id: string) => {
+      const now = new Date().toISOString()
+      const next = items.map(r => {
+        if (r.id !== id) return r
+        const updated: Reminder = r.checked
+          ? { ...r, checked: false, checkedAt: null }
+          : { ...r, checked: true, checkedAt: now }
+        tryUpsert(user, updated)
+        return updated
+      })
+      commit(next)
+    },
+    [items, commit, user],
+  )
 
   const handleStartEdit = useCallback((id: string, text: string) => {
     setEditingId(id)
     setEditText(text)
   }, [])
 
-  const handleSaveEdit = useCallback((id: string) => {
-    const text = editText.trim()
-    if (!text) return
-    const next = items.map(r => r.id === id ? { ...r, text } : r)
-    commit(next)
-    const updated = next.find(r => r.id === id)
-    if (updated) tryUpsert(user, updated)
-    setEditingId(null)
-    setEditText('')
-  }, [editText, items, commit, user])
+  const handleSaveEdit = useCallback(
+    (id: string) => {
+      const text = editText.trim()
+      if (!text) return
+      const next = items.map(r => (r.id === id ? { ...r, text } : r))
+      commit(next)
+      const updated = next.find(r => r.id === id)
+      if (updated) tryUpsert(user, updated)
+      setEditingId(null)
+      setEditText('')
+    },
+    [editText, items, commit, user],
+  )
 
   const handleCancelEdit = useCallback(() => {
     setEditingId(null)
     setEditText('')
   }, [])
 
-  const handleDelete = useCallback((id: string) => {
-    if (editingId === id) { setEditingId(null); setEditText('') }
-    commit(items.filter(r => r.id !== id))
-    tryDelete(user, id)
-  }, [items, commit, user, editingId])
+  const handleDelete = useCallback(
+    (id: string) => {
+      if (editingId === id) {
+        setEditingId(null)
+        setEditText('')
+      }
+      commit(items.filter(r => r.id !== id))
+      tryDelete(user, id)
+    },
+    [items, commit, user, editingId],
+  )
 
   const unchecked = items
     .filter(r => !r.checked)
@@ -122,16 +145,12 @@ export default function RemindersSection({ user }: Props) {
 
       {unchecked.map(renderRow)}
 
-      {unchecked.length > 0 && checked.length > 0 && (
-        <div className="divider-dashed" />
-      )}
+      {unchecked.length > 0 && checked.length > 0 && <div className="divider-dashed" />}
 
       {checked.map(renderRow)}
 
       {items.length === 0 && (
-        <div className="text-sm text-muted2 italic mb-10">
-          No reminders yet — add one below.
-        </div>
+        <div className="text-sm text-muted2 italic mb-10">No reminders yet — add one below.</div>
       )}
 
       <div className="rem-add-row">
@@ -142,11 +161,7 @@ export default function RemindersSection({ user }: Props) {
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
           placeholder="New reminder…"
         />
-        <button
-          className="rem-add-btn"
-          onClick={handleAdd}
-          disabled={!inputText.trim()}
-        >
+        <button className="rem-add-btn" onClick={handleAdd} disabled={!inputText.trim()}>
           Add
         </button>
       </div>
@@ -155,14 +170,21 @@ export default function RemindersSection({ user }: Props) {
 }
 
 // ── Inline edit row ──────────────────────────────────────────────
-function EditRow({ text, onChange, onSave, onCancel }: {
+function EditRow({
+  text,
+  onChange,
+  onSave,
+  onCancel,
+}: {
   text: string
   onChange: (v: string) => void
   onSave: () => void
   onCancel: () => void
 }) {
   const ref = useRef<HTMLInputElement>(null)
-  useEffect(() => { ref.current?.focus() }, [])
+  useEffect(() => {
+    ref.current?.focus()
+  }, [])
 
   return (
     <div className="rem-edit-row">
@@ -197,11 +219,16 @@ function EditRow({ text, onChange, onSave, onCancel }: {
 }
 
 // ── Single row ───────────────────────────────────────────────────
-function ReminderRow({ reminder: r, onToggle, onDelete, onEdit }: {
+function ReminderRow({
+  reminder: r,
+  onToggle,
+  onDelete,
+  onEdit,
+}: {
   reminder: Reminder
   onToggle: (id: string) => void
   onDelete: (id: string) => void
-  onEdit:   (id: string, text: string) => void
+  onEdit: (id: string, text: string) => void
 }) {
   return (
     <div className="rem-row">
@@ -213,10 +240,7 @@ function ReminderRow({ reminder: r, onToggle, onDelete, onEdit }: {
         {r.checked ? '✓' : ''}
       </button>
 
-      <span
-        className={`rem-text${r.checked ? ' checked' : ''}`}
-        onClick={() => onToggle(r.id)}
-      >
+      <span className={`rem-text${r.checked ? ' checked' : ''}`} onClick={() => onToggle(r.id)}>
         {r.text}
       </span>
 

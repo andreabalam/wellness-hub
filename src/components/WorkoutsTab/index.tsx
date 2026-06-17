@@ -7,8 +7,16 @@ import ProfileStatsCard from '../TrackerTab/ProfileStatsCard'
 
 // ── Sub-components ────────────────────────────────────────────────
 
-function ExerciseRow({ ex, idx, color, size = 'normal' }: {
-  ex: Exercise; idx: number; color: string; size?: 'normal' | 'small'
+function ExerciseRow({
+  ex,
+  idx,
+  color,
+  size = 'normal',
+}: {
+  ex: Exercise
+  idx: number
+  color: string
+  size?: 'normal' | 'small'
 }) {
   const [open, setOpen] = useState(false)
   const numSize = size === 'small' ? 17 : 19
@@ -23,7 +31,9 @@ function ExerciseRow({ ex, idx, color, size = 'normal' }: {
       </div>
       <div className="flex-1">
         <div className="flex items-center gap-6 flex-wrap">
-          <span className="font-500 text-default" style={{ fontSize: size === 'small' ? 12 : 13 }}>{ex.t}</span>
+          <span className="font-500 text-default" style={{ fontSize: size === 'small' ? 12 : 13 }}>
+            {ex.t}
+          </span>
           <span className="exercise-badge">{ex.d}</span>
         </div>
         {open && <div className="exercise-instruction">{ex.i}</div>}
@@ -34,8 +44,14 @@ function ExerciseRow({ ex, idx, color, size = 'normal' }: {
 
 // ── Edit form for one workout day ─────────────────────────────────
 
-function ExerciseEditRow({ ex, idx, onChange, onRemove }: {
-  ex: Exercise; idx: number
+function ExerciseEditRow({
+  ex,
+  idx,
+  onChange,
+  onRemove,
+}: {
+  ex: Exercise
+  idx: number
   onChange: (idx: number, field: keyof Exercise, val: string) => void
   onRemove: (idx: number) => void
 }) {
@@ -80,7 +96,9 @@ function ExerciseEditRow({ ex, idx, onChange, onRemove }: {
 
 // ── Main component ────────────────────────────────────────────────
 
-interface Props { user: User | null }
+interface Props {
+  user: User | null
+}
 
 export default function WorkoutsTab({ user }: Props) {
   const [activeWeek, setActiveWeek] = useState(0)
@@ -90,23 +108,23 @@ export default function WorkoutsTab({ user }: Props) {
   const [editKey, setEditKey] = useState<string | null>(null)
   const [draftExs, setDraftExs] = useState<Exercise[]>([])
 
-  const storedStats   = bodyStatsStore.get()
-  const storedPlan    = workoutPlanStore.get()
+  const storedStats = bodyStatsStore.get()
+  const storedPlan = workoutPlanStore.get()
 
-  const isAuth      = !!user
-  const hasStats    = isAuth && storedStats.weightKg > 0
+  const isAuth = !!user
+  const hasStats = isAuth && storedStats.weightKg > 0
 
-  const planData    = isAuth ? (storedPlan?.planData ?? WORKOUT_PLAN) : MALE_DEFAULT_PLAN
-  const planGender  = isAuth ? (storedPlan?.gender   ?? 'female')     : 'male'
+  const planData = isAuth ? (storedPlan?.planData ?? WORKOUT_PLAN) : MALE_DEFAULT_PLAN
+  const planGender = isAuth ? (storedPlan?.gender ?? 'female') : 'male'
 
-  const safeWeek  = Math.min(activeWeek, planData.length - 1)
-  const wk        = planData[safeWeek]
+  const safeWeek = Math.min(activeWeek, planData.length - 1)
+  const wk = planData[safeWeek]
 
   const PHASES_FEMALE = [
-    { n: 'Week 1 - Menstrual',  s: 'Low intensity, Pilates focus',       c: 'var(--purple)' },
-    { n: 'Week 2 - Follicular', s: 'Build strength, peak energy',        c: 'var(--green)'  },
-    { n: 'Week 3 - Luteal',     s: 'Moderate load, glute shred',         c: 'var(--amber)'  },
-    { n: 'Restart Week 1',      s: 'When next period begins',            c: 'var(--coral)'  },
+    { n: 'Week 1 - Menstrual', s: 'Low intensity, Pilates focus', c: 'var(--purple)' },
+    { n: 'Week 2 - Follicular', s: 'Build strength, peak energy', c: 'var(--green)' },
+    { n: 'Week 3 - Luteal', s: 'Moderate load, glute shred', c: 'var(--amber)' },
+    { n: 'Restart Week 1', s: 'When next period begins', c: 'var(--coral)' },
   ]
 
   const startEdit = (weekIdx: number, dayIdx: number) => {
@@ -116,7 +134,10 @@ export default function WorkoutsTab({ user }: Props) {
     setEditKey(`${weekIdx}-${dayIdx}`)
   }
 
-  const cancelEdit = () => { setEditKey(null); setDraftExs([]) }
+  const cancelEdit = () => {
+    setEditKey(null)
+    setDraftExs([])
+  }
 
   const saveEdit = (weekIdx: number, dayIdx: number) => {
     const filtered = draftExs.filter(e => e.t.trim())
@@ -128,7 +149,7 @@ export default function WorkoutsTab({ user }: Props) {
       }),
     }))
     workoutPlanStore.set({
-      gender:   storedPlan?.gender   ?? 'female',
+      gender: storedPlan?.gender ?? 'female',
       numWeeks: storedPlan?.numWeeks ?? newPlanData.length,
       planData: newPlanData,
     })
@@ -137,7 +158,7 @@ export default function WorkoutsTab({ user }: Props) {
   }
 
   const handleExChange = (idx: number, field: keyof Exercise, val: string) => {
-    setDraftExs(prev => prev.map((e, i) => i === idx ? { ...e, [field]: val } : e))
+    setDraftExs(prev => prev.map((e, i) => (i === idx ? { ...e, [field]: val } : e)))
   }
 
   const handleExRemove = (idx: number) => {
@@ -166,17 +187,34 @@ export default function WorkoutsTab({ user }: Props) {
       {/* Plan subtitle */}
       <div className="mb-20">
         {isAuth && (
-          <div className="font-mono uppercase tracking-wider mb-6 text-2xs" style={{ color: planGender === 'female' ? 'var(--coral)' : 'var(--teal)' }}>
-            {planGender === 'female' ? 'Fat loss · Cycle-synced · Home + Pilates' : 'Strength · Full-body · Home'}
+          <div
+            className="font-mono uppercase tracking-wider mb-6 text-2xs"
+            style={{ color: planGender === 'female' ? 'var(--coral)' : 'var(--teal)' }}
+          >
+            {planGender === 'female'
+              ? 'Fat loss · Cycle-synced · Home + Pilates'
+              : 'Strength · Full-body · Home'}
           </div>
         )}
         <div className="page-title">
-          {isAuth
-            ? planGender === 'female'
-              ? <><span>Her Fat Loss &amp; </span><em className="italic text-coral">Recomposition Plan</em></>
-              : <><span>Full-Body </span><em className="italic text-teal">Strength Plan</em></>
-            : <><span>Full-Body </span><em className="italic text-teal">3×/week Template</em></>
-          }
+          {isAuth ? (
+            planGender === 'female' ? (
+              <>
+                <span>Her Fat Loss &amp; </span>
+                <em className="italic text-coral">Recomposition Plan</em>
+              </>
+            ) : (
+              <>
+                <span>Full-Body </span>
+                <em className="italic text-teal">Strength Plan</em>
+              </>
+            )
+          ) : (
+            <>
+              <span>Full-Body </span>
+              <em className="italic text-teal">3×/week Template</em>
+            </>
+          )}
         </div>
         {isAuth && hasStats && (
           <div className="plan-label" style={{ maxWidth: 580 }}>
@@ -185,7 +223,12 @@ export default function WorkoutsTab({ user }: Props) {
             {storedStats.equipment && ` · ${storedStats.equipment}`}
           </div>
         )}
-        {!isAuth && <div className="plan-label">A 3-week progressive full-body template. Week 1 shows example exercises — create an account to save your own plan.</div>}
+        {!isAuth && (
+          <div className="plan-label">
+            A 3-week progressive full-body template. Week 1 shows example exercises — create an
+            account to save your own plan.
+          </div>
+        )}
       </div>
 
       {isAuth && (
@@ -197,12 +240,15 @@ export default function WorkoutsTab({ user }: Props) {
         <div className="cycle-panel">
           <div className="cycle-panel__label">3-Week Rotating Cycle</div>
           <div className="cycle-panel__body">
-            Restart at <strong className="text-default">Week 1</strong> whenever your period begins. The plan mirrors the four hormonal phases without requiring you to track exact days.
+            Restart at <strong className="text-default">Week 1</strong> whenever your period begins.
+            The plan mirrors the four hormonal phases without requiring you to track exact days.
           </div>
           <div className="cycle-phases-grid">
             {PHASES_FEMALE.map(p => (
               <div key={p.n} className="cycle-phase-item" style={{ border: `1px solid ${p.c}` }}>
-                <div className="text-sm font-500 mb-4" style={{ color: p.c }}>{p.n}</div>
+                <div className="text-sm font-500 mb-4" style={{ color: p.c }}>
+                  {p.n}
+                </div>
                 <div className="text-xs text-muted lh-16">{p.s}</div>
               </div>
             ))}
@@ -219,10 +265,14 @@ export default function WorkoutsTab({ user }: Props) {
             style={{
               background: 'var(--bg2)',
               border: `1px solid ${i === safeWeek ? w.color : 'var(--border)'}`,
-              borderRadius: 8, padding: '7px 18px',
-              fontFamily: 'sans-serif', fontSize: 13,
+              borderRadius: 8,
+              padding: '7px 18px',
+              fontFamily: 'sans-serif',
+              fontSize: 13,
               color: i === safeWeek ? w.color : 'var(--muted)',
-              cursor: 'pointer', transition: 'all .2s', whiteSpace: 'nowrap',
+              cursor: 'pointer',
+              transition: 'all .2s',
+              whiteSpace: 'nowrap',
             }}
           >
             Week {w.week}
@@ -233,10 +283,15 @@ export default function WorkoutsTab({ user }: Props) {
       {/* Week content */}
       <div>
         {/* Phase header */}
-        <div className="week-phase-header" style={{ background: 'var(--bg2)', border: `1px solid ${wk.color}` }}>
+        <div
+          className="week-phase-header"
+          style={{ background: 'var(--bg2)', border: `1px solid ${wk.color}` }}
+        >
           <div className="week-phase-title">{wk.label}</div>
           <div className="week-phase-note">{wk.note}</div>
-          <div className="week-nutrition"><strong className="text-default">Nutrition this week:</strong> {wk.nutr}</div>
+          <div className="week-nutrition">
+            <strong className="text-default">Nutrition this week:</strong> {wk.nutr}
+          </div>
         </div>
 
         {/* Day cards */}
@@ -251,9 +306,13 @@ export default function WorkoutsTab({ user }: Props) {
               <div key={day.slot} className="day-card">
                 <div className="day-card__header">
                   <div className="day-card__top-row">
-                    <div className="day-card__slot" style={{ color: day.color }}>{day.slot}</div>
+                    <div className="day-card__slot" style={{ color: day.color }}>
+                      {day.slot}
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div className="day-card__type">{typeIcon} {day.type}</div>
+                      <div className="day-card__type">
+                        {typeIcon} {day.type}
+                      </div>
                       {isAuth && !isEditing && (
                         <button
                           className="ex-edit-btn"
@@ -268,13 +327,20 @@ export default function WorkoutsTab({ user }: Props) {
                   </div>
                   <div className="day-card__label">{day.label}</div>
                   <div className="day-card__time">{day.time}</div>
-                  <div className="day-card__solin" style={{ color: day.color, border: `1px solid ${day.color}22` }}>{day.solin}</div>
+                  <div
+                    className="day-card__solin"
+                    style={{ color: day.color, border: `1px solid ${day.color}22` }}
+                  >
+                    {day.solin}
+                  </div>
                 </div>
                 <div className="day-card__body">
                   {isEditing ? (
                     <div className="ex-edit-panel">
                       {draftExs.length === 0 && (
-                        <div className="text-xs text-muted mb-8">No exercises — tap "＋ Add" to add one.</div>
+                        <div className="text-xs text-muted mb-8">
+                          No exercises — tap "＋ Add" to add one.
+                        </div>
                       )}
                       {draftExs.map((ex, ei) => (
                         <ExerciseEditRow
@@ -285,30 +351,41 @@ export default function WorkoutsTab({ user }: Props) {
                           onRemove={handleExRemove}
                         />
                       ))}
-                      <button
-                        className="ex-add-btn"
-                        onClick={handleExAdd}
-                        type="button"
-                      >
+                      <button className="ex-add-btn" onClick={handleExAdd} type="button">
                         ＋ Add exercise
                       </button>
                       <div className="flex gap-8 mt-8">
-                        <button className="btn btn--teal btn--sm flex-1" onClick={() => saveEdit(safeWeek, dayIdx)}>Save</button>
-                        <button className="btn btn--ghost btn--sm" onClick={cancelEdit}>Cancel</button>
+                        <button
+                          className="btn btn--teal btn--sm flex-1"
+                          onClick={() => saveEdit(safeWeek, dayIdx)}
+                        >
+                          Save
+                        </button>
+                        <button className="btn btn--ghost btn--sm" onClick={cancelEdit}>
+                          Cancel
+                        </button>
                       </div>
                     </div>
                   ) : (
                     <>
                       {hasExercises ? (
                         <>
-                          {day.exs.map((ex, ei) => <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} />)}
+                          {day.exs.map((ex, ei) => (
+                            <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} />
+                          ))}
                           <div className="day-card__hint">tap any exercise to expand</div>
                         </>
                       ) : (
                         <div className="day-card__empty">
                           No exercises added yet
                           {isAuth && (
-                            <button className="ex-edit-btn" style={{ marginLeft: 8 }} onClick={() => startEdit(safeWeek, dayIdx)}>＋ Add</button>
+                            <button
+                              className="ex-edit-btn"
+                              style={{ marginLeft: 8 }}
+                              onClick={() => startEdit(safeWeek, dayIdx)}
+                            >
+                              ＋ Add
+                            </button>
                           )}
                         </div>
                       )}
@@ -316,7 +393,9 @@ export default function WorkoutsTab({ user }: Props) {
                         <div className="alt-block">
                           <div className="alt-block__label">If no Pilates available</div>
                           <div className="alt-block__title">{day.altLabel}</div>
-                          {day.alts.map((ex, ei) => <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} size="small" />)}
+                          {day.alts.map((ex, ei) => (
+                            <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} size="small" />
+                          ))}
                         </div>
                       )}
                     </>
@@ -335,7 +414,9 @@ export default function WorkoutsTab({ user }: Props) {
               <div key={n.title} className="plan-note-card">
                 <div className="plan-note-card__hdr">
                   <span style={{ fontSize: 17 }}>{n.icon}</span>
-                  <span className="text-base font-500" style={{ color: n.color }}>{n.title}</span>
+                  <span className="text-base font-500" style={{ color: n.color }}>
+                    {n.title}
+                  </span>
                 </div>
                 <div className="plan-note-card__text">{n.text}</div>
               </div>

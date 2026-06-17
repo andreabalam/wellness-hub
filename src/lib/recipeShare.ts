@@ -77,7 +77,7 @@ export async function decodeRecipe(token: string): Promise<Recipe | null> {
 /** Build a full shareable URL for a recipe (origin + app base + hash route). */
 export async function buildShareUrl(recipe: Recipe): Promise<string> {
   const token = await encodeRecipe(recipe)
-  const base = import.meta.env.BASE_URL || '/'          // e.g. "/wellness-hub/"
+  const base = import.meta.env.BASE_URL || '/' // e.g. "/wellness-hub/"
   const path = `${location.origin}${base}`.replace(/\/+$/, '/')
   return `${path}#/r/${token}`
 }

@@ -27,11 +27,11 @@ interface Props {
 function autoBadge(r: Recipe): { label: string; color: string } | null {
   type Tier = { indulgent?: number; highCal?: number; healthy?: number }
   const tiers: Record<string, Tier> = {
-    breakfast: { highCal: 500,              healthy: 400 },
-    smoothie:  { highCal: 500,              healthy: 350 },
-    meal:      { highCal: 600,              healthy: 500 },
-    snack:     { highCal: 300,              healthy: 200 },
-    dessert:   { indulgent: 250                          },
+    breakfast: { highCal: 500, healthy: 400 },
+    smoothie: { highCal: 500, healthy: 350 },
+    meal: { highCal: 600, healthy: 500 },
+    snack: { highCal: 300, healthy: 200 },
+    dessert: { indulgent: 250 },
   }
   const t = tiers[r.cat]
   if (!t) return null
@@ -96,7 +96,9 @@ export default memo(function RecipeCard({
     : autoBadge(r)
 
   // Caloric-density dot — only when grams/serving was captured by the macro calculator
-  const dTier = r.gramsPerServing ? densityTier(r.hk, r.gramsPerServing, isDrinkCategory(r.cat)) : null
+  const dTier = r.gramsPerServing
+    ? densityTier(r.hk, r.gramsPerServing, isDrinkCategory(r.cat))
+    : null
 
   const stop = (e: React.MouseEvent) => e.stopPropagation()
 
@@ -106,7 +108,8 @@ export default memo(function RecipeCard({
         {/* Top row: category type (left) + badge cluster (right) */}
         <div className="rctr">
           <span className="rctype" style={{ color: r.color }}>
-            {r.type}{r.custom ? ' · My recipe' : ''}
+            {r.type}
+            {r.custom ? ' · My recipe' : ''}
           </span>
 
           {/* Badge cluster — all chips sit together in the top-right corner */}
@@ -122,28 +125,45 @@ export default memo(function RecipeCard({
             )}
 
             {/* Prep time / custom badge */}
-            <span className="rcbadge" style={{ color: timeBadgeColor, borderColor: timeBadgeColor, margin: 0 }}>
+            <span
+              className="rcbadge"
+              style={{ color: timeBadgeColor, borderColor: timeBadgeColor, margin: 0 }}
+            >
               {r.custom ? 'Custom' : timeBadgeLabel}
             </span>
 
             {/* Health tag badge */}
             {healthBadge && (
-              <span className="dyn-badge" style={{ border: `1px solid ${healthBadge.color}`, color: healthBadge.color }}>
-                {healthBadge.label === 'Healthy' ? '✦ ' : healthBadge.label === 'Indulgent' ? '✧ ' : '⚠ '}
+              <span
+                className="dyn-badge"
+                style={{ border: `1px solid ${healthBadge.color}`, color: healthBadge.color }}
+              >
+                {healthBadge.label === 'Healthy'
+                  ? '✦ '
+                  : healthBadge.label === 'Indulgent'
+                    ? '✧ '
+                    : '⚠ '}
                 {healthBadge.label}
               </span>
             )}
 
             {/* Dietary approach badge */}
             {r.dietTag && (
-              <span className="dyn-badge" style={{ border: '1px solid var(--teal)', color: 'var(--teal-light)' }}>
+              <span
+                className="dyn-badge"
+                style={{ border: '1px solid var(--teal)', color: 'var(--teal-light)' }}
+              >
                 {dietTagLabel(r.dietTag)}
               </span>
             )}
 
             {/* Cook counter */}
             {cookCount > 0 && (
-              <span title={`Cooked ${cookCount} time${cookCount !== 1 ? 's' : ''}`} className="dyn-badge" style={{ border: '1px solid var(--teal)', color: 'var(--teal-light)' }}>
+              <span
+                title={`Cooked ${cookCount} time${cookCount !== 1 ? 's' : ''}`}
+                className="dyn-badge"
+                style={{ border: '1px solid var(--teal)', color: 'var(--teal-light)' }}
+              >
                 🍳 ×{cookCount}
               </span>
             )}
@@ -189,9 +209,7 @@ export default memo(function RecipeCard({
 
       <div className="rcbody">
         {/* Image */}
-        {r.image && (
-          <img src={r.image} alt={r.name} className="recipe-card-img" onClick={stop} />
-        )}
+        {r.image && <img src={r.image} alt={r.name} className="recipe-card-img" onClick={stop} />}
 
         {r.ings.length > 0 && (
           <>

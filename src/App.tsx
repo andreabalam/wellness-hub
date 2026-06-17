@@ -19,7 +19,23 @@ import { safeGet } from './lib/storage'
 import { reportError } from './lib/errorLog'
 import { showToast } from './lib/toast'
 import { ToastHost } from './components/common'
-import { trackerStore, recipeStore, groceryStore, foodLibraryStore, scheduleStore, groceryCatalogStore, remindersStore, importRemoteData, MED_GUIDES_KEY, exportAllData, importAllData, userSettingsStore, bodyStatsStore, workoutPlanStore, syncStatusStore } from './hooks/useStore'
+import {
+  trackerStore,
+  recipeStore,
+  groceryStore,
+  foodLibraryStore,
+  scheduleStore,
+  groceryCatalogStore,
+  remindersStore,
+  importRemoteData,
+  MED_GUIDES_KEY,
+  exportAllData,
+  importAllData,
+  userSettingsStore,
+  bodyStatsStore,
+  workoutPlanStore,
+  syncStatusStore,
+} from './hooks/useStore'
 
 type Tab = 'tracker' | 'recipes' | 'workouts' | 'schedule' | 'oura'
 
@@ -30,30 +46,36 @@ type Tab = 'tracker' | 'recipes' | 'workouts' | 'schedule' | 'oura'
 const _initialTab: Tab = consumeOAuthCallback() ? 'oura' : 'tracker'
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'tracker',  label: '📊 Tracker' },
-  { id: 'recipes',  label: '🍽 Recipes' },
+  { id: 'tracker', label: '📊 Tracker' },
+  { id: 'recipes', label: '🍽 Recipes' },
   { id: 'workouts', label: '💪 Workouts' },
   { id: 'schedule', label: '📅 Schedule' },
-  { id: 'oura',     label: '🫀 Oura' },
+  { id: 'oura', label: '🫀 Oura' },
 ]
 
 export default function App() {
-  const [active, setActive]       = useState<Tab>(_initialTab)
+  const [active, setActive] = useState<Tab>(_initialTab)
   // Lazy-init from window so we avoid setState inside the effect below
-  const [swUpdate, setSwUpdate]   = useState<(() => void) | null>(
-    () => window.__swPendingUpdate ?? null
+  const [swUpdate, setSwUpdate] = useState<(() => void) | null>(
+    () => window.__swPendingUpdate ?? null,
   )
 
   // DEV-only: E2E tests can inject a mock user via localStorage.__e2e_user__
   // so auth-gated components render without a real Supabase session.
   const e2eUser = import.meta.env.DEV
-    ? (() => { try { return JSON.parse(sessionStorage.getItem('__e2e_user__') ?? 'null') as User | null } catch { return null } })()
+    ? (() => {
+        try {
+          return JSON.parse(sessionStorage.getItem('__e2e_user__') ?? 'null') as User | null
+        } catch {
+          return null
+        }
+      })()
     : null
 
-  const [user, setUser]           = useState<User | null>(e2eUser)
+  const [user, setUser] = useState<User | null>(e2eUser)
   // Shared-recipe deep link (#/r/<token>) — renders a standalone view when present
   const [shareToken, setShareToken] = useState<string | null>(() => parseShareRoute(location.hash))
-  const [syncing, setSyncing]     = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
   // True when local writes failed to reach Supabase and are awaiting the next
   // sync. Persisted in localStorage so it survives reloads (offline edits).
@@ -91,7 +113,11 @@ export default function App() {
     reader.onload = ev => {
       const ok = importAllData(ev.target?.result as string)
       if (ok) location.reload()
-      else showToast('Import failed. Make sure you are using a backup file exported from this Hub.', 'error')
+      else
+        showToast(
+          'Import failed. Make sure you are using a backup file exported from this Hub.',
+          'error',
+        )
     }
     reader.readAsText(file)
     e.target.value = ''
@@ -100,12 +126,21 @@ export default function App() {
   // ── Bidirectional sync on sign-in ─────────────────────────────
   const syncAll = useCallback(async (userId: string) => {
     if (!supabase) return
-    if (syncInFlight.current) return   // A5: never let two syncAll runs interleave
+    if (syncInFlight.current) return // A5: never let two syncAll runs interleave
     syncInFlight.current = true
     setSyncing(true)
     try {
       // ── Pull phase ─────────────────────────────────────────────
-      const [remoteDays, remoteTags, remoteGrocery, remoteFoodLib, remoteWeekSchedule, remoteMedGuides, remoteGroceryCatalog, remoteReminders] = await Promise.all([
+      const [
+        remoteDays,
+        remoteTags,
+        remoteGrocery,
+        remoteFoodLib,
+        remoteWeekSchedule,
+        remoteMedGuides,
+        remoteGroceryCatalog,
+        remoteReminders,
+      ] = await Promise.all([
         sync.pullAllDays(userId),
         sync.pullTags(userId),
         sync.pullGrocery(userId),
@@ -118,7 +153,7 @@ export default function App() {
 
       // Merge: remote wins for tracker day conflicts (another device is authoritative);
       // tags, grocery, and food library are unioned so local-only items are never lost.
-      const mergedTags    = [...new Set([...recipeStore.getTags(), ...remoteTags])]
+      const mergedTags = [...new Set([...recipeStore.getTags(), ...remoteTags])]
       const mergedGrocery = [...new Set([...groceryStore.getChecked(), ...remoteGrocery])]
 
       // Food library: remote wins per name (most recently upserted value)
@@ -148,9 +183,10 @@ export default function App() {
       // Grocery catalog: remote wins per id; local-only items are kept
       const localCatalog = groceryCatalogStore.getAll()
       const remoteIds = new Set((remoteGroceryCatalog ?? []).map(i => i.id))
-      const mergedGroceryCatalog = remoteGroceryCatalog !== null
-        ? [...(remoteGroceryCatalog ?? []), ...localCatalog.filter(i => !remoteIds.has(i.id))]
-        : localCatalog
+      const mergedGroceryCatalog =
+        remoteGroceryCatalog !== null
+          ? [...(remoteGroceryCatalog ?? []), ...localCatalog.filter(i => !remoteIds.has(i.id))]
+          : localCatalog
 
       // A5: re-read tracker days right before writing so a day edited during the
       // pull window survives. Remote still wins same-day conflicts (the rule),
@@ -159,12 +195,12 @@ export default function App() {
 
       // Write merged data to localStorage (bypasses push to avoid a loop)
       importRemoteData({
-        tracker:        mergedDays,
-        tags:           mergedTags,
-        grocery:        mergedGrocery,
-        foodLibrary:    mergedFoodLib,
-        ...(mergedWeekSchedule  ? { weekSchedule:  mergedWeekSchedule  } : {}),
-        ...(mergedMedGuides     ? { medGuides:     mergedMedGuides     } : {}),
+        tracker: mergedDays,
+        tags: mergedTags,
+        grocery: mergedGrocery,
+        foodLibrary: mergedFoodLib,
+        ...(mergedWeekSchedule ? { weekSchedule: mergedWeekSchedule } : {}),
+        ...(mergedMedGuides ? { medGuides: mergedMedGuides } : {}),
         ...(mergedGroceryCatalog.length ? { groceryCatalog: mergedGroceryCatalog } : {}),
         reminders: mergedReminders,
       })
@@ -183,19 +219,19 @@ export default function App() {
       // the UI can show "changes not synced" and the next syncAll reconciles it.
       try {
         await Promise.all([
-          ...Object.entries(mergedDays).map(([date, data]) =>
-            sync.pushDay(userId, date, data)
-          ),
+          ...Object.entries(mergedDays).map(([date, data]) => sync.pushDay(userId, date, data)),
           sync.pushTags(userId, mergedTags),
           sync.pushGrocery(userId, mergedGrocery),
           sync.pushFoodLibrary(userId, mergedFoodLib),
-          ...(mergedWeekSchedule      ? [sync.pushWeekSchedule(userId, mergedWeekSchedule)]           : []),
-          ...(mergedMedGuides         ? [sync.pushMedGuides(userId, mergedMedGuides)]                 : []),
-          ...(mergedGroceryCatalog.length ? [sync.pushUserGroceryCatalog(userId, mergedGroceryCatalog)] : []),
+          ...(mergedWeekSchedule ? [sync.pushWeekSchedule(userId, mergedWeekSchedule)] : []),
+          ...(mergedMedGuides ? [sync.pushMedGuides(userId, mergedMedGuides)] : []),
+          ...(mergedGroceryCatalog.length
+            ? [sync.pushUserGroceryCatalog(userId, mergedGroceryCatalog)]
+            : []),
           ...mergedReminders.map(r => sync.upsertReminder(userId, r)),
           ...(remoteSettings ? [] : [sync.upsertUserSettings(userId, userSettingsStore.get())]),
         ])
-        syncStatusStore.clear()   // everything confirmed in the cloud
+        syncStatusStore.clear() // everything confirmed in the cloud
       } catch (pushErr) {
         reportError('syncAll:push', pushErr)
         syncStatusStore.markPending()
@@ -213,7 +249,7 @@ export default function App() {
 
   // ── Auth state listener ───────────────────────────────────────
   useEffect(() => {
-    if (!supabase || e2eUser) return  // skip for DEV mock user
+    if (!supabase || e2eUser) return // skip for DEV mock user
 
     // Check for an existing session (handles magic link redirect on page load)
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -223,14 +259,14 @@ export default function App() {
       }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        const nextUser = session?.user ?? null
-        setUser(nextUser)
-        if (nextUser) syncAll(nextUser.id)
-        else setLastSynced(null)
-      }
-    )
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nextUser = session?.user ?? null
+      setUser(nextUser)
+      if (nextUser) syncAll(nextUser.id)
+      else setLastSynced(null)
+    })
     return () => subscription.unsubscribe()
   }, [syncAll, e2eUser])
 
@@ -239,7 +275,9 @@ export default function App() {
     // window.__swPendingUpdate is read once at mount via lazy useState above.
     // Here we only wire up the callback for future SW updates.
     window.__swOnUpdate = (cb: () => void) => setSwUpdate(() => cb)
-    return () => { window.__swOnUpdate = undefined }
+    return () => {
+      window.__swOnUpdate = undefined
+    }
   }, [])
 
   // ── Shared-recipe deep link routing ──────────────────────────
@@ -255,7 +293,10 @@ export default function App() {
         <SharedRecipeView
           token={shareToken}
           user={user}
-          onExit={() => { location.hash = ''; setShareToken(null) }}
+          onExit={() => {
+            location.hash = ''
+            setShareToken(null)
+          }}
         />
         <AuthButton
           user={user}
@@ -274,7 +315,9 @@ export default function App() {
     <>
       <header className="hdr">
         <div className="hdr-top">
-          <div className="htitle">My <em>Wellness Hub</em></div>
+          <div className="htitle">
+            My <em>Wellness Hub</em>
+          </div>
           <AuthButton
             user={user}
             syncing={syncing}
@@ -315,7 +358,9 @@ export default function App() {
       </ErrorBoundary>
       <ErrorBoundary name="Tracker">
         <div className={`view${active === 'tracker' ? ' active' : ''}`}>
-          {active === 'tracker' && <TrackerTab key={syncVersion} user={user} onOpenRecipe={openRecipe} />}
+          {active === 'tracker' && (
+            <TrackerTab key={syncVersion} user={user} onOpenRecipe={openRecipe} />
+          )}
         </div>
       </ErrorBoundary>
 

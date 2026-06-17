@@ -4,14 +4,32 @@ import type { Recipe } from '../data/recipes'
 
 function rec(id: number, name = `r${id}`, custom = true): Recipe {
   return {
-    id, name, cat: 'meal', type: 'Meal', color: '', sc: '', tag: '',
-    prepL: '', prepC: '', hk: 0, hp: '', hc: '', hf: '',
-    mk: 0, mp: '', mc: '', mf: '', ings: [], steps: [], tip: '',
-    custom, source: custom ? 'user' : 'builtin',
+    id,
+    name,
+    cat: 'meal',
+    type: 'Meal',
+    color: '',
+    sc: '',
+    tag: '',
+    prepL: '',
+    prepC: '',
+    hk: 0,
+    hp: '',
+    hc: '',
+    hf: '',
+    mk: 0,
+    mp: '',
+    mc: '',
+    mf: '',
+    ings: [],
+    steps: [],
+    tip: '',
+    custom,
+    source: custom ? 'user' : 'builtin',
   } as Recipe
 }
 
-const PLACEHOLDER = PLACEHOLDER_ID_MIN + 123  // a Date.now()-style id
+const PLACEHOLDER = PLACEHOLDER_ID_MIN + 123 // a Date.now()-style id
 
 describe('isPlaceholderId', () => {
   it('treats large (Date.now) ids as placeholders and small ids as real', () => {
@@ -33,13 +51,13 @@ describe('mergeRecipes', () => {
   it('prunes a synced recipe (real id) that is absent from the DB — deleted elsewhere', () => {
     const { merged, toPush, prunedIds } = mergeRecipes([rec(7, 'Deleted')], [])
     expect(prunedIds).toEqual([7])
-    expect(merged).toHaveLength(0)   // dropped, not resurrected
-    expect(toPush).toHaveLength(0)   // and never re-pushed
+    expect(merged).toHaveLength(0) // dropped, not resurrected
+    expect(toPush).toHaveLength(0) // and never re-pushed
   })
 
   it('lets the DB row win for an id present in both', () => {
     const local = [{ ...rec(7), name: 'Old' }]
-    const db    = [{ ...rec(7), name: 'New' }]
+    const db = [{ ...rec(7), name: 'New' }]
     const { merged, toPush, prunedIds } = mergeRecipes(local, db)
     expect(merged).toHaveLength(1)
     expect(merged[0].name).toBe('New')
@@ -54,7 +72,7 @@ describe('mergeRecipes', () => {
 
   it('combines DB rows, a deleted-elsewhere prune, and a new local push', () => {
     const local = [rec(1, 'KeptFromDb'), rec(9, 'DeletedElsewhere'), rec(PLACEHOLDER, 'BrandNew')]
-    const db    = [rec(1, 'KeptFromDb')]
+    const db = [rec(1, 'KeptFromDb')]
     const { merged, toPush, prunedIds } = mergeRecipes(local, db)
     expect(prunedIds).toEqual([9])
     expect(toPush.map(r => r.name)).toEqual(['BrandNew'])

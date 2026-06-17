@@ -7,19 +7,32 @@ test.describe('Tracker tab', () => {
     // addInitScript runs before any page scripts on every navigation (including
     // page.reload()), so the DEV mock-user bypass in App.tsx always sees a user.
     await page.addInitScript(() => {
-      sessionStorage.setItem('__e2e_user__', JSON.stringify({
-        id: 'e2e-test-id', email: 'test@e2e.com',
-        app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '',
-      }))
+      sessionStorage.setItem(
+        '__e2e_user__',
+        JSON.stringify({
+          id: 'e2e-test-id',
+          email: 'test@e2e.com',
+          app_metadata: {},
+          user_metadata: {},
+          aud: 'authenticated',
+          created_at: '',
+        }),
+      )
     })
     await page.goto('/')
-    await page.evaluate(() => { localStorage.clear() })
+    await page.evaluate(() => {
+      localStorage.clear()
+    })
     await page.reload()
     // App defaults to Tracker tab → Food inner-tab is visible
   })
 
   test("shows today's date in the date label", async ({ page }) => {
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+    const today = new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    })
     await expect(page.getByText(today)).toBeVisible()
   })
 
@@ -101,14 +114,22 @@ test.describe('Tracker tab', () => {
     const today = new Date()
     const yesterday = new Date(today)
     yesterday.setDate(today.getDate() - 1)
-    const label = yesterday.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+    const label = yesterday.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    })
 
     await page.getByRole('button', { name: '‹ Prev' }).click()
     await expect(page.getByText(label)).toBeVisible()
   })
 
   test('Next button returns to current date after going to previous day', async ({ page }) => {
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+    const today = new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    })
     await page.getByRole('button', { name: '‹ Prev' }).click()
     await expect(page.getByText(today)).not.toBeVisible()
     await page.getByRole('button', { name: 'Next ›' }).click()
@@ -125,8 +146,14 @@ test.describe('Tracker tab', () => {
     await expect(page.getByText('Berry Oats', { exact: true })).toBeVisible()
 
     // Switch tab — TrackerTab unmounts, then remounts and re-reads localStorage
-    await page.locator('nav.tabs').getByRole('button', { name: /Schedule/i }).click()
-    await page.locator('nav.tabs').getByRole('button', { name: /Tracker/i }).click()
+    await page
+      .locator('nav.tabs')
+      .getByRole('button', { name: /Schedule/i })
+      .click()
+    await page
+      .locator('nav.tabs')
+      .getByRole('button', { name: /Tracker/i })
+      .click()
 
     await expect(page.getByText('350 / 1,380 kcal')).toBeVisible()
     await expect(page.getByText('Berry Oats', { exact: true })).toBeVisible()

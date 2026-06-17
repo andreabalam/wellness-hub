@@ -62,11 +62,7 @@ function userAgent(): string | null {
  * `context` identifies where the error came from, e.g. 'syncAll:push',
  * 'ErrorBoundary:Tracker', 'oura-sync'.
  */
-export function reportError(
-  context: string,
-  error: unknown,
-  opts: ReportOptions = {},
-): string {
+export function reportError(context: string, error: unknown, opts: ReportOptions = {}): string {
   const severity = opts.severity ?? 'error'
   const { message, stack } = normalizeError(error)
 
@@ -106,16 +102,18 @@ async function persist(args: {
     try {
       const { data } = await supabase.auth.getUser()
       userId = data.user?.id ?? null
-    } catch { /* signed out / offline — log anonymously */ }
+    } catch {
+      /* signed out / offline — log anonymously */
+    }
 
     await sync.pushErrorLog({
       userId,
-      context:    args.context,
-      message:    args.message,
-      stack:      args.stack ?? null,
-      severity:   args.severity,
+      context: args.context,
+      message: args.message,
+      stack: args.stack ?? null,
+      severity: args.severity,
       appVersion: appVersion(),
-      userAgent:  userAgent(),
+      userAgent: userAgent(),
     })
   } catch (err) {
     // Swallow: the logger must never throw or report its own failure (no recursion).

@@ -1,9 +1,28 @@
 import { describe, it, expect } from 'vitest'
-import { QUICK_FOODS, SESSION_OPTS, MED_MINS, MED_STYLES, KCAL_TARGET, PROT_TARGET, CARB_TARGET, FAT_TARGET, FIBER_TARGET, PHASE_NOTES, EMPTY_DAY, WATER_MAX, HUNGER_TYPES, hungerIcon, hungerLabel, WEEK_GOAL_SUGGESTIONS } from '../data/tracker'
+import {
+  QUICK_FOODS,
+  SESSION_OPTS,
+  MED_MINS,
+  MED_STYLES,
+  KCAL_TARGET,
+  PROT_TARGET,
+  CARB_TARGET,
+  FAT_TARGET,
+  FIBER_TARGET,
+  PHASE_NOTES,
+  EMPTY_DAY,
+  WATER_MAX,
+  HUNGER_TYPES,
+  hungerIcon,
+  hungerLabel,
+  WEEK_GOAL_SUGGESTIONS,
+} from '../data/tracker'
 import type { FoodEntry } from '../data/tracker'
 
 // ── dkey helper (inline — same logic as component) ───────────────
-function dkey(d: Date) { return d.toISOString().split('T')[0] }
+function dkey(d: Date) {
+  return d.toISOString().split('T')[0]
+}
 
 describe('dkey', () => {
   it('formats a date as YYYY-MM-DD', () => {
@@ -20,8 +39,14 @@ describe('dkey', () => {
 // ── macro totals (same reduce used in TrackerTab) ────────────────
 function calcTotals(foods: FoodEntry[]) {
   return foods.reduce(
-    (acc, f) => ({ k: acc.k + f.k, p: acc.p + f.p, c: acc.c + f.c, f: acc.f + f.f, fi: acc.fi + f.fi }),
-    { k: 0, p: 0, c: 0, f: 0, fi: 0 }
+    (acc, f) => ({
+      k: acc.k + f.k,
+      p: acc.p + f.p,
+      c: acc.c + f.c,
+      f: acc.f + f.f,
+      fi: acc.fi + f.fi,
+    }),
+    { k: 0, p: 0, c: 0, f: 0, fi: 0 },
   )
 }
 
@@ -37,8 +62,8 @@ describe('macro totals', () => {
 
   it('sums multiple entries', () => {
     const foods: FoodEntry[] = [
-      { n: 'Oats',     k: 350, p: 18, c: 42, f: 12, fi: 9 },
-      { n: 'Smoothie', k: 390, p: 35, c: 56, f:  9, fi: 8 },
+      { n: 'Oats', k: 350, p: 18, c: 42, f: 12, fi: 9 },
+      { n: 'Smoothie', k: 390, p: 35, c: 56, f: 9, fi: 8 },
     ]
     const totals = calcTotals(foods)
     expect(totals.k).toBe(740)
@@ -142,7 +167,13 @@ describe('EMPTY_DAY', () => {
 
 describe('HUNGER_TYPES', () => {
   it('has the five Noom hunger types', () => {
-    expect(HUNGER_TYPES.map(h => h.id)).toEqual(['stomach', 'mouth', 'emotional', 'learned', 'social'])
+    expect(HUNGER_TYPES.map(h => h.id)).toEqual([
+      'stomach',
+      'mouth',
+      'emotional',
+      'learned',
+      'social',
+    ])
   })
 
   it('hungerIcon and hungerLabel resolve known ids', () => {

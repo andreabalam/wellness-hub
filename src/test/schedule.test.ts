@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import {
-  SCHEDULE_BLOCKS, BLOCK_COLORS,
-  colorDef, customToScheduleBlock, defaultToCustomBlock, normalizeTime,
+  SCHEDULE_BLOCKS,
+  BLOCK_COLORS,
+  colorDef,
+  customToScheduleBlock,
+  defaultToCustomBlock,
+  normalizeTime,
 } from '../data/schedule'
 import type { CustomBlock } from '../data/schedule'
 
@@ -290,7 +294,7 @@ describe('defaultToCustomBlock', () => {
 
   it('generates fallback id "default-{idx}" when block has no id', () => {
     const { id: _, ...noId } = SCHEDULE_BLOCKS[0]
-    const cb = defaultToCustomBlock(noId as typeof SCHEDULE_BLOCKS[0], 7)
+    const cb = defaultToCustomBlock(noId as (typeof SCHEDULE_BLOCKS)[0], 7)
     expect(cb.id).toBe('default-7')
   })
 

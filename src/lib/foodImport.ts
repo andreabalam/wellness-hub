@@ -42,7 +42,10 @@ export async function parseFoodLog(text: string): Promise<QuickFood[]> {
 
 /** Strip a leading bullet or "1." / "1)" marker from a line. */
 function stripMarker(line: string): string {
-  return line.replace(/^[\s\-*•]+/, '').replace(/^\d+[.)]\s+/, '').trim()
+  return line
+    .replace(/^[\s\-*•]+/, '')
+    .replace(/^\d+[.)]\s+/, '')
+    .trim()
 }
 
 const round = (n: number) => (Number.isFinite(n) && n >= 0 ? Math.round(n) : 0)

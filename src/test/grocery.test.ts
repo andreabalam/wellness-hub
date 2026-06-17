@@ -83,10 +83,12 @@ describe('NutriInfo data integrity', () => {
   })
 
   it('nutri.fi is a number when present', () => {
-    withNutri.filter(i => i.nutri!.fi != null).forEach(item => {
-      expect(typeof item.nutri!.fi).toBe('number')
-      expect(item.nutri!.fi!).toBeGreaterThanOrEqual(0)
-    })
+    withNutri
+      .filter(i => i.nutri!.fi != null)
+      .forEach(item => {
+        expect(typeof item.nutri!.fi).toBe('number')
+        expect(item.nutri!.fi!).toBeGreaterThanOrEqual(0)
+      })
   })
 })
 
@@ -140,7 +142,7 @@ describe('GROCERY_CATEGORIES', () => {
 
   it('matches the keys of GROCERY_DATA exactly', () => {
     const dataKeys = Object.keys(GROCERY_DATA).sort()
-    const catKeys  = [...GROCERY_CATEGORIES].sort()
+    const catKeys = [...GROCERY_CATEGORIES].sort()
     expect(catKeys).toEqual(dataKeys)
   })
 
@@ -162,7 +164,9 @@ describe('GroceryCatalogItem shape', () => {
 
   it('accepts optional nutri info', () => {
     const item: GroceryCatalogItem = {
-      id: 'test-2', n: 'Salmon fillet', cat: 'Protein - Animal',
+      id: 'test-2',
+      n: 'Salmon fillet',
+      cat: 'Protein - Animal',
       nutri: { srv: '4 oz', cal: 160, p: 25, c: 0, f: 7 },
     }
     expect(item.nutri?.cal).toBe(160)

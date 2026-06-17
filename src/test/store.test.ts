@@ -1,13 +1,26 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
-  trackerStore, recipeStore, groceryStore, scheduleStore,
-  foodLibraryStore, groceryCatalogStore, importRemoteData,
-  useTrackerStore, useRecipeStore, useGroceryStore, useFoodLibraryStore,
+  trackerStore,
+  recipeStore,
+  groceryStore,
+  scheduleStore,
+  foodLibraryStore,
+  groceryCatalogStore,
+  importRemoteData,
+  useTrackerStore,
+  useRecipeStore,
+  useGroceryStore,
+  useFoodLibraryStore,
   useGroceryCatalogStore,
-  exportAllData, importAllData,
-  bodyStatsStore, workoutPlanStore,
-  useBodyStatsStore, useWorkoutPlanStore,
-  userSettingsStore, remindersStore, syncStatusStore,
+  exportAllData,
+  importAllData,
+  bodyStatsStore,
+  workoutPlanStore,
+  useBodyStatsStore,
+  useWorkoutPlanStore,
+  userSettingsStore,
+  remindersStore,
+  syncStatusStore,
 } from '../hooks/useStore'
 import { EMPTY_DAY } from '../data/tracker'
 import type { CustomBlock } from '../data/schedule'
@@ -20,10 +33,14 @@ const store: Record<string, string> = {}
 beforeEach(() => {
   Object.keys(store).forEach(k => delete store[k])
   vi.stubGlobal('localStorage', {
-    getItem:    (k: string) => store[k] ?? null,
-    setItem:    (k: string, v: string) => { store[k] = v },
-    removeItem: (k: string) => { delete store[k] },
-    clear:      () => Object.keys(store).forEach(k => delete store[k]),
+    getItem: (k: string) => store[k] ?? null,
+    setItem: (k: string, v: string) => {
+      store[k] = v
+    },
+    removeItem: (k: string) => {
+      delete store[k]
+    },
+    clear: () => Object.keys(store).forEach(k => delete store[k]),
   })
 })
 
@@ -39,9 +56,17 @@ describe('trackerStore', () => {
   it('setDay persists and getDay retrieves it', () => {
     const data = {
       foods: [{ n: 'Oats', k: 350, p: 18, c: 42, f: 12, fi: 9 }],
-      workout: 'pilates', wkNotes: 'felt great',
-      energy: 4, mood: 3, sleep: 5, stress: 2, water: 6, phase: 'Follicular',
-      notes: 'good day', medMin: 13, medStyle: 'Breath focus',
+      workout: 'pilates',
+      wkNotes: 'felt great',
+      energy: 4,
+      mood: 3,
+      sleep: 5,
+      stress: 2,
+      water: 6,
+      phase: 'Follicular',
+      notes: 'good day',
+      medMin: 13,
+      medStyle: 'Breath focus',
     }
     trackerStore.setDay('2026-01-01', data)
     const result = trackerStore.getDay('2026-01-01')
@@ -52,7 +77,20 @@ describe('trackerStore', () => {
   })
 
   it('setDay for different dates do not overwrite each other', () => {
-    const base = { foods: [], workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0, stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '' }
+    const base = {
+      foods: [],
+      workout: null,
+      wkNotes: '',
+      energy: 0,
+      mood: 0,
+      sleep: 0,
+      stress: 0,
+      water: 0,
+      phase: '',
+      notes: '',
+      medMin: 0,
+      medStyle: '',
+    }
     trackerStore.setDay('2026-01-01', { ...base, energy: 5 })
     trackerStore.setDay('2026-01-02', { ...base, energy: 2 })
     expect(trackerStore.getDay('2026-01-01').energy).toBe(5)
@@ -60,14 +98,40 @@ describe('trackerStore', () => {
   })
 
   it('getAll returns all stored days', () => {
-    const base = { foods: [], workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0, stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '' }
+    const base = {
+      foods: [],
+      workout: null,
+      wkNotes: '',
+      energy: 0,
+      mood: 0,
+      sleep: 0,
+      stress: 0,
+      water: 0,
+      phase: '',
+      notes: '',
+      medMin: 0,
+      medStyle: '',
+    }
     trackerStore.setDay('2026-01-01', base)
     trackerStore.setDay('2026-01-02', base)
     expect(Object.keys(trackerStore.getAll())).toHaveLength(2)
   })
 
   it('overwriting a day replaces only that day', () => {
-    const base = { foods: [], workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0, stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '' }
+    const base = {
+      foods: [],
+      workout: null,
+      wkNotes: '',
+      energy: 0,
+      mood: 0,
+      sleep: 0,
+      stress: 0,
+      water: 0,
+      phase: '',
+      notes: '',
+      medMin: 0,
+      medStyle: '',
+    }
     trackerStore.setDay('2026-01-01', { ...base, energy: 3 })
     trackerStore.setDay('2026-01-01', { ...base, energy: 5 })
     expect(trackerStore.getDay('2026-01-01').energy).toBe(5)
@@ -77,7 +141,27 @@ describe('trackerStore', () => {
 
 // ── recipeStore ──────────────────────────────────────────────────
 describe('recipeStore', () => {
-  const base = { cat: 'meal', type: 'Meal', color: '', sc: '', tag: '', prepL: '', prepC: '', hk: 0, hp: '0g', hc: '0g', hf: '0g', mk: 0, mp: '0g', mc: '0g', mf: '0g', ings: [] as [string,string][], steps: [], tip: '', custom: true }
+  const base = {
+    cat: 'meal',
+    type: 'Meal',
+    color: '',
+    sc: '',
+    tag: '',
+    prepL: '',
+    prepC: '',
+    hk: 0,
+    hp: '0g',
+    hc: '0g',
+    hf: '0g',
+    mk: 0,
+    mp: '0g',
+    mc: '0g',
+    mf: '0g',
+    ings: [] as [string, string][],
+    steps: [],
+    tip: '',
+    custom: true,
+  }
 
   it('starts with empty recipes', () => {
     expect(recipeStore.getRecipes()).toEqual([])
@@ -168,17 +252,60 @@ describe('export / import round-trip', () => {
   })
 
   it('importAllData restores all keys', () => {
-    const base = { foods: [], workout: null, wkNotes: '', energy: 0, mood: 0, sleep: 0, stress: 0, water: 0, phase: '', notes: '', medMin: 0, medStyle: '' }
-    const recipeBase = { cat: 'snack', type: 'Snack', color: '', sc: '', tag: '', prepL: '', prepC: '', hk: 100, hp: '5g', hc: '10g', hf: '3g', mk: 0, mp: '0g', mc: '0g', mf: '0g', ings: [] as [string,string][], steps: [], tip: '', custom: true }
+    const base = {
+      foods: [],
+      workout: null,
+      wkNotes: '',
+      energy: 0,
+      mood: 0,
+      sleep: 0,
+      stress: 0,
+      water: 0,
+      phase: '',
+      notes: '',
+      medMin: 0,
+      medStyle: '',
+    }
+    const recipeBase = {
+      cat: 'snack',
+      type: 'Snack',
+      color: '',
+      sc: '',
+      tag: '',
+      prepL: '',
+      prepC: '',
+      hk: 100,
+      hp: '5g',
+      hc: '10g',
+      hf: '3g',
+      mk: 0,
+      mp: '0g',
+      mc: '0g',
+      mf: '0g',
+      ings: [] as [string, string][],
+      steps: [],
+      tip: '',
+      custom: true,
+    }
 
     trackerStore.setDay('2026-05-25', { ...base, workout: 'pilates' })
     recipeStore.addRecipe({ ...recipeBase, id: 99, name: 'Exported Recipe' })
     groceryStore.toggle('Avocados')
 
-    const catItem: GroceryCatalogItem = { id: 'e1', n: 'Exported Kale', cat: 'Produce - Vegetables' }
+    const catItem: GroceryCatalogItem = {
+      id: 'e1',
+      n: 'Exported Kale',
+      cat: 'Produce - Vegetables',
+    }
     groceryCatalogStore.add(catItem)
 
-    remindersStore.add({ id: 'r1', text: 'Take vitamins', checked: false, checkedAt: null, createdAt: '2026-05-25T00:00:00.000Z' })
+    remindersStore.add({
+      id: 'r1',
+      text: 'Take vitamins',
+      checked: false,
+      checkedAt: null,
+      createdAt: '2026-05-25T00:00:00.000Z',
+    })
     bodyStatsStore.set({ weightKg: 62 })
     workoutPlanStore.set({ gender: 'female', numWeeks: 4, planData: [] })
 
@@ -219,7 +346,7 @@ describe('export / import round-trip', () => {
     const json = JSON.stringify({ version: 'whub_v1', customTags: ['keto'] })
     expect(importAllData(json)).toBe(true)
     expect(recipeStore.getTags()).toContain('keto')
-    expect(trackerStore.getAll()).toEqual({})  // tracker not in payload — untouched
+    expect(trackerStore.getAll()).toEqual({}) // tracker not in payload — untouched
   })
 
   it('exportedAt is a valid ISO date string', () => {
@@ -252,11 +379,11 @@ describe('syncStatusStore', () => {
     const seen: boolean[] = []
     const unsub = syncStatusStore.subscribe(p => seen.push(p))
     syncStatusStore.markPending()
-    syncStatusStore.markPending()   // already pending → no extra notification
+    syncStatusStore.markPending() // already pending → no extra notification
     syncStatusStore.clear()
-    syncStatusStore.clear()         // already clear → no extra notification
+    syncStatusStore.clear() // already clear → no extra notification
     unsub()
-    syncStatusStore.markPending()   // unsubscribed → not seen
+    syncStatusStore.markPending() // unsubscribed → not seen
     expect(seen).toEqual([true, false])
   })
 })
@@ -264,8 +391,14 @@ describe('syncStatusStore', () => {
 // ── scheduleStore ────────────────────────────────────────────────
 describe('scheduleStore', () => {
   const sampleBlock: CustomBlock = {
-    id: 'b1', time: '09:00', title: 'Test Block',
-    dur: '30 min', color: 'green', whyTxt: '', desc: '', phase: '',
+    id: 'b1',
+    time: '09:00',
+    title: 'Test Block',
+    dur: '30 min',
+    color: 'green',
+    whyTxt: '',
+    desc: '',
+    phase: '',
   }
 
   it('getWeek returns a WeekSchedule with all 7 days', () => {
@@ -331,18 +464,18 @@ describe('scheduleStore', () => {
   it('resetWeek restores all 7 days to defaults', () => {
     // Customise every day
     const customBlock = { ...sampleBlock }
-    for (const day of ['mon','tue','wed','thu','fri','sat','sun'] as const) {
+    for (const day of ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const) {
       scheduleStore.saveDay(day, [{ ...customBlock, id: `${day}-custom`, title: 'Custom Block' }])
     }
     // Verify they're all custom
     const before = scheduleStore.getWeek()
-    for (const day of ['mon','tue','wed','thu','fri','sat','sun'] as const) {
+    for (const day of ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const) {
       expect(before[day].every(b => b.title === 'Custom Block')).toBe(true)
     }
     // Reset all
     const fresh = scheduleStore.resetWeek()
     // All 7 days should have default blocks (not 'Custom Block')
-    for (const day of ['mon','tue','wed','thu','fri','sat','sun'] as const) {
+    for (const day of ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const) {
       expect(fresh[day].some(b => b.title === 'Custom Block')).toBe(false)
       expect(fresh[day].length).toBeGreaterThan(0)
     }
@@ -394,9 +527,25 @@ describe('foodLibraryStore', () => {
 describe('importRemoteData', () => {
   const baseDay = { ...EMPTY_DAY, foods: [] }
   const recipeBase = {
-    cat: 'meal', type: 'Meal', color: '', sc: '', tag: '', prepL: '', prepC: '',
-    hk: 0, hp: '0g', hc: '0g', hf: '0g', mk: 0, mp: '0g', mc: '0g', mf: '0g',
-    ings: [] as [string, string][], steps: [] as string[], tip: '', custom: true,
+    cat: 'meal',
+    type: 'Meal',
+    color: '',
+    sc: '',
+    tag: '',
+    prepL: '',
+    prepC: '',
+    hk: 0,
+    hp: '0g',
+    hc: '0g',
+    hf: '0g',
+    mk: 0,
+    mp: '0g',
+    mc: '0g',
+    mf: '0g',
+    ings: [] as [string, string][],
+    steps: [] as string[],
+    tip: '',
+    custom: true,
   }
 
   it('writes tracker days to localStorage', () => {
@@ -426,7 +575,16 @@ describe('importRemoteData', () => {
   })
 
   it('writes v1 schedule blocks (legacy) to localStorage', () => {
-    const block = { id: 's1', time: '08:00', title: 'Remote Block', dur: '30 min', color: 'teal', whyTxt: '', desc: '', phase: '' }
+    const block = {
+      id: 's1',
+      time: '08:00',
+      title: 'Remote Block',
+      dur: '30 min',
+      color: 'teal',
+      whyTxt: '',
+      desc: '',
+      phase: '',
+    }
     importRemoteData({ schedule: [block] })
     // v1 is stored under the old key; accessible directly from localStorage
     const stored = JSON.parse(store['whub_schedule_v1'] ?? '[]')
@@ -435,9 +593,24 @@ describe('importRemoteData', () => {
   })
 
   it('writes weekSchedule (v2) to localStorage', () => {
-    const monBlock = { id: 'mon-s1', time: '08:00', title: 'Mon Remote', dur: '30 min', color: 'teal', whyTxt: '', desc: '', phase: '' }
+    const monBlock = {
+      id: 'mon-s1',
+      time: '08:00',
+      title: 'Mon Remote',
+      dur: '30 min',
+      color: 'teal',
+      whyTxt: '',
+      desc: '',
+      phase: '',
+    }
     const weekSched = {
-      mon: [monBlock], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [],
+      mon: [monBlock],
+      tue: [],
+      wed: [],
+      thu: [],
+      fri: [],
+      sat: [],
+      sun: [],
     }
     importRemoteData({ weekSchedule: weekSched as never })
     const week = scheduleStore.getWeek()
@@ -489,7 +662,7 @@ describe('store hook wrappers', () => {
 // ── groceryCatalogStore ──────────────────────────────────────────
 describe('groceryCatalogStore', () => {
   const spinach: GroceryCatalogItem = { id: 'g1', n: 'Spinach', cat: 'Produce - Vegetables' }
-  const salmon:  GroceryCatalogItem = { id: 'g2', n: 'Salmon',  cat: 'Protein - Animal' }
+  const salmon: GroceryCatalogItem = { id: 'g2', n: 'Salmon', cat: 'Protein - Animal' }
 
   it('getAll returns [] initially', () => {
     expect(groceryCatalogStore.getAll()).toEqual([])
@@ -579,11 +752,22 @@ describe('load() error handling', () => {
 // ── bodyStatsStore ────────────────────────────────────────────────
 describe('bodyStatsStore', () => {
   const sampleStats: UserBodyStats = {
-    weightKg: 70, bodyFatPct: 18, heightM: 1.78, age: 30, biologicalSex: 'male',
-    waistCm: 80, glutesCm: 95, measurementUnit: 'cm',
-    cycleType: 'none', equipment: 'Barbell + dumbbells', fatLossRateKg: 0.5,
-    macroSplit: 'high_protein', tdeeKcal: 2400, kcalTarget: 2000,
-    protRange: '140-160g/day', fatLossGoal: '0.5 kg/wk',
+    weightKg: 70,
+    bodyFatPct: 18,
+    heightM: 1.78,
+    age: 30,
+    biologicalSex: 'male',
+    waistCm: 80,
+    glutesCm: 95,
+    measurementUnit: 'cm',
+    cycleType: 'none',
+    equipment: 'Barbell + dumbbells',
+    fatLossRateKg: 0.5,
+    macroSplit: 'high_protein',
+    tdeeKcal: 2400,
+    kcalTarget: 2000,
+    protRange: '140-160g/day',
+    fatLossGoal: '0.5 kg/wk',
     chronotype: 'bear',
   }
 
@@ -647,8 +831,22 @@ describe('workoutPlanStore', () => {
     numWeeks: 3,
     planData: [
       {
-        week: 1, label: 'Week 1', color: 'var(--teal)', note: 'Test note', nutr: 'Test nutr',
-        days: [{ slot: 'Day A', type: 'Home', label: 'Test day', time: '30 min', color: 'var(--teal)', solin: 'Note', exs: [] }],
+        week: 1,
+        label: 'Week 1',
+        color: 'var(--teal)',
+        note: 'Test note',
+        nutr: 'Test nutr',
+        days: [
+          {
+            slot: 'Day A',
+            type: 'Home',
+            label: 'Test day',
+            time: '30 min',
+            color: 'var(--teal)',
+            solin: 'Note',
+            exs: [],
+          },
+        ],
       },
     ],
   }
@@ -712,9 +910,14 @@ describe('userSettingsStore', () => {
 
   it('importFromRemote writes remote settings', () => {
     userSettingsStore.importFromRemote({
-      kcalTarget: 1800, protTarget: 140, carbTarget: 180, fatTarget: 60,
-      fiberTarget: 30, macroSplit: 'balanced',
-      cognitivePeakStart: '09:00', cognitivePeakEnd: '11:00',
+      kcalTarget: 1800,
+      protTarget: 140,
+      carbTarget: 180,
+      fatTarget: 60,
+      fiberTarget: 30,
+      macroSplit: 'balanced',
+      cognitivePeakStart: '09:00',
+      cognitivePeakEnd: '11:00',
     })
     const s = userSettingsStore.get()
     expect(s.kcalTarget).toBe(1800)

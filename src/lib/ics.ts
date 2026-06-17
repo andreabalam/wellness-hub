@@ -9,14 +9,14 @@ import type { DayKey } from '../data/schedule'
 export function parseDuration(dur: string): string {
   if (!dur || dur === '—') return 'PT30M'
 
-  const hasHr  = /hr|hour/i.test(dur)
+  const hasHr = /hr|hour/i.test(dur)
   const hasMin = /min/i.test(dur)
-  const nums   = (dur.match(/\d+/g) ?? []).map(Number)
+  const nums = (dur.match(/\d+/g) ?? []).map(Number)
 
   if (nums.length === 0) return 'PT30M'
 
   if (hasHr && hasMin && nums.length >= 2) return `PT${nums[0]}H${nums[1]}M`
-  if (hasHr)  return `PT${nums[0]}H`
+  if (hasHr) return `PT${nums[0]}H`
   // Ranges like "90-120 min" → take the first number
   return `PT${nums[0]}M`
 }
@@ -37,9 +37,9 @@ function timeToIcs(time: string): string {
 
 /** date + "HH:MM" → "YYYYMMDDTHHMMSS" (floating / local time, no Z) */
 function dtStart(date: Date, time: string): string {
-  const y  = date.getFullYear()
+  const y = date.getFullYear()
   const mo = String(date.getMonth() + 1).padStart(2, '0')
-  const d  = String(date.getDate()).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
   return `${y}${mo}${d}T${timeToIcs(time)}`
 }
 
@@ -47,9 +47,10 @@ function dtStart(date: Date, time: string): string {
 function firstWeekday(from: Date): Date {
   const d = new Date(from)
   d.setHours(0, 0, 0, 0)
-  const dow = d.getDay()   // 0=Sun … 6=Sat
-  if (dow === 0) d.setDate(d.getDate() + 1)       // Sun → Mon
-  else if (dow === 6) d.setDate(d.getDate() + 2)  // Sat → Mon
+  const dow = d.getDay() // 0=Sun … 6=Sat
+  if (dow === 0)
+    d.setDate(d.getDate() + 1) // Sun → Mon
+  else if (dow === 6) d.setDate(d.getDate() + 2) // Sat → Mon
   return d
 }
 
@@ -76,11 +77,7 @@ function foldLine(line: string): string {
  * Generate an .ics file string from a list of schedule blocks.
  * Each block becomes a recurring VEVENT (Mon–Fri) between startDate and endDate.
  */
-export function generateIcs(
-  blocks: ScheduleBlock[],
-  startDate: Date,
-  endDate: Date,
-): string {
+export function generateIcs(blocks: ScheduleBlock[], startDate: Date, endDate: Date): string {
   const anchor = firstWeekday(startDate)
 
   // UNTIL must be UTC, end of the last day
@@ -101,10 +98,10 @@ export function generateIcs(
   ]
 
   blocks.forEach((b, i) => {
-    const uid      = `whub-${i}-${Date.now()}@wellness-hub`
-    const start    = dtStart(anchor, b.time)
+    const uid = `whub-${i}-${Date.now()}@wellness-hub`
+    const start = dtStart(anchor, b.time)
     const duration = parseDuration(b.dur)
-    const rrule    = `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=${untilStr}`
+    const rrule = `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=${untilStr}`
 
     const event: string[] = [
       'BEGIN:VEVENT',
@@ -135,10 +132,22 @@ export function generateIcs(
 // ── Week schedule ICS export ──────────────────────────────────────
 
 const DOW_MAP: Record<DayKey, number> = {
-  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
+  sun: 0,
+  mon: 1,
+  tue: 2,
+  wed: 3,
+  thu: 4,
+  fri: 5,
+  sat: 6,
 }
 const BYDAY_MAP: Record<DayKey, string> = {
-  mon: 'MO', tue: 'TU', wed: 'WE', thu: 'TH', fri: 'FR', sat: 'SA', sun: 'SU',
+  mon: 'MO',
+  tue: 'TU',
+  wed: 'WE',
+  thu: 'TH',
+  fri: 'FR',
+  sat: 'SA',
+  sun: 'SU',
 }
 
 function firstOccurrenceOfDay(from: Date, day: DayKey): Date {
@@ -160,7 +169,8 @@ export function generateWeekIcs(
 ): string {
   const until = new Date(endDate)
   until.setHours(23, 59, 59, 0)
-  const untilStr = until.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '').replace('Z', '') + 'Z'
+  const untilStr =
+    until.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '').replace('Z', '') + 'Z'
   const now = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15) + 'Z'
 
   const lines: string[] = [
@@ -177,12 +187,12 @@ export function generateWeekIcs(
     const blocks = week[day]
     if (!blocks?.length) continue
     const anchor = firstOccurrenceOfDay(startDate, day)
-    const byday  = BYDAY_MAP[day]
+    const byday = BYDAY_MAP[day]
     for (const b of blocks) {
-      const uid      = `whub-${day}-${idx++}@wellness-hub`
-      const start    = dtStart(anchor, b.time)
+      const uid = `whub-${day}-${idx++}@wellness-hub`
+      const start = dtStart(anchor, b.time)
       const duration = parseDuration(b.dur)
-      const rrule    = `FREQ=WEEKLY;BYDAY=${byday};UNTIL=${untilStr}`
+      const rrule = `FREQ=WEEKLY;BYDAY=${byday};UNTIL=${untilStr}`
       const event: string[] = [
         'BEGIN:VEVENT',
         `UID:${uid}`,
@@ -192,8 +202,8 @@ export function generateWeekIcs(
         `RRULE:${rrule}`,
         `SUMMARY:${escapeIcs(b.title)}`,
       ]
-      if (b.desc)    event.push(`DESCRIPTION:${escapeIcs(b.desc)}`)
-      if (b.whyTxt)  event.push(`CATEGORIES:${escapeIcs(b.whyTxt)}`)
+      if (b.desc) event.push(`DESCRIPTION:${escapeIcs(b.desc)}`)
+      if (b.whyTxt) event.push(`CATEGORIES:${escapeIcs(b.whyTxt)}`)
       event.push('END:VEVENT')
       lines.push(...event)
     }
@@ -206,9 +216,9 @@ export function generateWeekIcs(
 /** Trigger a .ics file download in the browser */
 export function downloadIcs(content: string, filename = 'wellness-schedule.ics') {
   const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' })
-  const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
-  a.href     = url
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)

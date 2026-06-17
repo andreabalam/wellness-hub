@@ -50,8 +50,8 @@ Protein 12g
   it('handles decimal values in macros', () => {
     const text = 'Calories 150\nTotal Fat 3.5g\nTotal Carbohydrate 22.7g\nProtein 8.2g'
     const result = parseNutritionLabel(text)
-    expect(result.fat).toBe(4)     // Math.round(3.5)
-    expect(result.carbs).toBe(23)  // Math.round(22.7)
+    expect(result.fat).toBe(4) // Math.round(3.5)
+    expect(result.carbs).toBe(23) // Math.round(22.7)
     expect(result.protein).toBe(8) // Math.round(8.2)
   })
 
@@ -88,7 +88,7 @@ import { analyzeImage } from '../lib/analyzeFood'
 
 // Also mock resizeImage and isNutritionLabel internals by controlling Tesseract output
 const mockRecognize = vi.mocked(Tesseract.recognize)
-const mockInvoke    = vi.mocked((supabase as NonNullable<typeof supabase>).functions.invoke)
+const mockInvoke = vi.mocked((supabase as NonNullable<typeof supabase>).functions.invoke)
 
 // Stub URL.createObjectURL / revokeObjectURL for jsdom
 beforeEach(() => {
@@ -100,7 +100,8 @@ beforeEach(() => {
 
   // Stub canvas so resizeImage returns a minimal data URL
   const mockCanvas = {
-    width: 0, height: 0,
+    width: 0,
+    height: 0,
     getContext: () => ({ drawImage: vi.fn() }),
     toDataURL: () => 'data:image/jpeg;base64,/9j/AAAA',
   }
@@ -113,19 +114,25 @@ beforeEach(() => {
   class MockImage {
     onload?: () => void
     onerror?: () => void
-    width = 100; height = 100
-    set src(_: string) { setTimeout(() => this.onload?.(), 0) }
+    width = 100
+    height = 100
+    set src(_: string) {
+      setTimeout(() => this.onload?.(), 0)
+    }
   }
   vi.stubGlobal('Image', MockImage)
 })
 
 describe('analyzeImage — label path', () => {
   it('runs a single OCR pass and skips the Edge Function for analysis', async () => {
-    const labelText = 'Nutrition Facts\nCalories 250\nTotal Fat 9g\nTotal Carbohydrate 30g\nProtein 12g\nDietary Fiber 4g'
+    const labelText =
+      'Nutrition Facts\nCalories 250\nTotal Fat 9g\nTotal Carbohydrate 30g\nProtein 12g\nDietary Fiber 4g'
     mockRecognize.mockResolvedValueOnce({ data: { text: labelText } } as never)
 
     const statusMessages: string[] = []
-    const result = await analyzeImage(new File([''], 'label.jpg', { type: 'image/jpeg' }), m => statusMessages.push(m))
+    const result = await analyzeImage(new File([''], 'label.jpg', { type: 'image/jpeg' }), m =>
+      statusMessages.push(m),
+    )
 
     expect(statusMessages).toContain('Detecting…')
     expect(statusMessages).toContain('Reading label…')
@@ -133,28 +140,45 @@ describe('analyzeImage — label path', () => {
     expect(result.protein).toBe(12)
     expect(mockRecognize).toHaveBeenCalledTimes(1)
     // Edge Function should only be called for logging (fire-and-forget), not for analysis
-    expect(mockInvoke).toHaveBeenCalledWith('analyze-food-photo', expect.objectContaining({ body: expect.objectContaining({ mode: 'label' }) }))
+    expect(mockInvoke).toHaveBeenCalledWith(
+      'analyze-food-photo',
+      expect.objectContaining({ body: expect.objectContaining({ mode: 'label' }) }),
+    )
   })
 })
 
 describe('analyzeImage — food photo path', () => {
   it('calls Edge Function with mode photo when no label keywords detected', async () => {
     // Thumbnail scan finds no label keywords
-    mockRecognize.mockResolvedValueOnce({ data: { text: 'some random words no nutrition here' } } as never)
+    mockRecognize.mockResolvedValueOnce({
+      data: { text: 'some random words no nutrition here' },
+    } as never)
 
     const mockResult = {
-      name: 'Pizza', kcal: 266, protein: 11, carbs: 33, fat: 10, fiber: 2,
-      servings: 1, confidence: 'high', notes: 'Serving size defaulted to 200 g',
+      name: 'Pizza',
+      kcal: 266,
+      protein: 11,
+      carbs: 33,
+      fat: 10,
+      fiber: 2,
+      servings: 1,
+      confidence: 'high',
+      notes: 'Serving size defaulted to 200 g',
     }
     mockInvoke.mockResolvedValueOnce({ data: mockResult, error: null } as never)
 
     const statusMessages: string[] = []
-    const result = await analyzeImage(new File([''], 'pizza.jpg', { type: 'image/jpeg' }), m => statusMessages.push(m))
+    const result = await analyzeImage(new File([''], 'pizza.jpg', { type: 'image/jpeg' }), m =>
+      statusMessages.push(m),
+    )
 
     expect(statusMessages).toContain('Identifying food…')
-    expect(mockInvoke).toHaveBeenCalledWith('analyze-food-photo', expect.objectContaining({
-      body: expect.objectContaining({ mode: 'photo' }),
-    }))
+    expect(mockInvoke).toHaveBeenCalledWith(
+      'analyze-food-photo',
+      expect.objectContaining({
+        body: expect.objectContaining({ mode: 'photo' }),
+      }),
+    )
     expect(result.name).toBe('Pizza')
     expect(result.kcal).toBe(266)
   })
@@ -164,7 +188,7 @@ describe('analyzeImage — food photo path', () => {
     mockInvoke.mockResolvedValueOnce({ data: null, error: new Error('500') } as never)
 
     await expect(
-      analyzeImage(new File([''], 'photo.jpg', { type: 'image/jpeg' }), () => {})
+      analyzeImage(new File([''], 'photo.jpg', { type: 'image/jpeg' }), () => {}),
     ).rejects.toThrow('Food analysis failed')
   })
 })

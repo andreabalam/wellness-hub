@@ -15,14 +15,14 @@ export default function UpdatePrompt({ onUpdate }: { onUpdate: (() => void) | nu
       <span>New version available</span>
       <button
         className="update-prompt__update-btn"
-        onClick={() => { onUpdate(); setDismissed(true) }}
+        onClick={() => {
+          onUpdate()
+          setDismissed(true)
+        }}
       >
         Update
       </button>
-      <button
-        className="update-prompt__dismiss-btn"
-        onClick={() => setDismissed(true)}
-      >
+      <button className="update-prompt__dismiss-btn" onClick={() => setDismissed(true)}>
         ×
       </button>
     </div>

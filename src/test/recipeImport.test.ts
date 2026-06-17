@@ -23,7 +23,7 @@ import {
 
 class FakeFileReader {
   result: string | ArrayBuffer | null = null
-  onload:  ((e: ProgressEvent) => void) | null = null
+  onload: ((e: ProgressEvent) => void) | null = null
   onerror: ((e: ProgressEvent) => void) | null = null
 
   readAsText(file: File) {
@@ -59,10 +59,20 @@ function makeFile(name: string, type: string, fakeText?: string): File {
 }
 
 const EXTRACTED: ExtractedRecipe = {
-  name: 'Avocado Toast', cat: 'breakfast', tag: 'Quick', prepTime: '10 min',
-  ings: [['Avocado', '1'], ['Bread', '2 slices']],
+  name: 'Avocado Toast',
+  cat: 'breakfast',
+  tag: 'Quick',
+  prepTime: '10 min',
+  ings: [
+    ['Avocado', '1'],
+    ['Bread', '2 slices'],
+  ],
   steps: ['Mash avocado', 'Toast bread'],
-  tip: 'Add chilli flakes', kcal: 320, protein: '8g', carbs: '30g', fat: '18g',
+  tip: 'Add chilli flakes',
+  kcal: 320,
+  protein: '8g',
+  carbs: '30g',
+  fat: '18g',
   dietTag: 'vegetarian',
 }
 
@@ -175,11 +185,11 @@ describe('preparePayload', () => {
 
 describe('importRecipeFromFile', () => {
   const TOKEN = 'fake-access-token'
-  const URL   = 'https://xyz.supabase.co'
+  const URL = 'https://xyz.supabase.co'
 
   it('returns ExtractedRecipe on a 200 response', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 })
+      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 }),
     )
     const file = makeFile('recipe.txt', 'text/plain', 'Avocado Toast recipe')
     const result = await importRecipeFromFile(file, TOKEN, URL)
@@ -191,7 +201,7 @@ describe('importRecipeFromFile', () => {
 
   it('sends Authorization header with the access token', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 })
+      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 }),
     )
     const file = makeFile('recipe.txt', 'text/plain', 'test')
     await importRecipeFromFile(file, TOKEN, URL)
@@ -201,23 +211,21 @@ describe('importRecipeFromFile', () => {
 
   it('throws with server error message on 422', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ error: 'Could not parse recipe' }), { status: 422 })
+      new Response(JSON.stringify({ error: 'Could not parse recipe' }), { status: 422 }),
     )
     const file = makeFile('recipe.txt', 'text/plain', 'garbage')
     await expect(importRecipeFromFile(file, TOKEN, URL)).rejects.toThrow('Could not parse recipe')
   })
 
   it('throws generic message when error body is not JSON', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response('Internal Server Error', { status: 500 })
-    )
+    vi.mocked(fetch).mockResolvedValue(new Response('Internal Server Error', { status: 500 }))
     const file = makeFile('recipe.txt', 'text/plain', 'test')
     await expect(importRecipeFromFile(file, TOKEN, URL)).rejects.toThrow(/500/)
   })
 
   it('throws when response has no recipe field', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ something: 'else' }), { status: 200 })
+      new Response(JSON.stringify({ something: 'else' }), { status: 200 }),
     )
     const file = makeFile('recipe.txt', 'text/plain', 'test')
     await expect(importRecipeFromFile(file, TOKEN, URL)).rejects.toThrow(/invalid response/i)
@@ -225,7 +233,7 @@ describe('importRecipeFromFile', () => {
 
   it('posts to the correct edge function URL', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 })
+      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 }),
     )
     const file = makeFile('recipe.txt', 'text/plain', 'test')
     await importRecipeFromFile(file, TOKEN, URL)
@@ -240,42 +248,50 @@ describe('importRecipeFromFile', () => {
 
 describe('importRecipeFromUrl', () => {
   const TOKEN = 'fake-access-token'
-  const URL   = 'https://xyz.supabase.co'
+  const URL = 'https://xyz.supabase.co'
 
   it('sends a url payload to the edge function', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 })
+      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 }),
     )
     const result = await importRecipeFromUrl('https://example.com/recipe', TOKEN, URL)
     expect(result.name).toBe('Avocado Toast')
     const [url, init] = vi.mocked(fetch).mock.calls[0]
     expect(url).toBe(`${URL}/functions/v1/recipe-import`)
     expect(JSON.parse((init as RequestInit).body as string)).toEqual({
-      type: 'url', content: 'https://example.com/recipe',
+      type: 'url',
+      content: 'https://example.com/recipe',
     })
   })
 
   it('trims surrounding whitespace from the URL', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 })
+      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 }),
     )
     await importRecipeFromUrl('  https://example.com/recipe  ', TOKEN, URL)
     const [, init] = vi.mocked(fetch).mock.calls[0]
-    expect(JSON.parse((init as RequestInit).body as string).content).toBe('https://example.com/recipe')
+    expect(JSON.parse((init as RequestInit).body as string).content).toBe(
+      'https://example.com/recipe',
+    )
   })
 
   it('rejects non-http(s) input without calling fetch', async () => {
-    await expect(importRecipeFromUrl('ftp://example.com', TOKEN, URL)).rejects.toThrow(/valid http/i)
+    await expect(importRecipeFromUrl('ftp://example.com', TOKEN, URL)).rejects.toThrow(
+      /valid http/i,
+    )
     await expect(importRecipeFromUrl('not a url', TOKEN, URL)).rejects.toThrow(/valid http/i)
     expect(fetch).not.toHaveBeenCalled()
   })
 
   it('propagates server error messages', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ error: 'No readable content found at that URL' }), { status: 422 })
+      new Response(JSON.stringify({ error: 'No readable content found at that URL' }), {
+        status: 422,
+      }),
     )
-    await expect(importRecipeFromUrl('https://example.com', TOKEN, URL))
-      .rejects.toThrow('No readable content found at that URL')
+    await expect(importRecipeFromUrl('https://example.com', TOKEN, URL)).rejects.toThrow(
+      'No readable content found at that URL',
+    )
   })
 })
 
@@ -285,11 +301,11 @@ describe('importRecipeFromUrl', () => {
 
 describe('importRecipeFromText', () => {
   const TOKEN = 'fake-access-token'
-  const URL   = 'https://xyz.supabase.co'
+  const URL = 'https://xyz.supabase.co'
 
   it('sends a trimmed text payload to the edge function', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 })
+      new Response(JSON.stringify({ recipe: EXTRACTED }), { status: 200 }),
     )
     const result = await importRecipeFromText('  Avocado Toast\nMash, toast  ', TOKEN, URL)
     expect(result.name).toBe('Avocado Toast')
@@ -307,9 +323,12 @@ describe('importRecipeFromText', () => {
 
   it('propagates server error messages', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ error: 'Could not parse recipe from response' }), { status: 422 })
+      new Response(JSON.stringify({ error: 'Could not parse recipe from response' }), {
+        status: 422,
+      }),
     )
-    await expect(importRecipeFromText('garbage', TOKEN, URL))
-      .rejects.toThrow('Could not parse recipe from response')
+    await expect(importRecipeFromText('garbage', TOKEN, URL)).rejects.toThrow(
+      'Could not parse recipe from response',
+    )
   })
 })
