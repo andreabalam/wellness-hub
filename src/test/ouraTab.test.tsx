@@ -235,7 +235,6 @@ describe('OuraTab — with session data', () => {
 describe('OuraTab — all metrics populated', () => {
   it('renders sleep, activity, spo2, stress, resilience and cardio-age cards', async () => {
     const o = await import('../lib/oura')
-    /* eslint-disable @typescript-eslint/no-explicit-any */
     vi.mocked(o.fetchOuraReadiness).mockResolvedValue({
       score: 80,
       contributors: {
@@ -284,7 +283,6 @@ describe('OuraTab — all metrics populated', () => {
       level: 'solid',
       contributors: { daytime_recovery: 80, sleep_recovery: 85, stress_impact: 70 },
     } as any)
-    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     render(<OuraTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.getAllByText('80').length).toBeGreaterThan(0))
