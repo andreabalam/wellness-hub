@@ -163,6 +163,26 @@ describe('searchUSDAFoods', () => {
     expect(hits[1]).toMatchObject({ name: 'Chicken, thigh', srv: '50g', k: 100, p: 5 })
   })
 
+  it('leaves calPerG undefined for a zero-calorie food', async () => {
+    mockUSDA([
+      {
+        description: 'Water',
+        foodNutrients: [
+          { nutrientId: 1008, value: 0 },
+          { nutrientId: 1003, value: 0 },
+        ],
+      },
+    ])
+    const hits = await searchUSDAFoods('water')
+    expect(hits[0].calPerG).toBeUndefined()
+  })
+
+  it('defaults the serving unit label when servingSizeUnit is absent', async () => {
+    mockUSDA([{ description: 'Rice', servingSize: 150, foodNutrients: NUTRIENTS_100G }])
+    const hits = await searchUSDAFoods('rice')
+    expect(hits[0].srv).toBe('150g')
+  })
+
   it('throws with USDA status code when fetch returns non-ok', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }))
     await expect(searchUSDAFoods('test')).rejects.toThrow('USDA 500')
