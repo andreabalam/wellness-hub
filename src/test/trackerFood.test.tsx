@@ -52,6 +52,13 @@ describe('TrackerTab — food form edit/remove/quick-add', () => {
     expect((screen.getByPlaceholderText('kcal') as HTMLInputElement).value).toBe('')
   })
 
+  it('edits a single-serving food without dividing macros', () => {
+    const { container } = render(<TrackerTab user={FAKE_USER} />)
+    logFood('Single', '250') // 1 serving (default)
+    fireEvent.click(container.querySelector('.food-edit-btn') as HTMLElement)
+    expect((screen.getByPlaceholderText('kcal') as HTMLInputElement).value).toBe('250')
+  })
+
   it('removes a logged food', () => {
     const { container } = render(<TrackerTab user={FAKE_USER} />)
     logFood('Toast', '120')

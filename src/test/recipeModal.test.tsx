@@ -424,4 +424,39 @@ describe('RecipeModal — form editing controls', () => {
     fireEvent.keyDown(url, { key: 'Enter' })
     await waitFor(() => expect((nameInput() as HTMLInputElement).value).toBe('Enter Dish'))
   })
+
+  it('Enter on an empty URL field is a no-op', () => {
+    render(<RecipeModal {...baseProps} />)
+    const url = screen.getByPlaceholderText('https://example.com/recipe')
+    fireEvent.keyDown(url, { key: 'Enter' }) // url empty → early return
+    expect(importRecipeFromUrl).not.toHaveBeenCalled()
+  })
+
+  it('ignores an empty add-step click', () => {
+    render(<RecipeModal {...baseProps} />)
+    const before = screen.getAllByText('+').length
+    fireEvent.click(screen.getAllByText('+')[1]) // step field empty → no-op
+    expect(screen.getAllByText('+').length).toBe(before)
+  })
+
+  it('keeps the original step when an inline edit is cleared', () => {
+    render(<RecipeModal {...baseProps} />)
+    fireEvent.change(screen.getByPlaceholderText('Add a step...'), { target: { value: 'Stir' } })
+    fireEvent.click(screen.getAllByText('+')[1])
+    fireEvent.click(screen.getByText('Stir'))
+    const edit = screen.getByDisplayValue('Stir')
+    fireEvent.change(edit, { target: { value: '   ' } }) // whitespace → empty
+    fireEvent.keyDown(edit, { key: 'Enter' }) // commitEditStep keeps prev
+    expect(screen.getByText('Stir')).toBeInTheDocument()
+  })
+
+  it('maps a known imported category onto the matching chip', async () => {
+    importRecipeFromUrl.mockResolvedValue({ name: 'Brekkie', cat: 'breakfast' })
+    render(<RecipeModal {...baseProps} />)
+    fireEvent.change(screen.getByPlaceholderText('https://example.com/recipe'), {
+      target: { value: 'https://x.com/r' },
+    })
+    fireEvent.click(screen.getByText('Import'))
+    await waitFor(() => expect((nameInput() as HTMLInputElement).value).toBe('Brekkie'))
+  })
 })
