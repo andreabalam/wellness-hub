@@ -289,4 +289,94 @@ describe('OuraTab — all metrics populated', () => {
     expect(screen.getAllByText('88').length).toBeGreaterThan(0)
     expect(screen.getAllByText(/32/).length).toBeGreaterThan(0)
   })
+
+  it('renders low/varied scores to exercise the color helpers', async () => {
+    const o = await import('../lib/oura')
+    vi.mocked(o.fetchOuraReadiness).mockResolvedValue({ score: 45, contributors: {} } as any)
+    vi.mocked(o.fetchOuraDailyActivity).mockResolvedValue({ score: 65, steps: 3000 } as any)
+    vi.mocked(o.fetchOuraSleep).mockResolvedValue({ score: 72, contributors: {} } as any)
+    vi.mocked(o.fetchOuraSpo2).mockResolvedValue({ spo2_percentage: { average: 88 } } as any)
+    vi.mocked(o.fetchOuraStress).mockResolvedValue({ day_summary: 'normal' } as any)
+    vi.mocked(o.fetchOuraResilience).mockResolvedValue({
+      level: 'limited',
+      contributors: {},
+    } as any)
+    vi.mocked(o.fetchOuraSessions).mockResolvedValue([
+      {
+        id: 's2',
+        type: 'breathing',
+        start_datetime: '2024-01-15T06:00:00Z',
+        end_datetime: '2024-01-15T06:10:00Z',
+        mood: 'bad',
+      } as any,
+    ])
+    render(<OuraTab user={FAKE_USER} />)
+    await waitFor(() => expect(screen.getAllByText('45').length).toBeGreaterThan(0))
+  })
+})
+
+// ── Disconnect & OAuth exchange ───────────────────────────────────
+describe('OuraTab — disconnect & oauth exchange', () => {
+  beforeEach(async () => {
+    // Reset all fetchers to null so leaked values from prior tests don't apply
+    const o = await import('../lib/oura')
+    for (const fn of [
+      'fetchOuraDailyActivity',
+      'fetchOuraReadiness',
+      'fetchOuraSleep',
+      'fetchOuraSleepSession',
+      'fetchOuraCardiovascularAge',
+      'fetchOuraSpo2',
+      'fetchOuraStress',
+      'fetchOuraResilience',
+    ] as const)
+      vi.mocked(o[fn]).mockResolvedValue(null as never)
+    vi.mocked(o.fetchOuraWorkouts).mockResolvedValue([])
+    vi.mocked(o.fetchOuraSessions).mockResolvedValue([])
+  })
+
+  it('clicking Disconnect returns to the connect screen', async () => {
+    const o = await import('../lib/oura')
+    render(<OuraTab user={FAKE_USER} />)
+    await waitFor(() => screen.getByText('Today'))
+    fireEvent.click(screen.getByText('Disconnect'))
+    await waitFor(() => expect(screen.getByText('Connect Oura Ring')).toBeInTheDocument())
+    expect(vi.mocked(o.disconnectOura)).toHaveBeenCalled()
+  })
+
+  it('exchanges a pending OAuth code on mount', async () => {
+    const o = await import('../lib/oura')
+    vi.mocked(o.exchangePendingCode).mockResolvedValue(undefined)
+    sessionStorage.setItem('oura_oauth_pending_code', 'code-123')
+    render(<OuraTab user={FAKE_USER} />)
+    await waitFor(() => expect(vi.mocked(o.exchangePendingCode)).toHaveBeenCalled())
+    sessionStorage.removeItem('oura_oauth_pending_code')
+  })
+
+  it('shows a connection error when the exchange fails', async () => {
+    const o = await import('../lib/oura')
+    vi.mocked(o.exchangePendingCode).mockRejectedValue(new Error('bad code'))
+    sessionStorage.setItem('oura_oauth_pending_code', 'code-x')
+    render(<OuraTab user={FAKE_USER} />)
+    await waitFor(() => expect(screen.getByText('bad code')).toBeInTheDocument())
+    sessionStorage.removeItem('oura_oauth_pending_code')
+  })
+
+  it('surfaces a real (non-token) fetch error', async () => {
+    const o = await import('../lib/oura')
+    vi.mocked(o.fetchOuraReadiness).mockRejectedValue(new Error('Server exploded'))
+    render(<OuraTab user={FAKE_USER} />)
+    await waitFor(() => expect(screen.getByText(/Server exploded/)).toBeInTheDocument())
+  })
+
+  it('prompts reconnect on a scope error', async () => {
+    const o = await import('../lib/oura')
+    vi.mocked(o.fetchOuraReadiness).mockRejectedValue(
+      new Error('Token is not authorized access readiness scope'),
+    )
+    render(<OuraTab user={FAKE_USER} />)
+    await waitFor(() =>
+      expect(screen.getByText(/missing required permissions/)).toBeInTheDocument(),
+    )
+  })
 })

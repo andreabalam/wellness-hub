@@ -3,7 +3,7 @@
  * Supabase and sync modules are mocked so no real network calls are made.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 
 // ── Module mocks (hoisted by Vitest before any imports) ───────────
 
@@ -343,6 +343,46 @@ describe('App (with mocked Supabase)', () => {
     )
     const pushed = mockSync['pushFoodLibrary'].mock.calls[0]?.[1]
     expect(pushed?.find((f: any) => f.n === 'Local Food')).toBeDefined()
+  })
+
+  it('remote settings / body stats / workout plan are imported on sync', async () => {
+    mockAuth.getSession.mockResolvedValue({ data: { session: { user: MOCK_USER } }, error: null })
+    mockSync['fetchUserSettings'].mockResolvedValue({ goalKcal: 1800 })
+    mockSync['fetchUserBodyStats'].mockResolvedValue({ weightKg: 60 })
+    mockSync['fetchUserWorkoutPlan'].mockResolvedValue({ days: [] })
+
+    render(<App />)
+    await waitFor(() => expect(ls['whub_user_settings_v1']).toBeDefined(), { timeout: 3000 })
+    expect(ls['whub_body_stats_v1']).toBeDefined()
+    expect(ls['whub_workout_plan_v1']).toBeDefined()
+    // remote settings present → upsertUserSettings is NOT pushed
+    expect(mockSync['upsertUserSettings']).not.toHaveBeenCalled()
+  })
+
+  it('Export downloads a backup blob via the settings menu', async () => {
+    render(<App />)
+    fireEvent.click(screen.getByLabelText('Settings'))
+    fireEvent.click(screen.getByText('↓ Export'))
+    expect(URL.createObjectURL as ReturnType<typeof vi.fn>).toHaveBeenCalled()
+  })
+
+  it('Import of a bad file surfaces an error toast', async () => {
+    const { container } = render(<App />)
+    fireEvent.click(screen.getByLabelText('Settings'))
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
+    const badFile = new File(['not json'], 'backup.json', { type: 'application/json' })
+    fireEvent.change(fileInput, { target: { files: [badFile] } })
+    expect(await screen.findByText(/Import failed/)).toBeInTheDocument()
+  })
+
+  it('renders the shared-recipe view for a #/r/ deep link and exits', async () => {
+    window.location.hash = '#/r/invalidtoken'
+    render(<App />)
+    // Share landing renders (loading → invalid), not the main tab nav
+    expect(await screen.findByText(/Shared recipe/)).toBeInTheDocument()
+    fireEvent.click(await screen.findByText('Open Wellness Hub'))
+    await waitFor(() => expect(screen.getByText(/My/)).toBeInTheDocument())
+    window.location.hash = ''
   })
 
   it('tracker days are pushed individually via pushDay (line 78)', async () => {
