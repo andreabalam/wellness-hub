@@ -11,6 +11,7 @@ import {
   resolveShareToken,
 } from '../lib/recipeShare'
 import { normalizeCat, catLabel } from '../data/recipes'
+import { parseIngredientAmount } from '../lib/ingredientAmount'
 import { defaultToCustomBlock, timeToMinutes } from '../data/schedule'
 import type { ScheduleBlock } from '../data/schedule'
 import type { Recipe } from '../data/recipes'
@@ -88,6 +89,27 @@ describe('normalizeCat', () => {
 
   it('labels a category', () => {
     expect(catLabel('meal')).toBe('Meal')
+  })
+})
+
+describe('parseIngredientAmount edges', () => {
+  it('handles fluid ounces as a volume measure', () => {
+    const r = parseIngredientAmount('2 fl oz', 'milk')
+    expect(r?.method).toBe('volume')
+  })
+
+  it('treats a unit with no number ("cup of oats") as quantity 1', () => {
+    const r = parseIngredientAmount('cup of oats', 'oats')
+    expect(r?.method).toBe('volume')
+    expect(r!.grams).toBeGreaterThan(0)
+  })
+
+  it('returns null for a zero quantity', () => {
+    expect(parseIngredientAmount('0 cups', 'oats')).toBeNull()
+  })
+
+  it('returns null for a bare count with no recognizable piece weight', () => {
+    expect(parseIngredientAmount('2', 'mystery substance xyz')).toBeNull()
   })
 })
 
