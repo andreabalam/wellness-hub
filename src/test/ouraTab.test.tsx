@@ -292,26 +292,61 @@ describe('OuraTab — all metrics populated', () => {
 
   it('renders low/varied scores to exercise the color helpers', async () => {
     const o = await import('../lib/oura')
-    vi.mocked(o.fetchOuraReadiness).mockResolvedValue({ score: 45, contributors: {} } as any)
+    vi.mocked(o.fetchOuraReadiness).mockResolvedValue({
+      score: 45,
+      contributors: { resting_heart_rate: 58 },
+      temperature_deviation: -0.3,
+    } as any)
     vi.mocked(o.fetchOuraDailyActivity).mockResolvedValue({ score: 65, steps: 3000 } as any)
-    vi.mocked(o.fetchOuraSleep).mockResolvedValue({ score: 72, contributors: {} } as any)
+    // sleep with contributors but NO session → exercises the contributors-only branch
+    vi.mocked(o.fetchOuraSleep).mockResolvedValue({
+      score: 72,
+      contributors: {
+        total_sleep: 70,
+        deep_sleep: 65,
+        rem_sleep: 60,
+        efficiency: 88,
+        restfulness: 75,
+      },
+    } as any)
+    vi.mocked(o.fetchOuraSleepSession).mockResolvedValue(null)
     vi.mocked(o.fetchOuraSpo2).mockResolvedValue({ spo2_percentage: { average: 88 } } as any)
-    vi.mocked(o.fetchOuraStress).mockResolvedValue({ day_summary: 'normal' } as any)
+    vi.mocked(o.fetchOuraStress).mockResolvedValue({
+      day_summary: 'normal',
+      stress_high: 1800,
+      recovery_high: 9000,
+    } as any)
     vi.mocked(o.fetchOuraResilience).mockResolvedValue({
       level: 'limited',
-      contributors: {},
+      contributors: { daytime_recovery: 60, sleep_recovery: 70, stress_impact: 55 },
     } as any)
+    vi.mocked(o.fetchOuraWorkouts).mockResolvedValue([
+      {
+        id: 'w9',
+        activity: 'running',
+        start_datetime: '2024-01-15T07:00:00Z',
+        end_datetime: '2024-01-15T07:40:00Z',
+        calories: 300,
+        distance: 6000,
+        average_heart_rate: 150,
+        max_heart_rate: 175,
+      } as any,
+    ])
+    vi.mocked(o.fetchOuraWorkoutRoute).mockResolvedValue({ id: 'w9', polyline: 'abc' } as any)
     vi.mocked(o.fetchOuraSessions).mockResolvedValue([
       {
         id: 's2',
         type: 'breathing',
         start_datetime: '2024-01-15T06:00:00Z',
         end_datetime: '2024-01-15T06:10:00Z',
+        average_hrv: 50,
+        average_heart_rate: 60,
         mood: 'bad',
       } as any,
     ])
     render(<OuraTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.getAllByText('45').length).toBeGreaterThan(0))
+    expect(screen.getByText(/Restfulness/)).toBeInTheDocument()
   })
 })
 
