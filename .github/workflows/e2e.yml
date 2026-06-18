@@ -4,9 +4,17 @@ on:
     branches: [main]
   pull_request:
     branches: [main] # catch E2E regressions before merge, not only after
+# Auto-cancel a PR's older in-progress runs when it's pushed again, so a stuck
+# runner can't linger. Never cancel main/deploy runs (a publish must finish).
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    # E2E normally finishes in 2–10 min; cap well above that so a hung runner
+    # fails fast instead of burning the default 6-hour budget.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -20,6 +28,7 @@ jobs:
     # Deploy only on push to main — never on pull_request runs
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write # needed to push to the gh-pages branch
     steps:
