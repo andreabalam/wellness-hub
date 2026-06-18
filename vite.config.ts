@@ -84,15 +84,15 @@ export default defineConfig({
         'src/components/RecipesTab/CookingMode.tsx', // Wake Lock API + keyboard — covered by E2E
         'src/components/common/**', // Tiny presentational primitives
       ],
-      // Recalibrated for Vitest 4's v8 coverage (ast-v8-to-istanbul remapping),
-      // which measures statements/branches more granularly than v2 — the same
-      // unchanged test suite reports a few points lower. These are set just below
-      // the current measured values so they still catch regressions.
+      // All four metrics gate at 90%. Measured headroom (94.6% stmts / 90.2%
+      // branches / 92.6% funcs / 96.6% lines) sits above these, so the gate
+      // catches regressions without being brittle. Branches has the slimmest
+      // margin — UI ternaries / null-guards are the hardest paths to exhaust.
       thresholds: {
-        lines: 83,
-        statements: 80,
-        functions: 80,
-        branches: 73, // UI branches (ternaries, null guards) are harder to exhaust
+        lines: 90,
+        statements: 90,
+        functions: 90,
+        branches: 90,
       },
     },
   },
