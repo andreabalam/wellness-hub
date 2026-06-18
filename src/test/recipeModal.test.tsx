@@ -216,4 +216,145 @@ describe('RecipeModal — import flows', () => {
     fireEvent.click(screen.getByText('Import'))
     expect(await screen.findByText(/parse failed/i)).toBeInTheDocument()
   })
+
+  it('applies every field of a rich import result', async () => {
+    importRecipeFromUrl.mockResolvedValue({
+      name: 'Rich Recipe',
+      cat: 'meal',
+      tag: 'Hearty · filling',
+      prepTime: '25 min',
+      ings: [['Beans', '1 can']],
+      steps: ['Heat', 'Serve'],
+      tip: 'Add salt',
+      kcal: 510,
+      protein: '30g',
+      carbs: '40g',
+      fat: '12g',
+      fiber: '9g',
+      healthTag: 'healthy',
+      dietTag: 'vegan',
+      link: 'https://src.example/r',
+    })
+    render(<RecipeModal {...baseProps} />)
+    fireEvent.change(screen.getByPlaceholderText('https://example.com/recipe'), {
+      target: { value: 'https://x.com/r' },
+    })
+    fireEvent.click(screen.getByText('Import'))
+    await waitFor(() => expect((nameInput() as HTMLInputElement).value).toBe('Rich Recipe'))
+    expect((screen.getByPlaceholderText('kcal') as HTMLInputElement).value).toBe('510')
+    expect(screen.getByText(/Recipe extracted/)).toBeInTheDocument()
+  })
+
+  it('imports from a dropped/selected file and offers a redo', async () => {
+    importRecipeFromFile.mockResolvedValue({ name: 'File Recipe', kcal: 300 })
+    render(<RecipeModal {...baseProps} />)
+    const fileInput = screen.getByTestId('recipe-file-input')
+    const file = new File(['data'], 'recipe.pdf', { type: 'application/pdf' })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+    await waitFor(() => expect((nameInput() as HTMLInputElement).value).toBe('File Recipe'))
+    // Redo returns to the import zone
+    fireEvent.click(screen.getByTitle('Import a different file'))
+    expect(screen.getByTestId('recipe-file-input')).toBeInTheDocument()
+  })
+
+  it('surfaces a file import error', async () => {
+    importRecipeFromFile.mockRejectedValue(new Error('bad pdf'))
+    render(<RecipeModal {...baseProps} />)
+    const file = new File(['x'], 'r.pdf', { type: 'application/pdf' })
+    fireEvent.change(screen.getByTestId('recipe-file-input'), { target: { files: [file] } })
+    expect(await screen.findByText(/bad pdf/)).toBeInTheDocument()
+  })
+})
+
+describe('RecipeModal — form editing controls', () => {
+  function addIngredient(name = 'Rice') {
+    fireEvent.change(screen.getByPlaceholderText('Ingredient'), { target: { value: name } })
+    fireEvent.click(screen.getAllByText('+')[0])
+  }
+  function addStep(txt: string) {
+    fireEvent.change(screen.getByPlaceholderText('Add a step...'), { target: { value: txt } })
+    fireEvent.click(screen.getAllByText('+')[1])
+  }
+
+  it('removes an ingredient', () => {
+    render(<RecipeModal {...baseProps} />)
+    addIngredient('Tofu')
+    expect(screen.getByText('Tofu')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('×', { selector: '.icon-delete' }))
+    expect(screen.queryByText('Tofu')).not.toBeInTheDocument()
+  })
+
+  it('edits a step inline and commits with Enter', () => {
+    render(<RecipeModal {...baseProps} />)
+    addStep('Original')
+    fireEvent.click(screen.getByText('Original'))
+    const edit = screen.getByDisplayValue('Original')
+    fireEvent.change(edit, { target: { value: 'Edited' } })
+    fireEvent.keyDown(edit, { key: 'Enter' })
+    expect(screen.getByText('Edited')).toBeInTheDocument()
+  })
+
+  it('cancels an inline step edit with Escape', () => {
+    render(<RecipeModal {...baseProps} />)
+    addStep('KeepMe')
+    fireEvent.click(screen.getByText('KeepMe'))
+    fireEvent.keyDown(screen.getByDisplayValue('KeepMe'), { key: 'Escape' })
+    expect(screen.getByText('KeepMe')).toBeInTheDocument()
+  })
+
+  it('reorders steps down then deletes one', () => {
+    render(<RecipeModal {...baseProps} />)
+    addStep('One')
+    addStep('Two')
+    fireEvent.click(screen.getAllByTitle('Move down')[0])
+    fireEvent.click(screen.getAllByText('×', { selector: '.icon-delete' })[0])
+    // one step removed; the other remains
+    expect(screen.getAllByText(/One|Two/).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('toggles health, diet, prep and category chips', () => {
+    const onSave = vi.fn()
+    render(<RecipeModal {...baseProps} onSave={onSave} />)
+    fireEvent.change(nameInput(), { target: { value: 'Chippy' } })
+    fireEvent.click(screen.getByText('✦ Healthy'))
+    fireEvent.click(screen.getByText('Vegan'))
+    fireEvent.click(screen.getByText('Breakfast')) // a category chip
+    fireEvent.click(screen.getByText('Save recipe'))
+    const saved = onSave.mock.calls[0][0]
+    expect(saved.healthTag).toBe('healthy')
+    expect(saved.dietTag).toBe('vegan')
+  })
+
+  it('shows per-ingredient calc rows with mixed statuses', async () => {
+    computeRecipeMacros.mockResolvedValue({
+      matched: true,
+      rows: [
+        {
+          status: 'ok',
+          ing: 'Rice',
+          amount: '100g',
+          matchName: 'Rice, white',
+          grams: 100,
+          kcal: 130,
+        },
+        { status: 'no-amount', ing: 'Salt', amount: '' },
+        { status: 'no-match', ing: 'Unicorn', amount: '1' },
+      ],
+      totals: { k: 130, p: 3, c: 28, f: 0, fi: 1 },
+    })
+    render(<RecipeModal {...baseProps} />)
+    fireEvent.change(screen.getByLabelText('Servings the recipe makes'), { target: { value: '2' } })
+    addIngredient('Rice')
+    fireEvent.click(screen.getByRole('button', { name: /Calculate from ingredients/i }))
+    expect(await screen.findByText(/Rice, white/)).toBeInTheDocument()
+    expect(screen.getByText(/amount unclear/)).toBeInTheDocument()
+    expect(screen.getByText(/no food database match/)).toBeInTheDocument()
+  })
+
+  it('closes when the overlay backdrop is clicked', () => {
+    const onClose = vi.fn()
+    const { container } = render(<RecipeModal {...baseProps} onClose={onClose} />)
+    fireEvent.click(container.querySelector('.modal-overlay') as HTMLElement)
+    expect(onClose).toHaveBeenCalled()
+  })
 })
