@@ -348,6 +348,30 @@ describe('OuraTab — all metrics populated', () => {
     await waitFor(() => expect(screen.getAllByText('45').length).toBeGreaterThan(0))
     expect(screen.getByText(/Restfulness/)).toBeInTheDocument()
   })
+
+  it('renders boundary values to hit remaining color-helper branches', async () => {
+    const o = await import('../lib/oura')
+    vi.mocked(o.fetchOuraReadiness).mockResolvedValue({ score: 50, contributors: {} } as any)
+    vi.mocked(o.fetchOuraSleep).mockResolvedValue({ score: 50, contributors: {} } as any)
+    vi.mocked(o.fetchOuraSpo2).mockResolvedValue({ spo2_percentage: { average: 93 } } as any)
+    vi.mocked(o.fetchOuraStress).mockResolvedValue({ day_summary: 'stressful' } as any)
+    vi.mocked(o.fetchOuraResilience).mockResolvedValue({
+      level: 'adequate',
+      contributors: {},
+    } as any)
+    vi.mocked(o.fetchOuraSessions).mockResolvedValue([
+      {
+        id: 's3',
+        type: 'nap',
+        start_datetime: '2024-01-15T14:00:00Z',
+        end_datetime: '2024-01-15T14:20:00Z',
+        mood: 'okay', // neutral → else branch in moodColor
+      } as any,
+    ])
+    render(<OuraTab user={FAKE_USER} />)
+    await waitFor(() => expect(screen.getAllByText('50').length).toBeGreaterThan(0))
+    expect(screen.getByText(/Mild low/)).toBeInTheDocument() // spo2 93 → 91..94
+  })
 })
 
 // ── Disconnect & OAuth exchange ───────────────────────────────────
