@@ -292,7 +292,8 @@ export default function RecipeModal({
       const result = await computeRecipeMacros(
         ings,
         parseInt(servings) || 1,
-        makeCachedUsdaLookup(),
+        // AI fallback fills ingredients USDA can't resolve (no match or rate limit)
+        makeCachedUsdaLookup(undefined, { aiFallback: true }),
       )
       setCalcRows(result.rows)
       if (!result.matched) {
@@ -314,10 +315,14 @@ export default function RecipeModal({
       setCarb(String(result.totals.c))
       setFat(String(result.totals.f))
       setFib(result.totals.fi > 0 ? String(result.totals.fi) : '')
-      // Partial success: some lookups failed but we still have usable totals.
+      // Surface caveats without blocking: unresolved lookups vs AI estimates.
       if (result.errored) {
         setCalcError(
           `${result.errored} ingredient${result.errored === 1 ? '' : 's'} couldn't be looked up — totals are partial. Try again to fill the rest.`,
+        )
+      } else if (result.estimated) {
+        setCalcError(
+          `${result.estimated} ingredient${result.estimated === 1 ? '' : 's'} used an AI estimate (no USDA match) — review before saving.`,
         )
       }
       setCalcState('done')
@@ -756,7 +761,8 @@ export default function RecipeModal({
                     <div key={i} className={`macro-calc__row macro-calc__row--${r.status}`}>
                       {r.status === 'ok' && (
                         <>
-                          ✓ {r.ing} · {r.amount} → {r.matchName} · {r.grams}g · {r.kcal} kcal
+                          {r.estimated ? '≈' : '✓'} {r.ing} · {r.amount} → {r.matchName}
+                          {r.estimated ? ' (AI estimate)' : ''} · {r.grams}g · {r.kcal} kcal
                         </>
                       )}
                       {r.status === 'no-amount' && (

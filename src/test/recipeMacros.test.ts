@@ -193,6 +193,25 @@ describe('computeRecipeMacros', () => {
     expect(result.totals.k).toBe(380) // oats still counted despite milk failing
     expect(result.rows.map(r => r.status)).toEqual(['ok', 'error'])
   })
+
+  it('counts and flags AI-estimated ingredients', async () => {
+    const lookup: Per100gLookup = async name =>
+      name === 'oats'
+        ? { name: 'Oats', k: 380, p: 13, c: 68, f: 7, fi: 10 } // USDA
+        : { name: 'Maca powder', k: 325, p: 14, c: 71, f: 2, fi: 8, estimated: true } // AI
+    const result = await computeRecipeMacros(
+      [
+        ['oats', '100g'],
+        ['maca powder', '100g'],
+      ],
+      1,
+      lookup,
+    )
+    expect(result.matched).toBe(2)
+    expect(result.estimated).toBe(1)
+    expect(result.rows[0].estimated).toBeUndefined()
+    expect(result.rows[1].estimated).toBe(true)
+  })
 })
 
 // ── makeCachedUsdaLookup ──────────────────────────────────────────
@@ -239,6 +258,72 @@ describe('makeCachedUsdaLookup', () => {
     expect(await lookup('ghost food')).toBeNull()
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(localStorage.getItem(USDA_CACHE_KEY)).toBeNull()
+  })
+})
+
+// ── makeCachedUsdaLookup — AI fallback ────────────────────────────
+
+const AI_ESTIMATE = {
+  name: 'Oats',
+  kcal: 380,
+  protein: 13,
+  carbs: 68,
+  fat: 7,
+  fiber: 10,
+  confidence: 'medium',
+  notes: '',
+}
+
+/** Routes USDA vs the estimate-food-macros edge function by URL. */
+function mockUsdaAndAi(opts: { usda?: unknown[]; usdaStatus?: number; estimate?: unknown }) {
+  const fetchMock = vi.fn().mockImplementation((url: unknown) => {
+    if (String(url).includes('estimate-food-macros')) {
+      return Promise.resolve({ ok: true, json: async () => ({ estimate: opts.estimate ?? null }) })
+    }
+    if (opts.usdaStatus && opts.usdaStatus >= 400) {
+      return Promise.resolve({ ok: false, status: opts.usdaStatus })
+    }
+    return Promise.resolve({ ok: true, json: async () => ({ foods: opts.usda ?? [] }) })
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  return fetchMock
+}
+
+describe('makeCachedUsdaLookup — AI fallback', () => {
+  it('estimates with AI when USDA has no match', async () => {
+    mockUsdaAndAi({ usda: [], estimate: AI_ESTIMATE })
+    const lookup = makeCachedUsdaLookup(undefined, { aiFallback: true })
+    const r = await lookup('oats')
+    expect(r).toMatchObject({ name: 'Oats', k: 380, estimated: true })
+  })
+
+  it('estimates with AI when USDA is rate-limited (429)', async () => {
+    mockUsdaAndAi({ usdaStatus: 429, estimate: AI_ESTIMATE })
+    const lookup = makeCachedUsdaLookup(undefined, { aiFallback: true })
+    const r = await lookup('oats')
+    expect(r).toMatchObject({ k: 380, estimated: true })
+  })
+
+  it('caches an AI estimate so repeats cost no request', async () => {
+    const fetchMock = mockUsdaAndAi({ usda: [], estimate: AI_ESTIMATE })
+    const lookup = makeCachedUsdaLookup(undefined, { aiFallback: true })
+    await lookup('oats')
+    const calls = fetchMock.mock.calls.length
+    const second = await lookup('  Oats ')
+    expect(second).toMatchObject({ estimated: true })
+    expect(fetchMock.mock.calls.length).toBe(calls) // served from cache
+  })
+
+  it('returns null when neither USDA nor AI can resolve', async () => {
+    mockUsdaAndAi({ usda: [], estimate: null })
+    const lookup = makeCachedUsdaLookup(undefined, { aiFallback: true })
+    expect(await lookup('unicorn meat')).toBeNull()
+  })
+
+  it('without the flag, a USDA 429 still throws (USDA-only contract)', async () => {
+    mockUsdaAndAi({ usdaStatus: 429, estimate: AI_ESTIMATE })
+    const lookup = makeCachedUsdaLookup()
+    await expect(lookup('oats')).rejects.toThrow()
   })
 })
 

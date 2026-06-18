@@ -188,6 +188,34 @@ describe('RecipeModal — macro calculation', () => {
     expect(await screen.findByText(/try again in a bit/i)).toBeInTheDocument()
   })
 
+  it('labels AI-estimated ingredients and notes them', async () => {
+    computeRecipeMacros.mockResolvedValue({
+      matched: 1,
+      errored: 0,
+      estimated: 1,
+      rows: [
+        {
+          ing: 'Maca powder',
+          amount: '100g',
+          status: 'ok',
+          grams: 100,
+          matchName: 'Maca powder',
+          kcal: 325,
+          estimated: true,
+        },
+      ],
+      totals: { k: 325, p: 14, c: 71, f: 2, fi: 8 },
+    })
+    render(<RecipeModal {...baseProps} />)
+    addIngredient()
+    fireEvent.click(screen.getByRole('button', { name: /Calculate|USDA|macros/i }))
+    await waitFor(() =>
+      expect((screen.getByPlaceholderText('kcal') as HTMLInputElement).value).toBe('325'),
+    )
+    expect(screen.getByText(/used an AI estimate/i)).toBeInTheDocument()
+    expect(screen.getByText(/\(AI estimate\)/)).toBeInTheDocument()
+  })
+
   it('fills partial macros and warns when some lookups fail', async () => {
     computeRecipeMacros.mockResolvedValue({
       matched: 1,
