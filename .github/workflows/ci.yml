@@ -2,9 +2,15 @@ name: CI
 on:
   pull_request:
     branches: [main]
+# A new push to a PR cancels its older in-progress run so a stuck runner can't
+# linger (CI only runs on pull_request, so this never affects main).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
