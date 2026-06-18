@@ -347,7 +347,16 @@ describe('App (with mocked Supabase)', () => {
 
   it('remote settings / body stats / workout plan are imported on sync', async () => {
     mockAuth.getSession.mockResolvedValue({ data: { session: { user: MOCK_USER } }, error: null })
-    mockSync['fetchUserSettings'].mockResolvedValue({ goalKcal: 1800 })
+    mockSync['fetchUserSettings'].mockResolvedValue({
+      kcalTarget: 1800,
+      protTarget: 120,
+      carbTarget: 150,
+      fatTarget: 60,
+      fiberTarget: 28,
+      macroSplit: 'custom',
+      cognitivePeakStart: '11:00',
+      cognitivePeakEnd: '13:00',
+    })
     mockSync['fetchUserBodyStats'].mockResolvedValue({ weightKg: 60 })
     mockSync['fetchUserWorkoutPlan'].mockResolvedValue({ days: [] })
 
