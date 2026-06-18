@@ -108,9 +108,15 @@ describe('store tryPush callbacks (signed in)', () => {
 
 describe('remindersStore update/remove', () => {
   it('updates and removes reminders', () => {
-    store.remindersStore.add({ id: 'r1', text: 'Drink water', done: false } as never)
-    store.remindersStore.update('r1', { done: true } as never)
-    expect(store.remindersStore.getAll()[0].done).toBe(true)
+    store.remindersStore.add({
+      id: 'r1',
+      text: 'Drink water',
+      checked: false,
+      checkedAt: null,
+      createdAt: '2026-06-15T00:00:00Z',
+    })
+    store.remindersStore.update('r1', { checked: true })
+    expect(store.remindersStore.getAll()[0].checked).toBe(true)
     store.remindersStore.remove('r1')
     expect(store.remindersStore.getAll()).toHaveLength(0)
   })
