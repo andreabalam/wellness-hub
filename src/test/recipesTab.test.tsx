@@ -4,7 +4,7 @@
  * fetch-merge effect, handleSave id reconciliation, and handleDelete all run.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import type { User } from '@supabase/supabase-js'
 import type { Recipe } from '../data/recipes'
 
@@ -173,6 +173,76 @@ describe('RecipesTab — delete, fork, cook, hide, grocery', () => {
     fireEvent.click(screen.getByText('Delete recipe'))
     await waitFor(() => expect(mockSync['deleteUserRecipe']).toHaveBeenCalledWith(2))
     expect(screen.queryByText('DB Smoothie')).not.toBeInTheDocument()
+  })
+
+  const cardOf = (name: string) => screen.getByText(name).closest('.rcard') as HTMLElement
+
+  it('updates an existing custom recipe (edit → save changes)', async () => {
+    mockSync['fetchUserRecipes'].mockResolvedValue([DB_CUSTOM])
+    render(<RecipesTab user={FAKE_USER} />)
+    await settled()
+    const card = cardOf('DB Smoothie')
+    fireEvent.click(card)
+    fireEvent.click(within(card).getByLabelText('Edit recipe'))
+    const name = await screen.findByDisplayValue('DB Smoothie')
+    fireEvent.change(name, { target: { value: 'DB Smoothie v2' } })
+    fireEvent.click(screen.getByText('Save changes'))
+    await waitFor(() => expect(mockSync['upsertUserRecipe']).toHaveBeenCalled())
+    expect(screen.getByText('DB Smoothie v2')).toBeInTheDocument()
+  })
+
+  it('opens an existing fork when editing a built-in that was already forked', async () => {
+    const fork = recipe({ id: 1.7e12, name: 'Forked Bowl', custom: true, defaultId: 1 })
+    ls['whub_custom_recipes_v1'] = JSON.stringify([fork])
+    mockSync['fetchUserRecipes'].mockResolvedValue([fork])
+    render(<RecipesTab user={FAKE_USER} />)
+    await settled()
+    const card = cardOf('Built Bowl')
+    fireEvent.click(card)
+    fireEvent.click(within(card).getByLabelText('Edit recipe'))
+    // The existing fork is opened (its name prefills the modal), not a fresh fork
+    expect(await screen.findByDisplayValue('Forked Bowl')).toBeInTheDocument()
+  })
+
+  it('shows a cook counter sourced from tracker history', async () => {
+    ls['whub_tracker_v3'] = JSON.stringify({
+      '2026-06-15': {
+        foods: [
+          { n: 'Built Bowl', k: 400, p: 1, c: 1, f: 1, fi: 1 },
+          { n: 'Built Bowl', k: 400, p: 1, c: 1, f: 1, fi: 1 },
+        ],
+        workout: null,
+        wkNotes: '',
+        energy: 0,
+        mood: 0,
+        sleep: 0,
+        stress: 0,
+        water: 0,
+        phase: '',
+        notes: '',
+        medMin: 0,
+        medStyle: '',
+      },
+    })
+    render(<RecipesTab user={FAKE_USER} />)
+    await settled()
+    expect(screen.getByTitle('Cooked 2 times')).toBeInTheDocument()
+  })
+
+  it('pluralises the hidden-suggestions banner', async () => {
+    mockSync['fetchBuiltinRecipes'].mockResolvedValue([
+      BUILTIN,
+      recipe({ id: 2, name: 'Second Bowl' }),
+    ])
+    render(<RecipesTab user={FAKE_USER} />)
+    await settled()
+    const c1 = cardOf('Built Bowl')
+    fireEvent.click(c1)
+    fireEvent.click(within(c1).getByLabelText('Hide this suggestion'))
+    const c2 = cardOf('Second Bowl')
+    fireEvent.click(c2)
+    fireEvent.click(within(c2).getByLabelText('Hide this suggestion'))
+    expect(await screen.findByText(/2 suggestions hidden/)).toBeInTheDocument()
   })
 
   it('forks a built-in recipe on edit (opens the modal)', async () => {
