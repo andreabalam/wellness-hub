@@ -201,23 +201,36 @@ describe('RecipesTab — delete, fork, cook, hide, grocery', () => {
     expect(screen.getByText('Built Bowl')).toBeInTheDocument()
   })
 
-  it('opens the grocery ingredient modal', async () => {
+  it('opens the grocery ingredient modal and adds items', async () => {
     render(<RecipesTab user={FAKE_USER} />)
     await settled()
     fireEvent.click(screen.getByText('Built Bowl').closest('.rcard') as HTMLElement)
     fireEvent.click(screen.getByLabelText('Add ingredients to grocery list'))
-    await waitFor(() => expect(screen.getByText('Egg')).toBeInTheDocument())
+    await screen.findByText(/Add to category/)
+    fireEvent.click(screen.getByRole('button', { name: /item/ }))
+    // modal closes after adding
+    await waitFor(() => expect(screen.queryByText(/Add to category/)).not.toBeInTheDocument())
   })
 })
 
 describe('RecipesTab — diet filter & open-from-tracker', () => {
-  it('shows the diet filter row when a recipe carries a diet tag', async () => {
+  it('filters by diet tag and toggles it off', async () => {
     mockSync['fetchBuiltinRecipes'].mockResolvedValue([
-      recipe({ id: 1, name: 'Vegan Bowl', dietTag: 'vegan' }),
+      recipe({ id: 1, name: 'Vegan Bowl', cat: 'meal', dietTag: 'vegan' }),
+      recipe({ id: 2, name: 'Meaty Bowl', cat: 'meal' }),
     ])
     render(<RecipesTab user={FAKE_USER} />)
     await settled()
     expect(screen.getByRole('button', { name: 'All diets' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Vegan' }))
+    expect(screen.getByText('Vegan Bowl')).toBeInTheDocument()
+    expect(screen.queryByText('Meaty Bowl')).not.toBeInTheDocument()
+    // category filter combined with diet filter
+    fireEvent.click(screen.getByRole('button', { name: /Meals/ }))
+    expect(screen.getByText('Vegan Bowl')).toBeInTheDocument()
+    // toggle the diet tag back off
+    fireEvent.click(screen.getByRole('button', { name: 'Vegan' }))
+    expect(screen.getByText('Meaty Bowl')).toBeInTheDocument()
   })
 
   it('auto-opens a recipe matched by name from the tracker badge', async () => {
