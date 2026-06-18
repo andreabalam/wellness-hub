@@ -230,3 +230,65 @@ describe('OuraTab — with session data', () => {
     expect(screen.getByText('15m')).toBeInTheDocument()
   })
 })
+
+// ── Fully-populated render — exercises every data card ────────────
+describe('OuraTab — all metrics populated', () => {
+  it('renders sleep, activity, spo2, stress, resilience and cardio-age cards', async () => {
+    const o = await import('../lib/oura')
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    vi.mocked(o.fetchOuraReadiness).mockResolvedValue({
+      score: 80,
+      contributors: {
+        hrv_balance: 70,
+        recovery_index: 75,
+        sleep_balance: 80,
+        resting_heart_rate: 85,
+      },
+      temperature_deviation: 0.1,
+    } as any)
+    vi.mocked(o.fetchOuraDailyActivity).mockResolvedValue({
+      score: 85,
+      active_calories: 420,
+      total_calories: 2100,
+      steps: 8200,
+      equivalent_walking_distance: 6100,
+      high_activity_time: 1200,
+    } as any)
+    vi.mocked(o.fetchOuraSleep).mockResolvedValue({
+      score: 88,
+      contributors: {
+        deep_sleep: 90,
+        efficiency: 92,
+        rem_sleep: 80,
+        restfulness: 85,
+        total_sleep: 88,
+      },
+    } as any)
+    vi.mocked(o.fetchOuraSleepSession).mockResolvedValue({
+      average_hrv: 65,
+      deep_sleep_duration: 5400,
+      light_sleep_duration: 14400,
+      rem_sleep_duration: 5400,
+      total_sleep_duration: 27000,
+      efficiency: 90,
+      lowest_heart_rate: 50,
+    } as any)
+    vi.mocked(o.fetchOuraCardiovascularAge).mockResolvedValue({ vascular_age: 32 } as any)
+    vi.mocked(o.fetchOuraSpo2).mockResolvedValue({ spo2_percentage: { average: 97 } } as any)
+    vi.mocked(o.fetchOuraStress).mockResolvedValue({
+      day_summary: 'restored',
+      stress_high: 3600,
+      recovery_high: 10800,
+    } as any)
+    vi.mocked(o.fetchOuraResilience).mockResolvedValue({
+      level: 'solid',
+      contributors: { daytime_recovery: 80, sleep_recovery: 85, stress_impact: 70 },
+    } as any)
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    render(<OuraTab user={FAKE_USER} />)
+    await waitFor(() => expect(screen.getAllByText('80').length).toBeGreaterThan(0))
+    expect(screen.getAllByText('88').length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/32/).length).toBeGreaterThan(0)
+  })
+})
