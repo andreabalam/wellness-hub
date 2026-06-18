@@ -28,6 +28,14 @@ describe('reportError', () => {
     expect(spy).toHaveBeenCalledWith('[boom:here]', expect.any(Error))
   })
 
+  it('stringifies a non-Error, falling back to String() on a circular object', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const circular: Record<string, unknown> = {}
+    circular.self = circular // JSON.stringify throws → String() fallback
+    expect(() => reportError('circ:ctx', circular)).not.toThrow()
+    expect(spy).toHaveBeenCalled()
+  })
+
   it('uses console.warn for warn severity', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const err = vi.spyOn(console, 'error').mockImplementation(() => {})

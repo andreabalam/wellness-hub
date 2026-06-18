@@ -153,6 +153,19 @@ describe('preparePayload', () => {
     expect((payload as { mimeType: string }).mimeType).toBe('image/webp')
   })
 
+  it('guesses the MIME from the extension when the file has no type', async () => {
+    // Each branch of guessMime: pdf, txt, jpeg, png, webp
+    expect((await preparePayload(makeFile('r.pdf', ''))).type).toBe('pdf')
+    expect((await preparePayload(makeFile('r.txt', '', 'hi'))).type).toBe('text')
+    expect((await preparePayload(makeFile('r.jpeg', ''))).type).toBe('image')
+    expect((await preparePayload(makeFile('r.png', ''))).type).toBe('image')
+    expect((await preparePayload(makeFile('r.webp', ''))).type).toBe('image')
+  })
+
+  it('rejects an unsupported file type', async () => {
+    await expect(preparePayload(makeFile('r.xyz', ''))).rejects.toThrow(/Unsupported file type/)
+  })
+
   it('returns type "pdf" with base64 content for .pdf files', async () => {
     const file = makeFile('recipe.pdf', 'application/pdf', '%PDF-1.4 fake')
     const payload = await preparePayload(file)

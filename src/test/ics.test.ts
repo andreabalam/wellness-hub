@@ -96,6 +96,29 @@ describe('generateIcs', () => {
     expect(generateIcs(SINGLE_BLOCK, start, end)).toContain('VERSION:2.0')
   })
 
+  it('converts a PM time to 24-hour DTSTART', () => {
+    const block: ScheduleBlock[] = [{ ...SINGLE_BLOCK[0], time: '4:00 PM' }]
+    expect(generateIcs(block, start, end)).toContain('T160000')
+  })
+
+  it('handles 12 AM / 12 PM and an unparseable time', () => {
+    const blocks: ScheduleBlock[] = [
+      { ...SINGLE_BLOCK[0], time: '12:00 AM' },
+      { ...SINGLE_BLOCK[0], time: '12:00 PM' },
+      { ...SINGLE_BLOCK[0], time: 'noon' }, // no match → 000000
+    ]
+    const ics = generateIcs(blocks, start, end)
+    expect(ics).toContain('T000000')
+    expect(ics).toContain('T120000')
+  })
+
+  it('omits DESCRIPTION/CATEGORIES when a block has neither', () => {
+    const bare: ScheduleBlock[] = [{ ...SINGLE_BLOCK[0], desc: '', whyTxt: '' } as ScheduleBlock]
+    const ics = generateIcs(bare, start, end)
+    expect(ics).not.toContain('DESCRIPTION:')
+    expect(ics).not.toContain('CATEGORIES:')
+  })
+
   it('includes CALSCALE:GREGORIAN', () => {
     expect(generateIcs(SINGLE_BLOCK, start, end)).toContain('CALSCALE:GREGORIAN')
   })

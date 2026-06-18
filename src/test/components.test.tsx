@@ -2333,6 +2333,60 @@ describe('ScheduleEditor', () => {
     expect(updated[1].id).toBe(defaultBlocks[0].id)
   })
 
+  it('Escape key closes the editor', () => {
+    const onClose = vi.fn()
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onClose={onClose}
+        onReset={vi.fn()}
+      />,
+    )
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('parses an hour-duration block and clamps the unit toggle to 24h', () => {
+    const hrBlocks: CustomBlock[] = [
+      { ...defaultBlocks[0], id: 'hb', title: 'Long Block', dur: '2 hr' },
+    ]
+    render(
+      <ScheduleEditor blocks={hrBlocks} onChange={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />,
+    )
+    fireEvent.click(screen.getAllByTitle('Edit')[0])
+    // Duration number reflects the parsed "hr" form
+    const num = screen.getByDisplayValue('2') as HTMLInputElement
+    fireEvent.change(num, { target: { value: '30' } }) // > 24h → clamped to 24
+    expect((screen.getByDisplayValue('24') as HTMLInputElement).value).toBe('24')
+  })
+
+  it('switching the duration unit to hours clamps the number', () => {
+    const blocks: CustomBlock[] = [{ ...defaultBlocks[0], id: 'mb', title: 'Mins', dur: '45 min' }]
+    render(
+      <ScheduleEditor blocks={blocks} onChange={vi.fn()} onClose={vi.fn()} onReset={vi.fn()} />,
+    )
+    fireEvent.click(screen.getAllByTitle('Edit')[0])
+    // 45 in minutes; switch unit to hours → 45 clamped to 24
+    fireEvent.change(screen.getByDisplayValue('minutes'), { target: { value: 'hr' } })
+    expect(screen.getByDisplayValue('24')).toBeInTheDocument()
+  })
+
+  it('deleting the block being edited closes the form', () => {
+    render(
+      <ScheduleEditor
+        blocks={defaultBlocks}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getAllByTitle('Edit')[0])
+    expect(screen.getByPlaceholderText('Block name')).toBeInTheDocument()
+    fireEvent.click(screen.getAllByTitle('Delete')[0])
+    expect(screen.queryByPlaceholderText('Block name')).not.toBeInTheDocument()
+  })
+
   it('Add block button shows new block form', () => {
     render(
       <ScheduleEditor

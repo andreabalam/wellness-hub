@@ -32,6 +32,8 @@ import {
   fetchOuraResilience,
   fetchOuraWorkoutRoute,
   fetchOuraPersonalInfo,
+  fetchOuraSleepSession,
+  fetchOuraCardiovascularAge,
   fetchOuraTdeeAvg,
   isOuraConnected,
   exchangePendingCode,
@@ -296,6 +298,51 @@ describe('disconnectOura (mocked supabase)', () => {
       expect.stringContaining('oura-exchange'),
       expect.objectContaining({ method: 'DELETE' }),
     )
+  })
+})
+
+// ── fetchOuraSleepSession ─────────────────────────────────────────
+
+describe('fetchOuraSleepSession', () => {
+  it('prefers the main night session (period 0)', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({
+      data: [
+        { day: '2024-01-01', period: 1, total_sleep_duration: 1800 },
+        { day: '2024-01-01', period: 0, total_sleep_duration: 27000 },
+      ],
+    })
+    const result = await fetchOuraSleepSession('2024-01-01')
+    expect(result!.period).toBe(0)
+  })
+
+  it('falls back to the first session for the day when no period 0', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ data: [{ day: '2024-01-01', period: 2, total_sleep_duration: 3600 }] })
+    const result = await fetchOuraSleepSession('2024-01-01')
+    expect(result!.period).toBe(2)
+  })
+
+  it('returns null when nothing matches the day', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ data: [{ day: '2024-01-02', period: 0 }] })
+    expect(await fetchOuraSleepSession('2024-01-01')).toBeNull()
+  })
+})
+
+// ── fetchOuraCardiovascularAge ────────────────────────────────────
+
+describe('fetchOuraCardiovascularAge', () => {
+  it('returns the matching day record', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ data: [{ day: '2024-01-01', vascular_age: 31 }] })
+    expect((await fetchOuraCardiovascularAge('2024-01-01'))!.vascular_age).toBe(31)
+  })
+
+  it('returns null when the day is missing', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    mockFetch({ data: [] })
+    expect(await fetchOuraCardiovascularAge('2024-01-01')).toBeNull()
   })
 })
 

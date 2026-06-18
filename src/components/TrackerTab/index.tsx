@@ -975,7 +975,7 @@ export default function TrackerTab({
         <div className="flex flex-col gap-12">
           {/* Meditation — keyed by date so the picker re-seeds on day change */}
           <MeditationLog
-            key={dkey(date)}
+            key={`med-${dkey(date)}`}
             initialMedMin={dayForDate.medMin}
             initialMedStyle={dayForDate.medStyle}
             savedMedMin={day.medMin}
@@ -990,7 +990,7 @@ export default function TrackerTab({
 
           {/* Daily check-in — keyed by date so it re-seeds its stars on day change */}
           <CheckIn
-            key={dkey(date)}
+            key={`checkin-${dkey(date)}`}
             initialEnergy={dayForDate.energy}
             initialMood={dayForDate.mood}
             initialSleep={dayForDate.sleep}

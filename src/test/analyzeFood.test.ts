@@ -39,6 +39,11 @@ Protein 12g
     expect(parseNutritionLabel(text).confidence).toBe('low')
   })
 
+  it('extracts an all-caps product name preceding the facts', () => {
+    const text = 'GRANOLA CRUNCH\nNutrition Facts\nCalories 200\nTotal Fat 8g\nProtein 6g'
+    expect(parseNutritionLabel(text).name).toBe('GRANOLA CRUNCH')
+  })
+
   it('returns zero for macros not present in text', () => {
     const text = 'Calories 200\nTotal Fat 5g'
     const result = parseNutritionLabel(text)
