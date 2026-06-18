@@ -357,4 +357,71 @@ describe('RecipeModal — form editing controls', () => {
     fireEvent.click(container.querySelector('.modal-overlay') as HTMLElement)
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('toggles health and prep chips off, and saves fiber', () => {
+    const onSave = vi.fn()
+    render(<RecipeModal {...baseProps} onSave={onSave} />)
+    fireEvent.change(nameInput(), { target: { value: 'Toggle Dish' } })
+    // on then off
+    fireEvent.click(screen.getByText('✦ Healthy'))
+    fireEvent.click(screen.getByText('✦ Healthy'))
+    fireEvent.click(screen.getByText('Vegan'))
+    fireEvent.click(screen.getByText('Vegan'))
+    const prep = screen.getByText('15 min')
+    fireEvent.click(prep)
+    fireEvent.click(prep)
+    fireEvent.change(screen.getByPlaceholderText('fiber g'), { target: { value: '7' } })
+    fireEvent.click(screen.getByText('Save recipe'))
+    const saved = onSave.mock.calls[0][0]
+    expect(saved.healthTag).toBeUndefined()
+    expect(saved.hfi).toBe('7g')
+  })
+
+  it('imports from a dropped file via the drop zone', async () => {
+    importRecipeFromFile.mockResolvedValue({ name: 'Dropped Dish', kcal: 200 })
+    const { container } = render(<RecipeModal {...baseProps} />)
+    const zone = container.querySelector('.import-zone') as HTMLElement
+    fireEvent.dragOver(zone)
+    fireEvent.dragLeave(zone)
+    const file = new File(['x'], 'r.pdf', { type: 'application/pdf' })
+    fireEvent.drop(zone, { dataTransfer: { files: [file] } })
+    await waitFor(() => expect((nameInput() as HTMLInputElement).value).toBe('Dropped Dish'))
+  })
+
+  it('maps an unknown category to "meal" and ignores bad health/diet tags', async () => {
+    importRecipeFromUrl.mockResolvedValue({
+      name: 'Odd Recipe',
+      cat: 'totally-unknown-cat',
+      healthTag: 'weird',
+      dietTag: 'not-a-diet',
+    })
+    render(<RecipeModal {...baseProps} />)
+    fireEvent.change(screen.getByPlaceholderText('https://example.com/recipe'), {
+      target: { value: 'https://x.com/r' },
+    })
+    fireEvent.click(screen.getByText('Import'))
+    await waitFor(() => expect((nameInput() as HTMLInputElement).value).toBe('Odd Recipe'))
+  })
+
+  it('requires sign-in when there is no Supabase session (URL import)', async () => {
+    const { supabase } = await import('../lib/supabase')
+    vi.mocked(supabase!.auth.getSession).mockResolvedValueOnce({
+      data: { session: null },
+    } as never)
+    render(<RecipeModal {...baseProps} />)
+    fireEvent.change(screen.getByPlaceholderText('https://example.com/recipe'), {
+      target: { value: 'https://x.com/r' },
+    })
+    fireEvent.click(screen.getByText('Import'))
+    expect(await screen.findByText(/Sign in to use URL import/)).toBeInTheDocument()
+  })
+
+  it('imports from a URL via the Enter key', async () => {
+    importRecipeFromUrl.mockResolvedValue({ name: 'Enter Dish', kcal: 100 })
+    render(<RecipeModal {...baseProps} />)
+    const url = screen.getByPlaceholderText('https://example.com/recipe')
+    fireEvent.change(url, { target: { value: 'https://x.com/r' } })
+    fireEvent.keyDown(url, { key: 'Enter' })
+    await waitFor(() => expect((nameInput() as HTMLInputElement).value).toBe('Enter Dish'))
+  })
 })
