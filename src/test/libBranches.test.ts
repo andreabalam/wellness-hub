@@ -3,7 +3,13 @@
  * normalisation, schedule block conversion and time parsing.
  */
 import { describe, it, expect } from 'vitest'
-import { encodeRecipe, decodeRecipe, parseShareRoute, buildShareUrl } from '../lib/recipeShare'
+import {
+  encodeRecipe,
+  decodeRecipe,
+  parseShareRoute,
+  buildShareUrl,
+  resolveShareToken,
+} from '../lib/recipeShare'
 import { normalizeCat, catLabel } from '../data/recipes'
 import { defaultToCustomBlock, timeToMinutes } from '../data/schedule'
 import type { ScheduleBlock } from '../data/schedule'
@@ -62,6 +68,12 @@ describe('recipeShare decode edges', () => {
   it('builds a share URL with the app base path', async () => {
     const url = await buildShareUrl(recipe)
     expect(url).toMatch(/#\/r\/.+/)
+  })
+
+  it('resolveShareToken decodes a valid token and rejects a bad one', async () => {
+    const token = await encodeRecipe(recipe)
+    expect((await resolveShareToken(token))?.name).toBe('Round Trip')
+    expect(await resolveShareToken('garbage')).toBeNull()
   })
 })
 

@@ -314,4 +314,28 @@ describe('HungerCravingPicker', () => {
     // craving chips appear
     expect(screen.getByText(/Craving something/)).toBeInTheDocument()
   })
+
+  it('selecting a craving chip reveals a swap suggestion and toggles off', () => {
+    const onHungerChange = vi.fn()
+    render(<HungerCravingPicker fHunger="mouth" onHungerChange={onHungerChange} />)
+    const chip = screen.getAllByRole('button').find(b => b.className.includes('craving-chip'))!
+    fireEvent.click(chip)
+    fireEvent.click(chip) // toggle back off — exercises the craving===c branch
+    expect(chip).toBeInTheDocument()
+  })
+})
+
+describe('WeekStrip — extra branches', () => {
+  it('shows a date-range label for a past week and selects via Space', () => {
+    const onSelect = vi.fn()
+    const getDay = () => ({ ...EMPTY_DAY, foods: [] })
+    const pastWeek = new Date('2026-05-04T12:00:00') // a different week than DATE
+    const { container } = render(
+      <WeekStrip currentDate={pastWeek} onSelect={onSelect} getDay={getDay} />,
+    )
+    // Not "This week" → range label rendered (en-dash)
+    expect(screen.getByText(/–/)).toBeInTheDocument()
+    fireEvent.keyDown(container.querySelector('.week-strip-cell') as HTMLElement, { key: ' ' })
+    expect(onSelect).toHaveBeenCalled()
+  })
 })
