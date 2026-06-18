@@ -8,11 +8,12 @@ import { parseIngredientAmount } from './ingredientAmount'
 import { searchUSDAPer100g, type UsdaPer100g } from './foodSearch'
 import { safeGet, safeSet } from './storage'
 
-export type ResolutionStatus = 'ok' | 'no-amount' | 'no-match'
+export type ResolutionStatus = 'ok' | 'no-amount' | 'no-match' | 'error'
 
 export interface IngredientResolution {
   ing: string
   amount: string
+  /** 'error' = the lookup threw (offline / rate-limited) and can be retried. */
   status: ResolutionStatus
   /** Set when status === 'ok' */
   grams?: number
@@ -34,6 +35,8 @@ export interface RecipeMacroResult {
   rows: IngredientResolution[]
   /** Number of ingredients that contributed to the totals */
   matched: number
+  /** Number of lookups that failed (offline / rate-limited) — retryable. */
+  errored: number
 }
 
 export type Per100gLookup = (name: string) => Promise<UsdaPer100g | null>
@@ -41,7 +44,11 @@ export type Per100gLookup = (name: string) => Promise<UsdaPer100g | null>
 /**
  * Sum macros across ingredients and divide by servings.
  * Pure orchestration — the lookup is injected (see makeCachedUsdaLookup).
- * Lookup errors propagate so the UI can show a retry row.
+ *
+ * A failed lookup (offline or USDA rate limit) is isolated to its own row
+ * (status 'error') and never aborts the whole calculation — the ingredients
+ * that did resolve still contribute, and the caller can surface a partial
+ * result plus a retry hint. This keeps a single 429 from wiping out a recipe.
  */
 export async function computeRecipeMacros(
   ings: [string, string][],
@@ -56,6 +63,7 @@ export async function computeRecipeMacros(
     f = 0,
     fi = 0
   let matched = 0
+  let errored = 0
 
   for (const [ing, amount] of ings) {
     const parsed = parseIngredientAmount(amount, ing)
@@ -63,7 +71,15 @@ export async function computeRecipeMacros(
       rows.push({ ing, amount, status: 'no-amount' })
       continue
     }
-    const per100 = await lookup(ing)
+    let per100: UsdaPer100g | null
+    try {
+      per100 = await lookup(ing)
+    } catch {
+      // Network error or USDA rate limit — keep going so other ingredients resolve
+      rows.push({ ing, amount, status: 'error' })
+      errored++
+      continue
+    }
     if (!per100) {
       rows.push({ ing, amount, status: 'no-match' })
       continue
@@ -95,6 +111,7 @@ export async function computeRecipeMacros(
     },
     rows,
     matched,
+    errored,
   }
 }
 

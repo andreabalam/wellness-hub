@@ -297,7 +297,12 @@ export default function RecipeModal({
       setCalcRows(result.rows)
       if (!result.matched) {
         setCalcState('error')
-        setCalcError('No ingredients could be matched — fill in the macros manually.')
+        // Distinguish a rate-limit / outage (retryable) from genuine no-matches
+        setCalcError(
+          result.errored
+            ? 'Food database unavailable (it may be rate-limited) — try again in a bit, or enter the macros manually.'
+            : 'No ingredients could be matched — fill in the macros manually.',
+        )
         return
       }
       // Capture grams/serving from the resolved rows for the caloric-density dot
@@ -309,6 +314,12 @@ export default function RecipeModal({
       setCarb(String(result.totals.c))
       setFat(String(result.totals.f))
       setFib(result.totals.fi > 0 ? String(result.totals.fi) : '')
+      // Partial success: some lookups failed but we still have usable totals.
+      if (result.errored) {
+        setCalcError(
+          `${result.errored} ingredient${result.errored === 1 ? '' : 's'} couldn't be looked up — totals are partial. Try again to fill the rest.`,
+        )
+      }
       setCalcState('done')
     } catch {
       setCalcState('error')
@@ -732,7 +743,8 @@ export default function RecipeModal({
                 </button>
               </div>
 
-              {calcState === 'error' && (
+              {/* Error, or a partial-success warning carried over into 'done' */}
+              {calcError && calcState !== 'loading' && (
                 <div className="import-error" role="alert">
                   {calcError}
                 </div>
@@ -753,6 +765,9 @@ export default function RecipeModal({
                         </>
                       )}
                       {r.status === 'no-match' && <>✗ {r.ing} — no food database match, skipped</>}
+                      {r.status === 'error' && (
+                        <>↻ {r.ing} — lookup failed (offline or rate-limited), retry</>
+                      )}
                     </div>
                   ))}
                   {calcState === 'done' && (

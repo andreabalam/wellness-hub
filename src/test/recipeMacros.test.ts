@@ -165,11 +165,33 @@ describe('computeRecipeMacros', () => {
     expect(res.totals).toEqual({ k: 0, p: 0, c: 0, f: 0, fi: 0 })
   })
 
-  it('propagates lookup errors', async () => {
+  it('isolates a lookup failure to its own row instead of aborting', async () => {
     const failing: Per100gLookup = async () => {
       throw new Error('USDA 429')
     }
-    await expect(computeRecipeMacros([['oats', '100g']], 1, failing)).rejects.toThrow('USDA 429')
+    const result = await computeRecipeMacros([['oats', '100g']], 1, failing)
+    expect(result.errored).toBe(1)
+    expect(result.matched).toBe(0)
+    expect(result.rows[0]).toMatchObject({ ing: 'oats', status: 'error' })
+  })
+
+  it('keeps resolved ingredients when only some lookups fail', async () => {
+    const partial: Per100gLookup = async name =>
+      name === 'oats'
+        ? { name: 'Oats', k: 380, p: 13, c: 68, f: 7, fi: 10 }
+        : Promise.reject(new Error('USDA 429'))
+    const result = await computeRecipeMacros(
+      [
+        ['oats', '100g'],
+        ['milk', '200g'],
+      ],
+      1,
+      partial,
+    )
+    expect(result.matched).toBe(1)
+    expect(result.errored).toBe(1)
+    expect(result.totals.k).toBe(380) // oats still counted despite milk failing
+    expect(result.rows.map(r => r.status)).toEqual(['ok', 'error'])
   })
 })
 

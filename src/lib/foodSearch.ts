@@ -61,6 +61,11 @@ function toHit(food: USDAFood): UsdaFoodHit {
 
 // USDA FoodData Central — Foundation and SR Legacy foods return nutrients per 100 g.
 // Docs: https://api.nal.usda.gov/fdc/v1/foods/search
+//
+// One request per ingredient. DEMO_KEY is capped at ~10 requests/hour/IP, so a
+// recipe with several ingredients exhausts it in one calculation and subsequent
+// lookups return HTTP 429. Set VITE_USDA_API_KEY (free at api.data.gov, ~1000/hr)
+// for reliable use. Callers isolate per-ingredient failures (see computeRecipeMacros).
 async function fetchUSDAFoods(query: string, signal?: AbortSignal): Promise<USDAFood[]> {
   const apiKey = (import.meta.env.VITE_USDA_API_KEY as string | undefined) || 'DEMO_KEY'
   const url =

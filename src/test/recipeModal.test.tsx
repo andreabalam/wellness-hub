@@ -174,6 +174,41 @@ describe('RecipeModal — macro calculation', () => {
     fireEvent.click(screen.getByRole('button', { name: /Calculate|USDA|macros/i }))
     expect(await screen.findByText(/database unavailable/i)).toBeInTheDocument()
   })
+
+  it('reports a rate-limit when every lookup errored', async () => {
+    computeRecipeMacros.mockResolvedValue({
+      matched: 0,
+      errored: 1,
+      rows: [{ ing: 'Rice', amount: '100g', status: 'error' }],
+      totals: { k: 0, p: 0, c: 0, f: 0, fi: 0 },
+    })
+    render(<RecipeModal {...baseProps} />)
+    addIngredient()
+    fireEvent.click(screen.getByRole('button', { name: /Calculate|USDA|macros/i }))
+    expect(await screen.findByText(/try again in a bit/i)).toBeInTheDocument()
+  })
+
+  it('fills partial macros and warns when some lookups fail', async () => {
+    computeRecipeMacros.mockResolvedValue({
+      matched: 1,
+      errored: 2,
+      rows: [
+        { ing: 'Rice', amount: '100g', status: 'ok', grams: 100, matchName: 'Rice', kcal: 130 },
+        { ing: 'Milk', amount: '200g', status: 'error' },
+        { ing: 'Egg', amount: '1', status: 'error' },
+      ],
+      totals: { k: 130, p: 5, c: 28, f: 1, fi: 2 },
+    })
+    render(<RecipeModal {...baseProps} />)
+    addIngredient()
+    fireEvent.click(screen.getByRole('button', { name: /Calculate|USDA|macros/i }))
+    // Macros still applied from the one resolved ingredient
+    await waitFor(() =>
+      expect((screen.getByPlaceholderText('kcal') as HTMLInputElement).value).toBe('130'),
+    )
+    // …and a partial-result warning is shown
+    expect(screen.getByText(/2 ingredients couldn't be looked up/i)).toBeInTheDocument()
+  })
 })
 
 describe('RecipeModal — import flows', () => {
