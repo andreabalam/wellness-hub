@@ -160,6 +160,15 @@ describe('MeditationLog', () => {
     expect(screen.getByText(/Done: 20 min - Breath focus/)).toBeInTheDocument()
   })
 
+  it('reports when Oura has no meditation session for the date', async () => {
+    mockOura.fetchOuraSessions.mockResolvedValue([
+      { type: 'nap', start_datetime: '2026-06-15T13:00:00Z', end_datetime: '2026-06-15T13:30:00Z' },
+    ])
+    render(<MeditationLog {...base} ouraConnected />)
+    fireEvent.click(screen.getByText('⟳ Sync Oura'))
+    await waitFor(() => expect(mockOura.fetchOuraSessions).toHaveBeenCalled())
+  })
+
   it('syncs a meditation session from Oura', async () => {
     mockOura.fetchOuraSessions.mockResolvedValue([
       {
