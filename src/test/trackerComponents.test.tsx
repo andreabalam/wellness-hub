@@ -288,6 +288,37 @@ describe('MealList', () => {
     fireEvent.click(screen.getByText(/🍽 5\/7/))
     expect(onEdit).toHaveBeenCalled()
   })
+
+  it('links a meal with no recipe id via the name resolver', () => {
+    const onOpenRecipe = vi.fn()
+    const plain = { n: 'Power Bowl', k: 300, p: 20, c: 30, f: 10, fi: 5 }
+    render(
+      <MealList
+        foods={[plain]}
+        editIndex={null}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+        onOpenRecipe={onOpenRecipe}
+        recipeLinkId={f => (f.n === 'Power Bowl' ? 42 : undefined)}
+      />,
+    )
+    fireEvent.click(screen.getByTitle('Open recipe'))
+    expect(onOpenRecipe).toHaveBeenCalledWith(42, 'Power Bowl')
+  })
+
+  it('shows no recipe badge when the resolver returns nothing', () => {
+    render(
+      <MealList
+        foods={[{ n: 'Random Snack', k: 100, p: 1, c: 10, f: 5, fi: 0 }]}
+        editIndex={null}
+        onEdit={vi.fn()}
+        onRemove={vi.fn()}
+        onOpenRecipe={vi.fn()}
+        recipeLinkId={() => undefined}
+      />,
+    )
+    expect(screen.queryByTitle('Open recipe')).not.toBeInTheDocument()
+  })
 })
 
 describe('QuickAddRow', () => {
