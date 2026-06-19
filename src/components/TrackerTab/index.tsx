@@ -17,7 +17,7 @@ import { QUICK_FOODS, PHASE_NOTES, WATER_MAX } from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
 import { BUILTIN_RECIPES } from '../../data/recipes'
 import type { Recipe } from '../../data/recipes'
-import { searchLocalFoods, historyFoods } from '../../lib/localFoodSearch'
+import { searchLocalFoods, historyFoods, recipeToHit } from '../../lib/localFoodSearch'
 import type { LocalFoodHit } from '../../lib/localFoodSearch'
 import { searchUSDAFoods, estimateFoodMacros } from '../../lib/foodSearch'
 import type { UsdaFoodHit } from '../../lib/foodSearch'
@@ -254,13 +254,39 @@ export default function TrackerTab({
     setOnlineStatus('idle')
   }, [])
 
+  // Custom-recipe name → id, so a logged meal shows the 📖 recipe link whenever
+  // it matches one of the user's recipes — even if the entry carries no recipe
+  // id (logged from history / quick-add, or before its id was synced).
+  const customRecipeIdsByName = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const r of recipeStore.getRecipes()) {
+      if (r.id != null) map.set(r.name.trim().toLowerCase(), r.id)
+    }
+    return map
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [day, showSugg])
+
+  const recipeLinkId = useCallback(
+    (f: FoodEntry) => f.r ?? customRecipeIdsByName.get(f.n.trim().toLowerCase()),
+    [customRecipeIdsByName],
+  )
+
+  // Re-read a recipe's current per-serving macros from the live store. Recipe
+  // ids are stable across edits, so this always reflects the latest save — used
+  // to keep the tracker from logging a stale snapshot after a recipe is edited.
+  const freshRecipeHit = (recipeId: number): LocalFoodHit | null => {
+    const r = recipeStore.getRecipes().find(x => x.id === recipeId)
+    return r ? recipeToHit(r) : null
+  }
+
   const applySuggestion = (f: LocalFoodHit) => {
-    setFName(f.n)
-    setFKcal(String(f.k))
-    setFPro(String(f.p))
-    setFCarb(String(f.c))
-    setFat(String(f.f))
-    setFFiber(String(f.fi))
+    const hit = (f.recipeId != null && freshRecipeHit(f.recipeId)) || f
+    setFName(hit.n)
+    setFKcal(String(hit.k))
+    setFPro(String(hit.p))
+    setFCarb(String(hit.c))
+    setFat(String(hit.f))
+    setFFiber(String(hit.fi))
     setFRecipeId(f.recipeId ?? null)
     setShowSugg(false)
     resetOnline()
@@ -402,11 +428,15 @@ export default function TrackerTab({
       return
     }
     const srv = Math.max(0.5, parseFloat(fServings) || 1)
-    const perK = parseInt(fKcal) || 0
-    const perP = parseInt(fPro) || 0
-    const perC = parseInt(fCarb) || 0
-    const perF = parseInt(fFat) || 0
-    const perFi = parseInt(fFiber) || 0
+    // For a recipe-linked entry, always log the recipe's current per-serving
+    // macros — the form may hold a stale snapshot if the recipe was edited
+    // after it was selected.
+    const fresh = fRecipeId != null ? freshRecipeHit(fRecipeId) : null
+    const perK = fresh ? fresh.k : parseInt(fKcal) || 0
+    const perP = fresh ? fresh.p : parseInt(fPro) || 0
+    const perC = fresh ? fresh.c : parseInt(fCarb) || 0
+    const perF = fresh ? fresh.f : parseInt(fFat) || 0
+    const perFi = fresh ? fresh.fi : parseInt(fFiber) || 0
     const entry: FoodEntry = {
       n: nm,
       k: Math.round(perK * srv),
@@ -705,6 +735,7 @@ export default function TrackerTab({
                 onEdit={startEdit}
                 onRemove={removeFood}
                 onOpenRecipe={onOpenRecipe}
+                recipeLinkId={recipeLinkId}
               />
               <div style={{ paddingTop: 12 }}>
                 {/* Paste-to-log: parse a pasted block of meals into reviewable entries */}

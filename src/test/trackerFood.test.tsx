@@ -66,4 +66,81 @@ describe('TrackerTab — food form edit/remove/quick-add', () => {
     fireEvent.click(container.querySelector('.food-remove-btn') as HTMLElement)
     expect(screen.queryByText('Toast')).not.toBeInTheDocument()
   })
+
+  it('logs a recipe with its latest macros after the recipe is edited', () => {
+    const recipe = {
+      id: 42,
+      cat: 'lunch',
+      type: 'bowl',
+      color: 'var(--teal)',
+      sc: '',
+      name: 'Power Bowl',
+      tag: '',
+      prepL: '',
+      prepC: '',
+      custom: true,
+      hk: 300,
+      hp: '20g',
+      hc: '30g',
+      hf: '10g',
+      hfi: '5g',
+      mk: 300,
+      mp: '20g',
+      mc: '30g',
+      mf: '10g',
+      ings: [] as [string, string][],
+      steps: [] as string[],
+      tip: '',
+    }
+    ls['whub_custom_recipes_v1'] = JSON.stringify([recipe])
+
+    render(<TrackerTab user={FAKE_USER} />)
+    const nameInput = screen.getByPlaceholderText('Meal name (e.g. Berry Oats)')
+    fireEvent.focus(nameInput)
+    fireEvent.change(nameInput, { target: { value: 'Power' } })
+
+    // Edit the recipe's macros in the store after the suggestion has rendered.
+    ls['whub_custom_recipes_v1'] = JSON.stringify([{ ...recipe, hk: 500, hp: '40g' }])
+
+    // Select the recipe suggestion, then log it.
+    fireEvent.mouseDown(screen.getByText('Power Bowl').closest('button') as HTMLElement)
+    fireEvent.click(screen.getByText('+ Log food'))
+
+    // The logged entry reflects the edited recipe (500 kcal · 40g P), not 300.
+    expect(screen.getByText(/500 kcal · 40g P/)).toBeInTheDocument()
+  })
+
+  it('shows the recipe link on a meal matching a custom recipe by name', () => {
+    const recipe = {
+      id: 42,
+      cat: 'lunch',
+      type: 'bowl',
+      color: 'var(--teal)',
+      sc: '',
+      name: 'Power Bowl',
+      tag: '',
+      prepL: '',
+      prepC: '',
+      custom: true,
+      hk: 300,
+      hp: '20g',
+      hc: '30g',
+      hf: '10g',
+      hfi: '5g',
+      mk: 300,
+      mp: '20g',
+      mc: '30g',
+      mf: '10g',
+      ings: [] as [string, string][],
+      steps: [] as string[],
+      tip: '',
+    }
+    ls['whub_custom_recipes_v1'] = JSON.stringify([recipe])
+
+    render(<TrackerTab user={FAKE_USER} />)
+    // Log it by typing the name manually (no suggestion → no recipe id on the entry).
+    logFood('Power Bowl', '300')
+    // The 📖 link still appears because the name matches a custom recipe.
+    expect(screen.getByTitle('Open recipe')).toBeInTheDocument()
+  })
 })
