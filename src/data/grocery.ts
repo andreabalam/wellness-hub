@@ -4,7 +4,7 @@ export interface NutriInfo {
   p: number // protein g
   c: number // carbs g
   f: number // fat g
-  fi?: number // fiber g (optional)
+  fi?: number // fiber g
 }
 
 export interface GroceryItem {

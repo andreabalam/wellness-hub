@@ -3621,6 +3621,7 @@ describe('TrackerTab', () => {
   // ── Tier 2: hunger type + craving swaps ──────────────────────────
   it('selecting a Mouth hunger type reveals the craving helper with swaps', () => {
     const { container } = render(<TrackerTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByText(/How did it feel\?/))
     fireEvent.click(screen.getByText(/Mouth/))
     const helper = container.querySelector('.craving-helper') as HTMLElement
     expect(helper).toBeTruthy()
@@ -3630,6 +3631,7 @@ describe('TrackerTab', () => {
 
   it('logs a food carrying its hunger type (icon on the row)', () => {
     render(<TrackerTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByText(/How did it feel\?/))
     fireEvent.click(screen.getByText(/Emotional/))
     fireEvent.change(screen.getByPlaceholderText('Meal name (e.g. Berry Oats)'), {
       target: { value: 'Cookies' },

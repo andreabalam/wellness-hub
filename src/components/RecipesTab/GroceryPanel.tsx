@@ -13,6 +13,12 @@ function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 }
 
+// Stable ID for default-seeded items so re-seeding on a new device produces the
+// same IDs and the sync merge can deduplicate by ID instead of creating new entries.
+function seedId(cat: string, name: string): string {
+  return `seed-${cat.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+}
+
 type LookupState = 'idle' | 'loading' | 'found' | 'not-found' | 'error'
 
 function buildNutri(
@@ -168,7 +174,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
     if (!user) return
     if (safeHas(SEEDED_KEY)) return
     const seeds: GroceryCatalogItem[] = Object.entries(GROCERY_DATA).flatMap(([cat, items]) =>
-      items.map(item => ({ id: uid(), n: item.n, cat, nutri: item.nutri })),
+      items.map(item => ({ id: seedId(cat, item.n), n: item.n, cat, nutri: item.nutri })),
     )
     seeds.forEach(item => catalogStore.add(item))
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -319,9 +325,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
             {/* ── Nutrition section ── */}
             <div className="nutri-section">
               <div className="nutri-header">
-                <div className="nutri-label">
-                  Nutrition <span style={{ opacity: 0.6 }}>(optional)</span>
-                </div>
+                <div className="nutri-label">Nutrition</div>
                 <button
                   className="nutri-lookup-btn"
                   onClick={handleLookup}

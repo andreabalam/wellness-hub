@@ -77,7 +77,7 @@ function ExerciseEditRow({
         <textarea
           className="input-sm w-full"
           rows={2}
-          placeholder="Instructions (optional)"
+          placeholder="Instructions"
           value={ex.i}
           onChange={e => onChange(idx, 'i', e.target.value)}
         />

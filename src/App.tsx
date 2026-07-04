@@ -180,13 +180,22 @@ export default function App() {
         ...localReminders.filter(r => !remoteReminderIds.has(r.id)),
       ]
 
-      // Grocery catalog: remote wins per id; local-only items are kept
+      // Grocery catalog: remote wins per id; local-only items are kept.
+      // A final name-based dedup pass removes any duplicates created by earlier
+      // seeding sessions that used random IDs (same item name, different id).
       const localCatalog = groceryCatalogStore.getAll()
       const remoteIds = new Set((remoteGroceryCatalog ?? []).map(i => i.id))
-      const mergedGroceryCatalog =
+      const rawMergedCatalog =
         remoteGroceryCatalog !== null
           ? [...(remoteGroceryCatalog ?? []), ...localCatalog.filter(i => !remoteIds.has(i.id))]
           : localCatalog
+      const seenCatalogNames = new Set<string>()
+      const mergedGroceryCatalog = rawMergedCatalog.filter(i => {
+        const key = i.n.trim().toLowerCase()
+        if (seenCatalogNames.has(key)) return false
+        seenCatalogNames.add(key)
+        return true
+      })
 
       // A5: re-read tracker days right before writing so a day edited during the
       // pull window survives. Remote still wins same-day conflicts (the rule),
