@@ -135,6 +135,7 @@ export default function TrackerTab({
   const [notesSaved, setNotesSaved] = useState(false)
   const [stripKey, setStripKey] = useState(0)
   const [innerTab, setInnerTab] = useState<'food' | 'workout' | 'meditation'>('food')
+  const [showMealContext, setShowMealContext] = useState(false)
 
   const loadDate = useCallback(
     (d: Date) => {
@@ -365,6 +366,7 @@ export default function TrackerTab({
     setFRecipeId(f.r ?? null)
     setFSat(f.sat ?? 0)
     setFHunger(f.hunger ?? '')
+    setShowMealContext(!!(f.sat || f.hunger))
     setShowSugg(false)
     resetOnline()
   }
@@ -384,6 +386,7 @@ export default function TrackerTab({
     setPhotoStatus('idle')
     setPhotoNotes('')
     setPhotoConfidence(null)
+    setShowMealContext(false)
     resetOnline()
   }
 
@@ -504,7 +507,7 @@ export default function TrackerTab({
     save({ foods: [...day.foods, ...entries] })
   }
 
-  // Top 10 most-recently-seen unique meals across all logged days
+  // Top 5 most-recently-seen unique meals across all logged days
   const recentMeals = useMemo(() => {
     const all = store.getAll()
     const sorted = Object.entries(all).sort(([a], [b]) => b.localeCompare(a))
@@ -517,9 +520,9 @@ export default function TrackerTab({
           seen.add(key)
           result.push(food)
         }
-        if (result.length >= 10) break
+        if (result.length >= 5) break
       }
-      if (result.length >= 10) break
+      if (result.length >= 5) break
     }
     return result
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -738,9 +741,6 @@ export default function TrackerTab({
                 recipeLinkId={recipeLinkId}
               />
               <div style={{ paddingTop: 12 }}>
-                {/* Paste-to-log: parse a pasted block of meals into reviewable entries */}
-                <PasteToLog foodLib={foodLib} onAdd={addParsedFoods} />
-
                 {/* Hidden file input for photo capture — no `capture` attr so
                   mobile browsers offer both camera and photo library */}
                 <input
@@ -751,38 +751,6 @@ export default function TrackerTab({
                   onChange={handlePhotoSelect}
                 />
 
-                {/* Photo status banner */}
-                {(photoStatus !== 'idle' || photoNotes) && (
-                  <div
-                    style={{
-                      fontSize: 11,
-                      marginBottom: 8,
-                      padding: '5px 9px',
-                      borderRadius: 6,
-                      background:
-                        photoStatus === 'error' || photoConfidence === 'low'
-                          ? 'rgba(184,150,58,0.08)'
-                          : 'var(--bg3)',
-                      border: `1px solid ${
-                        photoStatus === 'error' || photoConfidence === 'low'
-                          ? 'var(--amber)'
-                          : 'var(--border)'
-                      }`,
-                      color:
-                        photoStatus === 'error' || photoConfidence === 'low'
-                          ? 'var(--amber-light)'
-                          : 'var(--muted2)',
-                      fontFamily: '"DM Mono",monospace',
-                    }}
-                  >
-                    {photoStatus === 'detecting' && '● Detecting…'}
-                    {photoStatus === 'reading' && '● Reading label…'}
-                    {photoStatus === 'identifying' && '● Identifying food…'}
-                    {photoStatus === 'error' && photoNotes}
-                    {photoStatus === 'idle' && photoNotes}
-                  </div>
-                )}
-
                 {editIndex !== null && (
                   <div className="edit-indicator">
                     <span className="text-amber font-mono">Editing: {day.foods[editIndex]?.n}</span>
@@ -792,9 +760,7 @@ export default function TrackerTab({
                   </div>
                 )}
 
-                {/* Hunger type — feed what's actually hungry (optional) */}
-                <HungerCravingPicker fHunger={fHunger} onHungerChange={setFHunger} />
-
+                {/* Photo / meal name / servings */}
                 <div className="flex gap-6 mb-8 items-center">
                   <button
                     onClick={() => fileInputRef.current?.click()}
@@ -935,6 +901,44 @@ export default function TrackerTab({
                     style={{ width: 36, textAlign: 'center' }}
                   />
                 </div>
+
+                {/* Paste-to-log: parse a pasted block of meals instead of typing
+                  a name — an alternative entry path for the meal name above */}
+                <PasteToLog foodLib={foodLib} onAdd={addParsedFoods} />
+
+                {/* Photo status banner — reflects the 📷 analysis that fills the
+                  name and macros */}
+                {(photoStatus !== 'idle' || photoNotes) && (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      marginBottom: 8,
+                      padding: '5px 9px',
+                      borderRadius: 6,
+                      background:
+                        photoStatus === 'error' || photoConfidence === 'low'
+                          ? 'rgba(184,150,58,0.08)'
+                          : 'var(--bg3)',
+                      border: `1px solid ${
+                        photoStatus === 'error' || photoConfidence === 'low'
+                          ? 'var(--amber)'
+                          : 'var(--border)'
+                      }`,
+                      color:
+                        photoStatus === 'error' || photoConfidence === 'low'
+                          ? 'var(--amber-light)'
+                          : 'var(--muted2)',
+                      fontFamily: '"DM Mono",monospace',
+                    }}
+                  >
+                    {photoStatus === 'detecting' && '● Detecting…'}
+                    {photoStatus === 'reading' && '● Reading label…'}
+                    {photoStatus === 'identifying' && '● Identifying food…'}
+                    {photoStatus === 'error' && photoNotes}
+                    {photoStatus === 'idle' && photoNotes}
+                  </div>
+                )}
+
                 <div className="macro-inputs-grid">
                   {(
                     [
@@ -957,13 +961,28 @@ export default function TrackerTab({
                   ))}
                 </div>
                 <div className="font-mono text-muted2 text-2xs mb-8">per serving</div>
-                <div className="mb-10">
-                  <div className="text-xs text-muted2 mb-6">
-                    Satiety after this meal (optional) — where did it leave you?
-                  </div>
-                  <SatietyRow value={fSat} onChange={setFSat} />
-                </div>
                 <QuickAddRow recentMeals={recentMeals} onQuickAdd={quickAdd} />
+
+                {/* Collapsible meal context — hunger type + satiety */}
+                <button
+                  type="button"
+                  onClick={() => setShowMealContext(v => !v)}
+                  className="meal-context-toggle"
+                >
+                  <span>{showMealContext ? '▾' : '▸'}</span>
+                  How did it feel?
+                </button>
+                {showMealContext && (
+                  <div className="meal-context-panel">
+                    <HungerCravingPicker fHunger={fHunger} onHungerChange={setFHunger} />
+                    <div className="mb-10">
+                      <div className="text-xs text-muted2 mb-6">
+                        Satiety after this meal — where did it leave you?
+                      </div>
+                      <SatietyRow value={fSat} onChange={setFSat} />
+                    </div>
+                  </div>
+                )}
                 <button
                   onClick={addFood}
                   className={`tbtn ${editIndex !== null ? 'tbtn--amber' : 'tbtn--teal'}`}

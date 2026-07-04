@@ -674,7 +674,7 @@ export default function RecipeModal({
         </FieldRow>
 
         {/* Diet tag */}
-        <FieldRow label="Dietary approach (optional)">
+        <FieldRow label="Dietary approach">
           <div className="flex flex-wrap gap-6">
             {DIET_TAGS.map(d => (
               <button
@@ -689,7 +689,7 @@ export default function RecipeModal({
         </FieldRow>
 
         {/* Macros */}
-        <FieldRow label="Macros per serving (optional)">
+        <FieldRow label="Macros per serving">
           <div className="macro-grid-5">
             {(
               [
@@ -896,7 +896,7 @@ export default function RecipeModal({
         </FieldRow>
 
         {/* Tip */}
-        <FieldRow label="Tip / notes (optional)">
+        <FieldRow label="Tip / notes">
           <textarea
             className="tinput resize-vertical"
             rows={2}
@@ -907,7 +907,7 @@ export default function RecipeModal({
         </FieldRow>
 
         {/* Link */}
-        <FieldRow label="Reference link (optional) — shown when recipe is opened">
+        <FieldRow label="Reference link — shown when recipe is opened">
           <input
             className="tinput"
             value={link}
@@ -917,7 +917,7 @@ export default function RecipeModal({
         </FieldRow>
 
         {/* Image */}
-        <FieldRow label="Image URL (optional) — shown when recipe is opened">
+        <FieldRow label="Image URL — shown when recipe is opened">
           <input
             className="tinput"
             value={image}
