@@ -430,7 +430,7 @@ export default function TrackerTab({
       alert('Enter a name and calories.')
       return
     }
-    const srv = Math.max(0.5, parseFloat(fServings) || 1)
+    const srv = Math.min(99, Math.max(0.5, parseFloat(fServings) || 1))
     // For a recipe-linked entry, always log the recipe's current per-serving
     // macros — the form may hold a stale snapshot if the recipe was edited
     // after it was selected.
@@ -753,8 +753,8 @@ export default function TrackerTab({
                   </div>
                 )}
 
-                {/* Photo / meal name */}
-                <div className="flex gap-6 mb-6 items-center">
+                {/* Photo / meal name / servings */}
+                <div className="flex gap-6 mb-8 items-center">
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={photoStatus !== 'idle'}
@@ -882,22 +882,17 @@ export default function TrackerTab({
                       </div>
                     )}
                   </div>
-                </div>
-
-                {/* Servings */}
-                <div className="flex items-center gap-10 mb-8">
-                  <span className="text-sm text-muted" style={{ flexShrink: 0 }}>
-                    Servings
-                  </span>
+                  <span className="font-mono text-muted2 text-2xs tracking-8 no-wrap">SRV</span>
                   <input
                     className="tnum"
                     type="number"
                     min="0.5"
+                    max="99"
                     step="0.5"
                     placeholder="1"
                     value={fServings}
                     onChange={e => setFServings(e.target.value)}
-                    style={{ width: 80, textAlign: 'center' }}
+                    style={{ width: 56, textAlign: 'center', flexShrink: 0 }}
                   />
                 </div>
 
