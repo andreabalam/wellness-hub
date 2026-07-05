@@ -150,9 +150,12 @@ describe('OuraTab — authenticated with empty data', () => {
     const { fetchOuraDailyActivity } = await import('../lib/oura')
     const spy = vi.mocked(fetchOuraDailyActivity)
     render(<OuraTab user={FAKE_USER} />)
-    await waitFor(() => screen.getByText('Today'))
+    // The ↺ button is disabled while the initial fetch is in flight — wait
+    // for it to become enabled or the click is silently ignored
+    const refreshBtn = await screen.findByTitle('Refresh')
+    await waitFor(() => expect(refreshBtn).toBeEnabled())
     const callsBefore = spy.mock.calls.length
-    fireEvent.click(screen.getByText('↺'))
+    fireEvent.click(refreshBtn)
     await waitFor(() => {
       expect(spy.mock.calls.length).toBeGreaterThan(callsBefore)
     })
