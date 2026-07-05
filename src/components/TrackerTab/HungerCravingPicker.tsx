@@ -18,7 +18,7 @@ export default function HungerCravingPicker({ fHunger, onHungerChange }: Props) 
 
   return (
     <div className="mb-8">
-      <div className="text-xs text-muted2 mb-6">What kind of hunger? (optional)</div>
+      <div className="text-xs text-muted2 mb-6">What kind of hunger?</div>
       <div className="flex flex-wrap gap-6">
         {HUNGER_TYPES.map(h => (
           <button
