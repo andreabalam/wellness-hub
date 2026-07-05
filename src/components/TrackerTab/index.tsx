@@ -584,13 +584,6 @@ export default function TrackerTab({
     save({ water: next })
   }
 
-  const [wide, setWide] = useState(window.innerWidth >= 680)
-  useEffect(() => {
-    const handler = () => setWide(window.innerWidth >= 680)
-    window.addEventListener('resize', handler)
-    return () => window.removeEventListener('resize', handler)
-  }, [])
-
   if (!user) {
     return (
       <div className="guest-gate-cta">
@@ -655,7 +648,7 @@ export default function TrackerTab({
       {/* ── Food ── */}
       {innerTab === 'food' && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: wide ? '1fr 1fr' : '1fr', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {/* Macro summary */}
             <div className="tcard">
               <div className="tlabel text-muted2">Daily targets</div>
@@ -760,8 +753,8 @@ export default function TrackerTab({
                   </div>
                 )}
 
-                {/* Photo / meal name / servings */}
-                <div className="flex gap-6 mb-8 items-center">
+                {/* Photo / meal name */}
+                <div className="flex gap-6 mb-6 items-center">
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={photoStatus !== 'idle'}
@@ -889,7 +882,13 @@ export default function TrackerTab({
                       </div>
                     )}
                   </div>
-                  <span className="font-mono text-muted2 text-2xs tracking-8 no-wrap">SRV</span>
+                </div>
+
+                {/* Servings */}
+                <div className="flex items-center gap-10 mb-8">
+                  <span className="text-sm text-muted" style={{ flexShrink: 0 }}>
+                    Servings
+                  </span>
                   <input
                     className="tnum"
                     type="number"
@@ -898,7 +897,7 @@ export default function TrackerTab({
                     placeholder="1"
                     value={fServings}
                     onChange={e => setFServings(e.target.value)}
-                    style={{ width: 36, textAlign: 'center' }}
+                    style={{ width: 80, textAlign: 'center' }}
                   />
                 </div>
 
