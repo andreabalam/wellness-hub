@@ -3310,7 +3310,7 @@ describe('TrackerTab', () => {
 
   it('can toggle cycle phase buttons', () => {
     render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
+    fireEvent.click(screen.getByText('Workout'))
     fireEvent.click(screen.getByText('Follicular'))
     fireEvent.click(screen.getByText('Follicular')) // deselect
     // No crash is the assertion

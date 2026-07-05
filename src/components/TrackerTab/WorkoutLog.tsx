@@ -13,6 +13,15 @@ import { reportError } from '../../lib/errorLog'
 import { safeGet, safeSet } from '../../lib/storage'
 import { dkey } from './dateKey'
 
+const PHASES = ['Menstrual', 'Follicular', 'Ovulatory', 'Luteal', 'Unsure'] as const
+const PHASE_COLORS = [
+  'var(--purple)',
+  'var(--green)',
+  'var(--teal)',
+  'var(--amber)',
+  'var(--muted2)',
+]
+
 // ── Oura readiness cache (one entry per date) ─────────────────────
 const READINESS_CACHE_KEY = 'whub_oura_readiness_v1'
 function getCachedReadiness(date: string): OuraReadiness | null {
@@ -32,6 +41,8 @@ interface Props {
   savedWorkout: string | null
   savedWkNotes: string
   phaseNote: string
+  phase: string
+  onPhaseChange: (p: string) => void
   ouraConnected: boolean
   date: Date
   onSave: (patch: { workout: string | null; wkNotes: string }) => void
@@ -44,6 +55,8 @@ export default function WorkoutLog({
   savedWorkout,
   savedWkNotes,
   phaseNote,
+  phase,
+  onPhaseChange,
   ouraConnected,
   date,
   onSave,
@@ -159,6 +172,28 @@ export default function WorkoutLog({
         </div>
       )}
 
+      <div className="mb-10">
+        <div className="text-sm text-muted mb-6">Cycle phase</div>
+        <div className="flex gap-6 flex-wrap">
+          {PHASES.map((p, i) => {
+            const active = phase === p
+            return (
+              <button
+                key={p}
+                onClick={() => onPhaseChange(active ? '' : p)}
+                className="phase-btn"
+                style={{
+                  border: `1px solid ${active ? PHASE_COLORS[i] : 'var(--border)'}`,
+                  background: active ? `${PHASE_COLORS[i]}20` : 'var(--bg3)',
+                  color: active ? PHASE_COLORS[i] : 'var(--muted)',
+                }}
+              >
+                {p}
+              </button>
+            )
+          })}
+        </div>
+      </div>
       <div className="phase-note">{phaseNote}</div>
       <div className="text-sm text-muted mb-8">Session type:</div>
       <div className="flex flex-wrap gap-6 mb-10">

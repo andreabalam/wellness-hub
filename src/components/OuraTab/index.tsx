@@ -282,6 +282,7 @@ export default function OuraTab({ user }: Props) {
     setSleep(null)
     setSleepSession(null)
     setWorkouts([])
+    setWorkoutErr(null)
     setSessions([])
     setCardioAge(null)
     setSpo2(null)
@@ -295,6 +296,7 @@ export default function OuraTab({ user }: Props) {
   const [sleep, setSleep] = useState<OuraSleep | null>(null)
   const [sleepSession, setSleepSession] = useState<OuraSleepSession | null>(null)
   const [workouts, setWorkouts] = useState<OuraWorkout[]>([])
+  const [workoutErr, setWorkoutErr] = useState<string | null>(null)
   const [sessions, setSessions] = useState<OuraSession[]>([])
   const [cardioAge, setCardioAge] = useState<OuraCardiovascularAge | null>(null)
   const [spo2, setSpo2] = useState<OuraSpo2 | null>(null)
@@ -311,6 +313,7 @@ export default function OuraTab({ user }: Props) {
     setSleep(null)
     setSleepSession(null)
     setWorkouts([])
+    setWorkoutErr(null)
     setSessions([])
     setCardioAge(null)
     setSpo2(null)
@@ -378,7 +381,13 @@ export default function OuraTab({ user }: Props) {
       setReadiness(rdR.status === 'fulfilled' ? rdR.value : null)
       setSleep(slR.status === 'fulfilled' ? slR.value : null)
       setSleepSession(slSessR.status === 'fulfilled' ? slSessR.value : null)
-      setWorkouts(wkR.status === 'fulfilled' ? wkR.value : [])
+      if (wkR.status === 'fulfilled') {
+        setWorkouts(wkR.value)
+        setWorkoutErr(null)
+      } else {
+        setWorkouts([])
+        setWorkoutErr((wkR as PromiseRejectedResult).reason?.message ?? 'Could not load workouts')
+      }
       setSessions(sessR.status === 'fulfilled' ? sessR.value : [])
       setCardioAge(caR.status === 'fulfilled' ? caR.value : null)
       setSpo2(sp2R.status === 'fulfilled' ? sp2R.value : null)
@@ -728,8 +737,19 @@ export default function OuraTab({ user }: Props) {
           <CardHeader icon="🏋️" title={loading ? 'Workouts' : `Workouts (${workouts.length})`} />
           {loading ? (
             <Skeleton />
+          ) : workoutErr ? (
+            <div className="text-sm text-muted2" style={{ color: 'var(--coral)' }}>
+              {workoutErr}
+            </div>
           ) : workouts.length === 0 ? (
-            <div className="text-base text-muted">No workouts recorded</div>
+            <>
+              <div className="text-base text-muted mb-6">No workouts found for this day</div>
+              <div className="text-xs text-muted2">
+                The Oura ring auto-detects most workouts, and manually started sessions sync here
+                too — but live-logged sessions can take a few minutes to appear after you end them.
+                Try tapping ↺ to refresh.
+              </div>
+            </>
           ) : (
             workouts.map(w => <WorkoutRow key={w.id} workout={w} hasRoute={routeIds.has(w.id)} />)
           )}

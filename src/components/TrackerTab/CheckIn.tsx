@@ -3,46 +3,27 @@ import StarRow from './StarRow'
 import { dkey } from './dateKey'
 import { fetchOuraSleep, fetchOuraStress, sleepScoreToStars, stressToScale } from '../../lib/oura'
 
-const PHASES = ['Menstrual', 'Follicular', 'Ovulatory', 'Luteal', 'Unsure'] as const
-const PHASE_COLORS = [
-  'var(--purple)',
-  'var(--green)',
-  'var(--teal)',
-  'var(--amber)',
-  'var(--muted2)',
-]
-
 interface Props {
   /** Initial star values for the current day (the parent re-keys on date change). */
   initialEnergy: number
   initialMood: number
   initialSleep: number
   initialStress: number
-  /** Cycle phase is owned by the parent (the Workout section shows its note). */
-  phase: string
-  onSetPhase: (p: string) => void
   ouraConnected: boolean
   date: Date
-  onSave: (patch: {
-    energy: number
-    mood: number
-    sleep: number
-    stress: number
-    phase: string
-  }) => void
+  onSave: (patch: { energy: number; mood: number; sleep: number; stress: number }) => void
 }
 
 /**
- * Daily check-in: energy / mood / sleep / stress stars + cycle phase. Sleep and
- * stress auto-fill from Oura (best-effort, only when not already set manually).
+ * Daily check-in: energy / mood / sleep / stress stars.
+ * Sleep and stress auto-fill from Oura (best-effort, only when not already set manually).
+ * Cycle phase has moved to WorkoutLog where it sits alongside training context.
  */
 export default function CheckIn({
   initialEnergy,
   initialMood,
   initialSleep,
   initialStress,
-  phase,
-  onSetPhase,
   ouraConnected,
   date,
   onSave,
@@ -77,7 +58,7 @@ export default function CheckIn({
   }, [ouraConnected, stress, date])
 
   const saveCheckIn = () => {
-    onSave({ energy, mood, sleep, stress, phase })
+    onSave({ energy, mood, sleep, stress })
     setCheckInSaved(true)
     setTimeout(() => setCheckInSaved(false), 1600)
   }
@@ -138,28 +119,6 @@ export default function CheckIn({
             lowLabel="Calm"
             highLabel="Stressed"
           />
-        </div>
-        <div>
-          <div className="text-sm text-muted mb-6">Cycle phase</div>
-          <div className="flex gap-6 flex-wrap">
-            {PHASES.map((p, i) => {
-              const active = phase === p
-              return (
-                <button
-                  key={p}
-                  onClick={() => onSetPhase(active ? '' : p)}
-                  className="phase-btn"
-                  style={{
-                    border: `1px solid ${active ? PHASE_COLORS[i] : 'var(--border)'}`,
-                    background: active ? `${PHASE_COLORS[i]}20` : 'var(--bg3)',
-                    color: active ? PHASE_COLORS[i] : 'var(--muted)',
-                  }}
-                >
-                  {p}
-                </button>
-              )
-            })}
-          </div>
         </div>
         <button
           onClick={saveCheckIn}

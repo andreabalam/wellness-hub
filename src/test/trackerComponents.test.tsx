@@ -62,6 +62,8 @@ describe('WorkoutLog', () => {
     savedWorkout: null,
     savedWkNotes: '',
     phaseNote: 'Follicular note',
+    phase: '',
+    onPhaseChange: vi.fn(),
     ouraConnected: false,
     date: DATE,
     onSave: vi.fn(),
@@ -126,6 +128,13 @@ describe('WorkoutLog', () => {
     render(<WorkoutLog {...base} ouraConnected />)
     fireEvent.click(screen.getByText('⟳ Sync Oura'))
     await waitFor(() => expect(mockOura.fetchOuraWorkouts).toHaveBeenCalled())
+  })
+
+  it('toggles a cycle phase and calls onPhaseChange', () => {
+    const onPhaseChange = vi.fn()
+    render(<WorkoutLog {...base} onPhaseChange={onPhaseChange} />)
+    fireEvent.click(screen.getByText('Follicular'))
+    expect(onPhaseChange).toHaveBeenCalledWith('Follicular')
   })
 })
 
@@ -193,8 +202,6 @@ describe('CheckIn', () => {
     initialMood: 0,
     initialSleep: 0,
     initialStress: 0,
-    phase: '',
-    onSetPhase: vi.fn(),
     ouraConnected: false,
     date: DATE,
     onSave: vi.fn(),
@@ -205,13 +212,6 @@ describe('CheckIn', () => {
     render(<CheckIn {...base} onSave={onSave} initialEnergy={3} />)
     fireEvent.click(screen.getByText('Save check-in'))
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ energy: 3 }))
-  })
-
-  it('toggles a cycle phase', () => {
-    const onSetPhase = vi.fn()
-    render(<CheckIn {...base} onSetPhase={onSetPhase} />)
-    fireEvent.click(screen.getByText('Follicular'))
-    expect(onSetPhase).toHaveBeenCalledWith('Follicular')
   })
 
   it('auto-fills sleep + stress from Oura on hover when connected', async () => {
