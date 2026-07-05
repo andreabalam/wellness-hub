@@ -638,7 +638,7 @@ export default function OuraTab({ user }: Props) {
         </div>
       </div>
 
-      {/* ── Row 2: Cardio Age · SpO2 · Stress · Resilience ── */}
+      {/* ── Row 2: Cardio Age · SpO2 · Resilience ── */}
       <div className="flex flex-wrap gap-12 mb-12">
         <div className="metric-card" style={{ flex: '1 1 155px' }}>
           <CardHeader icon="💗" title="Cardio Age" />
@@ -676,32 +676,6 @@ export default function OuraTab({ user }: Props) {
         </div>
 
         <div className="metric-card" style={{ flex: '1 1 155px' }}>
-          <CardHeader icon="🧘" title="Stress" />
-          {loading ? (
-            <Skeleton />
-          ) : !stress ? (
-            <Empty />
-          ) : (
-            <>
-              {stress.day_summary && stress.day_summary !== 'no_data' && (
-                <div
-                  className="text-md font-600 uppercase mb-8"
-                  style={{ color: stressColor(stress.day_summary) }}
-                >
-                  {stress.day_summary}
-                </div>
-              )}
-              {stress.stress_high != null && (
-                <Row label="Stress" value={fmtDuration(stress.stress_high)} />
-              )}
-              {stress.recovery_high != null && (
-                <Row label="Recovery" value={fmtDuration(stress.recovery_high)} />
-              )}
-            </>
-          )}
-        </div>
-
-        <div className="metric-card" style={{ flex: '1 1 155px' }}>
           <CardHeader icon="🛡" title="Resilience" />
           {loading ? (
             <Skeleton />
@@ -731,9 +705,9 @@ export default function OuraTab({ user }: Props) {
         </div>
       </div>
 
-      {/* ── Workouts & Mindfulness ── */}
-      <div className="flex flex-wrap gap-12">
-        <div className="metric-card" style={{ flex: '1 1 300px' }}>
+      {/* ── Row 3: Workouts (full width) ── */}
+      <div className="mb-12">
+        <div className="metric-card">
           <CardHeader icon="🏋️" title={loading ? 'Workouts' : `Workouts (${workouts.length})`} />
           {loading ? (
             <Skeleton />
@@ -754,7 +728,10 @@ export default function OuraTab({ user }: Props) {
             workouts.map(w => <WorkoutRow key={w.id} workout={w} hasRoute={routeIds.has(w.id)} />)
           )}
         </div>
+      </div>
 
+      {/* ── Row 4: Mindfulness · Stress ── */}
+      <div className="flex flex-wrap gap-12">
         {(!loading || sessions.length > 0) &&
           (() => {
             const mindful = sessions.filter(s => s.type !== 'nap')
@@ -774,6 +751,32 @@ export default function OuraTab({ user }: Props) {
               </div>
             )
           })()}
+
+        <div className="metric-card" style={{ flex: '1 1 200px' }}>
+          <CardHeader icon="🧘" title="Stress" />
+          {loading ? (
+            <Skeleton />
+          ) : !stress ? (
+            <Empty />
+          ) : (
+            <>
+              {stress.day_summary && stress.day_summary !== 'no_data' && (
+                <div
+                  className="text-md font-600 uppercase mb-8"
+                  style={{ color: stressColor(stress.day_summary) }}
+                >
+                  {stress.day_summary}
+                </div>
+              )}
+              {stress.stress_high != null && (
+                <Row label="Stress" value={fmtDuration(stress.stress_high)} />
+              )}
+              {stress.recovery_high != null && (
+                <Row label="Recovery" value={fmtDuration(stress.recovery_high)} />
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
