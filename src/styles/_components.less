@@ -1444,6 +1444,36 @@
     }
   }
 }
+// ── How did it feel? — collapsible meal context ──────────────────
+.meal-context-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 12px;
+  width: 100%;
+  margin-bottom: 8px;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+  &:hover {
+    color: var(--purple-light);
+    border-color: var(--purple);
+  }
+}
+.meal-context-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px 4px;
+  margin-bottom: 10px;
+  background: var(--bg3);
+}
+
 .edit-indicator {
   display: flex;
   justify-content: space-between;
