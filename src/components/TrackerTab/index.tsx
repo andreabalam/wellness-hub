@@ -1014,6 +1014,11 @@ export default function TrackerTab({
           savedWorkout={day.workout}
           savedWkNotes={day.wkNotes}
           phaseNote={phaseNote}
+          phase={phase}
+          onPhaseChange={p => {
+            setPhase(p)
+            save({ phase: p })
+          }}
           ouraConnected={ouraConnected}
           date={date}
           onSave={save}
@@ -1045,8 +1050,6 @@ export default function TrackerTab({
             initialMood={dayForDate.mood}
             initialSleep={dayForDate.sleep}
             initialStress={dayForDate.stress}
-            phase={phase}
-            onSetPhase={setPhase}
             ouraConnected={ouraConnected}
             date={date}
             onSave={save}

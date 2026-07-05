@@ -186,8 +186,8 @@ export function readinessColor(score: number): string {
 
 export function readinessLabel(score: number): string {
   if (score >= 85) return 'Push hard'
-  if (score >= 70) return 'Normal training'
-  if (score >= 50) return 'Moderate'
+  if (score >= 70) return 'Good to train'
+  if (score >= 50) return 'Go easy'
   return 'Recovery day'
 }
 
@@ -439,7 +439,23 @@ async function proxyFetchSingle<T>(
 // ── Public fetch functions ────────────────────────────────────────
 
 export async function fetchOuraWorkouts(date: string): Promise<OuraWorkout[]> {
-  return proxyFetch<OuraWorkout>('workout', date)
+  // Oura may assign `day` using UTC, but start_datetime reflects actual local time.
+  // Fetch a 3-day window (prev/cur/next) so a workout near midnight isn't missed,
+  // then filter client-side by the local-timezone date of start_datetime.
+  const d = new Date(date + 'T12:00:00')
+  const prev = new Date(d)
+  prev.setDate(d.getDate() - 1)
+  const next = new Date(d)
+  next.setDate(d.getDate() + 1)
+  const fmt = (dt: Date) =>
+    `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+
+  const all = await proxyFetchRange<OuraWorkout>('workout', fmt(prev), fmt(next))
+  return all.filter(w => {
+    const s = new Date(w.start_datetime)
+    const localDate = `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`
+    return localDate === date
+  })
 }
 
 export async function fetchOuraReadiness(date: string): Promise<OuraReadiness | null> {

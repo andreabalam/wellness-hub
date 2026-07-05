@@ -42,13 +42,13 @@ describe('readinessLabel', () => {
     expect(readinessLabel(85)).toBe('Push hard')
     expect(readinessLabel(100)).toBe('Push hard')
   })
-  it('returns "Normal training" for score 70–84', () => {
-    expect(readinessLabel(70)).toBe('Normal training')
-    expect(readinessLabel(84)).toBe('Normal training')
+  it('returns "Good to train" for score 70–84', () => {
+    expect(readinessLabel(70)).toBe('Good to train')
+    expect(readinessLabel(84)).toBe('Good to train')
   })
-  it('returns "Moderate" for score 50–69', () => {
-    expect(readinessLabel(50)).toBe('Moderate')
-    expect(readinessLabel(69)).toBe('Moderate')
+  it('returns "Go easy" for score 50–69', () => {
+    expect(readinessLabel(50)).toBe('Go easy')
+    expect(readinessLabel(69)).toBe('Go easy')
   })
   it('returns "Recovery day" for score < 50', () => {
     expect(readinessLabel(49)).toBe('Recovery day')
