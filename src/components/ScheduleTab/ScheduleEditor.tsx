@@ -63,38 +63,36 @@ function BlockForm({ form, setForm, onSave, onCancel }: BlockFormProps) {
 
   return (
     <div className="blk-inline-form">
-      <div className="blk-form-row mb-8">
-        <label className="blk-form-label flex-1">
-          Time
+      <label className="blk-form-label w-full mb-8">
+        Time
+        <input
+          type="time"
+          value={form.time}
+          onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
+          className="blk-form-input"
+        />
+      </label>
+      <label className="blk-form-label w-full mb-8">
+        Duration
+        <div className="flex gap-6">
           <input
-            type="time"
-            value={form.time}
-            onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
-            className="blk-form-input"
+            type="number"
+            min={0}
+            max={durUnit === 'hr' ? 24 : undefined}
+            value={durNum}
+            onChange={e => applyNum(e.target.value)}
+            className="blk-form-input form-num-sm"
           />
-        </label>
-        <label className="blk-form-label flex-1">
-          Duration
-          <div className="flex gap-6">
-            <input
-              type="number"
-              min={0}
-              max={durUnit === 'hr' ? 24 : undefined}
-              value={durNum}
-              onChange={e => applyNum(e.target.value)}
-              className="blk-form-input form-num-sm"
-            />
-            <select
-              value={durUnit}
-              onChange={e => applyUnit(e.target.value as 'min' | 'hr')}
-              className="blk-form-input flex-1"
-            >
-              <option value="min">minutes</option>
-              <option value="hr">hours</option>
-            </select>
-          </div>
-        </label>
-      </div>
+          <select
+            value={durUnit}
+            onChange={e => applyUnit(e.target.value as 'min' | 'hr')}
+            className="blk-form-input flex-1"
+          >
+            <option value="min">minutes</option>
+            <option value="hr">hours</option>
+          </select>
+        </div>
+      </label>
 
       <label className="blk-form-label w-full">
         Title *
