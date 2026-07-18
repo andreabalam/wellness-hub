@@ -71,13 +71,41 @@ function foldLine(line: string): string {
   return out.join('\r\n')
 }
 
+/**
+ * IANA timezone of the browser, e.g. "America/Los_Angeles".
+ * Returns null when unavailable — DTSTART then stays floating.
+ */
+export function localTimeZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * DTSTART property with the user's timezone attached. Floating times
+ * (no TZID) are treated as UTC by Google Calendar on import, shifting
+ * every event by the UTC offset. Google/Apple/Outlook all accept IANA
+ * TZIDs without a VTIMEZONE component.
+ */
+function dtStartLine(anchor: Date, time: string, tz: string | null): string {
+  const value = dtStart(anchor, time)
+  return tz ? `DTSTART;TZID=${tz}:${value}` : `DTSTART:${value}`
+}
+
 // ── Main export ──────────────────────────────────────────────────
 
 /**
  * Generate an .ics file string from a list of schedule blocks.
  * Each block becomes a recurring VEVENT (Mon–Fri) between startDate and endDate.
  */
-export function generateIcs(blocks: ScheduleBlock[], startDate: Date, endDate: Date): string {
+export function generateIcs(
+  blocks: ScheduleBlock[],
+  startDate: Date,
+  endDate: Date,
+  tz: string | null = localTimeZone(),
+): string {
   const anchor = firstWeekday(startDate)
 
   // UNTIL must be UTC, end of the last day
@@ -96,10 +124,10 @@ export function generateIcs(blocks: ScheduleBlock[], startDate: Date, endDate: D
     'METHOD:PUBLISH',
     'X-WR-CALNAME:Wellness Hub Schedule',
   ]
+  if (tz) lines.push(`X-WR-TIMEZONE:${tz}`)
 
   blocks.forEach((b, i) => {
     const uid = `whub-${i}-${Date.now()}@wellness-hub`
-    const start = dtStart(anchor, b.time)
     const duration = parseDuration(b.dur)
     const rrule = `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=${untilStr}`
 
@@ -107,7 +135,7 @@ export function generateIcs(blocks: ScheduleBlock[], startDate: Date, endDate: D
       'BEGIN:VEVENT',
       `UID:${uid}`,
       `DTSTAMP:${now}`,
-      `DTSTART:${start}`,
+      dtStartLine(anchor, b.time, tz),
       `DURATION:${duration}`,
       `RRULE:${rrule}`,
       `SUMMARY:${escapeIcs(b.title)}`,
@@ -159,13 +187,31 @@ function firstOccurrenceOfDay(from: Date, day: DayKey): Date {
 }
 
 /**
+ * Fingerprint of the fields that end up in an exported VEVENT.
+ * Ignores id/color, which differ between days even for identical schedules.
+ */
+function exportFingerprint(blocks: ScheduleBlock[]): string {
+  return blocks.map(b => [b.time, b.title, b.dur, b.desc, b.whyTxt].join('|')).join('\n')
+}
+
+/** True when every day of the week has the same (non-empty) exported blocks */
+function isUniformWeek(week: Record<DayKey, ScheduleBlock[]>): boolean {
+  if (!week[DAY_KEYS[0]]?.length) return false
+  const first = exportFingerprint(week[DAY_KEYS[0]])
+  return DAY_KEYS.every(d => exportFingerprint(week[d] ?? []) === first)
+}
+
+/**
  * Generate an .ics file string from a per-day WeekSchedule.
  * Each day's blocks become recurring VEVENTs on that specific weekday.
+ * When all 7 days are identical, each block becomes a single daily-recurring
+ * VEVENT instead of 7 per-weekday ones.
  */
 export function generateWeekIcs(
   week: Record<DayKey, ScheduleBlock[]>,
   startDate: Date,
   endDate: Date,
+  tz: string | null = localTimeZone(),
 ): string {
   const until = new Date(endDate)
   until.setHours(23, 59, 59, 0)
@@ -181,31 +227,47 @@ export function generateWeekIcs(
     'METHOD:PUBLISH',
     'X-WR-CALNAME:Wellness Hub Schedule',
   ]
+  if (tz) lines.push(`X-WR-TIMEZONE:${tz}`)
 
-  let idx = 0
-  for (const day of DAY_KEYS) {
-    const blocks = week[day]
-    if (!blocks?.length) continue
-    const anchor = firstOccurrenceOfDay(startDate, day)
-    const byday = BYDAY_MAP[day]
-    for (const b of blocks) {
-      const uid = `whub-${day}-${idx++}@wellness-hub`
-      const start = dtStart(anchor, b.time)
-      const duration = parseDuration(b.dur)
-      const rrule = `FREQ=WEEKLY;BYDAY=${byday};UNTIL=${untilStr}`
-      const event: string[] = [
-        'BEGIN:VEVENT',
-        `UID:${uid}`,
-        `DTSTAMP:${now}`,
-        `DTSTART:${start}`,
-        `DURATION:${duration}`,
-        `RRULE:${rrule}`,
-        `SUMMARY:${escapeIcs(b.title)}`,
-      ]
-      if (b.desc) event.push(`DESCRIPTION:${escapeIcs(b.desc)}`)
-      if (b.whyTxt) event.push(`CATEGORIES:${escapeIcs(b.whyTxt)}`)
-      event.push('END:VEVENT')
-      lines.push(...event)
+  const pushEvent = (b: ScheduleBlock, uid: string, anchor: Date, rrule: string) => {
+    const event: string[] = [
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTAMP:${now}`,
+      dtStartLine(anchor, b.time, tz),
+      `DURATION:${parseDuration(b.dur)}`,
+      `RRULE:${rrule}`,
+      `SUMMARY:${escapeIcs(b.title)}`,
+    ]
+    if (b.desc) event.push(`DESCRIPTION:${escapeIcs(b.desc)}`)
+    if (b.whyTxt) event.push(`CATEGORIES:${escapeIcs(b.whyTxt)}`)
+    event.push('END:VEVENT')
+    lines.push(...event)
+  }
+
+  if (isUniformWeek(week)) {
+    // Same blocks every day — one daily-recurring event per block
+    const anchor = new Date(startDate)
+    anchor.setHours(0, 0, 0, 0)
+    let idx = 0
+    for (const b of week[DAY_KEYS[0]]) {
+      pushEvent(b, `whub-daily-${idx++}@wellness-hub`, anchor, `FREQ=DAILY;UNTIL=${untilStr}`)
+    }
+  } else {
+    let idx = 0
+    for (const day of DAY_KEYS) {
+      const blocks = week[day]
+      if (!blocks?.length) continue
+      const anchor = firstOccurrenceOfDay(startDate, day)
+      const byday = BYDAY_MAP[day]
+      for (const b of blocks) {
+        pushEvent(
+          b,
+          `whub-${day}-${idx++}@wellness-hub`,
+          anchor,
+          `FREQ=WEEKLY;BYDAY=${byday};UNTIL=${untilStr}`,
+        )
+      }
     }
   }
 
