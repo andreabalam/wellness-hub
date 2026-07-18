@@ -1041,6 +1041,10 @@
   display: flex;
   gap: 8px;
 }
+.form-num-sm {
+  width: 90px;
+  flex-shrink: 0;
+}
 .blk-form-actions {
   display: flex;
   gap: 8px;
@@ -1499,8 +1503,15 @@
   background: var(--bg3);
   color: var(--muted);
   cursor: pointer;
-  font-family: monospace;
+  font-family: 'DM Mono', monospace;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  // Long non-wrapping buttons trigger iOS Safari font boosting, which
+  // inflates some buttons' text but not others — pin the size.
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 .phase-note {
   font-size: 12px;

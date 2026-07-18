@@ -184,29 +184,35 @@ describe('generateIcs', () => {
 
   it('DTSTART uses startDate directly when it is a weekday (Monday)', () => {
     // 2026-06-01 is Monday → anchor stays 2026-06-01
-    const ics = generateIcs(SINGLE_BLOCK, start, end)
+    const ics = generateIcs(SINGLE_BLOCK, start, end, null)
     expect(ics).toContain('DTSTART:20260601T090000')
   })
 
   it('DTSTART uses startDate directly when it is mid-week (Wednesday)', () => {
     // 2026-06-03 is Wednesday → anchor stays 2026-06-03, not the next Monday
     const wed = new Date('2026-06-03T00:00:00')
-    const ics = generateIcs(SINGLE_BLOCK, wed, end)
+    const ics = generateIcs(SINGLE_BLOCK, wed, end, null)
     expect(ics).toContain('DTSTART:20260603T090000')
   })
 
   it('DTSTART advances to next Monday when startDate is a Saturday', () => {
     // 2026-06-06 is Saturday → anchor is 2026-06-08 (Monday)
     const sat = new Date('2026-06-06T00:00:00')
-    const ics = generateIcs(SINGLE_BLOCK, sat, end)
+    const ics = generateIcs(SINGLE_BLOCK, sat, end, null)
     expect(ics).toContain('DTSTART:20260608T090000')
   })
 
   it('DTSTART advances to next Monday when startDate is a Sunday', () => {
     // 2026-06-07 is Sunday → anchor is 2026-06-08 (Monday)
     const sun = new Date('2026-06-07T00:00:00')
-    const ics = generateIcs(SINGLE_BLOCK, sun, end)
+    const ics = generateIcs(SINGLE_BLOCK, sun, end, null)
     expect(ics).toContain('DTSTART:20260608T090000')
+  })
+
+  it('attaches TZID to DTSTART when a timezone is given', () => {
+    const ics = generateIcs(SINGLE_BLOCK, start, end, 'Europe/Madrid')
+    expect(ics).toContain('DTSTART;TZID=Europe/Madrid:20260601T090000')
+    expect(ics).toContain('X-WR-TIMEZONE:Europe/Madrid')
   })
 
   it('UNTIL is in the RRULE with trailing Z', () => {
@@ -332,14 +338,31 @@ describe('generateWeekIcs', () => {
 
   it('Mon block DTSTART is on a Monday', () => {
     // 2026-06-01 is Monday → anchor stays 2026-06-01
-    const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], []), start, end)
+    const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], []), start, end, null)
     expect(ics).toContain('DTSTART:20260601T090000')
   })
 
   it('Sat block DTSTART is on the first Saturday on or after startDate', () => {
     // 2026-06-01 is Monday → first Saturday is 2026-06-06
-    const ics = generateWeekIcs(makeWeekWith([], [SAT_BLOCK]), start, end)
+    const ics = generateWeekIcs(makeWeekWith([], [SAT_BLOCK]), start, end, null)
     expect(ics).toContain('DTSTART:20260606T100000')
+  })
+
+  it('attaches TZID to DTSTART when a timezone is given', () => {
+    const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], []), start, end, 'America/Los_Angeles')
+    expect(ics).toContain('DTSTART;TZID=America/Los_Angeles:20260601T090000')
+    expect(ics).toContain('X-WR-TIMEZONE:America/Los_Angeles')
+  })
+
+  it('defaults to the environment timezone (events are never floating by default)', () => {
+    const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], []), start, end)
+    expect(ics).toMatch(/DTSTART;TZID=[^:\r\n]+:20260601T090000/)
+  })
+
+  it('omits TZID and X-WR-TIMEZONE when tz is null', () => {
+    const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], []), start, end, null)
+    expect(ics).toContain('DTSTART:20260601T090000')
+    expect(ics).not.toContain('X-WR-TIMEZONE')
   })
 
   it('each day produces one VEVENT per block', () => {
@@ -362,6 +385,56 @@ describe('generateWeekIcs', () => {
   it('includes UNTIL in the RRULE with trailing Z', () => {
     const ics = generateWeekIcs(makeWeekWith([MON_BLOCK], []), start, end)
     expect(ics).toMatch(/UNTIL=\d{8}T\d{6}Z/)
+  })
+
+  describe('uniform week (all 7 days identical)', () => {
+    const uniformWeek = (): Record<DayKey, ScheduleBlock[]> =>
+      Object.fromEntries(
+        (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as DayKey[]).map(d => [
+          d,
+          // ids differ per day, as rebrandForDay produces — must not break detection
+          [
+            { ...MON_BLOCK, id: `${d}-0` },
+            { ...SAT_BLOCK, id: `${d}-1` },
+          ],
+        ]),
+      ) as Record<DayKey, ScheduleBlock[]>
+
+    it('collapses to one FREQ=DAILY VEVENT per block instead of 7 weekly ones', () => {
+      const ics = generateWeekIcs(uniformWeek(), start, end)
+      expect((ics.match(/BEGIN:VEVENT/g) ?? []).length).toBe(2)
+      expect((ics.match(/FREQ=DAILY/g) ?? []).length).toBe(2)
+      expect(ics).not.toContain('FREQ=WEEKLY')
+    })
+
+    it('anchors DTSTART on the start date itself', () => {
+      const ics = generateWeekIcs(uniformWeek(), start, end, null)
+      expect(ics).toContain('DTSTART:20260601T090000')
+      expect(ics).toContain('DTSTART:20260601T100000')
+    })
+
+    it('keeps UNTIL in the daily RRULE', () => {
+      const ics = generateWeekIcs(uniformWeek(), start, end)
+      expect(ics).toMatch(/FREQ=DAILY;UNTIL=\d{8}T\d{6}Z/)
+    })
+
+    it('falls back to per-weekday events when one day differs', () => {
+      const week = uniformWeek()
+      week.wed = [{ ...MON_BLOCK, title: 'Different Wednesday' }]
+      const ics = generateWeekIcs(week, start, end)
+      expect(ics).not.toContain('FREQ=DAILY')
+      expect(ics).toContain('FREQ=WEEKLY')
+      // 6 days × 2 blocks + wed × 1 block
+      expect((ics.match(/BEGIN:VEVENT/g) ?? []).length).toBe(13)
+    })
+
+    it('falls back to per-weekday events when one day is empty', () => {
+      const week = uniformWeek()
+      week.sun = []
+      const ics = generateWeekIcs(week, start, end)
+      expect(ics).not.toContain('FREQ=DAILY')
+      expect((ics.match(/BEGIN:VEVENT/g) ?? []).length).toBe(12)
+    })
   })
 
   it('fully empty week produces no VEVENTs', () => {
