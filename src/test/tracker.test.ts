@@ -16,8 +16,61 @@ import {
   hungerIcon,
   hungerLabel,
   WEEK_GOAL_SUGGESTIONS,
+  dayWorkoutSessions,
+  dayMedSessions,
+  workoutSessionLabel,
+  workoutTotals,
+  medTotals,
+  fmtMin,
 } from '../data/tracker'
-import type { FoodEntry } from '../data/tracker'
+import type { FoodEntry, MedSession, WorkoutSession } from '../data/tracker'
+
+// ── Structured sessions ──────────────────────────────────────────
+describe('session helpers', () => {
+  const wk: WorkoutSession = { id: 'oura-1', src: 'oura', type: 'zone2', min: 40, kcal: 180 }
+  const med: MedSession = { id: 'manual-1', src: 'manual', min: 13, style: 'Guided' }
+
+  it('dayWorkoutSessions prefers the structured array', () => {
+    expect(dayWorkoutSessions({ ...EMPTY_DAY, wkSessions: [wk], workout: 'pilates' })).toEqual([wk])
+  })
+
+  it('dayWorkoutSessions synthesizes one session from the legacy slot', () => {
+    const s = dayWorkoutSessions({ ...EMPTY_DAY, workout: 'pilates' })
+    expect(s).toEqual([{ id: 'legacy-wk', src: 'manual', type: 'pilates', min: 0 }])
+    expect(dayWorkoutSessions(EMPTY_DAY)).toEqual([])
+  })
+
+  it('dayMedSessions synthesizes from legacy medMin/medStyle', () => {
+    expect(dayMedSessions({ ...EMPTY_DAY, medMin: 20, medStyle: 'Silent' })).toEqual([
+      { id: 'legacy-med', src: 'manual', min: 20, style: 'Silent' },
+    ])
+    expect(dayMedSessions({ ...EMPTY_DAY, medSessions: [med] })).toEqual([med])
+    expect(dayMedSessions(EMPTY_DAY)).toEqual([])
+  })
+
+  it('workoutSessionLabel resolves SESSION_OPTS, oura labels, then raw type', () => {
+    expect(workoutSessionLabel(wk)).toBe('Zone 2 Walk')
+    expect(workoutSessionLabel({ ...wk, type: 'kayaking', label: 'kayaking' })).toBe('kayaking')
+    expect(workoutSessionLabel({ ...wk, type: 'mystery', label: undefined })).toBe('mystery')
+  })
+
+  it('workoutTotals and medTotals sum sessions', () => {
+    expect(workoutTotals([wk, { ...wk, id: 'x', min: 35, kcal: undefined }])).toEqual({
+      sessions: 2,
+      min: 75,
+      kcal: 180,
+    })
+    expect(workoutTotals([])).toEqual({ sessions: 0, min: 0, kcal: 0 })
+    expect(medTotals([med, { ...med, id: 'y', min: 10 }])).toEqual({ sessions: 2, min: 23 })
+  })
+
+  it('fmtMin formats sub-hour and hour+ durations', () => {
+    expect(fmtMin(45)).toBe('45 min')
+    expect(fmtMin(60)).toBe('1 h')
+    expect(fmtMin(75)).toBe('1 h 15 m')
+    expect(fmtMin(125)).toBe('2 h 05 m')
+  })
+})
 
 // ── dkey helper (inline — same logic as component) ───────────────
 function dkey(d: Date) {

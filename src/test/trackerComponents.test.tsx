@@ -31,7 +31,7 @@ import QuickAddRow from '../components/TrackerTab/QuickAddRow'
 import WeekStrip from '../components/TrackerTab/WeekStrip'
 import HungerCravingPicker from '../components/TrackerTab/HungerCravingPicker'
 import { EMPTY_DAY } from '../data/tracker'
-import type { FoodEntry } from '../data/tracker'
+import type { FoodEntry, MedSession, WorkoutSession } from '../data/tracker'
 
 const mockOura = oura as unknown as Record<string, ReturnType<typeof vi.fn>>
 const DATE = new Date('2026-06-15T12:00:00Z')
@@ -57,42 +57,67 @@ afterEach(() => vi.unstubAllGlobals())
 // ── WorkoutLog ────────────────────────────────────────────────────
 describe('WorkoutLog', () => {
   const base = {
-    initialSession: null,
+    sessions: [] as WorkoutSession[],
     initialWkNotes: '',
-    savedWorkout: null,
-    savedWkNotes: '',
     phaseNote: 'Follicular note',
     phase: '',
+    suggestedPhase: null,
     onPhaseChange: vi.fn(),
     ouraConnected: false,
     date: DATE,
     onSave: vi.fn(),
   }
 
-  it('requires a session before logging', () => {
+  it('requires a session type before logging', () => {
     render(<WorkoutLog {...base} onSave={vi.fn()} />)
     fireEvent.click(screen.getByText('+ Log workout'))
     expect(window.alert).toHaveBeenCalled()
   })
 
-  it('logs the selected session via onSave', () => {
+  it('appends a manual session with minutes + kcal via onSave', () => {
     const onSave = vi.fn()
     render(<WorkoutLog {...base} onSave={onSave} />)
     fireEvent.click(screen.getByText('Pilates'))
+    const [minInput, kcalInput] = screen.getAllByRole('spinbutton')
+    fireEvent.change(minInput, { target: { value: '45' } })
+    fireEvent.change(kcalInput, { target: { value: '220' } })
     fireEvent.click(screen.getByText('+ Log workout'))
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ workout: 'pilates' }))
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workout: 'pilates',
+        wkSessions: [
+          expect.objectContaining({ src: 'manual', type: 'pilates', min: 45, kcal: 220 }),
+        ],
+      }),
+    )
   })
 
-  it('shows the "Session logged" summary for a saved workout', () => {
-    render(
-      <WorkoutLog
-        {...base}
-        initialSession="pilates"
-        savedWorkout="pilates"
-        savedWkNotes="felt great"
-      />,
+  it('renders the session list with per-session meta and totals', () => {
+    const sessions: WorkoutSession[] = [
+      { id: 'oura-1', src: 'oura', type: 'zone2', label: 'walking', min: 40, kcal: 180 },
+      { id: 'manual-2', src: 'manual', type: 'pilates', min: 35, kcal: 140 },
+    ]
+    render(<WorkoutLog {...base} sessions={sessions} />)
+    expect(screen.getByText(/40 min · 180 kcal/)).toBeInTheDocument()
+    expect(screen.getByText(/35 min · 140 kcal/)).toBeInTheDocument()
+    expect(screen.getByText(/2 sessions · 1 h 15 m · 320 kcal burned/)).toBeInTheDocument()
+  })
+
+  it('removing an oura session tombstones it and saves the rest', () => {
+    const onSave = vi.fn()
+    const sessions: WorkoutSession[] = [
+      { id: 'oura-w1', src: 'oura', type: 'zone2', min: 40 },
+      { id: 'manual-2', src: 'manual', type: 'pilates', min: 35 },
+    ]
+    render(<WorkoutLog {...base} sessions={sessions} onSave={onSave} />)
+    fireEvent.click(screen.getAllByTitle('Remove session')[0])
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        wkSessions: [expect.objectContaining({ id: 'manual-2' })],
+        workout: 'pilates',
+      }),
     )
-    expect(screen.getByText(/Session logged/)).toBeInTheDocument()
+    expect(JSON.parse(ls['whub_oura_dismissed_v1'])['2026-06-15']).toContain('oura-w1')
   })
 
   it('loads a cached readiness badge on mount when connected', async () => {
@@ -103,23 +128,49 @@ describe('WorkoutLog', () => {
     expect(await screen.findByText('82')).toBeInTheDocument()
   })
 
-  it('syncs workout + readiness from Oura', async () => {
+  it('sync button imports Oura workouts into the session list', async () => {
     mockOura.fetchOuraReadiness.mockResolvedValue({
       score: 75,
       contributors: { hrv_balance: 60, recovery_index: 80 },
     })
     mockOura.fetchOuraWorkouts.mockResolvedValue([
       {
+        id: 'w9',
         activity: 'pilates',
         start_datetime: '2026-06-15T16:00:00Z',
         end_datetime: '2026-06-15T16:45:00Z',
+        calories: 210,
         average_heart_rate: 110,
       },
     ])
-    render(<WorkoutLog {...base} ouraConnected />)
+    const onSave = vi.fn()
+    render(<WorkoutLog {...base} ouraConnected onSave={onSave} />)
     fireEvent.click(screen.getByText('⟳ Sync Oura'))
     expect(await screen.findByText('75')).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByText(/avg HR 110 bpm/)).toBeInTheDocument())
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          wkSessions: [
+            expect.objectContaining({
+              id: 'oura-w9',
+              src: 'oura',
+              type: 'pilates',
+              min: 45,
+              kcal: 210,
+              avgHr: 110,
+            }),
+          ],
+        }),
+      ),
+    )
+  })
+
+  it('shows an error toast when the Oura sync throws', async () => {
+    mockOura.fetchOuraWorkouts.mockRejectedValue(new Error('network down'))
+    mockOura.fetchOuraReadiness.mockResolvedValue(null)
+    render(<WorkoutLog {...base} ouraConnected />)
+    fireEvent.click(screen.getByText('⟳ Sync Oura'))
+    await waitFor(() => expect(mockOura.fetchOuraWorkouts).toHaveBeenCalled())
   })
 
   it('shows a notice when Oura has no workout data', async () => {
@@ -136,15 +187,23 @@ describe('WorkoutLog', () => {
     fireEvent.click(screen.getByText('Follicular'))
     expect(onPhaseChange).toHaveBeenCalledWith('Follicular')
   })
+
+  it('renders the estimated-phase ghost hint when no phase is set', () => {
+    render(
+      <WorkoutLog
+        {...base}
+        suggestedPhase={{ phase: 'Luteal', source: 'oura-tag', cycleDay: 19 }}
+      />,
+    )
+    expect(screen.getByText(/from Oura \(estimated, day 19\)/)).toBeInTheDocument()
+    expect(screen.getByText(/Estimated luteal/)).toBeInTheDocument()
+  })
 })
 
 // ── MeditationLog ─────────────────────────────────────────────────
 describe('MeditationLog', () => {
   const base = {
-    initialMedMin: 0,
-    initialMedStyle: '',
-    savedMedMin: 0,
-    savedMedStyle: '',
+    sessions: [] as MedSession[],
     ouraConnected: false,
     date: DATE,
     onSave: vi.fn(),
@@ -156,31 +215,54 @@ describe('MeditationLog', () => {
     expect(window.alert).toHaveBeenCalled()
   })
 
-  it('logs the selected duration + style', () => {
+  it('appends a manual session via onSave and mirrors legacy fields', () => {
     const onSave = vi.fn()
     render(<MeditationLog {...base} onSave={onSave} />)
     fireEvent.click(screen.getByText('13 min'))
+    fireEvent.click(screen.getByText('Breath focus'))
     fireEvent.click(screen.getByText('Log meditation'))
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ medMin: 13 }))
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        medMin: 13,
+        medStyle: 'Breath focus',
+        medSessions: [expect.objectContaining({ src: 'manual', min: 13, style: 'Breath focus' })],
+      }),
+    )
   })
 
-  it('shows the "Done" summary from saved values', () => {
-    render(<MeditationLog {...base} savedMedMin={20} savedMedStyle="Breath focus" />)
-    expect(screen.getByText(/Done: 20 min - Breath focus/)).toBeInTheDocument()
+  it('renders the session list with persisted Oura chips and totals', () => {
+    const sessions: MedSession[] = [
+      { id: 'oura-m1', src: 'oura', min: 13, style: 'Guided', hrv: 65, hr: 58, mood: 'good' },
+      { id: 'manual-2', src: 'manual', min: 10, style: 'Silent' },
+    ]
+    render(<MeditationLog {...base} sessions={sessions} />)
+    expect(screen.getByText(/HRV 65/)).toBeInTheDocument()
+    expect(screen.getByText(/feeling: good/)).toBeInTheDocument()
+    expect(screen.getByText(/Total today: 23 min · 2 sessions/)).toBeInTheDocument()
   })
 
-  it('reports when Oura has no meditation session for the date', async () => {
-    mockOura.fetchOuraSessions.mockResolvedValue([
-      { type: 'nap', start_datetime: '2026-06-15T13:00:00Z', end_datetime: '2026-06-15T13:30:00Z' },
-    ])
-    render(<MeditationLog {...base} ouraConnected />)
-    fireEvent.click(screen.getByText('⟳ Sync Oura'))
-    await waitFor(() => expect(mockOura.fetchOuraSessions).toHaveBeenCalled())
-  })
-
-  it('syncs a meditation session from Oura', async () => {
+  it('nap sessions are excluded on sync', async () => {
     mockOura.fetchOuraSessions.mockResolvedValue([
       {
+        id: 'n1',
+        type: 'nap',
+        start_datetime: '2026-06-15T13:00:00Z',
+        end_datetime: '2026-06-15T13:30:00Z',
+      },
+    ])
+    const onSave = vi.fn()
+    render(<MeditationLog {...base} ouraConnected onSave={onSave} />)
+    fireEvent.click(screen.getByText('⟳ Sync Oura'))
+    await waitFor(() => expect(mockOura.fetchOuraSessions).toHaveBeenCalled())
+    expect(onSave).not.toHaveBeenCalledWith(
+      expect.objectContaining({ medSessions: expect.arrayContaining([expect.anything()]) }),
+    )
+  })
+
+  it('sync imports a meditation session into the list', async () => {
+    mockOura.fetchOuraSessions.mockResolvedValue([
+      {
+        id: 'm7',
         type: 'meditation',
         start_datetime: '2026-06-15T08:00:00Z',
         end_datetime: '2026-06-15T08:13:00Z',
@@ -189,9 +271,31 @@ describe('MeditationLog', () => {
         mood: 'good',
       },
     ])
-    render(<MeditationLog {...base} ouraConnected />)
+    const onSave = vi.fn()
+    render(<MeditationLog {...base} ouraConnected onSave={onSave} />)
     fireEvent.click(screen.getByText('⟳ Sync Oura'))
-    expect(await screen.findByText(/HRV 65/)).toBeInTheDocument()
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          medMin: 13,
+          medStyle: 'Guided',
+          medSessions: [
+            expect.objectContaining({ id: 'oura-m7', min: 13, hrv: 65, hr: 58, mood: 'good' }),
+          ],
+        }),
+      ),
+    )
+  })
+
+  it('removing an oura session tombstones it', () => {
+    const onSave = vi.fn()
+    const sessions: MedSession[] = [{ id: 'oura-m1', src: 'oura', min: 13, style: 'Guided' }]
+    render(<MeditationLog {...base} sessions={sessions} onSave={onSave} />)
+    fireEvent.click(screen.getByTitle('Remove session'))
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ medSessions: [], medMin: 0, medStyle: '' }),
+    )
+    expect(JSON.parse(ls['whub_oura_dismissed_v1'])['2026-06-15']).toContain('oura-m1')
   })
 })
 
@@ -255,6 +359,22 @@ describe('MacroBar', () => {
       <MacroBar label="Protein" sub="muscle" val={108} target={110} color="b" valColor="x" />,
     )
     expect(screen.getByText('Protein')).toBeInTheDocument()
+  })
+
+  it('credits burned kcal against intake (remaining = target − val + burned)', () => {
+    render(
+      <MacroBar
+        label="Calories"
+        val={1500}
+        target={1380}
+        burned={420}
+        color="var(--green)"
+        valColor="x"
+      />,
+    )
+    expect(screen.getByText(/\+420 kcal from workouts/)).toBeInTheDocument()
+    // 1380 − 1500 + 420 = 300 remaining
+    expect(screen.getByText('300')).toBeInTheDocument()
   })
 })
 
@@ -332,15 +452,45 @@ describe('QuickAddRow', () => {
 })
 
 describe('WeekStrip', () => {
+  it('ignores unrelated key presses', () => {
+    const onSelect = vi.fn()
+    const getDay = () => ({ ...EMPTY_DAY, foods: [] })
+    const { container } = render(
+      <WeekStrip currentDate={DATE} onSelect={onSelect} getDay={getDay} burnThreshold={300} />,
+    )
+    fireEvent.keyDown(container.querySelector('.week-strip-cell')!, { key: 'Tab' })
+    expect(onSelect).not.toHaveBeenCalled()
+  })
+
   it('selects a day via keyboard (Enter)', () => {
     const onSelect = vi.fn()
     const getDay = () => ({ ...EMPTY_DAY, foods: [] })
     const { container } = render(
-      <WeekStrip currentDate={DATE} onSelect={onSelect} getDay={getDay} />,
+      <WeekStrip currentDate={DATE} onSelect={onSelect} getDay={getDay} burnThreshold={300} />,
     )
     const cell = container.querySelector('.week-strip-cell')!
     fireEvent.keyDown(cell, { key: 'Enter' })
     expect(onSelect).toHaveBeenCalled()
+  })
+
+  it('shows the flame with burned kcal for significant-burn days', () => {
+    const getDay = () => ({
+      ...EMPTY_DAY,
+      wkSessions: [{ id: 'oura-1', src: 'oura' as const, type: 'zone2', min: 60, kcal: 450 }],
+    })
+    render(<WeekStrip currentDate={DATE} onSelect={vi.fn()} getDay={getDay} burnThreshold={300} />)
+    expect(screen.getAllByText(/🔥450/).length).toBe(7) // every day of the mocked week
+  })
+
+  it('shows the plain W below the burn threshold and for legacy days', () => {
+    const getDay = () => ({ ...EMPTY_DAY, workout: 'pilates' })
+    const { container } = render(
+      <WeekStrip currentDate={DATE} onSelect={vi.fn()} getDay={getDay} burnThreshold={300} />,
+    )
+    const cellWs = [...container.querySelectorAll('.week-strip-cell .text-coral')].filter(
+      el => el.textContent === 'W',
+    )
+    expect(cellWs.length).toBe(7)
   })
 })
 
@@ -371,7 +521,7 @@ describe('WeekStrip — extra branches', () => {
     const getDay = () => ({ ...EMPTY_DAY, foods: [] })
     const pastWeek = new Date('2026-05-04T12:00:00') // a different week than DATE
     const { container } = render(
-      <WeekStrip currentDate={pastWeek} onSelect={onSelect} getDay={getDay} />,
+      <WeekStrip currentDate={pastWeek} onSelect={onSelect} getDay={getDay} burnThreshold={300} />,
     )
     // Not "This week" → range label rendered (en-dash)
     expect(screen.getByText(/–/)).toBeInTheDocument()

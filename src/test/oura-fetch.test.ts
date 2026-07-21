@@ -39,6 +39,8 @@ import {
   exchangePendingCode,
   disconnectOura,
   fetchOuraDailyActivity,
+  fetchOuraTags,
+  isPeriodTag,
 } from '../lib/oura'
 
 const mockGetSession = vi.mocked((supabase as NonNullable<typeof supabase>).auth.getSession)
@@ -407,6 +409,53 @@ describe('fetchOuraResilience', () => {
     }
     mockFetch({ data: [item] })
     expect(await fetchOuraResilience('2024-01-01')).toEqual(item)
+  })
+})
+
+// ── fetchOuraTags / isPeriodTag ───────────────────────────────────
+
+describe('fetchOuraTags', () => {
+  it('returns the enhanced_tag rows for the range', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    const tag = {
+      id: 't1',
+      tag_type_code: 'period',
+      start_time: '2026-06-01T08:00:00Z',
+      end_time: null,
+      start_day: '2026-06-01',
+      end_day: null,
+      comment: null,
+    }
+    mockFetch({ data: [tag] })
+    expect(await fetchOuraTags('2026-06-01', '2026-06-30')).toEqual([tag])
+  })
+
+  it('propagates the "Not signed in" error with no session', async () => {
+    await expect(fetchOuraTags('2026-06-01', '2026-06-30')).rejects.toThrow('Not signed in')
+  })
+})
+
+describe('isPeriodTag', () => {
+  const tag = (code: string | null) => ({
+    id: 'x',
+    tag_type_code: code,
+    start_time: '',
+    end_time: null,
+    start_day: '2026-06-01',
+    end_day: null,
+    comment: null,
+  })
+
+  it('matches period/menstrual codes case-insensitively', () => {
+    expect(isPeriodTag(tag('period'))).toBe(true)
+    expect(isPeriodTag(tag('menstruation'))).toBe(true)
+    expect(isPeriodTag(tag('PERIOD_HEAVY'))).toBe(true)
+  })
+
+  it('rejects unrelated or null codes', () => {
+    expect(isPeriodTag(tag('mood'))).toBe(false)
+    expect(isPeriodTag(tag(null))).toBe(false)
+    expect(isPeriodTag(tag('custom'))).toBe(false)
   })
 })
 

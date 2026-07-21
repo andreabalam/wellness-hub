@@ -1,16 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { SESSION_OPTS } from '../../data/tracker'
-import {
-  fetchOuraWorkouts,
-  fetchOuraReadiness,
-  OURA_ACTIVITY_MAP,
-  readinessColor,
-  readinessLabel,
-} from '../../lib/oura'
+import type { DayData, WorkoutSession } from '../../data/tracker'
+import { fetchOuraReadiness, readinessColor, readinessLabel } from '../../lib/oura'
 import type { OuraReadiness } from '../../lib/oura'
+import { dismissOuraSession, importOuraWorkouts } from '../../lib/ouraImport'
+import type { PhaseSuggestion } from '../../lib/cyclePhase'
 import { showToast } from '../../lib/toast'
 import { reportError } from '../../lib/errorLog'
 import { safeGet, safeSet } from '../../lib/storage'
+import { WorkoutSessionList } from './SessionList'
 import { dkey } from './dateKey'
 
 const PHASES = ['Menstrual', 'Follicular', 'Ovulatory', 'Luteal', 'Unsure'] as const
@@ -34,38 +32,48 @@ function setCachedReadiness(date: string, data: OuraReadiness): void {
 }
 
 interface Props {
-  /** Editable seed for the current day (parent re-keys on date change). */
-  initialSession: string | null
+  /** Persisted sessions for the day (reactive; legacy days pre-synthesized by the parent). */
+  sessions: WorkoutSession[]
   initialWkNotes: string
-  /** Persisted values (reactive) for the "Session logged" summary. */
-  savedWorkout: string | null
-  savedWkNotes: string
   phaseNote: string
   phase: string
+  /** Estimated phase shown as a ghost suggestion when no phase is set. */
+  suggestedPhase: PhaseSuggestion | null
   onPhaseChange: (p: string) => void
   ouraConnected: boolean
   date: Date
-  onSave: (patch: { workout: string | null; wkNotes: string }) => void
+  onSave: (patch: Partial<DayData>) => void
 }
 
-/** Workout logger: session-type picker + notes, with Oura readiness + sync. */
+/** Workout logger: session list + type/minutes/kcal entry, Oura readiness + auto-import. */
 export default function WorkoutLog({
-  initialSession,
+  sessions,
   initialWkNotes,
-  savedWorkout,
-  savedWkNotes,
   phaseNote,
   phase,
+  suggestedPhase,
   onPhaseChange,
   ouraConnected,
   date,
   onSave,
 }: Props) {
-  const [selSession, setSess] = useState<string | null>(initialSession)
+  const [selSession, setSess] = useState<string | null>(null)
+  const [wkMin, setWkMin] = useState('30')
+  const [wkKcal, setWkKcal] = useState('')
   const [wkNotes, setWkNotes] = useState(initialWkNotes)
-  const [wkSaved, setWkSaved] = useState(!!initialSession)
   const [readiness, setReadiness] = useState<OuraReadiness | null>(null)
   const [wkSyncing, setWkSyncing] = useState(false)
+
+  // Latest sessions for the auto-import effect without re-triggering it.
+  const sessionsRef = useRef(sessions)
+  useEffect(() => {
+    sessionsRef.current = sessions
+  }, [sessions])
+
+  /** Persist a new session list, mirroring the first session into the legacy slot. */
+  const saveSessions = (next: WorkoutSession[]) => {
+    onSave({ wkSessions: next, workout: next[0]?.type ?? null })
+  }
 
   // Load readiness from cache; auto-fetch from Oura if not cached
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -87,45 +95,81 @@ export default function WorkoutLog({
   }, [date, ouraConnected])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const logWorkout = () => {
-    if (!selSession) {
-      alert('Select a session type first.')
-      return
+  // Silent Oura auto-import (policy-gated inside importOuraWorkouts)
+  useEffect(() => {
+    if (!ouraConnected) return
+    let cancelled = false
+    importOuraWorkouts(dkey(date), sessionsRef.current)
+      .then(merged => {
+        if (cancelled || !merged) return
+        const added = merged.length - sessionsRef.current.length
+        onSave({ wkSessions: merged, workout: merged[0]?.type ?? null })
+        if (added > 0)
+          showToast(`${added} workout${added === 1 ? '' : 's'} imported from Oura`, 'info')
+      })
+      .catch(() => {}) // silent — manual sync surfaces errors
+    return () => {
+      cancelled = true
     }
-    onSave({ workout: selSession, wkNotes })
-    setWkSaved(true)
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, ouraConnected])
 
   const syncWorkoutFromOura = async () => {
     setWkSyncing(true)
     try {
       const dateStr = dkey(date)
-      const [workouts, readinessData] = await Promise.all([
-        fetchOuraWorkouts(dateStr),
+      const [merged, readinessData] = await Promise.all([
+        importOuraWorkouts(dateStr, sessions, true),
         fetchOuraReadiness(dateStr),
       ])
       if (readinessData) {
         setCachedReadiness(dateStr, readinessData)
         setReadiness(readinessData)
       }
-      if (workouts.length === 0) {
-        if (!readinessData) showToast('No Oura data found for this date.', 'info')
-        return
+      if (merged) {
+        const added = merged.length - sessions.length
+        saveSessions(merged)
+        showToast(
+          added > 0
+            ? `${added} workout${added === 1 ? '' : 's'} imported from Oura`
+            : 'Oura workouts updated',
+          'info',
+        )
+      } else if (!readinessData) {
+        showToast('No Oura data found for this date.', 'info')
       }
-      const w = workouts[0]
-      const mapped = OURA_ACTIVITY_MAP[w.activity] ?? null
-      if (mapped) setSess(mapped)
-      const dMin = Math.round(
-        (new Date(w.end_datetime).getTime() - new Date(w.start_datetime).getTime()) / 60000,
-      )
-      const hrNote = w.average_heart_rate ? ` · avg HR ${w.average_heart_rate} bpm` : ''
-      setWkNotes(`Oura: ${w.activity.replace(/_/g, ' ')} · ${dMin} min${hrNote}`)
     } catch (err: unknown) {
       showToast(reportError('oura-sync:workout', err), 'error')
     } finally {
       setWkSyncing(false)
     }
   }
+
+  const logWorkout = () => {
+    if (!selSession) {
+      alert('Select a session type first.')
+      return
+    }
+    const min = Math.max(0, parseInt(wkMin) || 0)
+    const kcal = Math.max(0, parseInt(wkKcal) || 0)
+    const entry: WorkoutSession = {
+      id: `manual-${Date.now()}`,
+      src: 'manual',
+      type: selSession,
+      min,
+      ...(kcal > 0 && { kcal }),
+    }
+    onSave({ wkSessions: [...sessions, entry], workout: sessions[0]?.type ?? selSession, wkNotes })
+    setSess(null)
+    setWkKcal('')
+  }
+
+  const removeSession = (s: WorkoutSession) => {
+    if (s.src === 'oura') dismissOuraSession(dkey(date), s.id)
+    saveSessions(sessions.filter(x => x.id !== s.id))
+  }
+
+  const saveNotes = () => onSave({ wkNotes })
 
   return (
     <div className="tcard">
@@ -173,19 +217,28 @@ export default function WorkoutLog({
       )}
 
       <div className="mb-10">
-        <div className="text-sm text-muted mb-6">Cycle phase</div>
+        <div className="text-sm text-muted mb-6">
+          Cycle phase
+          {!phase && suggestedPhase && (
+            <span className="text-muted2 text-2xs" style={{ marginLeft: 6 }}>
+              · from {suggestedPhase.source === 'oura-tag' ? 'Oura' : 'history'} (estimated, day{' '}
+              {suggestedPhase.cycleDay})
+            </span>
+          )}
+        </div>
         <div className="flex gap-6 flex-wrap">
           {PHASES.map((p, i) => {
             const active = phase === p
+            const ghost = !phase && suggestedPhase?.phase === p
             return (
               <button
                 key={p}
                 onClick={() => onPhaseChange(active ? '' : p)}
                 className="phase-btn"
                 style={{
-                  border: `1px solid ${active ? PHASE_COLORS[i] : 'var(--border)'}`,
+                  border: `1px ${ghost ? 'dashed' : 'solid'} ${active || ghost ? PHASE_COLORS[i] : 'var(--border)'}`,
                   background: active ? `${PHASE_COLORS[i]}20` : 'var(--bg3)',
-                  color: active ? PHASE_COLORS[i] : 'var(--muted)',
+                  color: active || ghost ? PHASE_COLORS[i] : 'var(--muted)',
                 }}
               >
                 {p}
@@ -194,8 +247,19 @@ export default function WorkoutLog({
           })}
         </div>
       </div>
-      <div className="phase-note">{phaseNote}</div>
-      <div className="text-sm text-muted mb-8">Session type:</div>
+      <div className="phase-note">
+        {phase
+          ? phaseNote
+          : suggestedPhase
+            ? `Estimated ${suggestedPhase.phase.toLowerCase()} — tap to confirm or correct.`
+            : phaseNote}
+      </div>
+
+      {/* Today's sessions */}
+      <div className="text-sm text-muted mb-6">Today's sessions:</div>
+      <WorkoutSessionList sessions={sessions} onRemove={removeSession} />
+
+      <div className="text-sm text-muted mb-8">Log a session:</div>
       <div className="flex flex-wrap gap-6 mb-10">
         {SESSION_OPTS.map(s => (
           <button
@@ -212,19 +276,36 @@ export default function WorkoutLog({
           </button>
         ))}
       </div>
-      {wkSaved && savedWorkout && (
-        <div className="workout-saved">
-          <div className="text-base text-green font-500 mb-4">✓ Session logged</div>
-          <div className="text-sm text-muted">
-            {SESSION_OPTS.find(s => s.id === savedWorkout)?.label ?? savedWorkout}
-            {savedWkNotes ? ` - ${savedWkNotes.substring(0, 70)}` : ''}
-          </div>
-        </div>
-      )}
+      <div className="flex gap-8 mb-10 items-center flex-wrap">
+        <label className="session-num-label">
+          <input
+            type="number"
+            min={0}
+            max={600}
+            value={wkMin}
+            onChange={e => setWkMin(e.target.value)}
+            className="tinput session-num-input"
+          />
+          min
+        </label>
+        <label className="session-num-label">
+          <input
+            type="number"
+            min={0}
+            max={5000}
+            value={wkKcal}
+            onChange={e => setWkKcal(e.target.value)}
+            placeholder="—"
+            className="tinput session-num-input"
+          />
+          kcal (optional)
+        </label>
+      </div>
       <textarea
         className="tinput resize-vertical mb-8"
         value={wkNotes}
         onChange={e => setWkNotes(e.target.value)}
+        onBlur={saveNotes}
         placeholder="How did it feel? PRs? Modifications?"
         rows={3}
       />

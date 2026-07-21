@@ -132,6 +132,16 @@ export interface OuraPersonalInfo {
   biological_sex: string | null // 'male' | 'female' | null
 }
 
+export interface OuraEnhancedTag {
+  id: string
+  tag_type_code: string | null // null for text-only tags, 'custom' for custom types
+  start_time: string
+  end_time: string | null
+  start_day: string // YYYY-MM-DD
+  end_day: string | null
+  comment: string | null
+}
+
 export interface OuraWorkoutRoute {
   id: string
   start_datetime: string
@@ -229,7 +239,7 @@ export function stressToScale(s: OuraStress): number | null {
 // ── OAuth management ──────────────────────────────────────────────
 
 const OURA_AUTH_URL = 'https://cloud.ouraring.com/oauth/authorize'
-const OURA_SCOPES = 'daily sleep heartrate workout session personal spo2 stress heart_health'
+const OURA_SCOPES = 'daily sleep heartrate workout session personal spo2 stress heart_health tag'
 const STATE_KEY = 'oura_oauth_state'
 const PENDING_CODE_KEY = 'oura_oauth_pending_code'
 const PENDING_URI_KEY = 'oura_oauth_pending_uri'
@@ -513,6 +523,24 @@ export async function fetchOuraStress(date: string): Promise<OuraStress | null> 
 export async function fetchOuraResilience(date: string): Promise<OuraResilience | null> {
   const items = await proxyFetch<OuraResilience>('daily_resilience', date)
   return items.find(r => r.day === date) ?? null
+}
+
+/**
+ * Enhanced tags (user-logged events in the Oura app) for a date range.
+ * Used for period tags → cycle-phase anchors. Requires the `tag` scope —
+ * connections made before the scope was added get a 403; callers should
+ * treat that as "reconnect needed", not an error.
+ */
+export async function fetchOuraTags(
+  startDate: string,
+  endDate: string,
+): Promise<OuraEnhancedTag[]> {
+  return proxyFetchRange<OuraEnhancedTag>('enhanced_tag', startDate, endDate)
+}
+
+/** True when a tag looks like a period tag (exact code pinned per plan; match defensively). */
+export function isPeriodTag(t: OuraEnhancedTag): boolean {
+  return /period|menstru/i.test(t.tag_type_code ?? '')
 }
 
 export async function fetchOuraWorkoutRoute(workoutId: string): Promise<OuraWorkoutRoute | null> {

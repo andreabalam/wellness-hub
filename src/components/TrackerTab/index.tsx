@@ -11,17 +11,28 @@ import {
 } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
-import { macrosFromKcal } from '../../lib/stats'
+import { macrosFromKcal, significantBurnKcal } from '../../lib/stats'
 import ProfileStatsCard from './ProfileStatsCard'
-import { QUICK_FOODS, PHASE_NOTES, WATER_MAX } from '../../data/tracker'
+import {
+  QUICK_FOODS,
+  PHASE_NOTES,
+  WATER_MAX,
+  dayMedSessions,
+  dayWorkoutSessions,
+  workoutTotals,
+} from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
+import { estimatePhase } from '../../lib/cyclePhase'
+import type { PhaseSuggestion } from '../../lib/cyclePhase'
 import { BUILTIN_RECIPES } from '../../data/recipes'
 import type { Recipe } from '../../data/recipes'
 import { searchLocalFoods, historyFoods, recipeToHit } from '../../lib/localFoodSearch'
 import type { LocalFoodHit } from '../../lib/localFoodSearch'
 import { searchUSDAFoods, estimateFoodMacros } from '../../lib/foodSearch'
 import type { UsdaFoodHit } from '../../lib/foodSearch'
-import { isOuraConnected } from '../../lib/oura'
+import { isOuraConnected, fetchOuraTags, isPeriodTag, startOuraOAuth } from '../../lib/oura'
+import type { OuraReadiness } from '../../lib/oura'
+import { safeGet } from '../../lib/storage'
 import { densityTierFor, DENSITY_COLORS, DENSITY_LABELS } from '../../lib/density'
 import { analyzeImage } from '../../lib/analyzeFood'
 import type { PhotoAnalysisResult } from '../../lib/analyzeFood'
@@ -36,6 +47,7 @@ import WorkoutLog from './WorkoutLog'
 import WeekGoal from './WeekGoal'
 import type { WeekGoalPayload } from './WeekGoal'
 import MealList from './MealList'
+import WeekActivitySummary from './WeekActivitySummary'
 import PasteToLog from './PasteToLog'
 import HungerCravingPicker from './HungerCravingPicker'
 import QuickAddRow from './QuickAddRow'
@@ -577,6 +589,52 @@ export default function TrackerTab({
       .catch(() => {})
   }, [])
 
+  // ── Structured sessions for the viewed date ─────────────────────
+  // `day` state is kept in sync with the store by loadDate (on date change)
+  // and save() (on every write), so it's always the live session list for
+  // the currently viewed date — no separate store read needed.
+  const wkSessionsForDate = dayWorkoutSessions(day)
+  const medSessionsForDate = dayMedSessions(day)
+  const burnedToday = workoutTotals(wkSessionsForDate).kcal
+  // Wrapped in useMemo — a plain expression here confuses the React Compiler's
+  // manual-memoization check on the unrelated `loadDate` useCallback below
+  // (it starts reporting stable useState setters like setPhase/setDayNotes as
+  // missing dependencies). Likely a compiler analysis quirk in this
+  // large component; useMemo sidesteps it without disabling the rule.
+  const burnThreshold = useMemo(
+    () => significantBurnKcal(activeStats.tdeeKcal || 0),
+    [activeStats.tdeeKcal],
+  )
+
+  // ── Cycle-phase suggestion ──────────────────────────────────────
+  // Period-tag days from Oura (last ~10 weeks, fetched once per session).
+  const [periodTagDays, setPeriodTagDays] = useState<string[]>([])
+  const [tagScopeMissing, setTagScopeMissing] = useState(false)
+  useEffect(() => {
+    if (!ouraConnected) return
+    const today = new Date()
+    fetchOuraTags(dkey(addDays(today, -70)), dkey(today))
+      .then(tags => setPeriodTagDays(tags.filter(isPeriodTag).map(t => t.start_day)))
+      .catch((err: unknown) => {
+        // Pre-`tag`-scope connections get a 403 — offer reconnect, not an error
+        if (/403|scope|forbidden/i.test(String(err))) setTagScopeMissing(true)
+      })
+  }, [ouraConnected])
+
+  // Pure derivation (localStorage reads are synchronous) — no effect needed.
+  const phaseSuggestion: PhaseSuggestion | null = useMemo(() => {
+    if (day.phase) return null
+    // Recent temperature deviations from the readiness cache (already
+    // populated by WorkoutLog's readiness auto-fetch; no extra network).
+    const readinessCache = safeGet<Record<string, OuraReadiness>>('whub_oura_readiness_v1', {})
+    const temps: number[] = []
+    for (let i = 4; i >= 0; i--) {
+      const dev = readinessCache[dkey(addDays(date, -i))]?.temperature_deviation
+      if (dev != null) temps.push(dev)
+    }
+    return estimatePhase(dkey(date), periodTagDays, store.getAll(), temps)
+  }, [date, day.phase, periodTagDays, store])
+
   // Hydration counter — persists immediately on each tap
   const adjustWater = (delta: number) => {
     const next = Math.max(0, Math.min(WATER_MAX, water + delta))
@@ -630,7 +688,11 @@ export default function TrackerTab({
           setDate(d)
         }}
         getDay={store.getDay}
+        burnThreshold={burnThreshold}
       />
+
+      {/* Week workout/meditation roll-up (hidden when the week is empty) */}
+      <WeekActivitySummary key={`was-${stripKey}`} currentDate={date} getDay={store.getDay} />
 
       {/* Inner tabs */}
       <div className="flex inner-tab-bar">
@@ -659,6 +721,7 @@ export default function TrackerTab({
                   target={activeKcalTarget}
                   color="var(--green)"
                   valColor="var(--green-light)"
+                  burned={burnedToday}
                 />
                 <MacroBar
                   label="Protein"
@@ -1001,22 +1064,32 @@ export default function TrackerTab({
 
       {/* ── Workout — keyed by date so the picker re-seeds on day change ── */}
       {innerTab === 'workout' && (
-        <WorkoutLog
-          key={dkey(date)}
-          initialSession={dayForDate.workout}
-          initialWkNotes={dayForDate.wkNotes}
-          savedWorkout={day.workout}
-          savedWkNotes={day.wkNotes}
-          phaseNote={phaseNote}
-          phase={phase}
-          onPhaseChange={p => {
-            setPhase(p)
-            save({ phase: p })
-          }}
-          ouraConnected={ouraConnected}
-          date={date}
-          onSave={save}
-        />
+        <div className="flex flex-col gap-12">
+          {tagScopeMissing && (
+            <div className="tcard text-sm text-muted">
+              Cycle sync needs an updated Oura permission —{' '}
+              <button className="link-btn" onClick={() => startOuraOAuth()}>
+                reconnect Oura
+              </button>{' '}
+              to enable it.
+            </div>
+          )}
+          <WorkoutLog
+            key={dkey(date)}
+            sessions={wkSessionsForDate}
+            initialWkNotes={dayForDate.wkNotes}
+            phaseNote={phaseNote}
+            phase={phase}
+            suggestedPhase={phaseSuggestion}
+            onPhaseChange={p => {
+              setPhase(p)
+              save({ phase: p })
+            }}
+            ouraConnected={ouraConnected}
+            date={date}
+            onSave={save}
+          />
+        </div>
       )}
 
       {/* ── Meditation ── */}
@@ -1025,10 +1098,7 @@ export default function TrackerTab({
           {/* Meditation — keyed by date so the picker re-seeds on day change */}
           <MeditationLog
             key={`med-${dkey(date)}`}
-            initialMedMin={dayForDate.medMin}
-            initialMedStyle={dayForDate.medStyle}
-            savedMedMin={day.medMin}
-            savedMedStyle={day.medStyle}
+            sessions={medSessionsForDate}
             ouraConnected={ouraConnected}
             date={date}
             onSave={save}

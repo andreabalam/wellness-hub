@@ -24,6 +24,15 @@ export function kcalFromTdee(tdeeKcal: number, fatLossKgPerWeek: number): number
   return Math.max(1_200, tdeeKcal - deficitFromRate(fatLossKgPerWeek))
 }
 
+/**
+ * Burned-kcal threshold above which a workout day counts as "significant"
+ * (week-strip flame). 15% of TDEE, min 250; flat 300 when no TDEE is set.
+ */
+export function significantBurnKcal(tdeeKcal: number): number {
+  if (tdeeKcal <= 0) return 300
+  return Math.max(250, Math.round(tdeeKcal * 0.15))
+}
+
 /** Macro gram targets from a calorie total + split. Returns null for custom / zero kcal. */
 export function macrosFromKcal(kcal: number, split: MacroSplit): MacroTargets | null {
   if (split === 'custom' || kcal <= 0) return null

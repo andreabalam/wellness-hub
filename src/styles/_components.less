@@ -737,6 +737,55 @@
   }
 }
 
+// ── Session lists (workout / meditation) ─────────────────────────
+.session-src-chip {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  color: var(--muted2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  vertical-align: 1px;
+  white-space: nowrap;
+
+  &--oura {
+    color: var(--teal-light);
+    border-color: var(--teal);
+  }
+}
+.session-totals {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  padding: 6px 2px 0;
+  border-top: 1px dashed var(--border);
+  margin-top: 4px;
+}
+.session-num-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.session-num-input {
+  width: 76px;
+  margin-bottom: 0;
+}
+.week-activity-summary {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 12px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+}
+
 // ── Autocomplete dropdown ─────────────────────────────────────────
 .autocomplete-wrap {
   position: relative;

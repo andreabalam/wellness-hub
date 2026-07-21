@@ -6,6 +6,8 @@ import {
   isDayDataMap,
   isRecipe,
   isArrayOf,
+  isWorkoutSession,
+  isMedSession,
 } from '../lib/schema'
 import { EMPTY_DAY } from '../data/tracker'
 import { safeGet } from '../lib/storage'
@@ -69,6 +71,32 @@ describe('schema guards', () => {
     expect(isRecipe({ ...validRecipe, hk: 'lots' })).toBe(false) // hk should be number
     expect(isRecipe({ ...validRecipe, steps: 'boil' })).toBe(false) // steps should be string[]
     expect(isRecipe({ ...validRecipe, id: undefined })).toBe(true) // id optional
+  })
+
+  it('isWorkoutSession validates required + optional fields', () => {
+    const wk = { id: 'oura-1', src: 'oura', type: 'zone2', min: 40 }
+    expect(isWorkoutSession(wk)).toBe(true)
+    expect(isWorkoutSession({ ...wk, kcal: 200, avgHr: 120, label: 'walking' })).toBe(true)
+    expect(isWorkoutSession({ ...wk, src: 'garmin' })).toBe(false) // unknown source
+    expect(isWorkoutSession({ ...wk, min: '40' })).toBe(false)
+    expect(isWorkoutSession({ ...wk, kcal: 'lots' })).toBe(false)
+  })
+
+  it('isMedSession validates required + optional fields', () => {
+    const med = { id: 'manual-1', src: 'manual', min: 13, style: 'Guided' }
+    expect(isMedSession(med)).toBe(true)
+    expect(isMedSession({ ...med, hrv: 60, hr: 55, mood: 'good' })).toBe(true)
+    expect(isMedSession({ ...med, style: 3 })).toBe(false)
+    expect(isMedSession({ ...med, hrv: 'high' })).toBe(false)
+  })
+
+  it('isDayData accepts optional session arrays and rejects malformed ones', () => {
+    const wk = { id: 'oura-1', src: 'oura', type: 'zone2', min: 40 }
+    const med = { id: 'manual-1', src: 'manual', min: 13, style: '' }
+    expect(isDayData({ ...validDay, wkSessions: [wk], medSessions: [med] })).toBe(true)
+    expect(isDayData({ ...validDay, wkSessions: [] })).toBe(true)
+    expect(isDayData({ ...validDay, wkSessions: [{ bad: 1 }] })).toBe(false)
+    expect(isDayData({ ...validDay, medSessions: [{ ...med, min: null }] })).toBe(false)
   })
 
   it('isArrayOf narrows arrays element-wise', () => {

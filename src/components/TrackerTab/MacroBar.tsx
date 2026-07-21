@@ -7,6 +7,7 @@ const MacroBar = memo(function MacroBar({
   target,
   color,
   valColor,
+  burned = 0,
 }: {
   label: string
   sub?: string
@@ -14,10 +15,15 @@ const MacroBar = memo(function MacroBar({
   target: number
   color: string
   valColor: string
+  /** Workout kcal credited against intake (Calories row only): remaining = target − val + burned. */
+  burned?: number
 }) {
-  const pct = Math.min(100, Math.round((val / target) * 100))
+  // Net intake drives the fill and over-target colours so a workout visibly buys back headroom
+  const net = Math.max(0, val - burned)
+  const rawPct = target > 0 ? Math.round((net / target) * 100) : 0
+  const pct = Math.min(100, rawPct)
   const barColor =
-    label === 'Calories' && pct > 105 ? 'var(--red)' : pct > 95 ? 'var(--amber)' : color
+    label === 'Calories' && rawPct > 105 ? 'var(--red)' : rawPct > 95 ? 'var(--amber)' : color
   return (
     <div>
       <div className="macro-bar-header">
@@ -44,8 +50,13 @@ const MacroBar = memo(function MacroBar({
       </div>
       {label === 'Calories' && (
         <div className="macro-bar-remaining">
-          <span className="text-teal">{Math.max(0, target - val).toLocaleString()}</span> kcal
-          remaining
+          {burned > 0 && (
+            <span className="text-coral" style={{ marginRight: 6 }}>
+              +{burned.toLocaleString()} kcal from workouts ·
+            </span>
+          )}
+          <span className="text-teal">{Math.max(0, target - val + burned).toLocaleString()}</span>{' '}
+          kcal remaining
         </div>
       )}
     </div>
