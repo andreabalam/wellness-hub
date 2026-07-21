@@ -1,73 +1,111 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { MED_MINS, MED_STYLES } from '../../data/tracker'
-import { fetchOuraSessions, OURA_SESSION_MAP, roundToMedMin } from '../../lib/oura'
+import type { DayData, MedSession } from '../../data/tracker'
+import { dismissOuraSession, importOuraMeditations } from '../../lib/ouraImport'
 import { showToast } from '../../lib/toast'
 import { reportError } from '../../lib/errorLog'
+import { MedSessionList } from './SessionList'
 import { dkey } from './dateKey'
 
 interface Props {
-  /** Editable selection seed for the current day (parent re-keys on date change). */
-  initialMedMin: number
-  initialMedStyle: string
-  /** Persisted values (reactive) for the "Done" summary line. */
-  savedMedMin: number
-  savedMedStyle: string
+  /** Persisted sessions for the day (reactive; legacy days pre-synthesized by the parent). */
+  sessions: MedSession[]
   ouraConnected: boolean
   date: Date
-  onSave: (patch: { medMin: number; medStyle: string }) => void
+  onSave: (patch: Partial<DayData>) => void
 }
 
-/** Meditation logger: duration + style picker, with Oura session auto-fill. */
-export default function MeditationLog({
-  initialMedMin,
-  initialMedStyle,
-  savedMedMin,
-  savedMedStyle,
-  ouraConnected,
-  date,
-  onSave,
-}: Props) {
-  const [medMin, setMedMin] = useState(initialMedMin)
-  const [medStyle, setMedStyle] = useState(initialMedStyle)
-  const [medSaved, setMedSaved] = useState(initialMedMin > 0)
+/** Meditation logger: session list + duration/style entry, with Oura auto-import. */
+export default function MeditationLog({ sessions, ouraConnected, date, onSave }: Props) {
+  const [medMin, setMedMin] = useState(0)
+  const [medStyle, setMedStyle] = useState('')
+  const [medSaved, setMedSaved] = useState(false)
   const [medSyncing, setMedSyncing] = useState(false)
-  const [ouraHRV, setOuraHRV] = useState<number | null>(null)
-  const [ouraHR, setOuraHR] = useState<number | null>(null)
-  const [ouraMood, setOuraMood] = useState<string | null>(null)
-  const [ouraActualMin, setOuraActualMin] = useState<number | null>(null)
+
+  const sessionsRef = useRef(sessions)
+  useEffect(() => {
+    sessionsRef.current = sessions
+  }, [sessions])
+
+  /** Persist a new session list, mirroring the first session into the legacy slot. */
+  const saveSessions = (next: MedSession[]) => {
+    onSave({
+      medSessions: next,
+      medMin: next[0]?.min ?? 0,
+      medStyle: next[0]?.style ?? '',
+    })
+  }
+
+  // Silent Oura auto-import (policy-gated inside importOuraMeditations)
+  useEffect(() => {
+    if (!ouraConnected) return
+    let cancelled = false
+    importOuraMeditations(dkey(date), sessionsRef.current)
+      .then(merged => {
+        if (cancelled || !merged) return
+        const added = merged.length - sessionsRef.current.length
+        onSave({
+          medSessions: merged,
+          medMin: merged[0]?.min ?? 0,
+          medStyle: merged[0]?.style ?? '',
+        })
+        if (added > 0)
+          showToast(
+            `${added} meditation session${added === 1 ? '' : 's'} imported from Oura`,
+            'info',
+          )
+      })
+      .catch(() => {}) // silent — manual sync surfaces errors
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, ouraConnected])
+
+  const syncMedFromOura = async () => {
+    setMedSyncing(true)
+    try {
+      const merged = await importOuraMeditations(dkey(date), sessions, true)
+      if (!merged) {
+        showToast('No new meditation sessions found in Oura.', 'info')
+        return
+      }
+      const added = merged.length - sessions.length
+      saveSessions(merged)
+      showToast(
+        added > 0
+          ? `${added} meditation session${added === 1 ? '' : 's'} imported from Oura`
+          : 'Oura sessions updated',
+        'info',
+      )
+    } catch (err: unknown) {
+      showToast(reportError('oura-sync:meditation', err), 'error')
+    } finally {
+      setMedSyncing(false)
+    }
+  }
 
   const logMed = () => {
     if (!medMin) {
       alert('Select a duration first.')
       return
     }
-    onSave({ medMin, medStyle })
+    const entry: MedSession = {
+      id: `manual-${Date.now()}`,
+      src: 'manual',
+      min: medMin,
+      style: medStyle,
+    }
+    saveSessions([...sessions, entry])
     setMedSaved(true)
+    setMedMin(0)
+    setMedStyle('')
     setTimeout(() => setMedSaved(false), 1600)
   }
 
-  const syncMedFromOura = async () => {
-    setMedSyncing(true)
-    try {
-      const sessions = await fetchOuraSessions(dkey(date))
-      const med = sessions.find(s => s.type !== 'nap')
-      if (!med) {
-        showToast('No meditation session found for this date in Oura.', 'info')
-        return
-      }
-      const dSec =
-        (new Date(med.end_datetime).getTime() - new Date(med.start_datetime).getTime()) / 1000
-      setMedMin(roundToMedMin(dSec))
-      if (OURA_SESSION_MAP[med.type]) setMedStyle(OURA_SESSION_MAP[med.type])
-      setOuraHRV(med.average_hrv)
-      setOuraHR(med.average_heart_rate)
-      setOuraMood(med.mood)
-      setOuraActualMin(Math.round(dSec / 60))
-    } catch (err: unknown) {
-      showToast(reportError('oura-sync:meditation', err), 'error')
-    } finally {
-      setMedSyncing(false)
-    }
+  const removeSession = (s: MedSession) => {
+    if (s.src === 'oura') dismissOuraSession(dkey(date), s.id)
+    saveSessions(sessions.filter(x => x.id !== s.id))
   }
 
   return (
@@ -87,27 +125,15 @@ export default function MeditationLog({
         )}
       </div>
 
-      {/* Oura meditation data badges */}
-      {ouraHRV !== null && (
-        <div className="flex flex-wrap gap-8 mb-10">
-          <span className="oura-badge oura-badge--teal">HRV {ouraHRV}</span>
-          {ouraHR !== null && <span className="oura-badge oura-badge--green">HR {ouraHR} bpm</span>}
-          {ouraActualMin !== null && ouraActualMin !== medMin && (
-            <span
-              className="oura-badge oura-badge--muted"
-              title={`Actual: ${ouraActualMin} min — rounded to nearest option`}
-            >
-              actual {ouraActualMin} min
-            </span>
-          )}
-          {ouraMood && <span className="oura-badge oura-badge--purple">feeling: {ouraMood}</span>}
-        </div>
-      )}
-
       <div className="text-sm text-muted mb-10 lh-15">
         Optimal post-CAR window. Even 13 minutes measurably improves focus and working memory for
         hours.
       </div>
+
+      {/* Today's sessions */}
+      <div className="text-sm text-muted mb-6">Today's sessions:</div>
+      <MedSessionList sessions={sessions} onRemove={removeSession} />
+
       <div className="text-sm text-muted mb-6">Duration:</div>
       <div className="flex flex-wrap gap-6 mb-10">
         {MED_MINS.map(m => (
@@ -132,11 +158,6 @@ export default function MeditationLog({
           </button>
         ))}
       </div>
-      {savedMedMin > 0 && (
-        <div className="med-done">
-          Done: {savedMedMin} min{savedMedStyle ? ` - ${savedMedStyle}` : ''}
-        </div>
-      )}
       <button onClick={logMed} className={`tbtn btn-gold ${medSaved ? 'saved' : ''}`}>
         {medSaved ? 'Saved!' : 'Log meditation'}
       </button>

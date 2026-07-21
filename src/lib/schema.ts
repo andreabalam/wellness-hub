@@ -5,7 +5,7 @@
  * with `as` and blows up deep in the UI. These guards are intentionally
  * pragmatic (shape + field types, not exhaustive) and dependency-free.
  */
-import type { DayData, FoodEntry, QuickFood } from '../data/tracker'
+import type { DayData, FoodEntry, MedSession, QuickFood, WorkoutSession } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -44,6 +44,34 @@ export function isFoodEntry(v: unknown): v is FoodEntry {
   )
 }
 
+export function isWorkoutSession(v: unknown): v is WorkoutSession {
+  return (
+    isObject(v) &&
+    isStr(v.id) &&
+    (v.src === 'oura' || v.src === 'manual') &&
+    isStr(v.type) &&
+    isNum(v.min) &&
+    opt(v.label, isStr) &&
+    opt(v.kcal, isNum) &&
+    opt(v.avgHr, isNum) &&
+    opt(v.maxHr, isNum) &&
+    opt(v.note, isStr)
+  )
+}
+
+export function isMedSession(v: unknown): v is MedSession {
+  return (
+    isObject(v) &&
+    isStr(v.id) &&
+    (v.src === 'oura' || v.src === 'manual') &&
+    isNum(v.min) &&
+    isStr(v.style) &&
+    opt(v.hrv, isNum) &&
+    opt(v.hr, isNum) &&
+    opt(v.mood, isStr)
+  )
+}
+
 export function isDayData(v: unknown): v is DayData {
   return (
     isObject(v) &&
@@ -58,7 +86,9 @@ export function isDayData(v: unknown): v is DayData {
     isStr(v.phase) &&
     isStr(v.notes) &&
     isNum(v.medMin) &&
-    isStr(v.medStyle)
+    isStr(v.medStyle) &&
+    opt(v.wkSessions, x => isArrayOf(x, isWorkoutSession)) &&
+    opt(v.medSessions, x => isArrayOf(x, isMedSession))
   )
 }
 

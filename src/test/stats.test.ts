@@ -6,7 +6,24 @@ import {
   protRangeStr,
   fatLossGoalStr,
   normaliseChronotype,
+  significantBurnKcal,
 } from '../lib/stats'
+
+describe('significantBurnKcal', () => {
+  it('falls back to a flat 300 without a TDEE', () => {
+    expect(significantBurnKcal(0)).toBe(300)
+    expect(significantBurnKcal(-100)).toBe(300)
+  })
+
+  it('scales to 15% of TDEE', () => {
+    expect(significantBurnKcal(2000)).toBe(300)
+    expect(significantBurnKcal(2600)).toBe(390)
+  })
+
+  it('clamps to a 250 kcal floor for low TDEEs', () => {
+    expect(significantBurnKcal(1400)).toBe(250)
+  })
+})
 
 describe('deficitFromRate', () => {
   it('returns 0 for 0 kg/week', () => {

@@ -92,7 +92,7 @@ test.describe('Tracker tab', () => {
     await page.getByRole('button', { name: 'Workout', exact: true }).click()
     await page.getByRole('button', { name: 'Pilates' }).first().click()
     await page.getByRole('button', { name: '+ Log workout' }).click()
-    await expect(page.getByText('✓ Session logged')).toBeVisible()
+    await expect(page.locator('.session-totals').getByText(/1 session · 30 min/)).toBeVisible()
   })
 
   test('logging meditation shows confirmation', async ({ page }) => {
@@ -100,7 +100,7 @@ test.describe('Tracker tab', () => {
     await page.getByRole('button', { name: 'Meditation', exact: true }).click()
     await page.getByRole('button', { name: '13 min' }).click()
     await page.getByRole('button', { name: 'Log meditation' }).click()
-    await expect(page.getByText(/Done: 13 min/)).toBeVisible()
+    await expect(page.getByText(/Total today: 13 min/)).toBeVisible()
   })
 
   test('saving check-in shows saved feedback', async ({ page }) => {

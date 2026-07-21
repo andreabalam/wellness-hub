@@ -3252,7 +3252,8 @@ describe('TrackerTab', () => {
     fireEvent.click(screen.getByText('Workout'))
     fireEvent.click(screen.getByText('Pilates'))
     fireEvent.click(screen.getByText('+ Log workout'))
-    expect(screen.getByText('✓ Session logged')).toBeInTheDocument()
+    // Totals appear both in the card footer and the week roll-up
+    expect(screen.getAllByText(/1 session · 30 min/).length).toBeGreaterThanOrEqual(1)
   })
 
   it('selecting same session twice deselects it', () => {
@@ -3260,7 +3261,9 @@ describe('TrackerTab', () => {
     fireEvent.click(screen.getByText('Workout'))
     fireEvent.click(screen.getByText('Pilates'))
     fireEvent.click(screen.getByText('Pilates'))
-    expect(screen.queryByText('✓ Session logged')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('+ Log workout'))
+    expect(window.alert).toHaveBeenCalled() // deselected — nothing to log
+    expect(screen.getByText('No workouts yet today.')).toBeInTheDocument()
   })
 
   it('switching to Meditation tab shows duration options', () => {

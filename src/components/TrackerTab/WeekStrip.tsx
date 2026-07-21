@@ -1,15 +1,19 @@
 import { memo } from 'react'
 import type { DayData } from '../../data/tracker'
+import { dayMedSessions, dayWorkoutSessions, workoutTotals } from '../../data/tracker'
 import { dkey } from './dateKey'
 
 const WeekStrip = memo(function WeekStrip({
   currentDate,
   onSelect,
   getDay,
+  burnThreshold,
 }: {
   currentDate: Date
   onSelect: (d: Date) => void
   getDay: (key: string) => DayData
+  /** Burned kcal at/above which a day shows the 🔥 indicator instead of the plain W. */
+  burnThreshold: number
 }) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -41,8 +45,10 @@ const WeekStrip = memo(function WeekStrip({
           const k = dkey(d)
           const data = getDay(k)
           const kcal = data.foods.reduce((s, f) => s + f.k, 0)
-          const hasW = !!data.workout
-          const hasM = !!data.medMin
+          const wk = workoutTotals(dayWorkoutSessions(data))
+          const hasW = wk.sessions > 0
+          const bigBurn = wk.kcal >= burnThreshold
+          const hasM = dayMedSessions(data).length > 0
           const isToday = d.getTime() === today.getTime()
           const isCur = d.getTime() === currentDate.getTime()
           return (
@@ -77,7 +83,13 @@ const WeekStrip = memo(function WeekStrip({
                 {kcal > 0 ? kcal : '-'}
               </div>
               <div style={{ fontSize: 11, marginTop: 2 }}>
-                {hasW && <span className="text-coral">W</span>}
+                {bigBurn ? (
+                  <span className="text-coral" title={`${wk.kcal} kcal burned`}>
+                    🔥{wk.kcal}{' '}
+                  </span>
+                ) : (
+                  hasW && <span className="text-coral">W</span>
+                )}
                 {hasM && <span className="text-gold">M</span>}
               </div>
             </div>
@@ -90,6 +102,9 @@ const WeekStrip = memo(function WeekStrip({
         </span>
         <span>
           <span className="text-coral">W</span> workout
+        </span>
+        <span>
+          <span className="text-coral">🔥</span> big burn
         </span>
         <span>
           <span className="text-gold">M</span> meditation

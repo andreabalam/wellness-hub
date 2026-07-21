@@ -107,6 +107,30 @@ export function hungerLabel(id: string | undefined): string {
   return HUNGER_TYPES.find(h => h.id === id)?.label ?? ''
 }
 
+/** One workout session — structured, multiple per day, Oura-imported or manual. */
+export interface WorkoutSession {
+  id: string // `oura-${OuraWorkout.id}` | `manual-${timestamp}`
+  src: 'oura' | 'manual'
+  type: string // SESSION_OPTS id (manual) or mapped id (oura)
+  label?: string // raw Oura activity for display, e.g. "weight training"
+  min: number
+  kcal?: number
+  avgHr?: number
+  maxHr?: number
+  note?: string
+}
+
+/** One meditation session — structured, multiple per day, Oura-imported or manual. */
+export interface MedSession {
+  id: string // `oura-${OuraSession.id}` | `manual-${timestamp}`
+  src: 'oura' | 'manual'
+  min: number // actual minutes (oura entries are NOT rounded to MED_MINS)
+  style: string
+  hrv?: number
+  hr?: number
+  mood?: string // Oura mood tag, e.g. "good", "relieved"
+}
+
 export interface DayData {
   foods: FoodEntry[]
   workout: string | null
@@ -120,6 +144,10 @@ export interface DayData {
   notes: string
   medMin: number
   medStyle: string
+  // Structured session lists. The legacy single-slot fields above stay populated
+  // (first session mirrors into them) so old app versions and consumers keep working.
+  wkSessions?: WorkoutSession[]
+  medSessions?: MedSession[]
   // Weekly check-in (Tier 2 #6) — populated only on a week's Monday anchor day.
   weekGoal?: string
   weekGoalKind?: WeekGoalKind // 'goal' (SMART) or 'experiment' (CMA "if X then Y")
@@ -154,3 +182,63 @@ export const EMPTY_DAY: DayData = {
 
 /** Max glasses the hydration counter allows. */
 export const WATER_MAX = 12
+
+// ── Session helpers (legacy synthesis + totals) ──────────────────
+
+/**
+ * The day's workout sessions. A day that predates `wkSessions` but has the
+ * legacy single-slot `workout` set synthesizes one session so it still renders
+ * in the list — no migration pass needed.
+ */
+export function dayWorkoutSessions(day: DayData): WorkoutSession[] {
+  if (day.wkSessions?.length) return day.wkSessions
+  if (day.workout) return [{ id: 'legacy-wk', src: 'manual', type: day.workout, min: 0 }]
+  return []
+}
+
+/** The day's meditation sessions, synthesizing one from legacy medMin/medStyle. */
+export function dayMedSessions(day: DayData): MedSession[] {
+  if (day.medSessions?.length) return day.medSessions
+  if (day.medMin > 0)
+    return [{ id: 'legacy-med', src: 'manual', min: day.medMin, style: day.medStyle }]
+  return []
+}
+
+/** Display label for a workout session: manual types use SESSION_OPTS, oura keeps its raw label. */
+export function workoutSessionLabel(s: WorkoutSession): string {
+  return SESSION_OPTS.find(o => o.id === s.type)?.label ?? s.label ?? s.type
+}
+
+export interface WorkoutTotals {
+  sessions: number
+  min: number
+  kcal: number
+}
+
+export function workoutTotals(sessions: WorkoutSession[]): WorkoutTotals {
+  return {
+    sessions: sessions.length,
+    min: sessions.reduce((s, w) => s + w.min, 0),
+    kcal: sessions.reduce((s, w) => s + (w.kcal ?? 0), 0),
+  }
+}
+
+export interface MedTotals {
+  sessions: number
+  min: number
+}
+
+export function medTotals(sessions: MedSession[]): MedTotals {
+  return {
+    sessions: sessions.length,
+    min: sessions.reduce((s, m) => s + m.min, 0),
+  }
+}
+
+/** "1 h 05 m" / "45 min" style duration for totals lines. */
+export function fmtMin(min: number): string {
+  if (min < 60) return `${min} min`
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return m === 0 ? `${h} h` : `${h} h ${String(m).padStart(2, '0')} m`
+}
