@@ -137,8 +137,11 @@ export default function RemindersSection({ user }: Props) {
     )
 
   return (
-    <div className="tcard mb-16">
-      <div className="tlabel text-muted2">Reminders</div>
+    <details className="tcard mb-16 rem-details">
+      <summary className="rem-summary">
+        <span className="tlabel text-muted2">Reminders</span>
+        {unchecked.length > 0 && <span className="rem-count">{unchecked.length}</span>}
+      </summary>
 
       {unchecked.map(renderRow)}
 
@@ -162,7 +165,7 @@ export default function RemindersSection({ user }: Props) {
           Add
         </button>
       </div>
-    </div>
+    </details>
   )
 }
 

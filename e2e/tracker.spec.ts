@@ -170,6 +170,12 @@ test.describe('Tracker tab', () => {
 
   async function goToMeditation(page: import('@playwright/test').Page) {
     await page.getByRole('button', { name: 'Meditation' }).click()
+    // Reminders is collapsed by default — expand it before interacting.
+    const summary = page.locator('.rem-summary')
+    await expect(summary).toBeVisible()
+    if (!(await page.locator('.rem-details[open]').count())) {
+      await summary.click()
+    }
     await expect(page.getByPlaceholder('New reminder…')).toBeVisible()
   }
 
@@ -228,8 +234,8 @@ test.describe('Tracker tab', () => {
     await expect(page.getByText('Persistent reminder')).toBeVisible()
 
     await page.reload()
-    // After reload, navigate back to Meditation tab to see the persisted reminder
-    await page.getByRole('button', { name: 'Meditation' }).click()
+    // After reload, navigate back to Meditation tab (and re-expand) to see the persisted reminder
+    await goToMeditation(page)
     await expect(page.getByText('Persistent reminder')).toBeVisible()
   })
 

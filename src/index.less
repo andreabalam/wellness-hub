@@ -994,6 +994,42 @@ body {
     color: var(--text);
   }
 }
+.rem-details > summary.rem-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  .tlabel {
+    margin-bottom: 0;
+  }
+}
+.rem-details > summary.rem-summary::-webkit-details-marker {
+  display: none;
+}
+.rem-details > summary.rem-summary::before {
+  content: '▸';
+  font-size: 10px;
+  color: var(--muted2);
+  transition: transform 0.15s ease;
+}
+.rem-details[open] > summary.rem-summary::before {
+  transform: rotate(90deg);
+}
+.rem-details[open] > summary.rem-summary {
+  margin-bottom: 10px;
+}
+.rem-count {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--muted2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 7px;
+  line-height: 1.5;
+}
 .rem-add-row {
   display: flex;
   align-items: center;

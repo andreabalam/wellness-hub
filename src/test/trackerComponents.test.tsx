@@ -482,7 +482,7 @@ describe('WeekStrip', () => {
     expect(screen.getAllByText(/🔥450/).length).toBe(7) // every day of the mocked week
   })
 
-  it('shows the plain W below the burn threshold and for legacy days', () => {
+  it('omits any marker for insignificant workouts below the burn threshold', () => {
     const getDay = () => ({ ...EMPTY_DAY, workout: 'pilates' })
     const { container } = render(
       <WeekStrip currentDate={DATE} onSelect={vi.fn()} getDay={getDay} burnThreshold={300} />,
@@ -490,7 +490,7 @@ describe('WeekStrip', () => {
     const cellWs = [...container.querySelectorAll('.week-strip-cell .text-coral')].filter(
       el => el.textContent === 'W',
     )
-    expect(cellWs.length).toBe(7)
+    expect(cellWs.length).toBe(0)
   })
 })
 
