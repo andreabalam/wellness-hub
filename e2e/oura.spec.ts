@@ -10,22 +10,25 @@ const MOCK_USER = JSON.stringify({
   created_at: '',
 })
 
-test.describe('Oura tab — unauthenticated', () => {
+test.describe('Oura (in Insights) — unauthenticated', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
   })
 
-  test('Oura tab is visible in the nav bar', async ({ page }) => {
-    await expect(page.locator('nav.tabs').getByRole('tab', { name: /Oura/i })).toBeVisible()
+  test('Insights tab is visible in the nav bar', async ({ page }) => {
+    await expect(page.locator('nav.tabs').getByRole('tab', { name: /Insights/i })).toBeVisible()
   })
 
   test('shows sign-in gate for unauthenticated users', async ({ page }) => {
-    await page.locator('nav.tabs').getByRole('tab', { name: /Oura/i }).click()
-    await expect(page.getByText(/Sign in to view your Oura dashboard/i)).toBeVisible()
+    await page
+      .locator('nav.tabs')
+      .getByRole('tab', { name: /Insights/i })
+      .click()
+    await expect(page.getByText(/Sign in to see Insights/i)).toBeVisible()
   })
 })
 
-test.describe('Oura tab — authenticated, no token', () => {
+test.describe('Oura (in Insights) — authenticated, no token', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(user => {
       sessionStorage.setItem('__e2e_user__', user)
@@ -35,7 +38,10 @@ test.describe('Oura tab — authenticated, no token', () => {
       localStorage.clear()
     })
     await page.reload()
-    await page.locator('nav.tabs').getByRole('tab', { name: /Oura/i }).click()
+    await page
+      .locator('nav.tabs')
+      .getByRole('tab', { name: /Insights/i })
+      .click()
   })
 
   test('shows OAuth connect screen instead of PAT form', async ({ page }) => {
@@ -86,7 +92,7 @@ test.describe('Oura tab — authenticated, no token', () => {
   })
 })
 
-test.describe('Oura tab — OAuth callback handling', () => {
+test.describe('Oura (in Insights) — OAuth callback handling', () => {
   test.beforeEach(async ({ page }) => {
     // Both __e2e_user__ and oura_oauth_state must be in sessionStorage before
     // any navigation so consumeOAuthCallback() (which now runs at state-init
@@ -103,11 +109,11 @@ test.describe('Oura tab — OAuth callback handling', () => {
     await page.reload()
   })
 
-  test('app detects ?code=&state= params on load and switches to Oura tab', async ({ page }) => {
+  test('app detects ?code=&state= params on load and switches to Insights', async ({ page }) => {
     await page.goto('?code=fake-auth-code&state=test-state-value')
 
-    // consumeOAuthCallback() should switch the app to the Oura tab
-    await expect(page.locator('nav.tabs').getByRole('tab', { name: /Oura/i })).toHaveClass(
+    // consumeOAuthCallback() should switch the app to Insights
+    await expect(page.locator('nav.tabs').getByRole('tab', { name: /Insights/i })).toHaveClass(
       /active/,
       { timeout: 5000 },
     )

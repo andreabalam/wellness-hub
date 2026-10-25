@@ -59,7 +59,7 @@ Secrets are set in Supabase Dashboard → Edge Functions → Secrets (never in c
 
 ### UI structure
 
-`App.tsx` owns the tab switcher, auth/sync state and the day shared by Today and Food. Tabs: **Today** (`TodayTab` — home: schedule timeline, food/workout summaries, check-in, meditation, reminders, notes, weekly goal; the full `ScheduleTab` opens from its timeline), **Food** (`TrackerTab`, food log only), **Recipes** (`RecipesTab`), **Train** (`WorkoutsTab`) and **Oura** (`OuraTab`). Each tab is a directory under `src/components/`. Tabs are always mounted except Today and Food, which lazy-mount on active to avoid expensive date calculations on load. The ongoing reorganisation (Food absorbing Recipes, Oura becoming Insights) is in `plan/OPTION3_TODAY_HUB_PLAN.md`.
+`App.tsx` owns the tab switcher, auth/sync state and the day shared by Today and Food. Four tabs (a fixed bottom nav under 700px, top tabs on desktop): **Today** (`TodayTab` — home: schedule timeline, food/workout summaries, check-in, meditation, reminders, notes, weekly goal; the full `ScheduleTab` opens from its timeline), **Food** (`TrackerTab` food log, with a Log | Recipes & grocery switch to `RecipesTab`), **Train** (`WorkoutsTab`) and **Insights** (`InsightsTab` — weekly trends, workout weeks, cycle history, and the `OuraTab` dashboard). Each tab is a directory under `src/components/`. Train and Recipes stay mounted; Today, Food's log and Insights mount only while active (date calculations / reading every tracker day).
 
 Styling is in less in `src/index.less`. CSS custom properties (`--teal`, `--amber`, `--coral`, etc.) are the design tokens. No CSS framework, no CSS modules — all styles are global.
 
