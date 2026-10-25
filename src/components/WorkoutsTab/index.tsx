@@ -16,14 +16,16 @@ import { showToast } from '../../lib/toast'
 import { safeGet, safeRemove, safeSet } from '../../lib/storage'
 import { isWorkoutDraft } from '../../lib/schema'
 import {
+  applyEdit,
   attachLoggedWorkout,
   completedExercises,
+  draftFromSession,
   draftMinutes,
   loggedSummary,
   newDraft,
 } from '../../lib/workoutLog'
 import type { WorkoutDraft } from '../../lib/workoutLog'
-import { dayWorkoutSessions } from '../../data/tracker'
+import { dayWorkoutSessions, workoutSessionLabel } from '../../data/tracker'
 import type { DayData, WorkoutSession } from '../../data/tracker'
 import type { WorkoutDay } from '../../data/workouts'
 import ProfileStatsCard from '../TrackerTab/ProfileStatsCard'
@@ -33,9 +35,15 @@ import TrainDay from './TrainDay'
 import WeekCounter from './WeekCounter'
 import WorkoutLogger from './WorkoutLogger'
 import { workoutWeekStats } from '../../lib/workoutWeeks'
+import { importOuraWorkoutHistory } from '../../lib/ouraImport'
+import TrainHistory from './TrainHistory'
 
 /** The workout in progress — survives closing the logger or the app. */
 const DRAFT_KEY = 'whub_workout_draft_v1'
+/** Last Oura history backfill (ms) — at most once a day */
+const HISTORY_SYNC_KEY = 'whub_oura_history_sync_v1'
+const HISTORY_SYNC_MS = 24 * 60 * 60 * 1000
+const HISTORY_DAYS = 84
 
 /** Plan week (0-based) for each cycle phase in the 4-week cycle-synced plan. */
 const PHASE_WEEK: Record<PhaseSuggestion['phase'], number> = {
@@ -215,10 +223,11 @@ export default function WorkoutsTab({ user }: Props) {
   const todayKey = dkey(today)
   const dateKey = dkey(date)
   const isToday = dateKey === todayKey
-  const { todayPhase, dayData, weekStats } = (() => {
+  const { allDays, todayPhase, dayData, weekStats } = (() => {
     void trackerRev
     const all = trackerStore.getAll()
     return {
+      allDays: all,
       todayPhase: trackerStore.getDay(todayKey).phase,
       dayData: trackerStore.getDay(dateKey),
       weekStats: workoutWeekStats(all, today),
@@ -229,6 +238,43 @@ export default function WorkoutsTab({ user }: Props) {
   const saveDay = (patch: Partial<DayData>) => {
     trackerStore.setDay(dateKey, { ...trackerStore.getDay(dateKey), ...patch })
     setTrackerRev(n => n + 1)
+  }
+
+  // Once a day, backfill ~12 weeks of Oura workouts in one request so History
+  // and the weeks counter include days never opened in the app.
+  useEffect(() => {
+    if (!ouraConnected) return
+    if (Date.now() - safeGet<number>(HISTORY_SYNC_KEY, 0) < HISTORY_SYNC_MS) return
+    const keyDaysAgo = (n: number) => {
+      const d = new Date(today)
+      d.setDate(d.getDate() - n)
+      return dkey(d)
+    }
+    importOuraWorkoutHistory(keyDaysAgo(HISTORY_DAYS), keyDaysAgo(1), d =>
+      dayWorkoutSessions(trackerStore.getDay(d)),
+    )
+      .then(changed => {
+        safeSet(HISTORY_SYNC_KEY, Date.now())
+        const dates = Object.keys(changed)
+        for (const d of dates)
+          trackerStore.setDay(d, {
+            ...trackerStore.getDay(d),
+            wkSessions: changed[d],
+            workout: changed[d][0]?.type ?? null,
+          })
+        if (!dates.length) return
+        setTrackerRev(n => n + 1)
+        showToast(
+          `Imported Oura workouts for ${dates.length} past day${dates.length === 1 ? '' : 's'}`,
+          'info',
+        )
+      })
+      .catch(() => {}) // retried on the next visit
+  }, [ouraConnected, today])
+
+  const openDay = (key: string) => {
+    setDate(new Date(key + 'T12:00:00'))
+    document.getElementById('train-day')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const shiftDate = (delta: -1 | 1) => {
@@ -283,11 +329,23 @@ export default function WorkoutsTab({ user }: Props) {
     setDraftState(d)
   }
 
+  const discardPrompt = () =>
+    draft?.editing
+      ? 'Discard your unsaved changes to the other workout?'
+      : 'Discard the workout in progress?'
+
   const startLogging = (day: WorkoutDay, week: number) => {
-    const sameDay = draft?.planRef?.week === week && draft.planRef.slot === day.slot
-    if (draft && !sameDay && !window.confirm('Discard the workout in progress and start this one?'))
-      return
-    if (!sameDay) setDraft(newDraft(day, week, dateKey, trackerStore.getAll()))
+    const resume =
+      !draft?.editing && draft?.planRef?.week === week && draft.planRef.slot === day.slot
+    if (draft && !resume && !window.confirm(discardPrompt())) return
+    if (!resume) setDraft(newDraft(day, week, dateKey, trackerStore.getAll()))
+    setLoggerOpen(true)
+  }
+
+  const editSession = (s: WorkoutSession) => {
+    const resume = draft?.editing?.sessionId === s.id
+    if (draft && !resume && !window.confirm(discardPrompt())) return
+    if (!resume) setDraft(draftFromSession(s, workoutSessionLabel(s), dateKey))
     setLoggerOpen(true)
   }
 
@@ -299,6 +357,17 @@ export default function WorkoutsTab({ user }: Props) {
       return
     }
     const day = trackerStore.getDay(draft.date)
+    if (draft.editing) {
+      trackerStore.setDay(draft.date, {
+        ...day,
+        wkSessions: applyEdit(dayWorkoutSessions(day), draft.editing.sessionId, exercises),
+      })
+      setDraft(null)
+      setLoggerOpen(false)
+      setTrackerRev(n => n + 1)
+      showToast('Workout updated', 'success')
+      return
+    }
     const sessions = attachLoggedWorkout(dayWorkoutSessions(day), {
       id: `manual-${Date.now()}`,
       src: 'manual',
@@ -326,7 +395,7 @@ export default function WorkoutsTab({ user }: Props) {
   const loggedFor = (week: number, slot: string) =>
     daySessions.find(s => s.planRef?.week === week && s.planRef.slot === slot)
   const inProgress = (week: number, slot: string) =>
-    draft?.planRef?.week === week && draft.planRef.slot === slot
+    !draft?.editing && draft?.planRef?.week === week && draft.planRef.slot === slot
 
   // Today's plan workout, shown at the top of the day card
   let planRow: ReactNode
@@ -451,10 +520,13 @@ export default function WorkoutsTab({ user }: Props) {
           isToday={isToday}
           onShiftDate={shiftDate}
           onSave={saveDay}
+          onEditSession={editSession}
         >
           {planRow}
         </TrainDay>
       )}
+
+      {isAuth && <TrainHistory days={allDays} onOpenDay={openDay} />}
 
       {/* Plan subtitle */}
       <div className="mb-20">

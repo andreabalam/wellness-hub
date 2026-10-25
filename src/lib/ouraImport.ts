@@ -17,7 +17,13 @@
  */
 import type { MedSession, WorkoutSession } from '../data/tracker'
 import type { OuraSession, OuraWorkout } from './oura'
-import { fetchOuraSessions, fetchOuraWorkouts, OURA_ACTIVITY_MAP, OURA_SESSION_MAP } from './oura'
+import {
+  fetchOuraSessions,
+  fetchOuraWorkouts,
+  fetchOuraWorkoutsRange,
+  OURA_ACTIVITY_MAP,
+  OURA_SESSION_MAP,
+} from './oura'
 import { safeGet, safeSet } from './storage'
 import { keepLoggedSets } from './workoutLog'
 
@@ -143,6 +149,38 @@ export async function importOuraWorkouts(
     mergeSessions(existing, workouts.map(mapOuraWorkout), dismissedIds(date)),
   )
   return sessionsChanged(existing, merged) ? merged : null
+}
+
+function nextDay(date: string): string {
+  const d = new Date(date + 'T12:00:00')
+  d.setDate(d.getDate() + 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Backfill Oura workouts for a date range with a single request, so history
+ * (and the weeks counter) includes days never opened in the app. Dates the
+ * fetch policy says are already imported are skipped; every other date in the
+ * range is marked imported. Returns only the session lists that changed,
+ * keyed by date — the caller saves them.
+ */
+export async function importOuraWorkoutHistory(
+  startDate: string,
+  endDate: string,
+  getSessions: (date: string) => WorkoutSession[],
+  now = Date.now(),
+): Promise<Record<string, WorkoutSession[]>> {
+  const byDay = await fetchOuraWorkoutsRange(startDate, endDate)
+  const changed: Record<string, WorkoutSession[]> = {}
+  for (let d = startDate; d <= endDate; d = nextDay(d)) {
+    if (!shouldImport(d, 'wk', now)) continue
+    markImported(d, 'wk', now)
+    const existing = getSessions(d)
+    const imported = (byDay[d] ?? []).map(mapOuraWorkout)
+    const merged = keepLoggedSets(existing, mergeSessions(existing, imported, dismissedIds(d)))
+    if (sessionsChanged(existing, merged)) changed[d] = merged
+  }
+  return changed
 }
 
 /** Same as importOuraWorkouts for meditation sessions. */

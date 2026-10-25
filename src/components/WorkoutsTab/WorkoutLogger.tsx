@@ -248,6 +248,7 @@ export default function WorkoutLogger({ draft, onChange, onClose, onFinish, onDi
       exercises: [...draft.exercises, { name: '', sets: [{ reps: 10, done: false }] }],
     })
 
+  const editing = !!draft.editing
   const total = draft.exercises.reduce((n, e) => n + e.sets.length, 0)
   const done = draft.exercises.reduce((n, e) => n + e.sets.filter(s => s.done).length, 0)
 
@@ -267,10 +268,15 @@ export default function WorkoutLogger({ draft, onChange, onClose, onFinish, onDi
         >
           ✕
         </button>
-        <span className="logger__title">{draft.title}</span>
-        <span className="logger__timer" aria-label="Elapsed time">
-          {fmtElapsed(now - draft.startedAt)}
+        <span className="logger__title">
+          {editing ? 'Edit · ' : ''}
+          {draft.title}
         </span>
+        {!editing && (
+          <span className="logger__timer" aria-label="Elapsed time">
+            {fmtElapsed(now - draft.startedAt)}
+          </span>
+        )}
       </div>
 
       <div className="logger__body">
@@ -291,16 +297,20 @@ export default function WorkoutLogger({ draft, onChange, onClose, onFinish, onDi
           type="button"
           className="link-btn text-muted logger__discard"
           onClick={() =>
-            window.confirm('Discard this workout? Logged sets will be lost.') && onDiscard()
+            window.confirm(
+              editing
+                ? 'Discard your changes? The saved workout stays as it was.'
+                : 'Discard this workout? Logged sets will be lost.',
+            ) && onDiscard()
           }
         >
-          Discard workout
+          {editing ? 'Discard changes' : 'Discard workout'}
         </button>
       </div>
 
       <div className="logger__footer">
         <button type="button" className="btn btn--teal logger__finish" onClick={onFinish}>
-          Finish workout · {done}/{total} sets
+          {editing ? 'Save changes' : 'Finish workout'} · {done}/{total} sets
         </button>
       </div>
     </div>

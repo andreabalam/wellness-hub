@@ -99,6 +99,8 @@ export interface WorkoutDraft {
   type: string // SESSION_OPTS id
   planRef?: { week: number; slot: string }
   exercises: LoggedExercise[]
+  /** Set when re-opening a saved workout: finishing replaces that session's sets */
+  editing?: { sessionId: string }
 }
 
 /** SESSION_OPTS id for a plan day — keeps week-strip colours and totals meaningful. */
@@ -126,6 +128,33 @@ export function newDraft(
       sets: prefillSets(ex, lastPerformance(ex.t, history, date)?.sets ?? null),
     })),
   }
+}
+
+/** A draft for changing the sets of an already-saved workout. */
+export function draftFromSession(
+  s: WorkoutSession,
+  title: string,
+  date: string,
+  now = Date.now(),
+): WorkoutDraft {
+  return {
+    date,
+    startedAt: now,
+    title,
+    type: s.type,
+    ...(s.planRef && { planRef: s.planRef }),
+    exercises: (s.exercises ?? []).map(e => ({ name: e.name, sets: e.sets.map(x => ({ ...x })) })),
+    editing: { sessionId: s.id },
+  }
+}
+
+/** Replace a saved session's sets with the edited ones (duration, HR and kcal stay). */
+export function applyEdit(
+  sessions: WorkoutSession[],
+  sessionId: string,
+  exercises: LoggedExercise[],
+): WorkoutSession[] {
+  return sessions.map(s => (s.id === sessionId ? { ...s, exercises } : s))
 }
 
 /** Elapsed minutes for the session, capped so a draft left open overnight stays sane. */

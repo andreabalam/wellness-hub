@@ -76,6 +76,18 @@ test.describe('Train tab — set logging (mobile)', () => {
     await expect(panel.getByText('12×20, 12×20.5 kg')).toBeVisible()
     await expect(panel.locator('.week-counter__tile').nth(2)).toContainText('1')
 
+    // Fix a typo afterwards: Edit sets → change reps → Save changes
+    await panel.getByRole('button', { name: 'Edit sets' }).click()
+    await expect(logger.getByText(/^Edit · /)).toBeVisible()
+    await card.getByLabel('Set 1 reps', { exact: true }).fill('11')
+    await logger.getByRole('button', { name: /Save changes/ }).click()
+    await expect(panel.getByText('1 exercise · 2 sets · 466 kg')).toBeVisible()
+
+    // History lists the day; Progress lists the exercise
+    await expect(panel.locator('.history-week__hdr').first()).toContainText('1 workout')
+    await panel.getByRole('tab', { name: 'Progress' }).click()
+    await expect(panel.locator('.progress-row').first()).toContainText('20.5 kg')
+
     // Today shows a read-only line that links back to Train
     await page.locator('nav.tabs').getByRole('tab', { name: /Today/i }).click()
     await expect(page.locator('.train-summary')).toContainText('2 sets')

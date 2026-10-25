@@ -3337,6 +3337,115 @@
   margin-bottom: 14px;
 }
 
+// ── Train: History & Progress ──
+.train-history {
+  margin-bottom: 26px;
+}
+.segmented {
+  display: flex;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 12px;
+}
+.segmented__btn {
+  flex: 1;
+  min-height: 40px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.929rem;
+  cursor: pointer;
+  &.active {
+    background: var(--bg3);
+    color: var(--text);
+    font-weight: 500;
+  }
+}
+.history-week {
+  margin-bottom: 14px;
+}
+.history-week__hdr {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.786rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--coral-light);
+  margin-bottom: 6px;
+}
+.history-day {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  &:hover {
+    border-color: var(--border2);
+  }
+}
+.history-day__date {
+  flex: none;
+  width: 3.4rem;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.857rem;
+  color: var(--muted);
+}
+.history-day__what {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.929rem;
+}
+.history-day__meta {
+  font-family: monospace;
+  font-size: 0.786rem;
+  color: var(--muted);
+}
+.history-day__go {
+  color: var(--muted2);
+  font-size: 1.286rem;
+}
+.progress-row {
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--border);
+}
+.progress-row__main {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.progress-row__range {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.857rem;
+  color: var(--text);
+  margin-left: auto;
+}
+.trend {
+  font-size: 0.786rem;
+  font-weight: 500;
+  &--up {
+    color: var(--green-light);
+  }
+  &--down {
+    color: var(--coral-light);
+  }
+  &--flat {
+    color: var(--muted);
+  }
+}
+
 // ── Today (home) ──
 .today-hdr {
   display: flex;
