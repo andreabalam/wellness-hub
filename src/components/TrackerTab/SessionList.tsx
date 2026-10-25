@@ -1,5 +1,6 @@
 import type { MedSession, WorkoutSession } from '../../data/tracker'
 import { fmtMin, medTotals, workoutSessionLabel, workoutTotals } from '../../data/tracker'
+import { fmtSets, loggedSummary } from '../../lib/workoutLog'
 
 /** Source chip: Oura ring vs manual entry. */
 function SrcChip({ src }: { src: 'oura' | 'manual' }) {
@@ -10,6 +11,25 @@ function SrcChip({ src }: { src: 'oura' | 'manual' }) {
     >
       {src === 'oura' ? '◎ Oura' : '✎ manual'}
     </span>
+  )
+}
+
+/** Collapsible "5 exercises · 14 sets · 2,340 kg" summary of a logged workout. */
+function LoggedSets({ session }: { session: WorkoutSession }) {
+  const exercises = session.exercises ?? []
+  const sum = loggedSummary(exercises)
+  return (
+    <details className="logged-sets">
+      <summary>
+        {sum.exercises} exercise{sum.exercises === 1 ? '' : 's'} · {sum.sets} sets
+        {sum.volumeKg > 0 ? ` · ${sum.volumeKg.toLocaleString()} kg` : ''}
+      </summary>
+      {exercises.map((e, i) => (
+        <div key={i} className="logged-sets__row">
+          <span className="text-default">{e.name}</span> {fmtSets(e.sets)}
+        </div>
+      ))}
+    </details>
   )
 }
 
@@ -44,6 +64,7 @@ export function WorkoutSessionList({
               {s.maxHr ? ` · ${s.maxHr} bpm max` : ''}
               {s.note ? ` · ${s.note}` : ''}
             </div>
+            {s.exercises?.length ? <LoggedSets session={s} /> : null}
           </div>
           <button onClick={() => onRemove(s)} className="food-remove-btn" title="Remove session">
             ×

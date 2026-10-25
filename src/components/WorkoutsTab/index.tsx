@@ -12,9 +12,26 @@ import { useCyclePhase } from '../../hooks/useCyclePhase'
 import type { PhaseSuggestion } from '../../lib/cyclePhase'
 import { isOuraConnected } from '../../lib/oura'
 import { showToast } from '../../lib/toast'
+import { safeGet, safeRemove, safeSet } from '../../lib/storage'
+import { isWorkoutDraft } from '../../lib/schema'
+import {
+  attachLoggedWorkout,
+  completedExercises,
+  draftMinutes,
+  loggedSummary,
+  newDraft,
+} from '../../lib/workoutLog'
+import type { WorkoutDraft } from '../../lib/workoutLog'
+import { dayWorkoutSessions } from '../../data/tracker'
+import type { WorkoutSession } from '../../data/tracker'
+import type { WorkoutDay } from '../../data/workouts'
 import ProfileStatsCard from '../TrackerTab/ProfileStatsCard'
 import { dkey } from '../TrackerTab/dateKey'
 import CycleToday from './CycleToday'
+import WorkoutLogger from './WorkoutLogger'
+
+/** The workout in progress — survives closing the logger or the app. */
+const DRAFT_KEY = 'whub_workout_draft_v1'
 
 /** Plan week (0-based) for each cycle phase in the 4-week cycle-synced plan. */
 const PHASE_WEEK: Record<PhaseSuggestion['phase'], number> = {
@@ -116,6 +133,37 @@ function ExerciseEditRow({
   )
 }
 
+// ── Log / resume button + "logged today" chip on a day card ──────
+
+function DayLogBar({
+  logged,
+  inProgress,
+  isToday,
+  onStart,
+}: {
+  logged: WorkoutSession | undefined
+  inProgress: boolean
+  isToday: boolean
+  onStart: () => void
+}) {
+  return (
+    <div className="day-card__log">
+      {logged?.exercises && (
+        <span className="day-card__logged">
+          ✓ Logged today · {loggedSummary(logged.exercises).sets} sets
+        </span>
+      )}
+      <button
+        type="button"
+        className={`btn btn--sm ${isToday || inProgress ? 'btn--teal' : 'btn--ghost'}`}
+        onClick={onStart}
+      >
+        {inProgress ? '▶ Resume workout' : isToday ? '▶ Start workout' : 'Log this workout'}
+      </button>
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────
 
 interface Props {
@@ -180,6 +228,66 @@ export default function WorkoutsTab({ user }: Props) {
     document
       .getElementById('day-card-today')
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  // ── Set logging ───────────────────────────────────────────────
+  const [draft, setDraftState] = useState<WorkoutDraft | null>(() =>
+    safeGet<WorkoutDraft | null>(DRAFT_KEY, null, (v): v is WorkoutDraft | null =>
+      isWorkoutDraft(v),
+    ),
+  )
+  const [loggerOpen, setLoggerOpen] = useState(false)
+
+  const setDraft = (d: WorkoutDraft | null) => {
+    if (d) safeSet(DRAFT_KEY, d)
+    else safeRemove(DRAFT_KEY)
+    setDraftState(d)
+  }
+
+  const startLogging = (day: WorkoutDay, week: number) => {
+    const sameDay = draft?.planRef?.week === week && draft.planRef.slot === day.slot
+    if (draft && !sameDay && !window.confirm('Discard the workout in progress and start this one?'))
+      return
+    if (!sameDay) setDraft(newDraft(day, week, dkey(new Date()), trackerStore.getAll()))
+    setLoggerOpen(true)
+  }
+
+  const finishWorkout = () => {
+    if (!draft) return
+    const exercises = completedExercises(draft)
+    if (!exercises.length) {
+      showToast('Tick ✓ on the sets you did before finishing')
+      return
+    }
+    const day = trackerStore.getDay(draft.date)
+    const sessions = attachLoggedWorkout(dayWorkoutSessions(day), {
+      id: `manual-${Date.now()}`,
+      src: 'manual',
+      type: draft.type,
+      label: draft.title,
+      min: draftMinutes(draft),
+      exercises,
+      ...(draft.planRef && { planRef: draft.planRef }),
+    })
+    trackerStore.setDay(draft.date, {
+      ...day,
+      wkSessions: sessions,
+      workout: sessions[0]?.type ?? null,
+    })
+    const sum = loggedSummary(exercises)
+    setDraft(null)
+    setLoggerOpen(false)
+    setTrackerRev(n => n + 1)
+    showToast(
+      `Workout saved · ${sum.exercises} exercise${sum.exercises === 1 ? '' : 's'}, ${sum.sets} sets`,
+      'success',
+    )
+  }
+
+  // Today's logged sessions, for the "✓ Logged" chip on day cards
+  const todaySessions = (() => {
+    void trackerRev // re-read after a workout is saved
+    return dayWorkoutSessions(trackerStore.getDay(dkey(today)))
+  })()
 
   const PHASES_FEMALE = [
     { n: 'Week 1 - Menstrual', s: 'Train as normal, drop a set on rough days', c: 'var(--purple)' },
@@ -463,6 +571,18 @@ export default function WorkoutsTab({ user }: Props) {
                             <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} />
                           ))}
                           <div className="day-card__hint">tap any exercise to expand</div>
+                          {isAuth && (
+                            <DayLogBar
+                              logged={todaySessions.find(
+                                s => s.planRef?.week === wk.week && s.planRef.slot === day.slot,
+                              )}
+                              inProgress={
+                                draft?.planRef?.week === wk.week && draft.planRef.slot === day.slot
+                              }
+                              isToday={isToday}
+                              onStart={() => startLogging(day, wk.week)}
+                            />
+                          )}
                         </>
                       ) : (
                         <div className="day-card__empty">
@@ -513,6 +633,19 @@ export default function WorkoutsTab({ user }: Props) {
           </div>
         )}
       </div>
+
+      {loggerOpen && draft && (
+        <WorkoutLogger
+          draft={draft}
+          onChange={setDraft}
+          onClose={() => setLoggerOpen(false)}
+          onFinish={finishWorkout}
+          onDiscard={() => {
+            setDraft(null)
+            setLoggerOpen(false)
+          }}
+        />
+      )}
     </>
   )
 }
