@@ -1399,10 +1399,20 @@ describe('WorkoutsTab', () => {
     expect(screen.getByRole('button', { name: 'Week 3' })).toBeInTheDocument()
   })
 
-  it('auth: clicking Week 2 hides plan notes', () => {
+  it('auth: plan notes sit in a collapsed "About this plan" section', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Week 2' }))
-    expect(screen.queryByText(/Plan guidance/i)).not.toBeInTheDocument()
+    const about = screen.getByText('About this plan').closest('details')!
+    expect(about).not.toHaveAttribute('open')
+    expect(within(about).getByText(/Plan guidance/i)).toBeInTheDocument()
+  })
+
+  it('auth: Plan | History switch swaps the plan for the history view', () => {
+    render(<WorkoutsTab user={FAKE_USER} />)
+    expect(screen.getByRole('button', { name: 'Week 1' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'History' }))
+    expect(screen.queryByRole('button', { name: 'Week 1' })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'Plan' }))
+    expect(screen.getByRole('button', { name: 'Week 1' })).toBeInTheDocument()
   })
 
   it('auth: clicking Week 3 shows week 3 content label', () => {

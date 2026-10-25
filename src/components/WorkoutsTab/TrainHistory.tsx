@@ -26,16 +26,18 @@ function Trend({ p }: { p: ExerciseProgress }) {
   return <span className="trend trend--flat">= same</span>
 }
 
-/** Past weeks of workouts (tap a day to open it) and per-exercise progress. */
+/** Past weeks of workouts (tap a day to open it), or per-exercise progress. */
 export default function TrainHistory({
+  view,
   days,
   onOpenDay,
 }: {
+  /** Picked by the Train tab's Plan | History | Progress switch */
+  view: 'history' | 'progress'
   days: Record<string, DayData>
   /** Show a past day in the day card (to review, back-fill or edit sets) */
   onOpenDay: (date: string) => void
 }) {
-  const [view, setView] = useState<'history' | 'progress'>('history')
   const [weeksShown, setWeeksShown] = useState(WEEKS_PAGE)
   const [allProgress, setAllProgress] = useState(false)
 
@@ -44,21 +46,6 @@ export default function TrainHistory({
 
   return (
     <section className="train-history" aria-label="History and progress">
-      <div className="segmented" role="tablist" aria-label="History or progress">
-        {(['history', 'progress'] as const).map(v => (
-          <button
-            key={v}
-            type="button"
-            role="tab"
-            aria-selected={view === v}
-            className={`segmented__btn${view === v ? ' active' : ''}`}
-            onClick={() => setView(v)}
-          >
-            {v === 'history' ? 'History' : 'Progress'}
-          </button>
-        ))}
-      </div>
-
       {view === 'history' &&
         (history.length === 0 ? (
           <div className="train-plan-hint">No workouts logged yet.</div>
