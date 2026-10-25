@@ -37,7 +37,7 @@ import {
   syncStatusStore,
 } from './hooks/useStore'
 
-type Tab = 'today' | 'food' | 'recipes' | 'workouts' | 'oura'
+type Tab = 'today' | 'food' | 'workouts' | 'oura'
 
 // Consume the OAuth callback once at module load — before React mounts.
 // Must live outside any component: React StrictMode calls useState lazy
@@ -45,16 +45,19 @@ type Tab = 'today' | 'food' | 'recipes' | 'workouts' | 'oura'
 // on the first invocation so the second invocation fails the CSRF check.
 const _initialTab: Tab = consumeOAuthCallback() ? 'oura' : 'today'
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'today', label: '☀️ Today' },
-  { id: 'food', label: '🍎 Food' },
-  { id: 'recipes', label: '🍽 Recipes' },
-  { id: 'workouts', label: '💪 Train' },
-  { id: 'oura', label: '🫀 Oura' },
+const TABS: { id: Tab; icon: string; label: string }[] = [
+  { id: 'today', icon: '☀️', label: 'Today' },
+  { id: 'food', icon: '🍎', label: 'Food' },
+  { id: 'workouts', icon: '💪', label: 'Train' },
+  { id: 'oura', icon: '🫀', label: 'Oura' },
 ]
+
+type FoodView = 'log' | 'recipes'
 
 export default function App() {
   const [active, setActive] = useState<Tab>(_initialTab)
+  // Food tab: the day's log or the recipe library (with grocery list)
+  const [foodView, setFoodView] = useState<FoodView>('log')
   // Day viewed in Today and Food — shared so switching tabs keeps the same day
   const [dayDate, setDayDate] = useState(() => {
     const d = new Date()
@@ -94,11 +97,12 @@ export default function App() {
   // and reads the synced localStorage data rather than keeping its pre-sync state.
   const [syncVersion, setSyncVersion] = useState(0)
 
-  // Tracker 📖 badge → switch to Recipes and expand the linked recipe
+  // Food log 📖 badge → switch to Food › Recipes and expand the linked recipe
   const [recipeOpenReq, setRecipeOpenReq] = useState<OpenRecipeRequest | null>(null)
   const openRecipe = useCallback((id: number | undefined, name: string) => {
     setRecipeOpenReq({ id, name, seq: Date.now() })
-    setActive('recipes')
+    setActive('food')
+    setFoodView('recipes')
   }, [])
 
   // Data export / import
@@ -354,7 +358,10 @@ export default function App() {
               className={`tab${active === t.id ? ' active' : ''}`}
               onClick={() => setActive(t.id)}
             >
-              {t.label}
+              <span className="tab__icon" aria-hidden="true">
+                {t.icon}
+              </span>{' '}
+              <span className="tab__label">{t.label}</span>
             </button>
           ))}
         </nav>
@@ -369,17 +376,6 @@ export default function App() {
           className={`view${active === 'workouts' ? ' active' : ''}`}
         >
           <WorkoutsTab user={user} />
-        </div>
-      </ErrorBoundary>
-      <ErrorBoundary name="Recipes">
-        <div
-          role="tabpanel"
-          id="panel-recipes"
-          aria-labelledby="tab-recipes"
-          hidden={active !== 'recipes'}
-          className={`view${active === 'recipes' ? ' active' : ''}`}
-        >
-          <RecipesTab user={user} openRequest={recipeOpenReq} />
         </div>
       </ErrorBoundary>
       {/* Today and Food mount only while active (date calculations on load) */}
@@ -411,7 +407,21 @@ export default function App() {
           hidden={active !== 'food'}
           className={`view${active === 'food' ? ' active' : ''}`}
         >
-          {active === 'food' && (
+          <div className="segmented food-switch" role="tablist" aria-label="Food">
+            {(['log', 'recipes'] as const).map(v => (
+              <button
+                key={v}
+                type="button"
+                role="tab"
+                aria-selected={foodView === v}
+                className={`segmented__btn${foodView === v ? ' active' : ''}`}
+                onClick={() => setFoodView(v)}
+              >
+                {v === 'log' ? 'Log' : 'Recipes & grocery'}
+              </button>
+            ))}
+          </div>
+          {active === 'food' && foodView === 'log' && (
             <TrackerTab
               key={syncVersion}
               user={user}
@@ -420,6 +430,10 @@ export default function App() {
               onDateChange={setDayDate}
             />
           )}
+          {/* Recipes stay mounted (search, filters and open cards survive switching) */}
+          <div hidden={foodView !== 'recipes'}>
+            <RecipesTab user={user} openRequest={recipeOpenReq} />
+          </div>
         </div>
       </ErrorBoundary>
 

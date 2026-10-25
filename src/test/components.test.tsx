@@ -3460,15 +3460,15 @@ describe('App', () => {
     expect(screen.getByText(/Wellness Hub/)).toBeInTheDocument()
   })
 
-  it('renders the tab buttons, with Today first and no Schedule tab', () => {
+  it('renders four tabs, with Today first', () => {
     render(<App />)
     const tabs = screen.getAllByRole('tab').map(t => t.textContent)
-    expect(tabs).toEqual(['☀️ Today', '🍎 Food', '🍽 Recipes', '💪 Train', '🫀 Oura'])
+    expect(tabs).toEqual(['☀️ Today', '🍎 Food', '💪 Train', '🫀 Oura'])
   })
 
   it('opens on Today, which shows its auth gate when not signed in', () => {
     render(<App />)
-    expect(screen.getByRole('tab', { name: '☀️ Today' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Today' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText(/Sign in to see/i)).toBeInTheDocument()
   })
 
@@ -3480,21 +3480,22 @@ describe('App', () => {
 
   it('clicking Recipes tab shows sign-in gate when not authenticated', () => {
     render(<App />)
-    fireEvent.click(screen.getByText('🍽 Recipes'))
+    fireEvent.click(screen.getByRole('tab', { name: 'Food' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Recipes & grocery' }))
     expect(screen.getByText(/Create, save and organise your personal recipes/i)).toBeInTheDocument()
     expect(screen.queryByPlaceholderText('Search recipes, ingredients…')).not.toBeInTheDocument()
   })
 
   it('clicking Train tab preserves week navigation', () => {
     render(<App />)
-    fireEvent.click(screen.getByText('💪 Train'))
+    fireEvent.click(screen.getByRole('tab', { name: 'Train' }))
     expect(screen.getByRole('button', { name: 'Week 1' })).toBeInTheDocument()
   })
 
   it('clicking Food tab shows its auth gate when not signed in', () => {
     render(<App />)
-    fireEvent.click(screen.getByText('🍽 Recipes'))
-    fireEvent.click(screen.getByText('🍎 Food'))
+    fireEvent.click(screen.getByRole('tab', { name: 'Train' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Food' }))
     expect(screen.getByText(/Sign in to use/i)).toBeInTheDocument()
   })
 
