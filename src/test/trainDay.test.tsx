@@ -130,12 +130,12 @@ describe('TrainDay', () => {
         average_heart_rate: 110,
       },
     ])
-    const onSave = vi.fn()
-    render(<TrainDay {...base} ouraConnected onSave={onSave} />)
+    render(<TrainDay {...base} ouraConnected />)
     fireEvent.click(screen.getByText('⟳ Sync Oura'))
     expect(await screen.findByText('75')).toBeInTheDocument()
+    // The shared sync hook writes straight to the tracker store
     await waitFor(() =>
-      expect(onSave).toHaveBeenCalledWith(
+      expect(JSON.parse(ls['whub_tracker_v3'] ?? '{}')['2026-06-15']).toEqual(
         expect.objectContaining({
           wkSessions: [
             expect.objectContaining({

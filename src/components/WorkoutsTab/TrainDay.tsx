@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { SESSION_OPTS } from '../../data/tracker'
 import type { DayData, WorkoutSession } from '../../data/tracker'
 import { fetchOuraReadiness, readinessColor, readinessLabel } from '../../lib/oura'
 import type { OuraReadiness } from '../../lib/oura'
-import { dismissOuraSession, importOuraWorkouts } from '../../lib/ouraImport'
-import { showToast } from '../../lib/toast'
-import { reportError } from '../../lib/errorLog'
+import { dismissOuraSession } from '../../lib/ouraImport'
+import { useOuraWorkoutSync } from '../../hooks/useOuraWorkoutSync'
 import { safeGet, safeSet } from '../../lib/storage'
 import { WorkoutSessionList } from '../TrackerTab/SessionList'
 import { dkey } from '../TrackerTab/dateKey'
@@ -60,13 +59,6 @@ export default function TrainDay({
   const [wkKcal, setWkKcal] = useState('')
   const [wkNotes, setWkNotes] = useState(initialWkNotes)
   const [readiness, setReadiness] = useState<OuraReadiness | null>(null)
-  const [wkSyncing, setWkSyncing] = useState(false)
-
-  // Latest sessions for the auto-import effect without re-triggering it.
-  const sessionsRef = useRef(sessions)
-  useEffect(() => {
-    sessionsRef.current = sessions
-  }, [sessions])
 
   /** Persist a new session list, mirroring the first session into the legacy slot. */
   const saveSessions = (next: WorkoutSession[]) => {
@@ -93,54 +85,21 @@ export default function TrainDay({
   }, [date, ouraConnected])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Silent Oura auto-import (policy-gated inside importOuraWorkouts)
-  useEffect(() => {
-    if (!ouraConnected) return
-    let cancelled = false
-    importOuraWorkouts(dkey(date), sessionsRef.current)
-      .then(merged => {
-        if (cancelled || !merged) return
-        const added = merged.length - sessionsRef.current.length
-        onSave({ wkSessions: merged, workout: merged[0]?.type ?? null })
-        if (added > 0)
-          showToast(`${added} workout${added === 1 ? '' : 's'} imported from Oura`, 'info')
-      })
-      .catch(() => {}) // silent — manual sync surfaces errors
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, ouraConnected])
+  const { syncing: wkSyncing, sync: syncWorkouts } = useOuraWorkoutSync(dkey(date), ouraConnected)
 
+  // Manual sync: workouts plus a fresh readiness score
   const syncWorkoutFromOura = async () => {
-    setWkSyncing(true)
-    try {
-      const dateStr = dkey(date)
-      const [merged, readinessData] = await Promise.all([
-        importOuraWorkouts(dateStr, sessions, true),
-        fetchOuraReadiness(dateStr),
-      ])
-      if (readinessData) {
-        setCachedReadiness(dateStr, readinessData)
-        setReadiness(readinessData)
-      }
-      if (merged) {
-        const added = merged.length - sessions.length
-        saveSessions(merged)
-        showToast(
-          added > 0
-            ? `${added} workout${added === 1 ? '' : 's'} imported from Oura`
-            : 'Oura workouts updated',
-          'info',
-        )
-      } else if (!readinessData) {
-        showToast('No Oura data found for this date.', 'info')
-      }
-    } catch (err: unknown) {
-      showToast(reportError('oura-sync:workout', err), 'error')
-    } finally {
-      setWkSyncing(false)
-    }
+    const dateStr = dkey(date)
+    await Promise.all([
+      syncWorkouts(),
+      fetchOuraReadiness(dateStr)
+        .then(data => {
+          if (!data) return
+          setCachedReadiness(dateStr, data)
+          setReadiness(data)
+        })
+        .catch(() => {}),
+    ])
   }
 
   const logWorkout = () => {

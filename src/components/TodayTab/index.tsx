@@ -1,8 +1,10 @@
 import { useEffect, useState, lazy, Suspense } from 'react'
+import type { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { DayData } from '../../data/tracker'
 import { dayMedSessions, dayWorkoutSessions } from '../../data/tracker'
-import { bodyStatsStore, trackerStore } from '../../hooks/useStore'
+import { bodyStatsStore, trackerStore, useStoreRev } from '../../hooks/useStore'
+import { useOuraWorkoutSync } from '../../hooks/useOuraWorkoutSync'
 import { useCyclePhase } from '../../hooks/useCyclePhase'
 import { fetchOuraReadiness, isOuraConnected, readinessColor, readinessLabel } from '../../lib/oura'
 import type { OuraReadiness } from '../../lib/oura'
@@ -18,6 +20,7 @@ import MeditationLog from '../TrackerTab/MeditationLog'
 import MeditationGuides from '../TrackerTab/MeditationGuides'
 import RemindersSection from '../TrackerTab/RemindersSection'
 import WeekGoal from '../TrackerTab/WeekGoal'
+import ProfileStatsCard from '../TrackerTab/ProfileStatsCard'
 import type { WeekGoalPayload } from '../TrackerTab/WeekGoal'
 import { PHASE_COLOR } from '../WorkoutsTab/CycleToday'
 import DayTimeline, { dayKeyOf } from './DayTimeline'
@@ -40,6 +43,34 @@ function addDays(d: Date, n: number): Date {
   const r = new Date(d)
   r.setDate(r.getDate() + n)
   return r
+}
+
+/** Full-screen sheet over Today (Schedule, Profile & targets). */
+function Sheet({
+  title,
+  onClose,
+  children,
+}: {
+  title: string
+  onClose: () => void
+  children: ReactNode
+}) {
+  return (
+    <div className="cooking-overlay" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="cooking-topbar">
+        <button
+          type="button"
+          className="cooking-topbar__back"
+          aria-label={`Close ${title.toLowerCase()}`}
+          onClick={onClose}
+        >
+          ✕
+        </button>
+        <span className="logger__title">{title}</span>
+      </div>
+      <div className="today-schedule-sheet">{children}</div>
+    </div>
+  )
 }
 
 /** Free-text notes for the day — keyed by date by the parent so it re-seeds. */
@@ -85,10 +116,12 @@ interface Props {
  * meditation, reminders, notes and the weekly goal.
  */
 export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenTrain }: Props) {
-  // Bumped after writes from this tab so store reads below refresh
-  const [rev, setRev] = useState(0)
+  // Bumped on any tracker / profile write (this tab, Train, background Oura import)
+  const rev = useStoreRev()
+  // Bumped when the Schedule sheet closes so the timeline re-reads edited blocks
+  const [scheduleRev, setScheduleRev] = useState(0)
   const [ouraConnected, setOuraConnected] = useState(false)
-  const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [sheet, setSheet] = useState<'schedule' | 'profile' | null>(null)
   const [readiness, setReadiness] = useState<Record<string, OuraReadiness>>(() =>
     safeGet<Record<string, OuraReadiness>>(READINESS_CACHE_KEY, {}),
   )
@@ -118,6 +151,7 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
   const stats = bodyStatsStore.get()
   const cycleOn = stats.cycleType !== 'none'
   const cycle = useCyclePhase(date, cycleOn && ouraConnected, rev)
+  const wkSync = useOuraWorkoutSync(key, ouraConnected)
 
   const { day, weekAnchorDay, lastWeek, streak } = (() => {
     void rev
@@ -131,7 +165,6 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
 
   const save = (patch: Partial<DayData>) => {
     trackerStore.setDay(key, { ...trackerStore.getDay(key), ...patch })
-    setRev(n => n + 1)
   }
 
   // Weekly goal persists on the week's Monday anchor day (not the viewed day)
@@ -144,7 +177,6 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
       weekGoalResult: p.weekGoalResult || undefined,
       weekGoalNote: p.weekGoalNote.trim() || undefined,
     })
-    setRev(n => n + 1)
   }
 
   const shift = (delta: number) => onDateChange(addDays(date, delta))
@@ -228,17 +260,28 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
         <span className="today-chip">
           🔥 <strong>{streak}</strong> week streak
         </span>
+        <button type="button" className="today-chip" onClick={() => setSheet('profile')}>
+          👤 Profile &amp; targets
+        </button>
       </div>
 
       <div className="flex flex-col gap-12">
         <DayTimeline
-          key={`tl-${key}-${rev}`}
+          key={`tl-${key}-${scheduleRev}`}
           date={date}
           isToday={isToday}
-          onOpenSchedule={() => setScheduleOpen(true)}
+          onOpenSchedule={() => setSheet('schedule')}
         />
         <FoodCard day={day} onOpenFood={onOpenFood} />
-        <TrainSummary sessions={dayWorkoutSessions(day)} onOpenTrain={onOpenTrain} />
+        <TrainSummary
+          sessions={dayWorkoutSessions(day)}
+          onOpenTrain={onOpenTrain}
+          oura={
+            ouraConnected
+              ? { lastSynced: wkSync.lastSynced, syncing: wkSync.syncing, onSync: wkSync.sync }
+              : undefined
+          }
+        />
         {/* Keyed by date so their inputs re-seed on day change */}
         <CheckIn
           key={`checkin-${key}`}
@@ -276,28 +319,23 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
         />
       </div>
 
-      {scheduleOpen && (
-        <div className="cooking-overlay" role="dialog" aria-modal="true" aria-label="Schedule">
-          <div className="cooking-topbar">
-            <button
-              type="button"
-              className="cooking-topbar__back"
-              aria-label="Close schedule"
-              onClick={() => {
-                setScheduleOpen(false)
-                setRev(n => n + 1) // re-read edited blocks
-              }}
-            >
-              ✕
-            </button>
-            <span className="logger__title">Schedule</span>
-          </div>
-          <div className="today-schedule-sheet">
-            <Suspense fallback={null}>
-              <ScheduleTab user={user} initialDay={dayKeyOf(date)} />
-            </Suspense>
-          </div>
-        </div>
+      {sheet === 'schedule' && (
+        <Sheet
+          title="Schedule"
+          onClose={() => {
+            setSheet(null)
+            setScheduleRev(n => n + 1)
+          }}
+        >
+          <Suspense fallback={null}>
+            <ScheduleTab user={user} initialDay={dayKeyOf(date)} />
+          </Suspense>
+        </Sheet>
+      )}
+      {sheet === 'profile' && (
+        <Sheet title="Profile & targets" onClose={() => setSheet(null)}>
+          <ProfileStatsCard user={user} />
+        </Sheet>
       )}
     </>
   )

@@ -123,6 +123,15 @@ export function shouldImport(date: string, kind: ImportKind, now = Date.now()): 
   return isRecentDate(date, now) && now - stamp > IMPORT_TTL_MS
 }
 
+/** When this date was last imported from Oura (ms), or null if never. */
+export function lastImported(date: string, kind: ImportKind): number | null {
+  return (
+    safeGet<Record<string, Partial<Record<ImportKind, number>>>>(IMPORT_STAMP_KEY, {})[date]?.[
+      kind
+    ] ?? null
+  )
+}
+
 export function markImported(date: string, kind: ImportKind, now = Date.now()): void {
   const all = safeGet<Record<string, Partial<Record<ImportKind, number>>>>(IMPORT_STAMP_KEY, {})
   all[date] = { ...all[date], [kind]: now }

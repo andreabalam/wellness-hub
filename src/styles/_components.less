@@ -3336,6 +3336,26 @@
   gap: 10px;
   margin-bottom: 14px;
 }
+.train-summary__oura {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 0.786rem;
+}
+.train-summary__sync {
+  padding: 2px 8px;
+  border: 1px solid var(--border2);
+  border-radius: 99px;
+  background: transparent;
+  color: var(--teal);
+  font-size: 0.786rem;
+  cursor: pointer;
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
 
 // ── Train: History & Progress ──
 .train-history {
@@ -3488,6 +3508,15 @@
   color: var(--muted);
   strong {
     color: var(--text);
+  }
+}
+button.today-chip {
+  margin-left: auto;
+  cursor: pointer;
+  font-family: inherit;
+  &:hover {
+    color: var(--text);
+    border-color: var(--teal);
   }
 }
 .today-timeline__list {
