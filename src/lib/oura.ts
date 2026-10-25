@@ -473,6 +473,14 @@ export async function fetchOuraReadiness(date: string): Promise<OuraReadiness | 
   return items.find(r => r.day === date) ?? null
 }
 
+/** Readiness for a date range — used for the temperature_deviation series behind cycle-phase detection. */
+export async function fetchOuraReadinessRange(
+  startDate: string,
+  endDate: string,
+): Promise<OuraReadiness[]> {
+  return proxyFetchRange<OuraReadiness>('daily_readiness', startDate, endDate)
+}
+
 export async function fetchOuraSleep(date: string): Promise<OuraSleep | null> {
   const items = await proxyFetch<OuraSleep>('daily_sleep', date)
   return items.find(s => s.day === date) ?? null

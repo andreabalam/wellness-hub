@@ -22,17 +22,14 @@ import {
   workoutTotals,
 } from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
-import { estimatePhase } from '../../lib/cyclePhase'
-import type { PhaseSuggestion } from '../../lib/cyclePhase'
+import { useCyclePhase } from '../../hooks/useCyclePhase'
 import { BUILTIN_RECIPES } from '../../data/recipes'
 import type { Recipe } from '../../data/recipes'
 import { searchLocalFoods, historyFoods, recipeToHit } from '../../lib/localFoodSearch'
 import type { LocalFoodHit } from '../../lib/localFoodSearch'
 import { searchUSDAFoods, estimateFoodMacros } from '../../lib/foodSearch'
 import type { UsdaFoodHit } from '../../lib/foodSearch'
-import { isOuraConnected, fetchOuraTags, isPeriodTag, startOuraOAuth } from '../../lib/oura'
-import type { OuraReadiness } from '../../lib/oura'
-import { safeGet } from '../../lib/storage'
+import { isOuraConnected, startOuraOAuth } from '../../lib/oura'
 import { densityTierFor, DENSITY_COLORS, DENSITY_LABELS } from '../../lib/density'
 import { analyzeImage } from '../../lib/analyzeFood'
 import type { PhotoAnalysisResult } from '../../lib/analyzeFood'
@@ -607,33 +604,11 @@ export default function TrackerTab({
   )
 
   // ── Cycle-phase suggestion ──────────────────────────────────────
-  // Period-tag days from Oura (last ~10 weeks, fetched once per session).
-  const [periodTagDays, setPeriodTagDays] = useState<string[]>([])
-  const [tagScopeMissing, setTagScopeMissing] = useState(false)
-  useEffect(() => {
-    if (!ouraConnected) return
-    const today = new Date()
-    fetchOuraTags(dkey(addDays(today, -70)), dkey(today))
-      .then(tags => setPeriodTagDays(tags.filter(isPeriodTag).map(t => t.start_day)))
-      .catch((err: unknown) => {
-        // Pre-`tag`-scope connections get a 403 — offer reconnect, not an error
-        if (/403|scope|forbidden/i.test(String(err))) setTagScopeMissing(true)
-      })
-  }, [ouraConnected])
-
-  // Pure derivation (localStorage reads are synchronous) — no effect needed.
-  const phaseSuggestion: PhaseSuggestion | null = useMemo(() => {
-    if (day.phase) return null
-    // Recent temperature deviations from the readiness cache (already
-    // populated by WorkoutLog's readiness auto-fetch; no extra network).
-    const readinessCache = safeGet<Record<string, OuraReadiness>>('whub_oura_readiness_v1', {})
-    const temps: number[] = []
-    for (let i = 4; i >= 0; i--) {
-      const dev = readinessCache[dkey(addDays(date, -i))]?.temperature_deviation
-      if (dev != null) temps.push(dev)
-    }
-    return estimatePhase(dkey(date), periodTagDays, store.getAll(), temps)
-  }, [date, day.phase, periodTagDays, store])
+  // Oura period tags + temperature shift (cached, shared with WorkoutsTab).
+  // Recomputes when the viewed day's phase is edited; hidden once a phase is set.
+  const cycle = useCyclePhase(date, ouraConnected, day.phase)
+  const tagScopeMissing = cycle.tagScopeMissing
+  const phaseSuggestion = day.phase ? null : cycle.suggestion
 
   // Hydration counter — persists immediately on each tap
   const adjustWater = (delta: number) => {

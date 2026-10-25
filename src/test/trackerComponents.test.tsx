@@ -192,7 +192,12 @@ describe('WorkoutLog', () => {
     render(
       <WorkoutLog
         {...base}
-        suggestedPhase={{ phase: 'Luteal', source: 'oura-tag', cycleDay: 19 }}
+        suggestedPhase={{
+          phase: 'Luteal',
+          source: 'oura-tag',
+          cycleDay: 19,
+          anchorDate: '2026-06-01',
+        }}
       />,
     )
     expect(screen.getByText(/from Oura \(estimated, day 19\)/)).toBeInTheDocument()
