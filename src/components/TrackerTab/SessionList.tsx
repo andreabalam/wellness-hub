@@ -37,9 +37,12 @@ function LoggedSets({ session }: { session: WorkoutSession }) {
 export function WorkoutSessionList({
   sessions,
   onRemove,
+  onEdit,
 }: {
   sessions: WorkoutSession[]
   onRemove: (s: WorkoutSession) => void
+  /** Re-open a logged workout's sets in the logger */
+  onEdit?: (s: WorkoutSession) => void
 }) {
   if (sessions.length === 0) {
     return (
@@ -65,6 +68,11 @@ export function WorkoutSessionList({
               {s.note ? ` · ${s.note}` : ''}
             </div>
             {s.exercises?.length ? <LoggedSets session={s} /> : null}
+            {onEdit && s.exercises?.length ? (
+              <button type="button" className="link-btn text-sm" onClick={() => onEdit(s)}>
+                Edit sets
+              </button>
+            ) : null}
           </div>
           <button onClick={() => onRemove(s)} className="food-remove-btn" title="Remove session">
             ×
