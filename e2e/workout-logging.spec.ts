@@ -17,6 +17,16 @@ async function openTrain(page: Page) {
   await page.locator('nav.tabs').getByRole('tab', { name: /Train/i }).click()
 }
 
+/** Expand the first plan day with exercises (rows start collapsed, except today's). */
+async function openFirstPlanDay(page: Page) {
+  const row = page
+    .locator('#panel-workouts details.day-card')
+    .filter({ has: page.locator('.exercise-row') })
+    .first()
+  if (!(await row.evaluate(d => (d as HTMLDetailsElement).open)))
+    await row.locator('summary').click()
+}
+
 test.describe('Train tab — set logging (mobile)', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })
 
@@ -31,8 +41,10 @@ test.describe('Train tab — set logging (mobile)', () => {
   test('log sets, resume after reload, finish, see it on Today', async ({ page }) => {
     const panel = page.locator('#panel-workouts')
     // First plan day with exercises ("Start workout" when it happens to be today)
+    await openFirstPlanDay(page)
     await panel
       .getByRole('button', { name: /Start workout|Log this workout/ })
+      .filter({ visible: true })
       .first()
       .click()
 
@@ -67,7 +79,9 @@ test.describe('Train tab — set logging (mobile)', () => {
 
     await logger.getByRole('button', { name: /Finish workout · 2\// }).click()
     await expect(page.getByText(/Workout saved · 1 exercise, 2 sets/)).toBeVisible()
-    await expect(panel.getByText('✓ Logged · 2 sets')).toBeVisible()
+    await expect(
+      panel.getByText('✓ Logged · 2 sets').filter({ visible: true }).first(),
+    ).toBeVisible()
 
     // The day card's activity list shows the sets; the weeks counter picks it up
     const summary = panel.getByText('1 exercise · 2 sets · 486 kg')
@@ -83,6 +97,7 @@ test.describe('Train tab — set logging (mobile)', () => {
     await expect(panel.getByText('1 exercise · 2 sets · 466 kg')).toBeVisible()
 
     // History lists the day; Progress lists the exercise
+    await panel.getByRole('tab', { name: 'History' }).click()
     await expect(panel.locator('.history-week__hdr').first()).toContainText('1 workout')
     await panel.getByRole('tab', { name: 'Progress' }).click()
     await expect(panel.locator('.progress-row').first()).toContainText('20.5 kg')
@@ -95,9 +110,11 @@ test.describe('Train tab — set logging (mobile)', () => {
   })
 
   test('finishing with no ticked sets keeps the logger open', async ({ page }) => {
+    await openFirstPlanDay(page)
     await page
       .locator('#panel-workouts')
       .getByRole('button', { name: /Start workout|Log this workout/ })
+      .filter({ visible: true })
       .first()
       .click()
     const logger = page.getByRole('dialog', { name: 'Log workout' })

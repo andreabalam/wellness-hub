@@ -51,9 +51,12 @@ describe('WorkoutsTab cycle sync', () => {
   it('opens on Week 4 in the luteal phase and marks today', () => {
     seed({ periodDaysAgo: 18 }) // cycle day 19
     render(<WorkoutsTab user={FAKE_USER} />)
-    expect(screen.getByText('Today · cycle day 19')).toBeInTheDocument()
+    expect(screen.getByText('cycle day 19')).toBeInTheDocument()
     expect(screen.getByText(/Luteal phase/)).toHaveTextContent('Luteal phase → Week 4')
     expect(screen.getByRole('button', { name: 'Week 4' })).toHaveClass('week-nav__btn--current')
+    // Where the estimate comes from sits behind Details
+    expect(screen.queryByText(/Counting from the period start you marked/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
     expect(screen.getByText(/Counting from the period start you marked/)).toBeInTheDocument()
     expect(document.querySelector('.day-card__today')).toHaveTextContent('Today')
     // The day card leads with today's plan workout from the phase week
@@ -72,6 +75,7 @@ describe('WorkoutsTab cycle sync', () => {
   it('setting the phase by hand moves the plan to that week', () => {
     seed({ periodDaysAgo: 18 })
     render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
     fireEvent.click(screen.getByRole('button', { name: 'Not right? Change phase' }))
     fireEvent.click(screen.getByRole('button', { name: 'Follicular' }))
     expect(screen.getByRole('button', { name: 'Week 2' })).toHaveClass('week-nav__btn--current')

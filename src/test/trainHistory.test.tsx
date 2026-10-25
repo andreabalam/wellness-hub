@@ -90,7 +90,7 @@ describe('TrainHistory', () => {
 
   it('lists weeks newest first; tapping a day opens it', () => {
     const onOpenDay = vi.fn()
-    render(<TrainHistory days={days} onOpenDay={onOpenDay} />)
+    render(<TrainHistory view="history" days={days} onOpenDay={onOpenDay} />)
     const weeks = screen.getAllByText(/^Week of/)
     expect(weeks[0]).toHaveTextContent('Week of Oct 19 · 1 workout')
     expect(weeks[1]).toHaveTextContent('Week of Oct 12 · 2 workouts')
@@ -104,8 +104,7 @@ describe('TrainHistory', () => {
   })
 
   it('progress tab shows each exercise trend', () => {
-    render(<TrainHistory days={days} onOpenDay={() => {}} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Progress' }))
+    render(<TrainHistory view="progress" days={days} onOpenDay={() => {}} />)
     const row = screen.getByText('Hip thrust').closest('.progress-row') as HTMLElement
     expect(row).toHaveTextContent('20 kg → 25 kg')
     expect(row).toHaveTextContent('▲ 5 kg')
@@ -113,9 +112,9 @@ describe('TrainHistory', () => {
   })
 
   it('empty states', () => {
-    render(<TrainHistory days={{}} onOpenDay={() => {}} />)
+    const { rerender } = render(<TrainHistory view="history" days={{}} onOpenDay={() => {}} />)
     expect(screen.getByText('No workouts logged yet.')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: 'Progress' }))
+    rerender(<TrainHistory view="progress" days={{}} onOpenDay={() => {}} />)
     expect(screen.getByText(/progress shows up here/)).toBeInTheDocument()
   })
 
@@ -132,8 +131,7 @@ describe('TrainHistory', () => {
       ),
       '2026-10-02': day(session('b', [{ name: 'Move 0', sets: [{ reps: 8, done: true }] }])),
     }
-    render(<TrainHistory days={many} onOpenDay={() => {}} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Progress' }))
+    render(<TrainHistory view="progress" days={many} onOpenDay={() => {}} />)
     expect(screen.getAllByText(/^Move \d$/)).toHaveLength(8)
     expect(screen.getByText('▼ 2 reps')).toBeInTheDocument()
     expect(screen.getAllByText('new').length).toBeGreaterThan(0)
@@ -182,6 +180,7 @@ describe('Train tab: editing and history', () => {
   it('tapping a history day opens it in the day card', () => {
     seed({ '2026-10-20': day(session('m1', [thrust(20)])) })
     render(<WorkoutsTab user={FAKE_USER} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'History' }))
     fireEvent.click(screen.getByText(/45 min · 1 sets/).closest('button')!)
     const card = document.getElementById('train-day') as HTMLElement
     expect(within(card).getByText('Logging for')).toBeInTheDocument()

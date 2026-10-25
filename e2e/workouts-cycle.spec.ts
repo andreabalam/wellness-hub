@@ -58,7 +58,7 @@ test.describe('Train tab — cycle sync', () => {
 
   test("opens on the luteal week with today's plan in the day card", async ({ page }) => {
     const panel = page.locator('#panel-workouts')
-    await expect(panel.getByText('Today · cycle day 19')).toBeVisible()
+    await expect(panel.getByText('cycle day 19')).toBeVisible()
     await expect(panel.getByText('Luteal phase → Week 4')).toBeVisible()
     await expect(
       panel.getByText('Week 4 plan').or(panel.getByText(/Today's plan: rest/)),
@@ -68,6 +68,7 @@ test.describe('Train tab — cycle sync', () => {
 
   test('changing the phase by hand moves the plan week', async ({ page }) => {
     const panel = page.locator('#panel-workouts')
+    await panel.getByRole('button', { name: 'Details' }).click()
     await panel.getByRole('button', { name: 'Not right? Change phase' }).click()
     await panel.getByRole('button', { name: 'Follicular' }).click()
     await expect(panel.getByText('Follicular phase → Week 2')).toBeVisible()
@@ -75,10 +76,11 @@ test.describe('Train tab — cycle sync', () => {
 
   test('"My period started today" moves the plan to Week 1', async ({ page }) => {
     const panel = page.locator('#panel-workouts')
+    await panel.getByRole('button', { name: 'Details' }).click()
     await panel.getByRole('button', { name: 'My period started today' }).click()
     await expect(panel.getByText('Menstrual phase → Week 1')).toBeVisible()
     await page.reload()
     await page.locator('nav.tabs').getByRole('tab', { name: /Train/i }).click()
-    await expect(panel.getByText('Today · cycle day 1')).toBeVisible()
+    await expect(panel.getByText('cycle day 1', { exact: true })).toBeVisible()
   })
 })
