@@ -142,14 +142,6 @@ export interface OuraEnhancedTag {
   comment: string | null
 }
 
-export interface OuraWorkoutRoute {
-  id: string
-  start_datetime: string
-  end_datetime: string
-  source: string
-  polyline: string | null
-}
-
 // ── Oura activity → app session-type mapping ──────────────────────
 
 export const OURA_ACTIVITY_MAP: Record<string, string> = {
@@ -417,35 +409,6 @@ async function proxyFetchRange<T>(
   return (json.data ?? []) as T[]
 }
 
-// For single-object endpoints (e.g. workout routes) that don't return a data array
-async function proxyFetchSingle<T>(
-  endpoint: string,
-  extra: Record<string, string>,
-): Promise<T | null> {
-  if (!supabase) throw new Error('Supabase not configured')
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session) throw new Error('Not signed in')
-
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-  const qs = new URLSearchParams({ endpoint, ...extra })
-  const url = `${supabaseUrl}/functions/v1/oura-proxy?${qs}`
-
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${session.access_token}` },
-  })
-
-  if (res.status === 404) return null
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error ?? err.detail ?? err.message ?? `Oura error ${res.status}`)
-  }
-
-  return (await res.json()) as T
-}
-
 // ── Public fetch functions ────────────────────────────────────────
 
 export async function fetchOuraWorkouts(date: string): Promise<OuraWorkout[]> {
@@ -568,14 +531,6 @@ export async function fetchOuraTags(
 /** True when a tag looks like a period tag (exact code pinned per plan; match defensively). */
 export function isPeriodTag(t: OuraEnhancedTag): boolean {
   return /period|menstru/i.test(t.tag_type_code ?? '')
-}
-
-export async function fetchOuraWorkoutRoute(workoutId: string): Promise<OuraWorkoutRoute | null> {
-  try {
-    return await proxyFetchSingle<OuraWorkoutRoute>('workout_route', { id: workoutId })
-  } catch {
-    return null
-  }
 }
 
 /** Returns weight/height/age/sex from the user's Oura profile. */

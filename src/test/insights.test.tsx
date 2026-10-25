@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import type { User } from '@supabase/supabase-js'
 
 vi.mock('../components/OuraTab', () => ({ default: () => <div>Oura dashboard</div> }))
@@ -101,7 +101,7 @@ describe('InsightsTab', () => {
     expect(screen.queryByText('Oura dashboard')).toBeNull()
   })
 
-  it('shows this week vs last week, the 8-week table, cycle history and Oura', () => {
+  it('shows this week vs last week, 8-week trend lines, cycle history and Oura', () => {
     ls.whub_tracker_v3 = JSON.stringify({
       ...DAYS,
       '2026-09-01': day({ phase: 'Menstrual' }),
@@ -110,31 +110,24 @@ describe('InsightsTab', () => {
     ls.whub_body_stats_v1 = JSON.stringify({ cycleType: 'regular' })
     render(<InsightsTab user={{ id: 'u1' } as User} />)
 
-    const tile = (label: RegExp) => screen.getByText(label).closest('.kpi-tile') as HTMLElement
-    expect(tile(/^Calories \/ day/)).toHaveTextContent('1,500▼ −300 vs last week')
-    expect(within(tile(/^Calories \/ day/)).getByText(/vs last week/)).toHaveClass(
-      'kpi-tile__delta--flat',
-    )
-    expect(within(tile(/^Protein \/ day/)).getByText(/vs last week/)).toHaveTextContent(
-      '▲ +20 g vs last week',
-    )
-    expect(within(tile(/^Protein \/ day/)).getByText(/vs last week/)).toHaveClass(
-      'kpi-tile__delta--good',
-    )
-    expect(within(tile(/^Sleep \(check-in/)).getByText(/vs last week/)).toHaveTextContent('▲ +1.5')
-    expect(within(tile(/^Energy \(check-in/)).getByText(/vs last week/)).toHaveClass(
-      'kpi-tile__delta--bad',
-    )
-    expect(tile(/^Meditation/)).toHaveTextContent('▲ +10 min vs last week')
-
-    const rows = screen.getAllByRole('row')
-    expect(rows).toHaveLength(9) // header + 8 weeks
-    expect(rows[1]).toHaveTextContent('Oct 261,500 (2d)110 g24.53')
-    expect(rows[8]).toHaveTextContent('Sep 7——0——')
+    const row = (label: RegExp) => screen.getByText(label).closest('.trend-row') as HTMLElement
+    const delta = (label: RegExp) => row(label).querySelector('.trend-row__delta')!
+    expect(row(/^Calories \/ day/)).toHaveTextContent('target 1,')
+    expect(row(/^Calories \/ day/)).toHaveTextContent('1,500▼ −300')
+    expect(delta(/^Calories \/ day/)).toHaveClass('trend-row__delta--flat')
+    expect(delta(/^Protein \/ day/)).toHaveTextContent('▲ +20 g')
+    expect(delta(/^Protein \/ day/)).toHaveClass('trend-row__delta--good')
+    expect(delta(/^Sleep/)).toHaveTextContent('▲ +1.5')
+    expect(delta(/^Energy/)).toHaveClass('trend-row__delta--bad')
+    expect(delta(/^Meditation/)).toHaveTextContent('▲ +10 min')
+    // Calories had data in two weeks → a line; the old 8-week table is gone
+    expect(row(/^Calories \/ day/).querySelector('svg path')).not.toBeNull()
+    expect(screen.queryAllByRole('row')).toHaveLength(0)
+    expect(screen.getByText(/food was logged on 2 days this week/)).toBeInTheDocument()
 
     expect(screen.getByText(/Average cycle/)).toHaveTextContent('Average cycle: 28 days')
     expect(screen.getByText('current cycle')).toBeInTheDocument()
-    expect(screen.getByText('Oura dashboard')).toBeInTheDocument()
+    expect(screen.getByText('Oura dashboard').closest('details')).toHaveClass('insights-oura')
   })
 
   it('explains how to start the cycle history when no period is logged', () => {
