@@ -59,7 +59,7 @@ Secrets are set in Supabase Dashboard → Edge Functions → Secrets (never in c
 
 ### UI structure
 
-`App.tsx` owns the tab switcher and auth/sync state. Four tabs: `TrackerTab`, `RecipesTab`, `WorkoutsTab`, `ScheduleTab`. Each tab is a directory under `src/components/`. Tabs are always mounted (except `TrackerTab` which lazy-mounts on active to avoid expensive date calculations on load).
+`App.tsx` owns the tab switcher, auth/sync state and the day shared by Today and Food. Tabs: **Today** (`TodayTab` — home: schedule timeline, food/workout summaries, check-in, meditation, reminders, notes, weekly goal; the full `ScheduleTab` opens from its timeline), **Food** (`TrackerTab`, food log only), **Recipes** (`RecipesTab`), **Train** (`WorkoutsTab`) and **Oura** (`OuraTab`). Each tab is a directory under `src/components/`. Tabs are always mounted except Today and Food, which lazy-mount on active to avoid expensive date calculations on load. The ongoing reorganisation (Food absorbing Recipes, Oura becoming Insights) is in `plan/OPTION3_TODAY_HUB_PLAN.md`.
 
 Styling is in less in `src/index.less`. CSS custom properties (`--teal`, `--amber`, `--coral`, etc.) are the design tokens. No CSS framework, no CSS modules — all styles are global.
 

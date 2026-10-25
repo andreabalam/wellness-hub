@@ -4,22 +4,16 @@ import {
   useTrackerStore,
   useFoodLibraryStore,
   bodyStatsStore,
-  useUserSettingsStore,
   recipeStore,
   hiddenRecipeStore,
   builtinRecipeCacheStore,
 } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
-import { macrosFromKcal, significantBurnKcal } from '../../lib/stats'
+import { significantBurnKcal } from '../../lib/stats'
+import { macroTargets } from '../../hooks/macroTargets'
 import ProfileStatsCard from './ProfileStatsCard'
-import {
-  QUICK_FOODS,
-  WATER_MAX,
-  dayMedSessions,
-  dayWorkoutSessions,
-  workoutTotals,
-} from '../../data/tracker'
+import { QUICK_FOODS, WATER_MAX, dayWorkoutSessions, workoutTotals } from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
 import { BUILTIN_RECIPES } from '../../data/recipes'
 import type { Recipe } from '../../data/recipes'
@@ -32,73 +26,49 @@ import { importOuraWorkouts } from '../../lib/ouraImport'
 import { densityTierFor, DENSITY_COLORS, DENSITY_LABELS } from '../../lib/density'
 import { analyzeImage } from '../../lib/analyzeFood'
 import type { PhotoAnalysisResult } from '../../lib/analyzeFood'
-import RemindersSection from './RemindersSection'
 import MacroBar from './MacroBar'
 import SatietyRow from './SatietyRow'
 import WeekStrip from './WeekStrip'
-import CheckIn from './CheckIn'
-import MeditationLog from './MeditationLog'
-import MeditationGuides from './MeditationGuides'
-import TrainSummary from './TrainSummary'
-import WeekGoal from './WeekGoal'
-import type { WeekGoalPayload } from './WeekGoal'
 import MealList from './MealList'
-import WeekActivitySummary from './WeekActivitySummary'
 import PasteToLog from './PasteToLog'
 import HungerCravingPicker from './HungerCravingPicker'
 import QuickAddRow from './QuickAddRow'
 import CravingSwapReference from './CravingSwapReference'
 import { dkey } from './dateKey'
 
-/** Local Monday (week anchor) of the week containing d. */
-function mondayOf(d: Date): Date {
-  const m = new Date(d)
-  m.setHours(0, 0, 0, 0)
-  const diff = (m.getDay() + 6) % 7 // days since Monday (getDay: 0=Sun..6=Sat)
-  m.setDate(m.getDate() - diff)
-  return m
-}
-
-/** A new Date offset by n days (does not mutate the input). */
-function addDays(d: Date, n: number): Date {
-  const r = new Date(d)
-  r.setDate(r.getDate() + n)
-  return r
-}
-
 // ── Main component ───────────────────────────────────────────────
 export default function TrackerTab({
   user,
   onOpenRecipe,
-  onOpenTrain,
+  date: controlledDate,
+  onDateChange,
 }: {
   user?: User | null
   /** Called when the 📖 badge on a logged meal is tapped — App switches to Recipes */
   onOpenRecipe?: (id: number | undefined, name: string) => void
-  /** Workout logging lives in the Train tab — App switches to it */
-  onOpenTrain?: () => void
+  /** Viewed day, shared with the Today tab (App owns it); uncontrolled when absent */
+  date?: Date
+  onDateChange?: (d: Date) => void
 }) {
   const store = useTrackerStore()
   const libStore = useFoodLibraryStore()
-  const settingsStore = useUserSettingsStore()
   const todayBase = new Date()
   todayBase.setHours(0, 0, 0, 0)
 
-  const [targets] = useState(() => settingsStore.get())
   // Macro bar targets: prefer bodyStats (with macroSplit) over legacy settings
   const [statsSeed, setStatsSeed] = useState(0) // increment to force re-read after ProfileStatsCard save
   const activeStats = bodyStatsStore.get()
-  const activeMacros = macrosFromKcal(
-    activeStats.kcalTarget,
-    (activeStats.macroSplit as import('../../lib/stats').MacroSplit) || 'balanced',
-  )
-  const activeKcalTarget = activeStats.kcalTarget || targets.kcalTarget
-  const activeProtTarget = activeMacros?.prot ?? targets.protTarget
-  const activeCarbTarget = activeMacros?.carb ?? targets.carbTarget
-  const activeFatTarget = activeMacros?.fat ?? targets.fatTarget
-  const activeFiberTarget = activeMacros?.fiber ?? targets.fiberTarget
+  const {
+    kcal: activeKcalTarget,
+    prot: activeProtTarget,
+    carb: activeCarbTarget,
+    fat: activeFatTarget,
+    fiber: activeFiberTarget,
+  } = macroTargets()
 
-  const [date, setDate] = useState<Date>(new Date(todayBase))
+  const [ownDate, setOwnDate] = useState<Date>(new Date(todayBase))
+  const date = controlledDate ?? ownDate
+  const setDate = onDateChange ?? setOwnDate
   const [day, setDay] = useState<DayData>(() => store.getDay(dkey(todayBase)))
   const [fName, setFName] = useState('')
   const [fKcal, setFKcal] = useState('')
@@ -141,10 +111,7 @@ export default function TrackerTab({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [water, setWater] = useState(0)
-  const [dayNotes, setDayNotes] = useState('')
-  const [notesSaved, setNotesSaved] = useState(false)
   const [stripKey, setStripKey] = useState(0)
-  const [innerTab, setInnerTab] = useState<'food' | 'meditation'>('food')
   const [showMealContext, setShowMealContext] = useState(false)
 
   const loadDate = useCallback(
@@ -153,7 +120,6 @@ export default function TrackerTab({
       const data = store.getDay(k)
       setDay(data)
       setWater(data.water ?? 0)
-      setDayNotes(data.notes ?? '')
       setEditIndex(null)
       setFName('')
       setFKcal('')
@@ -537,42 +503,11 @@ export default function TrackerTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, day])
 
-  const saveNotes = () => {
-    save({ notes: dayNotes })
-    setNotesSaved(true)
-    setTimeout(() => setNotesSaved(false), 1600)
-  }
-
-  // Weekly goal persists on the week's Monday anchor day (not the viewed day)
-  const saveWeekGoal = (p: WeekGoalPayload) => {
-    const anchorKey = dkey(mondayOf(date))
-    const updated: DayData = {
-      ...store.getDay(anchorKey),
-      weekGoal: p.weekGoal.trim(),
-      weekGoalKind: p.weekGoalKind,
-      weekGoalResult: p.weekGoalResult || undefined,
-      weekGoalNote: p.weekGoalNote.trim() || undefined,
-    }
-    store.setDay(anchorKey, updated)
-    if (anchorKey === dkey(date)) setDay(updated) // keep viewed-day state in sync
-    setStripKey(n => n + 1)
-  }
-
-  // Current week's goal anchor (Monday) — seeds <WeekGoal>; re-read per week.
-  const weekAnchorDay = useMemo(() => store.getDay(dkey(mondayOf(date))), [date, store])
-  // Last week's goal (read from the previous Monday anchor) for continuity
-  const lastWeek = store.getDay(dkey(addDays(mondayOf(date), -7)))
-
   const goDate = (delta: number) => {
     const d = new Date(date)
     d.setDate(d.getDate() + delta)
     setDate(d)
   }
-
-  // Fresh read of the selected day's check-in values to seed <CheckIn>. The
-  // `day` state lags `date` by one render (it's loaded in an effect), so seeding
-  // the date-keyed CheckIn from `day` would show the previous day's stars.
-  const dayForDate = useMemo(() => store.getDay(dkey(date)), [date, store])
 
   // ── Oura state ──────────────────────────────────────────────────
   const [ouraConnected, setOuraConnected] = useState(false)
@@ -589,11 +524,10 @@ export default function TrackerTab({
   // and save() (on every write), so it's always the live session list for
   // the currently viewed date — no separate store read needed.
   const wkSessionsForDate = dayWorkoutSessions(day)
-  const medSessionsForDate = dayMedSessions(day)
   const burnedToday = workoutTotals(wkSessionsForDate).kcal
   // Wrapped in useMemo — a plain expression here confuses the React Compiler's
   // manual-memoization check on the unrelated `loadDate` useCallback below
-  // (it starts reporting stable useState setters like setWater/setDayNotes as
+  // (it starts reporting stable useState setters like setWater/setFName as
   // missing dependencies). Likely a compiler analysis quirk in this
   // large component; useMemo sidesteps it without disabling the rule.
   const burnThreshold = useMemo(
@@ -629,7 +563,7 @@ export default function TrackerTab({
       <div className="guest-gate-cta">
         <div className="guest-gate-cta__icon">🔒</div>
         <div className="section-title mb-8">
-          Sign in to use <em className="text-teal">Tracker</em>
+          Sign in to use <em className="text-teal">Food</em>
         </div>
         <div className="guest-gate-cta__body">
           Log meals, track macros and monitor your daily progress. Your data stays private and syncs
@@ -644,7 +578,7 @@ export default function TrackerTab({
       {/* Header */}
       <div className="mb-16">
         <div className="page-title">
-          My <em className="italic text-teal">Daily Tracker</em>
+          My <em className="italic text-teal">Food</em>
         </div>
       </div>
 
@@ -673,438 +607,355 @@ export default function TrackerTab({
         burnThreshold={burnThreshold}
       />
 
-      {/* Week workout/meditation roll-up (hidden when the week is empty) */}
-      <WeekActivitySummary key={`was-${stripKey}`} currentDate={date} getDay={store.getDay} />
-
-      {/* Inner tabs */}
-      {/* Workout: read-only here — logging lives in the Train tab */}
-      <TrainSummary sessions={wkSessionsForDate} onOpenTrain={() => onOpenTrain?.()} />
-
-      <div className="flex inner-tab-bar">
-        {(['food', 'meditation'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setInnerTab(t)}
-            className={`inner-tab${innerTab === t ? ' active' : ''}`}
-          >
-            {t === 'food' ? 'Food' : 'Meditation'}
-          </button>
-        ))}
-      </div>
-
       {/* ── Food ── */}
-      {innerTab === 'food' && (
-        <>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Macro summary */}
-            <div className="tcard">
-              <div className="tlabel text-muted2">Daily targets</div>
-              <div className="flex flex-col gap-10">
-                <MacroBar
-                  label="Calories"
-                  val={totals.k}
-                  target={activeKcalTarget}
-                  color="var(--green)"
-                  valColor="var(--green-light)"
-                  burned={burnedToday}
-                />
-                <MacroBar
-                  label="Protein"
-                  sub="muscle retention"
-                  val={totals.p}
-                  target={activeProtTarget}
-                  color="var(--blue)"
-                  valColor="var(--blue-light)"
-                />
-                <MacroBar
-                  label="Carbs"
-                  sub="moderate-low"
-                  val={totals.c}
-                  target={activeCarbTarget}
-                  color="var(--amber)"
-                  valColor="var(--amber-light)"
-                />
-                <MacroBar
-                  label="Fat"
-                  sub="hormonal health"
-                  val={totals.f}
-                  target={activeFatTarget}
-                  color="var(--coral)"
-                  valColor="var(--coral-light)"
-                />
-                <MacroBar
-                  label="Fiber"
-                  sub="satiety on deficit"
-                  val={totals.fi}
-                  target={activeFiberTarget}
-                  color="var(--teal)"
-                  valColor="var(--teal-light)"
-                />
-              </div>
-              <div className="flex-between mt-12 text-sm">
-                <span className="text-muted">💧 Water</span>
-                <div className="flex gap-8 items-center">
-                  <button
-                    onClick={() => adjustWater(-1)}
-                    className="water-btn"
-                    aria-label="Remove a glass of water"
-                    disabled={water === 0}
-                  >
-                    –
-                  </button>
-                  <span
-                    className="font-mono text-blue"
-                    style={{ minWidth: 78, textAlign: 'center' }}
-                  >
-                    {water} glass{water === 1 ? '' : 'es'}
-                  </span>
-                  <button
-                    onClick={() => adjustWater(1)}
-                    className="water-btn"
-                    aria-label="Add a glass of water"
-                    disabled={water >= WATER_MAX}
-                  >
-                    +
-                  </button>
-                </div>
+      <>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Macro summary */}
+          <div className="tcard">
+            <div className="tlabel text-muted2">Daily targets</div>
+            <div className="flex flex-col gap-10">
+              <MacroBar
+                label="Calories"
+                val={totals.k}
+                target={activeKcalTarget}
+                color="var(--green)"
+                valColor="var(--green-light)"
+                burned={burnedToday}
+              />
+              <MacroBar
+                label="Protein"
+                sub="muscle retention"
+                val={totals.p}
+                target={activeProtTarget}
+                color="var(--blue)"
+                valColor="var(--blue-light)"
+              />
+              <MacroBar
+                label="Carbs"
+                sub="moderate-low"
+                val={totals.c}
+                target={activeCarbTarget}
+                color="var(--amber)"
+                valColor="var(--amber-light)"
+              />
+              <MacroBar
+                label="Fat"
+                sub="hormonal health"
+                val={totals.f}
+                target={activeFatTarget}
+                color="var(--coral)"
+                valColor="var(--coral-light)"
+              />
+              <MacroBar
+                label="Fiber"
+                sub="satiety on deficit"
+                val={totals.fi}
+                target={activeFiberTarget}
+                color="var(--teal)"
+                valColor="var(--teal-light)"
+              />
+            </div>
+            <div className="flex-between mt-12 text-sm">
+              <span className="text-muted">💧 Water</span>
+              <div className="flex gap-8 items-center">
+                <button
+                  onClick={() => adjustWater(-1)}
+                  className="water-btn"
+                  aria-label="Remove a glass of water"
+                  disabled={water === 0}
+                >
+                  –
+                </button>
+                <span className="font-mono text-blue" style={{ minWidth: 78, textAlign: 'center' }}>
+                  {water} glass{water === 1 ? '' : 'es'}
+                </span>
+                <button
+                  onClick={() => adjustWater(1)}
+                  className="water-btn"
+                  aria-label="Add a glass of water"
+                  disabled={water >= WATER_MAX}
+                >
+                  +
+                </button>
               </div>
             </div>
+          </div>
 
-            {/* Food log */}
-            <div className="tcard">
-              <div className="tlabel text-muted2">Meals logged</div>
-              <MealList
-                foods={day.foods}
-                editIndex={editIndex}
-                onEdit={startEdit}
-                onRemove={removeFood}
-                onOpenRecipe={onOpenRecipe}
-                recipeLinkId={recipeLinkId}
-              />
-              <div style={{ paddingTop: 12 }}>
-                {/* Hidden file input for photo capture — no `capture` attr so
+          {/* Food log */}
+          <div className="tcard">
+            <div className="tlabel text-muted2">Meals logged</div>
+            <MealList
+              foods={day.foods}
+              editIndex={editIndex}
+              onEdit={startEdit}
+              onRemove={removeFood}
+              onOpenRecipe={onOpenRecipe}
+              recipeLinkId={recipeLinkId}
+            />
+            <div style={{ paddingTop: 12 }}>
+              {/* Hidden file input for photo capture — no `capture` attr so
                   mobile browsers offer both camera and photo library */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handlePhotoSelect}
-                />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoSelect}
+              />
 
-                {editIndex !== null && (
-                  <div className="edit-indicator">
-                    <span className="text-amber font-mono">Editing: {day.foods[editIndex]?.n}</span>
-                    <button onClick={cancelEdit} className="item-icon-btn text-xs">
-                      Cancel
-                    </button>
-                  </div>
-                )}
-
-                {/* Photo / meal name / servings */}
-                <div className="flex gap-6 mb-8 items-center">
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={photoStatus !== 'idle'}
-                    title="Analyze food photo or nutrition label"
-                    style={{
-                      flexShrink: 0,
-                      width: 32,
-                      height: 32,
-                      borderRadius: 7,
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg3)',
-                      color: photoStatus !== 'idle' ? 'var(--muted2)' : 'var(--teal-light)',
-                      cursor: photoStatus !== 'idle' ? 'default' : 'pointer',
-                      fontSize: '1.071rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all .15s',
-                    }}
-                  >
-                    {photoStatus !== 'idle' ? '⏳' : '📷'}
+              {editIndex !== null && (
+                <div className="edit-indicator">
+                  <span className="text-amber font-mono">Editing: {day.foods[editIndex]?.n}</span>
+                  <button onClick={cancelEdit} className="item-icon-btn text-xs">
+                    Cancel
                   </button>
-                  <div className="autocomplete-wrap">
-                    <input
-                      className="tinput w-full"
-                      value={fName}
-                      onChange={e => {
-                        setFName(e.target.value)
-                        openSugg()
-                        setFRecipeId(null)
-                        resetOnline()
-                      }}
-                      onFocus={openSugg}
-                      onBlur={closeSuggSoon}
-                      placeholder="Meal name (e.g. Berry Oats)"
-                    />
-                    {showSugg && fName.trim().length >= 2 && (
-                      <div className="autocomplete-dropdown">
-                        {hitGroups.map(([label, hits]) => (
-                          <Fragment key={label}>
-                            <div className="autocomplete-section">{label}</div>
-                            {hits.map(f => (
+                </div>
+              )}
+
+              {/* Photo / meal name / servings */}
+              <div className="flex gap-6 mb-8 items-center">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={photoStatus !== 'idle'}
+                  title="Analyze food photo or nutrition label"
+                  style={{
+                    flexShrink: 0,
+                    width: 32,
+                    height: 32,
+                    borderRadius: 7,
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg3)',
+                    color: photoStatus !== 'idle' ? 'var(--muted2)' : 'var(--teal-light)',
+                    cursor: photoStatus !== 'idle' ? 'default' : 'pointer',
+                    fontSize: '1.071rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all .15s',
+                  }}
+                >
+                  {photoStatus !== 'idle' ? '⏳' : '📷'}
+                </button>
+                <div className="autocomplete-wrap">
+                  <input
+                    className="tinput w-full"
+                    value={fName}
+                    onChange={e => {
+                      setFName(e.target.value)
+                      openSugg()
+                      setFRecipeId(null)
+                      resetOnline()
+                    }}
+                    onFocus={openSugg}
+                    onBlur={closeSuggSoon}
+                    placeholder="Meal name (e.g. Berry Oats)"
+                  />
+                  {showSugg && fName.trim().length >= 2 && (
+                    <div className="autocomplete-dropdown">
+                      {hitGroups.map(([label, hits]) => (
+                        <Fragment key={label}>
+                          <div className="autocomplete-section">{label}</div>
+                          {hits.map(f => (
+                            <button
+                              key={`${f.source}-${f.n}`}
+                              onMouseDown={() => applySuggestion(f)}
+                              className="autocomplete-item"
+                            >
+                              {f.n}
+                              <span className="autocomplete-hint">
+                                {f.k} kcal · {f.p}g P · {f.c}g C · {f.f}g F
+                              </span>
+                            </button>
+                          ))}
+                        </Fragment>
+                      ))}
+                      {onlineHits === null && onlineStatus === 'idle' && (
+                        <button
+                          className="autocomplete-item autocomplete-action"
+                          onMouseDown={e => {
+                            e.preventDefault()
+                            searchOnline()
+                          }}
+                        >
+                          🔍 Search online for “{fName.trim()}”
+                        </button>
+                      )}
+                      {onlineStatus === 'searching' && (
+                        <div className="autocomplete-empty">Searching USDA…</div>
+                      )}
+                      {onlineStatus === 'estimating' && (
+                        <div className="autocomplete-empty">Estimating with AI…</div>
+                      )}
+                      {onlineStatus === 'error' && (
+                        <button
+                          className="autocomplete-item autocomplete-action autocomplete-action--warn"
+                          onMouseDown={e => {
+                            e.preventDefault()
+                            searchOnline()
+                          }}
+                        >
+                          ⚠ Search failed — tap to retry
+                        </button>
+                      )}
+                      {onlineHits !== null && onlineStatus === 'idle' && (
+                        <>
+                          <div className="autocomplete-section">USDA results</div>
+                          {onlineHits.length === 0 && (
+                            <div className="autocomplete-empty">No USDA match.</div>
+                          )}
+                          {onlineHits.map(h => {
+                            const tier = h.calPerG != null ? densityTierFor(h.calPerG) : null
+                            return (
                               <button
-                                key={`${f.source}-${f.n}`}
-                                onMouseDown={() => applySuggestion(f)}
+                                key={h.name}
+                                onMouseDown={() => applyUsdaHit(h)}
                                 className="autocomplete-item"
                               >
-                                {f.n}
+                                <span>
+                                  {tier && (
+                                    <span
+                                      className="density-dot density-dot--inline"
+                                      title={DENSITY_LABELS[tier]}
+                                      style={{ background: DENSITY_COLORS[tier] }}
+                                    />
+                                  )}
+                                  {h.name}
+                                </span>
                                 <span className="autocomplete-hint">
-                                  {f.k} kcal · {f.p}g P · {f.c}g C · {f.f}g F
+                                  {h.srv} · {h.k} kcal · {h.p}g P · {h.c}g C · {h.f}g F
                                 </span>
                               </button>
-                            ))}
-                          </Fragment>
-                        ))}
-                        {onlineHits === null && onlineStatus === 'idle' && (
+                            )
+                          })}
                           <button
                             className="autocomplete-item autocomplete-action"
                             onMouseDown={e => {
                               e.preventDefault()
-                              searchOnline()
+                              estimateAI()
                             }}
                           >
-                            🔍 Search online for “{fName.trim()}”
+                            ✨ Estimate with AI
                           </button>
-                        )}
-                        {onlineStatus === 'searching' && (
-                          <div className="autocomplete-empty">Searching USDA…</div>
-                        )}
-                        {onlineStatus === 'estimating' && (
-                          <div className="autocomplete-empty">Estimating with AI…</div>
-                        )}
-                        {onlineStatus === 'error' && (
-                          <button
-                            className="autocomplete-item autocomplete-action autocomplete-action--warn"
-                            onMouseDown={e => {
-                              e.preventDefault()
-                              searchOnline()
-                            }}
-                          >
-                            ⚠ Search failed — tap to retry
-                          </button>
-                        )}
-                        {onlineHits !== null && onlineStatus === 'idle' && (
-                          <>
-                            <div className="autocomplete-section">USDA results</div>
-                            {onlineHits.length === 0 && (
-                              <div className="autocomplete-empty">No USDA match.</div>
-                            )}
-                            {onlineHits.map(h => {
-                              const tier = h.calPerG != null ? densityTierFor(h.calPerG) : null
-                              return (
-                                <button
-                                  key={h.name}
-                                  onMouseDown={() => applyUsdaHit(h)}
-                                  className="autocomplete-item"
-                                >
-                                  <span>
-                                    {tier && (
-                                      <span
-                                        className="density-dot density-dot--inline"
-                                        title={DENSITY_LABELS[tier]}
-                                        style={{ background: DENSITY_COLORS[tier] }}
-                                      />
-                                    )}
-                                    {h.name}
-                                  </span>
-                                  <span className="autocomplete-hint">
-                                    {h.srv} · {h.k} kcal · {h.p}g P · {h.c}g C · {h.f}g F
-                                  </span>
-                                </button>
-                              )
-                            })}
-                            <button
-                              className="autocomplete-item autocomplete-action"
-                              onMouseDown={e => {
-                                e.preventDefault()
-                                estimateAI()
-                              }}
-                            >
-                              ✨ Estimate with AI
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <span className="font-mono text-muted2 text-2xs tracking-8 no-wrap">SRV</span>
-                  <input
-                    className="tnum"
-                    type="number"
-                    min="0.5"
-                    max="99"
-                    step="0.5"
-                    placeholder="1"
-                    value={fServings}
-                    onChange={e => setFServings(e.target.value)}
-                    style={{ width: 56, textAlign: 'center', flexShrink: 0 }}
-                  />
-                </div>
-
-                {/* Paste-to-log: parse a pasted block of meals instead of typing
-                  a name — an alternative entry path for the meal name above */}
-                <PasteToLog foodLib={foodLib} onAdd={addParsedFoods} />
-
-                {/* Photo status banner — reflects the 📷 analysis that fills the
-                  name and macros */}
-                {(photoStatus !== 'idle' || photoNotes) && (
-                  <div
-                    style={{
-                      fontSize: '0.786rem',
-                      marginBottom: 8,
-                      padding: '5px 9px',
-                      borderRadius: 6,
-                      background:
-                        photoStatus === 'error' || photoConfidence === 'low'
-                          ? 'rgba(184,150,58,0.08)'
-                          : 'var(--bg3)',
-                      border: `1px solid ${
-                        photoStatus === 'error' || photoConfidence === 'low'
-                          ? 'var(--amber)'
-                          : 'var(--border)'
-                      }`,
-                      color:
-                        photoStatus === 'error' || photoConfidence === 'low'
-                          ? 'var(--amber-light)'
-                          : 'var(--muted2)',
-                      fontFamily: '"DM Mono",monospace',
-                    }}
-                  >
-                    {photoStatus === 'detecting' && '● Detecting…'}
-                    {photoStatus === 'reading' && '● Reading label…'}
-                    {photoStatus === 'identifying' && '● Identifying food…'}
-                    {photoStatus === 'error' && photoNotes}
-                    {photoStatus === 'idle' && photoNotes}
-                  </div>
-                )}
-
-                <div className="macro-inputs-grid">
-                  {(
-                    [
-                      ['kcal', fKcal, setFKcal],
-                      ['prot', fPro, setFPro],
-                      ['carb', fCarb, setFCarb],
-                      ['fat', fFat, setFat],
-                      ['fiber', fFiber, setFFiber],
-                    ] as [string, string, (v: string) => void][]
-                  ).map(([ph, val, set]) => (
-                    <input
-                      key={ph}
-                      className={`tnum ${photoConfidence === 'low' || photoConfidence === 'medium' ? 'input-warn' : ''}`}
-                      type="number"
-                      min="0"
-                      placeholder={ph}
-                      value={val}
-                      onChange={e => set(e.target.value)}
-                    />
-                  ))}
-                </div>
-                <div className="font-mono text-muted2 text-2xs mb-8">per serving</div>
-                <QuickAddRow recentMeals={recentMeals} onQuickAdd={quickAdd} />
-
-                {/* Collapsible meal context — hunger type + satiety */}
-                <button
-                  type="button"
-                  onClick={() => setShowMealContext(v => !v)}
-                  className="meal-context-toggle"
-                >
-                  <span>{showMealContext ? '▾' : '▸'}</span>
-                  How did it feel?
-                </button>
-                {showMealContext && (
-                  <div className="meal-context-panel">
-                    <HungerCravingPicker fHunger={fHunger} onHungerChange={setFHunger} />
-                    <div className="mb-10">
-                      <div className="text-xs text-muted2 mb-6">
-                        Satiety after this meal — where did it leave you?
-                      </div>
-                      <SatietyRow value={fSat} onChange={setFSat} />
+                        </>
+                      )}
                     </div>
-                  </div>
-                )}
-                <button
-                  onClick={addFood}
-                  className={`tbtn ${editIndex !== null ? 'tbtn--amber' : 'tbtn--teal'}`}
-                >
-                  {editIndex !== null ? '✓ Save changes' : '+ Log food'}
-                </button>
+                  )}
+                </div>
+                <span className="font-mono text-muted2 text-2xs tracking-8 no-wrap">SRV</span>
+                <input
+                  className="tnum"
+                  type="number"
+                  min="0.5"
+                  max="99"
+                  step="0.5"
+                  placeholder="1"
+                  value={fServings}
+                  onChange={e => setFServings(e.target.value)}
+                  style={{ width: 56, textAlign: 'center', flexShrink: 0 }}
+                />
               </div>
+
+              {/* Paste-to-log: parse a pasted block of meals instead of typing
+                  a name — an alternative entry path for the meal name above */}
+              <PasteToLog foodLib={foodLib} onAdd={addParsedFoods} />
+
+              {/* Photo status banner — reflects the 📷 analysis that fills the
+                  name and macros */}
+              {(photoStatus !== 'idle' || photoNotes) && (
+                <div
+                  style={{
+                    fontSize: '0.786rem',
+                    marginBottom: 8,
+                    padding: '5px 9px',
+                    borderRadius: 6,
+                    background:
+                      photoStatus === 'error' || photoConfidence === 'low'
+                        ? 'rgba(184,150,58,0.08)'
+                        : 'var(--bg3)',
+                    border: `1px solid ${
+                      photoStatus === 'error' || photoConfidence === 'low'
+                        ? 'var(--amber)'
+                        : 'var(--border)'
+                    }`,
+                    color:
+                      photoStatus === 'error' || photoConfidence === 'low'
+                        ? 'var(--amber-light)'
+                        : 'var(--muted2)',
+                    fontFamily: '"DM Mono",monospace',
+                  }}
+                >
+                  {photoStatus === 'detecting' && '● Detecting…'}
+                  {photoStatus === 'reading' && '● Reading label…'}
+                  {photoStatus === 'identifying' && '● Identifying food…'}
+                  {photoStatus === 'error' && photoNotes}
+                  {photoStatus === 'idle' && photoNotes}
+                </div>
+              )}
+
+              <div className="macro-inputs-grid">
+                {(
+                  [
+                    ['kcal', fKcal, setFKcal],
+                    ['prot', fPro, setFPro],
+                    ['carb', fCarb, setFCarb],
+                    ['fat', fFat, setFat],
+                    ['fiber', fFiber, setFFiber],
+                  ] as [string, string, (v: string) => void][]
+                ).map(([ph, val, set]) => (
+                  <input
+                    key={ph}
+                    className={`tnum ${photoConfidence === 'low' || photoConfidence === 'medium' ? 'input-warn' : ''}`}
+                    type="number"
+                    min="0"
+                    placeholder={ph}
+                    value={val}
+                    onChange={e => set(e.target.value)}
+                  />
+                ))}
+              </div>
+              <div className="font-mono text-muted2 text-2xs mb-8">per serving</div>
+              <QuickAddRow recentMeals={recentMeals} onQuickAdd={quickAdd} />
+
+              {/* Collapsible meal context — hunger type + satiety */}
+              <button
+                type="button"
+                onClick={() => setShowMealContext(v => !v)}
+                className="meal-context-toggle"
+              >
+                <span>{showMealContext ? '▾' : '▸'}</span>
+                How did it feel?
+              </button>
+              {showMealContext && (
+                <div className="meal-context-panel">
+                  <HungerCravingPicker fHunger={fHunger} onHungerChange={setFHunger} />
+                  <div className="mb-10">
+                    <div className="text-xs text-muted2 mb-6">
+                      Satiety after this meal — where did it leave you?
+                    </div>
+                    <SatietyRow value={fSat} onChange={setFSat} />
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={addFood}
+                className={`tbtn ${editIndex !== null ? 'tbtn--amber' : 'tbtn--teal'}`}
+              >
+                {editIndex !== null ? '✓ Save changes' : '+ Log food'}
+              </button>
             </div>
           </div>
-
-          {/* Browsable craving-swap reference */}
-          <CravingSwapReference />
-
-          {/* Profile & Targets — consolidated stats module */}
-          <ProfileStatsCard
-            key={statsSeed}
-            user={user ?? null}
-            onSaved={() => setStatsSeed(n => n + 1)}
-          />
-        </>
-      )}
-
-      {/* ── Meditation ── */}
-      {innerTab === 'meditation' && (
-        <div className="flex flex-col gap-12">
-          {/* Meditation — keyed by date so the picker re-seeds on day change */}
-          <MeditationLog
-            key={`med-${dkey(date)}`}
-            sessions={medSessionsForDate}
-            ouraConnected={ouraConnected}
-            date={date}
-            onSave={save}
-          />
-
-          {/* Favorite guides */}
-          <MeditationGuides />
-
-          {/* Daily check-in — keyed by date so it re-seeds its stars on day change */}
-          <CheckIn
-            key={`checkin-${dkey(date)}`}
-            initialEnergy={dayForDate.energy}
-            initialMood={dayForDate.mood}
-            initialSleep={dayForDate.sleep}
-            initialStress={dayForDate.stress}
-            ouraConnected={ouraConnected}
-            date={date}
-            onSave={save}
-          />
-
-          {/* Reminders */}
-          <RemindersSection user={user} />
-
-          {/* Day notes */}
-          <div className="tcard">
-            <div className="tlabel text-muted2">Day notes</div>
-            <textarea
-              className="tinput resize-vertical mb-8"
-              value={dayNotes}
-              onChange={e => setDayNotes(e.target.value)}
-              placeholder="Cravings, how the workout felt, anything worth noting..."
-              rows={4}
-            />
-            <button onClick={saveNotes} className={`tbtn tbtn-ghost ${notesSaved ? 'saved' : ''}`}>
-              {notesSaved ? 'Saved!' : 'Save notes'}
-            </button>
-          </div>
-
-          {/* Weekly goal — keyed by week anchor so it re-seeds per week */}
-          <WeekGoal
-            key={dkey(mondayOf(date))}
-            initialGoal={weekAnchorDay.weekGoal ?? ''}
-            initialKind={weekAnchorDay.weekGoalKind ?? 'goal'}
-            initialResult={weekAnchorDay.weekGoalResult ?? ''}
-            initialNote={weekAnchorDay.weekGoalNote ?? ''}
-            lastWeekGoal={lastWeek.weekGoal ?? ''}
-            lastWeekResult={lastWeek.weekGoalResult ?? ''}
-            onSave={saveWeekGoal}
-          />
         </div>
-      )}
+
+        {/* Browsable craving-swap reference */}
+        <CravingSwapReference />
+
+        {/* Profile & Targets — consolidated stats module */}
+        <ProfileStatsCard
+          key={statsSeed}
+          user={user ?? null}
+          onSaved={() => setStatsSeed(n => n + 1)}
+        />
+      </>
     </>
   )
 }

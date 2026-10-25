@@ -48,11 +48,7 @@ test('edit with pre-existing v1 schedule data', async ({ page }) => {
   })
   await page.reload()
 
-  await page
-    .locator('button')
-    .filter({ hasText: /Schedule/ })
-    .first()
-    .click()
+  await page.getByRole('button', { name: 'Open schedule →' }).click()
   await page.waitForTimeout(500)
 
   // Should show the v1 title in timeline
@@ -86,11 +82,7 @@ test('edit shows immediately without needing to switch days', async ({ page }) =
   })
   await page.reload()
 
-  await page
-    .locator('button')
-    .filter({ hasText: /Schedule/ })
-    .first()
-    .click()
+  await page.getByRole('button', { name: 'Open schedule →' }).click()
   await page.waitForTimeout(400)
 
   const dayBefore = await page.locator('.ttitle').first().textContent()

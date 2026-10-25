@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-// Helper: target only the top-level tab bar buttons (avoids matching
-// in-page buttons like "✎ Edit schedule" that also contain "Schedule")
+// Helper: target only the top-level tab bar buttons
 const tabBar = (page: Parameters<typeof expect>[0]) =>
   (page as import('@playwright/test').Page).locator('nav.tabs')
 
@@ -10,19 +9,20 @@ test.describe('Tab navigation', () => {
     await page.goto('/')
   })
 
-  test('loads with Tracker tab active by default', async ({ page }) => {
-    await expect(tabBar(page).getByRole('tab', { name: /Tracker/i })).toHaveClass(/active/)
-    // TrackerTab shows an auth gate for unauthenticated users
-    await expect(page.getByText(/Sign in to use/i)).toBeVisible()
+  test('loads with Today active by default', async ({ page }) => {
+    await expect(tabBar(page).getByRole('tab', { name: /Today/i })).toHaveClass(/active/)
+    // Today shows an auth gate for unauthenticated users
+    await expect(page.getByText(/Sign in to see/i)).toBeVisible()
   })
 
-  test('switches to Schedule tab', async ({ page }) => {
-    await tabBar(page)
-      .getByRole('tab', { name: /Schedule/i })
-      .click()
-    await expect(tabBar(page).getByRole('tab', { name: /Schedule/i })).toHaveClass(/active/)
-    // Unauthenticated users see the sign-in gate
-    await expect(page.getByText(/Sign in to save your schedule/i)).toBeVisible()
+  test('has Today, Food, Recipes, Train and Oura — no Schedule tab', async ({ page }) => {
+    await expect(tabBar(page).getByRole('tab')).toHaveText([
+      /Today/,
+      /Food/,
+      /Recipes/,
+      /Train/,
+      /Oura/,
+    ])
   })
 
   test('switches to Train tab', async ({ page }) => {
@@ -39,15 +39,9 @@ test.describe('Tab navigation', () => {
     await expect(page.locator('input[placeholder*="Search recipes"]')).not.toBeVisible()
   })
 
-  test('switches to Tracker tab', async ({ page }) => {
-    // Navigate away first, then switch back
-    await tabBar(page)
-      .getByRole('tab', { name: /Schedule/i })
-      .click()
-    await tabBar(page)
-      .getByRole('tab', { name: /Tracker/i })
-      .click()
-    // TrackerTab shows the auth gate for unauthenticated users
+  test('switches to Food tab', async ({ page }) => {
+    await tabBar(page).getByRole('tab', { name: /Food/i }).click()
+    // Food shows the auth gate for unauthenticated users
     await expect(page.getByText(/Sign in to use/i)).toBeVisible()
   })
 
@@ -66,7 +60,7 @@ test.describe('Tab navigation', () => {
 
     // Switch away and back
     await tabBar(page)
-      .getByRole('tab', { name: /Schedule/i })
+      .getByRole('tab', { name: /Recipes/i })
       .click()
     await page.getByRole('tab', { name: /Train/i }).click()
     // Week 2 content still showing (React state preserved)

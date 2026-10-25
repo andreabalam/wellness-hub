@@ -40,13 +40,20 @@ function rebrandForDay(blocks: CustomBlock[], day: DayKey): CustomBlock[] {
 
 // ── Component ────────────────────────────────────────────────────
 
-export default function ScheduleTab({ user }: { user?: User | null }) {
+export default function ScheduleTab({
+  user,
+  initialDay,
+}: {
+  user?: User | null
+  /** Day selected on open (Today's schedule sheet passes the viewed day) */
+  initialDay?: DayKey
+}) {
   const settingsStore = useUserSettingsStore()
 
   const todayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()] as DayKey
 
   const [weekSchedule, setWeekSchedule] = useState<WeekSchedule>(loadWeek)
-  const [selectedDay, setSelectedDay] = useState<DayKey>(todayKey)
+  const [selectedDay, setSelectedDay] = useState<DayKey>(initialDay ?? todayKey)
   const [openRows, setOpenRows] = useState<Set<number>>(new Set())
   const [showEditor, setShowEditor] = useState(false)
   const [showExport, setShowExport] = useState(false)

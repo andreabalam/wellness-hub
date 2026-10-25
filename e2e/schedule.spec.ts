@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-test.describe('Schedule tab', () => {
+test.describe('Schedule (opened from Today)', () => {
   test.beforeEach(async ({ page }) => {
     // Inject mock user so the schedule is shown instead of the sign-in gate
     await page.addInitScript(() => {
@@ -21,11 +21,9 @@ test.describe('Schedule tab', () => {
       localStorage.clear()
     })
     await page.reload()
-    // Use the tab bar to avoid matching the in-page "✎ Edit schedule" button
-    await page
-      .locator('nav.tabs')
-      .getByRole('tab', { name: /Schedule/i })
-      .click()
+    // The full schedule opens from Today's timeline
+    await page.getByRole('button', { name: 'Open schedule →' }).click()
+    await expect(page.getByRole('dialog', { name: 'Schedule' })).toBeVisible()
   })
 
   test('shows the cognitive peak banner', async ({ page }) => {
