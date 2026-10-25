@@ -182,6 +182,9 @@ interface Props {
 export default function WorkoutsTab({ user }: Props) {
   // null = follow the cycle phase; a number = the user picked a week by hand
   const [activeWeek, setActiveWeek] = useState<number | null>(null)
+  const [view, setView] = useState<'plan' | 'history' | 'progress'>('plan')
+  // Day rows the user opened/closed by hand ("week-day" → open); others follow the default
+  const [dayOpen, setDayOpen] = useState<Record<string, boolean>>({})
   const [today] = useState(() => new Date())
   // The day being viewed/logged in the day card (‹ › back-fills past days)
   const [date, setDate] = useState(today)
@@ -469,6 +472,8 @@ export default function WorkoutsTab({ user }: Props) {
     setDraftExs(prev => [...prev, { t: '', d: '', i: '' }])
   }
 
+  const showAbout = isAuth && planGender === 'female'
+
   return (
     <>
       {/* Guest banner */}
@@ -484,19 +489,6 @@ export default function WorkoutsTab({ user }: Props) {
         </div>
       )}
 
-      {cycleOn && (
-        <CycleToday
-          suggestion={suggestion}
-          week={phaseWeek != null ? planData[phaseWeek].week : null}
-          todayKey={todayKey}
-          ouraConnected={ouraConnected}
-          tagScopeMissing={cycle.tagScopeMissing}
-          onPeriodStarted={markPeriodStart}
-          manualPhase={todayPhase}
-          onPhaseChange={setTodayPhase}
-        />
-      )}
-
       {isAuth && (
         <TrainDay
           key={dateKey}
@@ -509,145 +501,162 @@ export default function WorkoutsTab({ user }: Props) {
           onSave={saveDay}
           onEditSession={editSession}
         >
+          {cycleOn && (
+            <CycleToday
+              suggestion={suggestion}
+              week={phaseWeek != null ? planData[phaseWeek].week : null}
+              todayKey={todayKey}
+              ouraConnected={ouraConnected}
+              tagScopeMissing={cycle.tagScopeMissing}
+              onPeriodStarted={markPeriodStart}
+              manualPhase={todayPhase}
+              onPhaseChange={setTodayPhase}
+            />
+          )}
           {planRow}
         </TrainDay>
       )}
 
-      {isAuth && <TrainHistory days={allDays} onOpenDay={openDay} />}
-
-      {/* Plan subtitle */}
-      <div className="mb-20">
-        {isAuth && (
-          <div
-            className="font-mono uppercase tracking-wider mb-6 text-2xs"
-            style={{ color: planGender === 'female' ? 'var(--coral)' : 'var(--teal)' }}
-          >
-            {planGender === 'female'
-              ? 'Fat loss · Cycle-synced · Home + Pilates'
-              : 'Strength · Full-body · Home'}
-          </div>
-        )}
-        <div className="page-title">
-          {isAuth ? (
-            planGender === 'female' ? (
-              <>
-                <span>Her Fat Loss &amp; </span>
-                <em className="italic text-coral">Recomposition Plan</em>
-              </>
-            ) : (
-              <>
-                <span>Full-Body </span>
-                <em className="italic text-teal">Strength Plan</em>
-              </>
-            )
-          ) : (
-            <>
-              <span>Full-Body </span>
-              <em className="italic text-teal">3×/week Template</em>
-            </>
-          )}
-        </div>
-        {!isAuth && (
-          <div className="plan-label">
-            A 3-week progressive full-body template. Week 1 shows example exercises — create an
-            account to save your own plan.
-          </div>
-        )}
-      </div>
-
-      {/* 4-week cycle-synced plan */}
-      {isAuth && planGender === 'female' && storedStats.cycleType !== 'none' && (
-        <div className="cycle-panel">
-          <div className="cycle-panel__label">4-Week Cycle-Synced Plan</div>
-          <div className="cycle-panel__body">
-            Each cycle phase maps to one week, and the plan opens on the week for your current phase
-            - from your Oura period log, or the period start you mark above. Same 7-day structure
-            all month - each phase only adjusts sets, conditioning and swaps.
-          </div>
-          <div className="cycle-phases-grid">
-            {PHASES_FEMALE.map(p => (
-              <div key={p.n} className="cycle-phase-item" style={{ border: `1px solid ${p.c}` }}>
-                <div className="text-sm font-500 mb-4" style={{ color: p.c }}>
-                  {p.n}
-                </div>
-                <div className="text-xs text-muted lh-16">{p.s}</div>
-              </div>
-            ))}
-          </div>
+      {isAuth && (
+        <div className="segmented train-switch" role="tablist" aria-label="Train">
+          {(['plan', 'history', 'progress'] as const).map(v => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              className={`segmented__btn${view === v ? ' active' : ''}`}
+              onClick={() => setView(v)}
+            >
+              {{ plan: 'Plan', history: 'History', progress: 'Progress' }[v]}
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Week nav */}
-      <div className="week-nav">
-        {planData.map((w, i) => (
-          <button
-            key={w.week}
-            className={i === phaseWeek ? 'week-nav__btn--current' : undefined}
-            title={i === phaseWeek ? 'Your current cycle week' : undefined}
-            onClick={() => setActiveWeek(i)}
-            style={{
-              background: 'var(--bg2)',
-              border: `1px solid ${i === safeWeek ? w.color : 'var(--border)'}`,
-              borderRadius: 8,
-              padding: '7px 18px',
-              fontFamily: 'sans-serif',
-              fontSize: '0.929rem',
-              color: i === safeWeek ? w.color : 'var(--muted)',
-              cursor: 'pointer',
-              transition: 'all .2s',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Week {w.week}
-          </button>
-        ))}
-      </div>
+      {isAuth && view !== 'plan' && <TrainHistory view={view} days={allDays} onOpenDay={openDay} />}
 
-      {/* Week content */}
-      <div>
-        {/* Phase header */}
-        <div
-          className="week-phase-header"
-          style={{ background: 'var(--bg2)', border: `1px solid ${wk.color}` }}
-        >
-          <div className="week-phase-title">{wk.label}</div>
-          <div className="week-phase-note">{wk.note}</div>
-          <div className="week-nutrition">
-            <strong className="text-default">Nutrition this week:</strong> {wk.nutr}
-          </div>
-        </div>
-
-        {/* Day cards */}
-        <div className="day-cards-grid">
-          {wk.days.map((day, dayIdx) => {
-            const typeIcon =
-              { Home: '🏠', Pilates: '🧘', Rest: '😴', Recovery: '🚶' }[day.type] ?? '💪'
-            const hasExercises = day.exs.length > 0
-            const key = `${safeWeek}-${dayIdx}`
-            const isEditing = editKey === key
-            const isTodayCard = dayIdx === todayIdx
-
-            return (
+      {(!isAuth || view === 'plan') && (
+        <>
+          {/* Plan title */}
+          <div className="mb-16">
+            {isAuth && (
               <div
-                key={day.slot}
-                id={isTodayCard ? 'day-card-today' : undefined}
-                className={isTodayCard ? 'day-card day-card--today' : 'day-card'}
-                style={isTodayCard ? { borderColor: day.color } : undefined}
+                className="font-mono uppercase tracking-wider mb-6 text-2xs"
+                style={{ color: planGender === 'female' ? 'var(--coral)' : 'var(--teal)' }}
               >
-                <div className="day-card__header">
-                  <div className="day-card__top-row">
-                    <div className="day-card__slot" style={{ color: day.color }}>
+                {planGender === 'female'
+                  ? 'Fat loss · Cycle-synced · Home + Pilates'
+                  : 'Strength · Full-body · Home'}
+              </div>
+            )}
+            <div className="page-title">
+              {isAuth ? (
+                planGender === 'female' ? (
+                  <>
+                    <span>Her Fat Loss &amp; </span>
+                    <em className="italic text-coral">Recomposition Plan</em>
+                  </>
+                ) : (
+                  <>
+                    <span>Full-Body </span>
+                    <em className="italic text-teal">Strength Plan</em>
+                  </>
+                )
+              ) : (
+                <>
+                  <span>Full-Body </span>
+                  <em className="italic text-teal">3×/week Template</em>
+                </>
+              )}
+            </div>
+            {!isAuth && (
+              <div className="plan-label">
+                A 3-week progressive full-body template. Week 1 shows example exercises — create an
+                account to save your own plan.
+              </div>
+            )}
+          </div>
+
+          {/* Week nav */}
+          <div className="week-nav">
+            {planData.map((w, i) => (
+              <button
+                key={w.week}
+                className={i === phaseWeek ? 'week-nav__btn--current' : undefined}
+                title={i === phaseWeek ? 'Your current cycle week' : undefined}
+                onClick={() => setActiveWeek(i)}
+                style={{
+                  background: 'var(--bg2)',
+                  border: `1px solid ${i === safeWeek ? w.color : 'var(--border)'}`,
+                  borderRadius: 8,
+                  padding: '7px 18px',
+                  fontFamily: 'sans-serif',
+                  fontSize: '0.929rem',
+                  color: i === safeWeek ? w.color : 'var(--muted)',
+                  cursor: 'pointer',
+                  transition: 'all .2s',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Week {w.week}
+              </button>
+            ))}
+          </div>
+
+          {/* Phase header */}
+          <div
+            className="week-phase-header"
+            style={{ background: 'var(--bg2)', border: `1px solid ${wk.color}` }}
+          >
+            <div className="week-phase-title">{wk.label}</div>
+            <div className="week-phase-note">{wk.note}</div>
+            <div className="week-nutrition">
+              <strong className="text-default">Nutrition this week:</strong> {wk.nutr}
+            </div>
+          </div>
+
+          {/* One row per day — tap to see (and edit or log) its exercises */}
+          <div className="day-list">
+            {wk.days.map((day, dayIdx) => {
+              const typeIcon =
+                { Home: '🏠', Pilates: '🧘', Rest: '😴', Recovery: '🚶' }[day.type] ?? '💪'
+              const hasExercises = day.exs.length > 0
+              const key = `${safeWeek}-${dayIdx}`
+              const isEditing = editKey === key
+              const isTodayCard = dayIdx === todayIdx
+
+              return (
+                <details
+                  key={key}
+                  id={isTodayCard ? 'day-card-today' : undefined}
+                  className={isTodayCard ? 'day-card day-card--today' : 'day-card'}
+                  style={isTodayCard ? { borderColor: day.color } : undefined}
+                  open={
+                    isEditing || (dayOpen[key] ?? (isTodayCard || inProgress(wk.week, day.slot)))
+                  }
+                  onToggle={e => {
+                    const open = e.currentTarget.open
+                    setDayOpen(o => (o[key] === open ? o : { ...o, [key]: open }))
+                  }}
+                >
+                  <summary className="day-card__summary">
+                    <span className="day-card__slot" style={{ color: day.color }}>
                       {day.slot}
-                      {isTodayCard && (
-                        <span className="day-card__today" style={{ background: day.color }}>
-                          Today
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div className="day-card__type">
-                        {typeIcon} {day.type}
-                      </div>
+                    </span>
+                    <span className="day-card__label">{day.label}</span>
+                    {isTodayCard && (
+                      <span className="day-card__today" style={{ background: day.color }}>
+                        Today
+                      </span>
+                    )}
+                    <span className="day-card__type">
+                      {typeIcon} {day.type}
+                    </span>
+                  </summary>
+                  <div className="day-card__body">
+                    <div className="day-card__meta">
+                      <span className="day-card__time">{day.time}</span>
                       {isAuth && !isEditing && (
                         <button
                           className="ex-edit-btn"
@@ -659,114 +668,144 @@ export default function WorkoutsTab({ user }: Props) {
                         </button>
                       )}
                     </div>
-                  </div>
-                  <div className="day-card__label">{day.label}</div>
-                  <div className="day-card__time">{day.time}</div>
-                  <div
-                    className="day-card__solin"
-                    style={{ color: day.color, border: `1px solid ${day.color}22` }}
-                  >
-                    {day.solin}
-                  </div>
-                </div>
-                <div className="day-card__body">
-                  {isEditing ? (
-                    <div className="ex-edit-panel">
-                      {draftExs.length === 0 && (
-                        <div className="text-xs text-muted mb-8">
-                          No exercises — tap "＋ Add" to add one.
-                        </div>
-                      )}
-                      {draftExs.map((ex, ei) => (
-                        <ExerciseEditRow
-                          key={ei}
-                          ex={ex}
-                          idx={ei}
-                          onChange={handleExChange}
-                          onRemove={handleExRemove}
-                        />
-                      ))}
-                      <button className="ex-add-btn" onClick={handleExAdd} type="button">
-                        ＋ Add exercise
-                      </button>
-                      <div className="flex gap-8 mt-8">
-                        <button
-                          className="btn btn--teal btn--sm flex-1"
-                          onClick={() => saveEdit(safeWeek, dayIdx)}
-                        >
-                          Save
-                        </button>
-                        <button className="btn btn--ghost btn--sm" onClick={cancelEdit}>
-                          Cancel
-                        </button>
-                      </div>
+                    <div
+                      className="day-card__solin"
+                      style={{ color: day.color, border: `1px solid ${day.color}22` }}
+                    >
+                      {day.solin}
                     </div>
-                  ) : (
-                    <>
-                      {hasExercises ? (
-                        <>
-                          {day.exs.map((ex, ei) => (
-                            <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} />
-                          ))}
-                          <div className="day-card__hint">tap any exercise to expand</div>
-                          {isAuth && day.type !== 'Rest' && (
-                            <DayLogBar
-                              logged={loggedFor(wk.week, day.slot)}
-                              inProgress={inProgress(wk.week, day.slot)}
-                              isToday={isToday && isTodayCard}
-                              onStart={() => startLogging(day, wk.week)}
-                            />
-                          )}
-                        </>
-                      ) : (
-                        <div className="day-card__empty">
-                          No exercises added yet
-                          {isAuth && (
-                            <button
-                              className="ex-edit-btn"
-                              style={{ marginLeft: 8 }}
-                              onClick={() => startEdit(safeWeek, dayIdx)}
-                            >
-                              ＋ Add
-                            </button>
-                          )}
+                    {isEditing ? (
+                      <div className="ex-edit-panel">
+                        {draftExs.length === 0 && (
+                          <div className="text-xs text-muted mb-8">
+                            No exercises — tap "＋ Add" to add one.
+                          </div>
+                        )}
+                        {draftExs.map((ex, ei) => (
+                          <ExerciseEditRow
+                            key={ei}
+                            ex={ex}
+                            idx={ei}
+                            onChange={handleExChange}
+                            onRemove={handleExRemove}
+                          />
+                        ))}
+                        <button className="ex-add-btn" onClick={handleExAdd} type="button">
+                          ＋ Add exercise
+                        </button>
+                        <div className="flex gap-8 mt-8">
+                          <button
+                            className="btn btn--teal btn--sm flex-1"
+                            onClick={() => saveEdit(safeWeek, dayIdx)}
+                          >
+                            Save
+                          </button>
+                          <button className="btn btn--ghost btn--sm" onClick={cancelEdit}>
+                            Cancel
+                          </button>
                         </div>
-                      )}
-                      {day.alts && day.alts.length > 0 && (
-                        <div className="alt-block">
-                          <div className="alt-block__label">Swap option</div>
-                          <div className="alt-block__title">{day.altLabel}</div>
-                          {day.alts.map((ex, ei) => (
-                            <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} size="small" />
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Plan notes */}
-        {safeWeek === 0 && isAuth && planGender === 'female' && (
-          <div className="plan-notes-grid">
-            <div className="plan-notes-header">Plan guidance &amp; integration</div>
-            {PLAN_NOTES.map(n => (
-              <div key={n.title} className="plan-note-card">
-                <div className="plan-note-card__hdr">
-                  <span style={{ fontSize: '1.214rem' }}>{n.icon}</span>
-                  <span className="text-base font-500" style={{ color: n.color }}>
-                    {n.title}
-                  </span>
-                </div>
-                <div className="plan-note-card__text">{n.text}</div>
-              </div>
-            ))}
+                      </div>
+                    ) : (
+                      <>
+                        {hasExercises ? (
+                          <>
+                            {day.exs.map((ex, ei) => (
+                              <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} />
+                            ))}
+                            <div className="day-card__hint">tap any exercise to expand</div>
+                            {isAuth && day.type !== 'Rest' && (
+                              <DayLogBar
+                                logged={loggedFor(wk.week, day.slot)}
+                                inProgress={inProgress(wk.week, day.slot)}
+                                isToday={isToday && isTodayCard}
+                                onStart={() => startLogging(day, wk.week)}
+                              />
+                            )}
+                          </>
+                        ) : (
+                          <div className="day-card__empty">
+                            No exercises added yet
+                            {isAuth && (
+                              <button
+                                className="ex-edit-btn"
+                                style={{ marginLeft: 8 }}
+                                onClick={() => startEdit(safeWeek, dayIdx)}
+                              >
+                                ＋ Add
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {day.alts && day.alts.length > 0 && (
+                          <div className="alt-block">
+                            <div className="alt-block__label">Swap option</div>
+                            <div className="alt-block__title">{day.altLabel}</div>
+                            {day.alts.map((ex, ei) => (
+                              <ExerciseRow
+                                key={ei}
+                                ex={ex}
+                                idx={ei}
+                                color={day.color}
+                                size="small"
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </details>
+              )
+            })}
           </div>
-        )}
-      </div>
+
+          {/* Static explainers, out of the way until asked for */}
+          {showAbout && (
+            <details className="plan-about">
+              <summary className="plan-about__summary">About this plan</summary>
+              {cycleOn && (
+                <div className="cycle-panel">
+                  <div className="cycle-panel__label">4-Week Cycle-Synced Plan</div>
+                  <div className="cycle-panel__body">
+                    Each cycle phase maps to one week, and the plan opens on the week for your
+                    current phase - from your Oura period log, or the period start you mark above.
+                    Same 7-day structure all month - each phase only adjusts sets, conditioning and
+                    swaps.
+                  </div>
+                  <div className="cycle-phases-grid">
+                    {PHASES_FEMALE.map(p => (
+                      <div
+                        key={p.n}
+                        className="cycle-phase-item"
+                        style={{ border: `1px solid ${p.c}` }}
+                      >
+                        <div className="text-sm font-500 mb-4" style={{ color: p.c }}>
+                          {p.n}
+                        </div>
+                        <div className="text-xs text-muted lh-16">{p.s}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="plan-notes-grid">
+                <div className="plan-notes-header">Plan guidance &amp; integration</div>
+                {PLAN_NOTES.map(n => (
+                  <div key={n.title} className="plan-note-card">
+                    <div className="plan-note-card__hdr">
+                      <span style={{ fontSize: '1.214rem' }}>{n.icon}</span>
+                      <span className="text-base font-500" style={{ color: n.color }}>
+                        {n.title}
+                      </span>
+                    </div>
+                    <div className="plan-note-card__text">{n.text}</div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </>
+      )}
 
       {loggerOpen && draft && (
         <WorkoutLogger

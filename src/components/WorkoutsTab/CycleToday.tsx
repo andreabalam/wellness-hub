@@ -32,7 +32,11 @@ interface Props {
 
 const PHASES = Object.keys(PHASE_COLOR) as PhaseSuggestion['phase'][]
 
-/** "Today" banner: where you are in your cycle and which plan week that maps to. */
+/**
+ * One-line strip in the Train day card: today's cycle phase and the plan week
+ * it maps to. Where the estimate comes from, changing the phase and marking a
+ * period start sit behind "Details" (always shown while no phase is known).
+ */
 export default function CycleToday({
   suggestion,
   week,
@@ -44,6 +48,7 @@ export default function CycleToday({
   onPhaseChange,
 }: Props) {
   const [picking, setPicking] = useState(false)
+  const [open, setOpen] = useState(false)
   const manual = (PHASES as string[]).includes(manualPhase)
     ? (manualPhase as PhaseSuggestion['phase'])
     : null
@@ -65,37 +70,9 @@ export default function CycleToday({
       source += ` Temperature rise on ${fmtDay(suggestion.tempShift)} confirms ovulation has passed.`
   }
 
-  return (
-    <div className="cycle-today" style={{ borderColor: color }}>
-      {phase ? (
-        <>
-          <div className="cycle-today__label">
-            Today{suggestion && <> · cycle day {suggestion.cycleDay}</>}
-          </div>
-          <div className="cycle-today__phase" style={{ color }}>
-            {phase} phase{week != null && <> → Week {week}</>}
-          </div>
-          <div className="cycle-today__src">{source}</div>
-        </>
-      ) : (
-        <>
-          <div className="cycle-today__label">Cycle sync</div>
-          <div className="cycle-today__src">
-            No period logged yet. Log it in the Oura app
-            {!ouraConnected && ' (connect Oura in the Oura tab)'} or tap below, and this plan will
-            open on the right week automatically.
-          </div>
-        </>
-      )}
-      {tagScopeMissing && (
-        <div className="cycle-today__src">
-          Reading your Oura period log needs an updated permission -{' '}
-          <button className="link-btn" onClick={() => startOuraOAuth()}>
-            reconnect Oura
-          </button>
-          .
-        </div>
-      )}
+  const details = (
+    <>
+      {source && <div className="cycle-today__src">{source}</div>}
       {picking ? (
         <div className="cycle-today__picker" role="group" aria-label="Today's phase">
           {PHASES.map(p => (
@@ -139,13 +116,55 @@ export default function CycleToday({
           {phase ? 'Not right? Change phase' : 'Set phase by hand'}
         </button>
       )}
-      <div className="cycle-today__actions">
-        {(!suggestion || suggestion.anchorEstimated || suggestion.anchorDate !== todayKey) && (
+      {(!suggestion || suggestion.anchorEstimated || suggestion.anchorDate !== todayKey) && (
+        <div className="cycle-today__actions">
           <button className="btn btn--ghost btn--sm" onClick={onPeriodStarted}>
             My period started today
           </button>
-        )}
-      </div>
+        </div>
+      )}
+    </>
+  )
+
+  return (
+    <div className="cycle-today" style={{ borderColor: color }}>
+      {phase ? (
+        <div className="cycle-today__line">
+          <span className="cycle-today__phase" style={{ color }}>
+            {phase} phase{week != null && <> → Week {week}</>}
+          </span>
+          {suggestion && (
+            <span className="cycle-today__label">cycle day {suggestion.cycleDay}</span>
+          )}
+          <button
+            type="button"
+            className="link-btn cycle-today__toggle"
+            aria-expanded={open}
+            onClick={() => setOpen(o => !o)}
+          >
+            {open ? 'Hide' : 'Details'}
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="cycle-today__label">Cycle sync</div>
+          <div className="cycle-today__src">
+            No period logged yet. Log it in the Oura app
+            {!ouraConnected && ' (connect Oura in Insights)'} or tap below, and this plan will open
+            on the right week automatically.
+          </div>
+        </>
+      )}
+      {tagScopeMissing && (
+        <div className="cycle-today__src">
+          Reading your Oura period log needs an updated permission -{' '}
+          <button className="link-btn" onClick={() => startOuraOAuth()}>
+            reconnect Oura
+          </button>
+          .
+        </div>
+      )}
+      {(!phase || open) && details}
     </div>
   )
 }

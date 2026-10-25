@@ -256,6 +256,7 @@ describe('CycleToday text variants', () => {
         }}
       />,
     )
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
     expect(screen.getByText(/logged in Oura on Oct 7/)).toHaveTextContent(
       /Temperature rise on Oct 21/,
     )
@@ -275,12 +276,14 @@ describe('CycleToday text variants', () => {
         }}
       />,
     )
-    expect(screen.getByText(/is estimated from your average cycle length/)).toBeInTheDocument()
+    // The reconnect prompt needs action, so it shows without opening Details
     expect(screen.getByRole('button', { name: 'reconnect Oura' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
+    expect(screen.getByText(/is estimated from your average cycle length/)).toBeInTheDocument()
     // Estimated start on today still offers the button
     expect(screen.getByRole('button', { name: 'My period started today' })).toBeInTheDocument()
     rerender(<CycleToday {...base} ouraConnected={false} suggestion={null} />)
-    expect(screen.getByText(/connect Oura in the Oura tab/)).toBeInTheDocument()
+    expect(screen.getByText(/connect Oura in Insights/)).toBeInTheDocument()
   })
 
   it('a phase set by hand overrides the estimate and can be cleared', () => {
@@ -294,6 +297,7 @@ describe('CycleToday text variants', () => {
     const { rerender } = render(
       <CycleToday {...base} suggestion={suggestion} onPhaseChange={onPhaseChange} />,
     )
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
     fireEvent.click(screen.getByRole('button', { name: 'Not right? Change phase' }))
     fireEvent.click(screen.getByRole('button', { name: 'Follicular' }))
     expect(onPhaseChange).toHaveBeenCalledWith('Follicular')
