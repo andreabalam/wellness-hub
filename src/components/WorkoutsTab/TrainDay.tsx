@@ -32,6 +32,8 @@ interface Props {
   /** Move the viewed day by ±1 (back-fill past days; never past today). */
   onShiftDate: (delta: -1 | 1) => void
   onSave: (patch: Partial<DayData>) => void
+  /** Re-open a logged workout's sets in the logger */
+  onEditSession?: (s: WorkoutSession) => void
   /** Today's plan workout row, rendered under the readiness badge */
   children?: ReactNode
 }
@@ -49,6 +51,7 @@ export default function TrainDay({
   isToday,
   onShiftDate,
   onSave,
+  onEditSession,
   children,
 }: Props) {
   const [otherOpen, setOtherOpen] = useState(false)
@@ -174,7 +177,7 @@ export default function TrainDay({
   })
 
   return (
-    <div className="tcard train-day">
+    <div className="tcard train-day" id="train-day">
       <div className="train-day__hdr">
         <button
           type="button"
@@ -242,7 +245,7 @@ export default function TrainDay({
 
       {/* The day's sessions: plan workouts, Oura imports, other activity */}
       <div className="text-sm text-muted mb-6">Activity</div>
-      <WorkoutSessionList sessions={sessions} onRemove={removeSession} />
+      <WorkoutSessionList sessions={sessions} onRemove={removeSession} onEdit={onEditSession} />
 
       {otherOpen ? (
         <div className="train-other">

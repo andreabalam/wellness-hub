@@ -24,6 +24,7 @@ vi.mock('../lib/supabase', () => {
 import { supabase } from '../lib/supabase'
 import {
   fetchOuraWorkouts,
+  fetchOuraWorkoutsRange,
   fetchOuraReadiness,
   fetchOuraSleep,
   fetchOuraSessions,
@@ -651,5 +652,35 @@ describe('fetchOuraDailyActivity', () => {
     mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
     mockFetch({ error: 'Oura error 403' }, false)
     await expect(fetchOuraDailyActivity(DATE)).rejects.toThrow('Oura error 403')
+  })
+})
+
+describe('fetchOuraWorkoutsRange', () => {
+  it('groups workouts by local start date and drops ones outside the range', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
+    const w = (id: string, start: string) => ({
+      id,
+      activity: 'walking',
+      start_datetime: start,
+      end_datetime: start,
+      calories: 0,
+      distance: null,
+      average_heart_rate: null,
+      max_heart_rate: null,
+    })
+    mockFetch({
+      data: [
+        w('a', '2026-01-02T09:00:00'),
+        w('b', '2026-01-02T18:00:00'),
+        w('c', '2026-01-03T07:00:00'),
+        w('d', '2026-01-05T07:00:00'),
+      ],
+    })
+    const byDay = await fetchOuraWorkoutsRange('2026-01-01', '2026-01-03')
+    expect(Object.keys(byDay).sort()).toEqual(['2026-01-02', '2026-01-03'])
+    expect(byDay['2026-01-02'].map(x => x.id)).toEqual(['a', 'b'])
+    expect(vi.mocked(fetch).mock.calls[0][0]).toContain(
+      'endpoint=workout&start_date=2026-01-01&end_date=2026-01-03',
+    )
   })
 })

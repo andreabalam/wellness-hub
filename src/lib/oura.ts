@@ -468,6 +468,25 @@ export async function fetchOuraWorkouts(date: string): Promise<OuraWorkout[]> {
   })
 }
 
+/**
+ * Workouts for a date range in one request, grouped by the local date of
+ * start_datetime (same rule as fetchOuraWorkouts). Used to backfill history.
+ */
+export async function fetchOuraWorkoutsRange(
+  startDate: string,
+  endDate: string,
+): Promise<Record<string, OuraWorkout[]>> {
+  const all = await proxyFetchRange<OuraWorkout>('workout', startDate, endDate)
+  const byDay: Record<string, OuraWorkout[]> = {}
+  for (const w of all) {
+    const s = new Date(w.start_datetime)
+    const day = `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`
+    if (day < startDate || day > endDate) continue
+    ;(byDay[day] ??= []).push(w)
+  }
+  return byDay
+}
+
 export async function fetchOuraReadiness(date: string): Promise<OuraReadiness | null> {
   const items = await proxyFetch<OuraReadiness>('daily_readiness', date)
   return items.find(r => r.day === date) ?? null

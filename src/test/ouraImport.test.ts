@@ -14,6 +14,7 @@ import {
   shouldImport,
   markImported,
   importOuraWorkouts,
+  importOuraWorkoutHistory,
   importOuraMeditations,
 } from '../lib/ouraImport'
 import * as oura from '../lib/oura'
@@ -22,7 +23,12 @@ import type { WorkoutSession } from '../data/tracker'
 
 vi.mock('../lib/oura', async importOriginal => {
   const orig = await importOriginal<typeof import('../lib/oura')>()
-  return { ...orig, fetchOuraWorkouts: vi.fn(), fetchOuraSessions: vi.fn() }
+  return {
+    ...orig,
+    fetchOuraWorkouts: vi.fn(),
+    fetchOuraWorkoutsRange: vi.fn(),
+    fetchOuraSessions: vi.fn(),
+  }
 })
 const mockOura = oura as unknown as Record<string, ReturnType<typeof vi.fn>>
 
@@ -224,5 +230,57 @@ describe('importOuraWorkouts / importOuraMeditations', () => {
     const result = await importOuraMeditations('2026-01-01', [], true)
     expect(mockOura.fetchOuraSessions).toHaveBeenCalled()
     expect(result?.[0].min).toBe(13)
+  })
+})
+
+describe('importOuraWorkoutHistory', () => {
+  const NOW = new Date('2026-10-25T12:00:00').getTime()
+  const w = (id: string, activity = 'walking'): OuraWorkout => ({
+    ...WORKOUT,
+    id,
+    activity,
+  })
+
+  it('imports every never-imported day in one request and returns only changed days', async () => {
+    mockOura.fetchOuraWorkoutsRange.mockResolvedValue({
+      '2026-10-01': [w('a')],
+      '2026-10-03': [w('b'), w('c', 'weight_training')],
+    })
+    const changed = await importOuraWorkoutHistory('2026-10-01', '2026-10-03', () => [], NOW)
+    expect(mockOura.fetchOuraWorkoutsRange).toHaveBeenCalledTimes(1)
+    expect(Object.keys(changed)).toEqual(['2026-10-01', '2026-10-03'])
+    expect(changed['2026-10-03'].map(s => s.id)).toEqual(['oura-b', 'oura-c'])
+    // Every date in the range is now marked imported — including the empty one
+    const stamps = JSON.parse(ls.whub_oura_import_v1)
+    expect(Object.keys(stamps).sort()).toEqual(['2026-10-01', '2026-10-02', '2026-10-03'])
+  })
+
+  it('skips days already imported and respects dismissed sessions', async () => {
+    ls.whub_oura_import_v1 = JSON.stringify({ '2026-10-01': { wk: NOW - 1000 } })
+    ls.whub_oura_dismissed_v1 = JSON.stringify({ '2026-10-02': ['oura-x'] })
+    mockOura.fetchOuraWorkoutsRange.mockResolvedValue({
+      '2026-10-01': [w('a')],
+      '2026-10-02': [w('x')],
+    })
+    const changed = await importOuraWorkoutHistory('2026-10-01', '2026-10-02', () => [], NOW)
+    expect(changed).toEqual({})
+  })
+
+  it('keeps logged sets and manual entries on the days it touches', async () => {
+    const logged: WorkoutSession = {
+      id: 'manual-1',
+      src: 'manual',
+      type: 'full-body',
+      min: 40,
+      exercises: [{ name: 'Squat', sets: [{ reps: 10, kg: 20, done: true }] }],
+    }
+    mockOura.fetchOuraWorkoutsRange.mockResolvedValue({
+      '2026-10-01': [w('s', 'weight_training')],
+    })
+    const changed = await importOuraWorkoutHistory('2026-10-01', '2026-10-01', () => [logged], NOW)
+    // The logged sets move onto the matching Oura strength workout
+    expect(changed['2026-10-01']).toEqual([
+      expect.objectContaining({ id: 'oura-s', exercises: logged.exercises }),
+    ])
   })
 })

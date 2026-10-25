@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
+  applyEdit,
   attachLoggedWorkout,
   completedExercises,
+  draftFromSession,
   draftMinutes,
   fmtSet,
   fmtSets,
@@ -258,5 +260,29 @@ describe('schema', () => {
       false,
     )
     expect(isWorkoutSession({ ...logged([thrust]), planRef: { week: '1' } })).toBe(false)
+  })
+})
+
+describe('editing a saved workout', () => {
+  it('draftFromSession copies the sets and marks the draft as an edit', () => {
+    const s = logged([thrust])
+    const d = draftFromSession(s, 'Day 1 · Glutes', '2026-10-20', 5)
+    expect(d).toMatchObject({
+      date: '2026-10-20',
+      startedAt: 5,
+      title: 'Day 1 · Glutes',
+      planRef: { week: 1, slot: 'Day 1' },
+      editing: { sessionId: 'manual-1' },
+    })
+    d.exercises[0].sets[0].kg = 99
+    expect(thrust.sets[0].kg).toBe(20) // deep copy
+    expect(isWorkoutDraft(d)).toBe(true)
+  })
+
+  it('applyEdit replaces only that session’s sets', () => {
+    const other = oura('oura-1', 'walking')
+    const out = applyEdit([other, logged([thrust])], 'manual-1', [])
+    expect(out[0]).toBe(other)
+    expect(out[1]).toMatchObject({ id: 'manual-1', min: 40, exercises: [] })
   })
 })
