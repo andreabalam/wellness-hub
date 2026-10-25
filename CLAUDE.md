@@ -109,6 +109,21 @@ Three secrets must be set in Supabase Dashboard → Edge Functions → Secrets
 The `OURA_ENCRYPT_KEY` encrypts access and refresh tokens at rest in `user_settings`.
 Only the Edge Functions can decrypt them; the database and browser never see plaintext tokens.
 
+#### ⚠️ September 2026 watch-item — Oura retiring "Oura on the Web"
+
+Oura announced it will retire the member web dashboard at `cloud.ouraring.com` in
+September 2026. The **API (`api.ouraring.com`) is unaffected** — token exchange
+(`oura-exchange`) and data fetching (`oura-proxy`) keep working. As of July 2026 the
+current Oura docs still list the OAuth **authorize** URL as
+`https://cloud.ouraring.com/oauth/authorize` with no deprecation notice, so the
+retirement appears scoped to the consumer dashboard, not OAuth infra.
+
+Residual risk: the authorize URL (`OURA_AUTH_URL` in `src/lib/oura.ts`) and the OAuth
+app-management portal (`cloud.ouraring.com/oauth/applications`) share the `cloud.` host.
+**In early September, re-check https://cloud.ouraring.com/docs/authentication.** If the
+authorize URL moves hosts, it's a one-line change in `src/lib/oura.ts`; also confirm the
+app-management portal still resolves.
+
 ## Plans
 
 Active implementation plans are in `plan/`. Check there before starting significant features.
