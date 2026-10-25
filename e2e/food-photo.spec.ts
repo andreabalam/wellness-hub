@@ -144,10 +144,7 @@ test.describe('Food photo feature', () => {
     await expect(page.getByText('Persisted Meal', { exact: true })).toBeVisible()
 
     // Navigate away then back using the nav tabs
-    await page
-      .locator('nav.tabs')
-      .getByRole('tab', { name: /Recipes/i })
-      .click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Train/i }).click()
     await page.locator('nav.tabs').getByRole('tab', { name: /Food/i }).click()
 
     await expect(page.getByText('Persisted Meal', { exact: true })).toBeVisible()

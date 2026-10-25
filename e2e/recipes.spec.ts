@@ -98,7 +98,8 @@ test.describe('Recipes tab', () => {
       { recipes: SEED_RECIPES, grocery: SEED_GROCERY },
     )
     await page.reload()
-    await page.getByRole('tab', { name: /Recipes/i }).click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Food/i }).click()
+    await page.getByRole('tab', { name: 'Recipes & grocery' }).click()
   })
 
   test('shows seeded user recipes by default', async ({ page }) => {
@@ -166,7 +167,8 @@ test.describe('Recipes tab', () => {
     await expect(item).toHaveClass(/gchecked/)
 
     await page.reload()
-    await page.getByRole('tab', { name: /Recipes/i }).click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Food/i }).click()
+    await page.getByRole('tab', { name: 'Recipes & grocery' }).click()
     await page.getByRole('button', { name: '🛒 Grocery' }).click()
 
     const reloadedItem = page.locator('.gitem').filter({ hasText: itemText! }).first()
@@ -210,7 +212,8 @@ test.describe('Recipes tab', () => {
     await page.getByRole('button', { name: 'Add item' }).click()
 
     await page.reload()
-    await page.getByRole('tab', { name: /Recipes/i }).click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Food/i }).click()
+    await page.getByRole('tab', { name: 'Recipes & grocery' }).click()
     await page.getByRole('button', { name: '🛒 Grocery' }).click()
     await expect(page.getByText('Persistent Item')).toBeVisible()
   })
@@ -245,7 +248,8 @@ test.describe('Recipes tab', () => {
     await page.getByRole('button', { name: 'Save recipe' }).click()
 
     await page.reload()
-    await page.getByRole('tab', { name: /Recipes/i }).click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Food/i }).click()
+    await page.getByRole('tab', { name: 'Recipes & grocery' }).click()
     await expect(page.getByText('Persistent Recipe')).toBeVisible()
   })
 

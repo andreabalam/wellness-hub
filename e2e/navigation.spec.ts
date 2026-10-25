@@ -15,14 +15,8 @@ test.describe('Tab navigation', () => {
     await expect(page.getByText(/Sign in to see/i)).toBeVisible()
   })
 
-  test('has Today, Food, Recipes, Train and Oura — no Schedule tab', async ({ page }) => {
-    await expect(tabBar(page).getByRole('tab')).toHaveText([
-      /Today/,
-      /Food/,
-      /Recipes/,
-      /Train/,
-      /Oura/,
-    ])
+  test('has four tabs: Today, Food, Train and Oura', async ({ page }) => {
+    await expect(tabBar(page).getByRole('tab')).toHaveText([/Today/, /Food/, /Train/, /Oura/])
   })
 
   test('switches to Train tab', async ({ page }) => {
@@ -32,8 +26,9 @@ test.describe('Tab navigation', () => {
     await expect(page.getByRole('button', { name: 'Week 1' })).toBeVisible()
   })
 
-  test('switches to Recipes tab', async ({ page }) => {
-    await page.getByRole('tab', { name: /Recipes/i }).click()
+  test('Food › Recipes & grocery shows the recipes sign-in gate', async ({ page }) => {
+    await tabBar(page).getByRole('tab', { name: /Food/i }).click()
+    await page.getByRole('tab', { name: 'Recipes & grocery' }).click()
     // Unauthenticated users see the sign-in gate (no filter bar)
     await expect(page.getByText(/Create, save and organise your personal recipes/i)).toBeVisible()
     await expect(page.locator('input[placeholder*="Search recipes"]')).not.toBeVisible()
@@ -59,9 +54,7 @@ test.describe('Tab navigation', () => {
     await expect(page.getByText(/Progressive Overload/)).toBeVisible()
 
     // Switch away and back
-    await tabBar(page)
-      .getByRole('tab', { name: /Recipes/i })
-      .click()
+    await tabBar(page).getByRole('tab', { name: /Oura/i }).click()
     await page.getByRole('tab', { name: /Train/i }).click()
     // Week 2 content still showing (React state preserved)
     await expect(page.getByText(/Progressive Overload/)).toBeVisible()
