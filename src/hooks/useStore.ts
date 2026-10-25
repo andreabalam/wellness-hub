@@ -1,5 +1,5 @@
 import type { DayData, QuickFood } from '../data/tracker'
-import { EMPTY_DAY } from '../data/tracker'
+import { EMPTY_DAY, FIBER_TARGET } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
 import { normalizeCat, catLabel } from '../data/recipes'
 import type { CustomBlock, WeekSchedule, DayKey } from '../data/schedule'
@@ -269,7 +269,7 @@ const USER_SETTINGS_DEFAULTS: UserSettings = {
   protTarget: 110,
   carbTarget: 130,
   fatTarget: 52,
-  fiberTarget: 25,
+  fiberTarget: FIBER_TARGET,
   macroSplit: 'custom',
   cognitivePeakStart: '11:00',
   cognitivePeakEnd: '13:00',

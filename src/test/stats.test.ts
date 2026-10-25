@@ -81,7 +81,7 @@ describe('macrosFromKcal', () => {
     expect(m.prot).toBe(Math.round((2000 * 0.3) / 4)) // 150
     expect(m.carb).toBe(Math.round((2000 * 0.4) / 4)) // 200
     expect(m.fat).toBe(Math.round((2000 * 0.3) / 9)) // 67
-    expect(m.fiber).toBe(25)
+    expect(m.fiber).toBe(30)
   })
 
   it('high_protein split: correct gram splits', () => {
@@ -89,7 +89,7 @@ describe('macrosFromKcal', () => {
     expect(m.prot).toBe(Math.round((2000 * 0.35) / 4)) // 175
     expect(m.carb).toBe(Math.round((2000 * 0.35) / 4)) // 175
     expect(m.fat).toBe(Math.round((2000 * 0.3) / 9)) // 67
-    expect(m.fiber).toBe(25)
+    expect(m.fiber).toBe(30)
   })
 
   it('low_carb split: correct gram splits', () => {
@@ -97,7 +97,7 @@ describe('macrosFromKcal', () => {
     expect(m.prot).toBe(Math.round((2000 * 0.35) / 4)) // 175
     expect(m.carb).toBe(Math.round((2000 * 0.2) / 4)) // 100
     expect(m.fat).toBe(Math.round((2000 * 0.45) / 9)) // 100
-    expect(m.fiber).toBe(25)
+    expect(m.fiber).toBe(30)
   })
 })
 

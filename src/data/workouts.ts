@@ -459,7 +459,7 @@ export const WORKOUT_PLAN: WorkoutWeek[] = [
     'Week 1 - Menstrual (about cycle days 1-5)',
     'var(--purple)',
     "Train as normal if you feel fine - movement tends to ease cramps. On rough days drop 1 set from each exercise and keep the weights the same. Day 6 defaults to Pilates B. Don't skip Day 5's walk; a heat pack helps too.",
-    'Stick to ~1,380 kcal. Magnesium-rich foods (dark chocolate, walnuts, spinach) and iron sources (red meat, lentils, spinach with vitamin C) are useful this week.',
+    'Stick to ~1,380 kcal. Magnesium-rich foods (dark chocolate, walnuts, spinach) help this week. For iron, have heme iron (red meat, poultry, fish) with a vitamin C source, and keep tea and coffee away from meals.',
     { main: 4, acc: 0, cue: 'Normal sets; drop one per exercise on rough days.', warmup: '5 min' },
     { rounds: '4', work: '40s on / 20s off', pilatesFirst: true },
   ),
