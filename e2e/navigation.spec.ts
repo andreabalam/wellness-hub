@@ -25,8 +25,8 @@ test.describe('Tab navigation', () => {
     await expect(page.getByText(/Sign in to save your schedule/i)).toBeVisible()
   })
 
-  test('switches to Workouts tab', async ({ page }) => {
-    await page.getByRole('tab', { name: /Workouts/i }).click()
+  test('switches to Train tab', async ({ page }) => {
+    await page.getByRole('tab', { name: /Train/i }).click()
     // Guest users see the male full-body template (no auth required)
     await expect(page.getByText('3×/week Template')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Week 1' })).toBeVisible()
@@ -58,8 +58,8 @@ test.describe('Tab navigation', () => {
   })
 
   test('tabs retain their state when switching away and back', async ({ page }) => {
-    // Go to Workouts, click Week 2
-    await page.getByRole('tab', { name: /Workouts/i }).click()
+    // Go to Train, click Week 2
+    await page.getByRole('tab', { name: /Train/i }).click()
     await page.getByRole('button', { name: 'Week 2' }).click()
     // Guest users see the male template; Week 2 is "Progressive Overload"
     await expect(page.getByText(/Progressive Overload/)).toBeVisible()
@@ -68,7 +68,7 @@ test.describe('Tab navigation', () => {
     await tabBar(page)
       .getByRole('tab', { name: /Schedule/i })
       .click()
-    await page.getByRole('tab', { name: /Workouts/i }).click()
+    await page.getByRole('tab', { name: /Train/i }).click()
     // Week 2 content still showing (React state preserved)
     await expect(page.getByText(/Progressive Overload/)).toBeVisible()
   })

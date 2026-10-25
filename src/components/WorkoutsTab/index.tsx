@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import {
   WORKOUT_PLAN,
@@ -23,12 +24,15 @@ import {
 } from '../../lib/workoutLog'
 import type { WorkoutDraft } from '../../lib/workoutLog'
 import { dayWorkoutSessions } from '../../data/tracker'
-import type { WorkoutSession } from '../../data/tracker'
+import type { DayData, WorkoutSession } from '../../data/tracker'
 import type { WorkoutDay } from '../../data/workouts'
 import ProfileStatsCard from '../TrackerTab/ProfileStatsCard'
 import { dkey } from '../TrackerTab/dateKey'
 import CycleToday from './CycleToday'
+import TrainDay from './TrainDay'
+import WeekCounter from './WeekCounter'
 import WorkoutLogger from './WorkoutLogger'
+import { workoutWeekStats } from '../../lib/workoutWeeks'
 
 /** The workout in progress — survives closing the logger or the app. */
 const DRAFT_KEY = 'whub_workout_draft_v1'
@@ -150,7 +154,7 @@ function DayLogBar({
     <div className="day-card__log">
       {logged?.exercises && (
         <span className="day-card__logged">
-          ✓ Logged today · {loggedSummary(logged.exercises).sets} sets
+          ✓ Logged · {loggedSummary(logged.exercises).sets} sets
         </span>
       )}
       <button
@@ -175,8 +179,10 @@ export default function WorkoutsTab({ user }: Props) {
   const [activeWeek, setActiveWeek] = useState<number | null>(null)
   const [statsSeed, setStatsSeed] = useState(0)
   const [today] = useState(() => new Date())
+  // The day being viewed/logged in the day card (‹ › back-fills past days)
+  const [date, setDate] = useState(today)
   const [ouraConnected, setOuraConnected] = useState(false)
-  // Bumped after "period started" writes a tracker day, so the estimate recomputes
+  // Bumped after any tracker write here, so derived reads (phase, sessions, counter) refresh
   const [trackerRev, setTrackerRev] = useState(0)
 
   // editKey = "weekIdx-dayIdx" or null when not editing
@@ -198,36 +204,70 @@ export default function WorkoutsTab({ user }: Props) {
     : MALE_DEFAULT_PLAN
   const planGender = isAuth ? (storedPlan?.gender ?? 'female') : 'male'
 
-  // ── Cycle sync: open the plan on the week matching today's phase ──
-  const cycleOn = isAuth && planGender === 'female' && storedStats.cycleType !== 'none'
   useEffect(() => {
-    if (!cycleOn) return
+    if (!isAuth) return
     isOuraConnected()
       .then(setOuraConnected)
       .catch(() => {})
-  }, [cycleOn])
+  }, [isAuth])
+
+  // ── Tracker reads (refreshed via trackerRev after writes from this tab) ──
+  const todayKey = dkey(today)
+  const dateKey = dkey(date)
+  const isToday = dateKey === todayKey
+  const { todayPhase, dayData, weekStats } = (() => {
+    void trackerRev
+    const all = trackerStore.getAll()
+    return {
+      todayPhase: trackerStore.getDay(todayKey).phase,
+      dayData: trackerStore.getDay(dateKey),
+      weekStats: workoutWeekStats(all, today),
+    }
+  })()
+  const daySessions = dayWorkoutSessions(dayData)
+
+  const saveDay = (patch: Partial<DayData>) => {
+    trackerStore.setDay(dateKey, { ...trackerStore.getDay(dateKey), ...patch })
+    setTrackerRev(n => n + 1)
+  }
+
+  const shiftDate = (delta: -1 | 1) => {
+    const d = new Date(date)
+    d.setDate(d.getDate() + delta)
+    if (dkey(d) <= todayKey) setDate(d)
+  }
+
+  // ── Cycle sync: open the plan on the week matching today's phase ──
+  const cycleOn = isAuth && planGender === 'female' && storedStats.cycleType !== 'none'
   const cycle = useCyclePhase(today, cycleOn && ouraConnected, trackerRev)
   const suggestion = cycleOn ? cycle.suggestion : null
-  const phaseWeek = suggestion && planData.length >= 4 ? PHASE_WEEK[suggestion.phase] : null
+  // A phase set by hand for today wins over the estimate
+  const phase = cycleOn
+    ? todayPhase in PHASE_WEEK
+      ? (todayPhase as PhaseSuggestion['phase'])
+      : suggestion?.phase
+    : undefined
+  const phaseWeek = phase && planData.length >= 4 ? PHASE_WEEK[phase] : null
 
   const safeWeek = Math.min(activeWeek ?? phaseWeek ?? 0, planData.length - 1)
   const wk = planData[safeWeek]
 
   // Plan days run Mon (Day 1) → Sun (Day 7); only marked on the current phase's week.
-  const todayIdx = phaseWeek === safeWeek && wk.days.length === 7 ? (today.getDay() + 6) % 7 : null
+  const weekdayIdx = (today.getDay() + 6) % 7
+  const todayIdx = phaseWeek === safeWeek && wk.days.length === 7 ? weekdayIdx : null
+  const todayPlanWeek = phaseWeek != null ? planData[phaseWeek] : null
+  const todayPlanDay = todayPlanWeek?.days.length === 7 ? todayPlanWeek.days[weekdayIdx] : undefined
 
-  const markPeriodStart = () => {
-    const k = dkey(today)
-    trackerStore.setDay(k, { ...trackerStore.getDay(k), phase: 'Menstrual' })
+  const setTodayPhase = (p: string) => {
+    trackerStore.setDay(todayKey, { ...trackerStore.getDay(todayKey), phase: p })
     setTrackerRev(n => n + 1)
     setActiveWeek(null)
-    showToast('Period start saved - plan moved to Week 1', 'success')
   }
 
-  const jumpToToday = () =>
-    document
-      .getElementById('day-card-today')
-      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const markPeriodStart = () => {
+    setTodayPhase('Menstrual')
+    showToast('Period start saved - plan moved to Week 1', 'success')
+  }
 
   // ── Set logging ───────────────────────────────────────────────
   const [draft, setDraftState] = useState<WorkoutDraft | null>(() =>
@@ -247,7 +287,7 @@ export default function WorkoutsTab({ user }: Props) {
     const sameDay = draft?.planRef?.week === week && draft.planRef.slot === day.slot
     if (draft && !sameDay && !window.confirm('Discard the workout in progress and start this one?'))
       return
-    if (!sameDay) setDraft(newDraft(day, week, dkey(new Date()), trackerStore.getAll()))
+    if (!sameDay) setDraft(newDraft(day, week, dateKey, trackerStore.getAll()))
     setLoggerOpen(true)
   }
 
@@ -283,11 +323,43 @@ export default function WorkoutsTab({ user }: Props) {
     )
   }
 
-  // Today's logged sessions, for the "✓ Logged" chip on day cards
-  const todaySessions = (() => {
-    void trackerRev // re-read after a workout is saved
-    return dayWorkoutSessions(trackerStore.getDay(dkey(today)))
-  })()
+  const loggedFor = (week: number, slot: string) =>
+    daySessions.find(s => s.planRef?.week === week && s.planRef.slot === slot)
+  const inProgress = (week: number, slot: string) =>
+    draft?.planRef?.week === week && draft.planRef.slot === slot
+
+  // Today's plan workout, shown at the top of the day card
+  let planRow: ReactNode
+  if (!isToday)
+    planRow = (
+      <div className="train-plan-hint">
+        Tap “Log this workout” on a plan day below to log it for this day.
+      </div>
+    )
+  else if (todayPlanWeek && todayPlanDay?.exs.length && todayPlanDay.type !== 'Rest')
+    planRow = (
+      <div className="train-plan-row">
+        <div className="flex-1">
+          <div className="tlabel text-muted2" style={{ marginBottom: 2 }}>
+            Week {todayPlanWeek.week} plan
+          </div>
+          <div className="text-md font-500 text-default">
+            {todayPlanDay.slot} · {todayPlanDay.label}
+          </div>
+        </div>
+        <DayLogBar
+          logged={loggedFor(todayPlanWeek.week, todayPlanDay.slot)}
+          inProgress={inProgress(todayPlanWeek.week, todayPlanDay.slot)}
+          isToday
+          onStart={() => startLogging(todayPlanDay, todayPlanWeek.week)}
+        />
+      </div>
+    )
+  else if (todayPlanDay)
+    planRow = (
+      <div className="train-plan-hint">Today's plan: {todayPlanDay.label.toLowerCase()} 😴</div>
+    )
+  else planRow = <div className="train-plan-hint">Tap “Start” on a plan day below.</div>
 
   const PHASES_FEMALE = [
     { n: 'Week 1 - Menstrual', s: 'Train as normal, drop a set on rough days', c: 'var(--purple)' },
@@ -354,6 +426,36 @@ export default function WorkoutsTab({ user }: Props) {
         </div>
       )}
 
+      {isAuth && <WeekCounter stats={weekStats} today={today} />}
+
+      {cycleOn && (
+        <CycleToday
+          suggestion={suggestion}
+          week={phaseWeek != null ? planData[phaseWeek].week : null}
+          todayKey={todayKey}
+          ouraConnected={ouraConnected}
+          tagScopeMissing={cycle.tagScopeMissing}
+          onPeriodStarted={markPeriodStart}
+          manualPhase={todayPhase}
+          onPhaseChange={setTodayPhase}
+        />
+      )}
+
+      {isAuth && (
+        <TrainDay
+          key={dateKey}
+          sessions={daySessions}
+          initialWkNotes={dayData.wkNotes}
+          ouraConnected={ouraConnected}
+          date={date}
+          isToday={isToday}
+          onShiftDate={shiftDate}
+          onSave={saveDay}
+        >
+          {planRow}
+        </TrainDay>
+      )}
+
       {/* Plan subtitle */}
       <div className="mb-20">
         {isAuth && (
@@ -400,22 +502,6 @@ export default function WorkoutsTab({ user }: Props) {
           </div>
         )}
       </div>
-
-      {cycleOn && (
-        <CycleToday
-          suggestion={suggestion}
-          week={phaseWeek != null ? planData[phaseWeek].week : null}
-          todayKey={dkey(today)}
-          ouraConnected={ouraConnected}
-          tagScopeMissing={cycle.tagScopeMissing}
-          onJumpToday={todayIdx != null ? jumpToToday : undefined}
-          onPeriodStarted={markPeriodStart}
-        />
-      )}
-
-      {isAuth && (
-        <ProfileStatsCard key={statsSeed} user={user} onSaved={() => setStatsSeed(n => n + 1)} />
-      )}
 
       {/* 4-week cycle-synced plan */}
       {isAuth && planGender === 'female' && storedStats.cycleType !== 'none' && (
@@ -487,20 +573,20 @@ export default function WorkoutsTab({ user }: Props) {
             const hasExercises = day.exs.length > 0
             const key = `${safeWeek}-${dayIdx}`
             const isEditing = editKey === key
-            const isToday = dayIdx === todayIdx
+            const isTodayCard = dayIdx === todayIdx
 
             return (
               <div
                 key={day.slot}
-                id={isToday ? 'day-card-today' : undefined}
-                className={isToday ? 'day-card day-card--today' : 'day-card'}
-                style={isToday ? { borderColor: day.color } : undefined}
+                id={isTodayCard ? 'day-card-today' : undefined}
+                className={isTodayCard ? 'day-card day-card--today' : 'day-card'}
+                style={isTodayCard ? { borderColor: day.color } : undefined}
               >
                 <div className="day-card__header">
                   <div className="day-card__top-row">
                     <div className="day-card__slot" style={{ color: day.color }}>
                       {day.slot}
-                      {isToday && (
+                      {isTodayCard && (
                         <span className="day-card__today" style={{ background: day.color }}>
                           Today
                         </span>
@@ -571,15 +657,11 @@ export default function WorkoutsTab({ user }: Props) {
                             <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} />
                           ))}
                           <div className="day-card__hint">tap any exercise to expand</div>
-                          {isAuth && (
+                          {isAuth && day.type !== 'Rest' && (
                             <DayLogBar
-                              logged={todaySessions.find(
-                                s => s.planRef?.week === wk.week && s.planRef.slot === day.slot,
-                              )}
-                              inProgress={
-                                draft?.planRef?.week === wk.week && draft.planRef.slot === day.slot
-                              }
-                              isToday={isToday}
+                              logged={loggedFor(wk.week, day.slot)}
+                              inProgress={inProgress(wk.week, day.slot)}
+                              isToday={isToday && isTodayCard}
                               onStart={() => startLogging(day, wk.week)}
                             />
                           )}
@@ -633,6 +715,12 @@ export default function WorkoutsTab({ user }: Props) {
           </div>
         )}
       </div>
+
+      {isAuth && (
+        <div className="mt-20">
+          <ProfileStatsCard key={statsSeed} user={user} onSaved={() => setStatsSeed(n => n + 1)} />
+        </div>
+      )}
 
       {loggerOpen && draft && (
         <WorkoutLogger

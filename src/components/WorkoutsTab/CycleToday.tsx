@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { PhaseSuggestion } from '../../lib/cyclePhase'
 import { startOuraOAuth } from '../../lib/oura'
 
@@ -22,10 +23,14 @@ interface Props {
   todayKey: string
   ouraConnected: boolean
   tagScopeMissing: boolean
-  /** Scrolls to today's day card; absent when today's card isn't shown */
-  onJumpToday?: () => void
   onPeriodStarted: () => void
+  /** Phase set by hand for today (tracker day phase); overrides the estimate */
+  manualPhase: string
+  /** Set today's phase; '' clears it back to the estimate */
+  onPhaseChange: (p: string) => void
 }
+
+const PHASES = Object.keys(PHASE_COLOR) as PhaseSuggestion['phase'][]
 
 /** "Today" banner: where you are in your cycle and which plan week that maps to. */
 export default function CycleToday({
@@ -34,13 +39,23 @@ export default function CycleToday({
   todayKey,
   ouraConnected,
   tagScopeMissing,
-  onJumpToday,
   onPeriodStarted,
+  manualPhase,
+  onPhaseChange,
 }: Props) {
-  const color = suggestion ? PHASE_COLOR[suggestion.phase] : 'var(--border2)'
+  const [picking, setPicking] = useState(false)
+  const manual = (PHASES as string[]).includes(manualPhase)
+    ? (manualPhase as PhaseSuggestion['phase'])
+    : null
+  const phase = manual ?? suggestion?.phase ?? null
+  const color = phase ? PHASE_COLOR[phase] : 'var(--border2)'
 
   let source: string | null = null
-  if (suggestion) {
+  if (manual) {
+    source = 'You set today’s phase.'
+    if (suggestion && suggestion.phase !== manual)
+      source += ` The estimate says ${suggestion.phase.toLowerCase()}.`
+  } else if (suggestion) {
     if (suggestion.anchorEstimated)
       source = `This cycle's start (${fmtDay(suggestion.anchorDate)}) is estimated from your average cycle length - log your period in Oura to keep it accurate.`
     else if (suggestion.source === 'oura-tag')
@@ -52,11 +67,13 @@ export default function CycleToday({
 
   return (
     <div className="cycle-today" style={{ borderColor: color }}>
-      {suggestion ? (
+      {phase ? (
         <>
-          <div className="cycle-today__label">Today · cycle day {suggestion.cycleDay}</div>
+          <div className="cycle-today__label">
+            Today{suggestion && <> · cycle day {suggestion.cycleDay}</>}
+          </div>
           <div className="cycle-today__phase" style={{ color }}>
-            {suggestion.phase} phase{week != null && <> → Week {week}</>}
+            {phase} phase{week != null && <> → Week {week}</>}
           </div>
           <div className="cycle-today__src">{source}</div>
         </>
@@ -79,12 +96,50 @@ export default function CycleToday({
           .
         </div>
       )}
+      {picking ? (
+        <div className="cycle-today__picker" role="group" aria-label="Today's phase">
+          {PHASES.map(p => (
+            <button
+              key={p}
+              type="button"
+              className="phase-btn"
+              aria-pressed={phase === p}
+              style={{
+                border: `1px solid ${phase === p ? PHASE_COLOR[p] : 'var(--border)'}`,
+                color: phase === p ? PHASE_COLOR[p] : 'var(--muted)',
+                background: 'var(--bg3)',
+              }}
+              onClick={() => {
+                onPhaseChange(p)
+                setPicking(false)
+              }}
+            >
+              {p}
+            </button>
+          ))}
+          {manual && (
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => {
+                onPhaseChange('')
+                setPicking(false)
+              }}
+            >
+              Use the estimate
+            </button>
+          )}
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="link-btn cycle-today__change"
+          onClick={() => setPicking(true)}
+        >
+          {phase ? 'Not right? Change phase' : 'Set phase by hand'}
+        </button>
+      )}
       <div className="cycle-today__actions">
-        {onJumpToday && (
-          <button className="btn btn--teal btn--sm" onClick={onJumpToday}>
-            Today's workout ↓
-          </button>
-        )}
         {(!suggestion || suggestion.anchorEstimated || suggestion.anchorDate !== todayKey) && (
           <button className="btn btn--ghost btn--sm" onClick={onPeriodStarted}>
             My period started today

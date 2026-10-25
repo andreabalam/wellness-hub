@@ -48,7 +48,7 @@ const _initialTab: Tab = consumeOAuthCallback() ? 'oura' : 'tracker'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'tracker', label: '📊 Tracker' },
   { id: 'recipes', label: '🍽 Recipes' },
-  { id: 'workouts', label: '💪 Workouts' },
+  { id: 'workouts', label: '💪 Train' },
   { id: 'schedule', label: '📅 Schedule' },
   { id: 'oura', label: '🫀 Oura' },
 ]
@@ -396,7 +396,12 @@ export default function App() {
           className={`view${active === 'tracker' ? ' active' : ''}`}
         >
           {active === 'tracker' && (
-            <TrackerTab key={syncVersion} user={user} onOpenRecipe={openRecipe} />
+            <TrackerTab
+              key={syncVersion}
+              user={user}
+              onOpenRecipe={openRecipe}
+              onOpenTrain={() => setActive('workouts')}
+            />
           )}
         </div>
       </ErrorBoundary>

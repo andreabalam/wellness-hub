@@ -87,12 +87,18 @@ test.describe('Tracker tab', () => {
     await expect(page.getByText('0 / 1,380 kcal')).toBeVisible()
   })
 
-  test('logging a workout shows confirmation', async ({ page }) => {
-    // Switch to the Workout inner tab — use exact: true to avoid matching "💪 Workouts" nav button
-    await page.getByRole('button', { name: 'Workout', exact: true }).click()
-    await page.getByRole('button', { name: 'Pilates' }).first().click()
-    await page.getByRole('button', { name: '+ Log workout' }).click()
-    await expect(page.locator('.session-totals').getByText(/1 session · 30 min/)).toBeVisible()
+  test('logging other activity in Train shows in the Tracker workout line', async ({ page }) => {
+    await page.getByRole('button', { name: 'Open Train →' }).click()
+    const train = page.locator('#panel-workouts')
+    await train.getByRole('button', { name: '＋ Other activity' }).click()
+    await train.getByRole('button', { name: 'Pilates' }).first().click()
+    await train.getByRole('button', { name: '+ Log activity' }).click()
+    await expect(train.locator('.session-totals').getByText(/1 session · 30 min/)).toBeVisible()
+    await page
+      .locator('nav.tabs')
+      .getByRole('tab', { name: /Tracker/i })
+      .click()
+    await expect(page.locator('.train-summary')).toContainText('Pilates')
   })
 
   test('logging meditation shows confirmation', async ({ page }) => {

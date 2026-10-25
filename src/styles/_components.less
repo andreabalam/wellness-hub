@@ -3209,3 +3209,130 @@
   color: var(--muted);
   padding-left: 12px;
 }
+
+// ── Train tab ──
+.week-counter {
+  margin-bottom: 18px;
+}
+.week-counter__tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.week-counter__tile {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  min-width: 0;
+}
+.week-counter__value {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.714rem;
+  line-height: 1.1;
+  color: var(--text);
+}
+.week-counter__label {
+  font-size: 0.786rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.week-counter__history {
+  margin-top: 8px;
+  summary {
+    cursor: pointer;
+    font-size: 0.857rem;
+    color: var(--teal-light);
+  }
+}
+.week-counter__grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
+  margin-top: 8px;
+}
+.week-counter__cell {
+  aspect-ratio: 1;
+  border-radius: 5px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.714rem;
+  color: var(--bg);
+  &--on {
+    background: var(--coral);
+    border-color: var(--coral);
+  }
+}
+
+.train-day {
+  margin-bottom: 22px;
+}
+.train-day__hdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  .date-nav-btn {
+    min-width: 40px;
+    min-height: 40px;
+    &:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+  }
+  .oura-sync-btn {
+    margin-left: auto;
+  }
+}
+.train-day__date {
+  min-width: 0;
+}
+.train-plan-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  .day-card__log {
+    margin-top: 0;
+  }
+}
+.train-plan-hint {
+  font-size: 0.929rem;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.train-other {
+  border-top: 1px dashed var(--border2);
+  padding-top: 10px;
+}
+
+.cycle-today__change {
+  display: inline-block;
+  margin-top: 2px;
+}
+.cycle-today__picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  .phase-btn {
+    min-height: 36px;
+  }
+}
+
+// Tracker: read-only workout line linking to Train
+.train-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}

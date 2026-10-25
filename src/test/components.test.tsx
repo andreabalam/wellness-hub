@@ -3236,39 +3236,6 @@ describe('TrackerTab', () => {
     expect(screen.getByText(today)).toBeInTheDocument()
   })
 
-  it('switching to Workout tab shows session type selector', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Workout'))
-    expect(screen.getByText('Workout log · 4:30 PM')).toBeInTheDocument()
-    expect(screen.getByText('Pilates')).toBeInTheDocument()
-  })
-
-  it('logging workout without session shows alert', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Workout'))
-    fireEvent.click(screen.getByText('+ Log workout'))
-    expect(window.alert).toHaveBeenCalledWith('Select a session type first.')
-  })
-
-  it('can select a workout session and log it', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Workout'))
-    fireEvent.click(screen.getByText('Pilates'))
-    fireEvent.click(screen.getByText('+ Log workout'))
-    // Totals appear both in the card footer and the week roll-up
-    expect(screen.getAllByText(/1 session · 30 min/).length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('selecting same session twice deselects it', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Workout'))
-    fireEvent.click(screen.getByText('Pilates'))
-    fireEvent.click(screen.getByText('Pilates'))
-    fireEvent.click(screen.getByText('+ Log workout'))
-    expect(window.alert).toHaveBeenCalled() // deselected — nothing to log
-    expect(screen.getByText('No workouts yet today.')).toBeInTheDocument()
-  })
-
   it('switching to Meditation tab shows duration options', () => {
     render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
@@ -3314,14 +3281,6 @@ describe('TrackerTab', () => {
     expect(screen.getByText('Saved!')).toBeInTheDocument()
   })
 
-  it('can toggle cycle phase buttons', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Workout'))
-    fireEvent.click(screen.getByText('Follicular'))
-    fireEvent.click(screen.getByText('Follicular')) // deselect
-    // No crash is the assertion
-  })
-
   it('renders Day notes section in Meditation tab', () => {
     render(<TrackerTab user={FAKE_USER} />)
     fireEvent.click(screen.getByText('Meditation'))
@@ -3353,12 +3312,13 @@ describe('TrackerTab', () => {
     fireEvent.click(screen.getByText('Breath focus'))
   })
 
-  it('can type in the workout notes textarea', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Workout'))
-    const notes = screen.getByPlaceholderText('How did it feel? PRs? Modifications?')
-    fireEvent.change(notes, { target: { value: 'Great session!' } })
-    expect((notes as HTMLTextAreaElement).value).toBe('Great session!')
+  it('shows a read-only workout line that opens the Train tab', () => {
+    const onOpenTrain = vi.fn()
+    render(<TrackerTab user={FAKE_USER} onOpenTrain={onOpenTrain} />)
+    expect(screen.getByText('Nothing logged')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Workout' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Open Train →' }))
+    expect(onOpenTrain).toHaveBeenCalled()
   })
 
   it('clicking a day in the week strip navigates to that day', () => {
@@ -3721,7 +3681,7 @@ describe('App', () => {
     render(<App />)
     expect(screen.getByText('📊 Tracker')).toBeInTheDocument()
     expect(screen.getByText('🍽 Recipes')).toBeInTheDocument()
-    expect(screen.getByText('💪 Workouts')).toBeInTheDocument()
+    expect(screen.getByText('💪 Train')).toBeInTheDocument()
     expect(screen.getByText('📅 Schedule')).toBeInTheDocument()
   })
 
@@ -3750,9 +3710,9 @@ describe('App', () => {
     expect(screen.queryByPlaceholderText('Search recipes, ingredients…')).not.toBeInTheDocument()
   })
 
-  it('clicking Workouts tab preserves week navigation', () => {
+  it('clicking Train tab preserves week navigation', () => {
     render(<App />)
-    fireEvent.click(screen.getByText('💪 Workouts'))
+    fireEvent.click(screen.getByText('💪 Train'))
     expect(screen.getByRole('button', { name: 'Week 1' })).toBeInTheDocument()
   })
 

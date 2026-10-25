@@ -15,21 +15,20 @@ import { macrosFromKcal, significantBurnKcal } from '../../lib/stats'
 import ProfileStatsCard from './ProfileStatsCard'
 import {
   QUICK_FOODS,
-  PHASE_NOTES,
   WATER_MAX,
   dayMedSessions,
   dayWorkoutSessions,
   workoutTotals,
 } from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
-import { useCyclePhase } from '../../hooks/useCyclePhase'
 import { BUILTIN_RECIPES } from '../../data/recipes'
 import type { Recipe } from '../../data/recipes'
 import { searchLocalFoods, historyFoods, recipeToHit } from '../../lib/localFoodSearch'
 import type { LocalFoodHit } from '../../lib/localFoodSearch'
 import { searchUSDAFoods, estimateFoodMacros } from '../../lib/foodSearch'
 import type { UsdaFoodHit } from '../../lib/foodSearch'
-import { isOuraConnected, startOuraOAuth } from '../../lib/oura'
+import { isOuraConnected } from '../../lib/oura'
+import { importOuraWorkouts } from '../../lib/ouraImport'
 import { densityTierFor, DENSITY_COLORS, DENSITY_LABELS } from '../../lib/density'
 import { analyzeImage } from '../../lib/analyzeFood'
 import type { PhotoAnalysisResult } from '../../lib/analyzeFood'
@@ -40,7 +39,7 @@ import WeekStrip from './WeekStrip'
 import CheckIn from './CheckIn'
 import MeditationLog from './MeditationLog'
 import MeditationGuides from './MeditationGuides'
-import WorkoutLog from './WorkoutLog'
+import TrainSummary from './TrainSummary'
 import WeekGoal from './WeekGoal'
 import type { WeekGoalPayload } from './WeekGoal'
 import MealList from './MealList'
@@ -71,10 +70,13 @@ function addDays(d: Date, n: number): Date {
 export default function TrackerTab({
   user,
   onOpenRecipe,
+  onOpenTrain,
 }: {
   user?: User | null
   /** Called when the 📖 badge on a logged meal is tapped — App switches to Recipes */
   onOpenRecipe?: (id: number | undefined, name: string) => void
+  /** Workout logging lives in the Train tab — App switches to it */
+  onOpenTrain?: () => void
 }) {
   const store = useTrackerStore()
   const libStore = useFoodLibraryStore()
@@ -139,11 +141,10 @@ export default function TrackerTab({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [water, setWater] = useState(0)
-  const [phase, setPhase] = useState('')
   const [dayNotes, setDayNotes] = useState('')
   const [notesSaved, setNotesSaved] = useState(false)
   const [stripKey, setStripKey] = useState(0)
-  const [innerTab, setInnerTab] = useState<'food' | 'workout' | 'meditation'>('food')
+  const [innerTab, setInnerTab] = useState<'food' | 'meditation'>('food')
   const [showMealContext, setShowMealContext] = useState(false)
 
   const loadDate = useCallback(
@@ -152,7 +153,6 @@ export default function TrackerTab({
       const data = store.getDay(k)
       setDay(data)
       setWater(data.water ?? 0)
-      setPhase(data.phase ?? '')
       setDayNotes(data.notes ?? '')
       setEditIndex(null)
       setFName('')
@@ -569,8 +569,6 @@ export default function TrackerTab({
     setDate(d)
   }
 
-  const phaseNote = PHASE_NOTES[phase] ?? PHASE_NOTES['']
-
   // Fresh read of the selected day's check-in values to seed <CheckIn>. The
   // `day` state lags `date` by one render (it's loaded in an effect), so seeding
   // the date-keyed CheckIn from `day` would show the previous day's stars.
@@ -595,7 +593,7 @@ export default function TrackerTab({
   const burnedToday = workoutTotals(wkSessionsForDate).kcal
   // Wrapped in useMemo — a plain expression here confuses the React Compiler's
   // manual-memoization check on the unrelated `loadDate` useCallback below
-  // (it starts reporting stable useState setters like setPhase/setDayNotes as
+  // (it starts reporting stable useState setters like setWater/setDayNotes as
   // missing dependencies). Likely a compiler analysis quirk in this
   // large component; useMemo sidesteps it without disabling the rule.
   const burnThreshold = useMemo(
@@ -603,12 +601,21 @@ export default function TrackerTab({
     [activeStats.tdeeKcal],
   )
 
-  // ── Cycle-phase suggestion ──────────────────────────────────────
-  // Oura period tags + temperature shift (cached, shared with WorkoutsTab).
-  // Recomputes when the viewed day's phase is edited; hidden once a phase is set.
-  const cycle = useCyclePhase(date, ouraConnected, day.phase)
-  const tagScopeMissing = cycle.tagScopeMissing
-  const phaseSuggestion = day.phase ? null : cycle.suggestion
+  // Silent Oura workout import for the viewed day, so burned kcal (net calories)
+  // stays current without opening Train. Policy-gated inside importOuraWorkouts.
+  useEffect(() => {
+    if (!ouraConnected) return
+    const k = dkey(date)
+    let cancelled = false
+    importOuraWorkouts(k, dayWorkoutSessions(store.getDay(k)))
+      .then(merged => {
+        if (!cancelled && merged) save({ wkSessions: merged, workout: merged[0]?.type ?? null })
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [date, ouraConnected, store, save])
 
   // Hydration counter — persists immediately on each tap
   const adjustWater = (delta: number) => {
@@ -670,14 +677,17 @@ export default function TrackerTab({
       <WeekActivitySummary key={`was-${stripKey}`} currentDate={date} getDay={store.getDay} />
 
       {/* Inner tabs */}
+      {/* Workout: read-only here — logging lives in the Train tab */}
+      <TrainSummary sessions={wkSessionsForDate} onOpenTrain={() => onOpenTrain?.()} />
+
       <div className="flex inner-tab-bar">
-        {(['food', 'workout', 'meditation'] as const).map(t => (
+        {(['food', 'meditation'] as const).map(t => (
           <button
             key={t}
             onClick={() => setInnerTab(t)}
             className={`inner-tab${innerTab === t ? ' active' : ''}`}
           >
-            {t === 'food' ? 'Food' : t === 'workout' ? 'Workout' : 'Meditation'}
+            {t === 'food' ? 'Food' : 'Meditation'}
           </button>
         ))}
       </div>
@@ -1035,36 +1045,6 @@ export default function TrackerTab({
             onSaved={() => setStatsSeed(n => n + 1)}
           />
         </>
-      )}
-
-      {/* ── Workout — keyed by date so the picker re-seeds on day change ── */}
-      {innerTab === 'workout' && (
-        <div className="flex flex-col gap-12">
-          {tagScopeMissing && (
-            <div className="tcard text-sm text-muted">
-              Cycle sync needs an updated Oura permission —{' '}
-              <button className="link-btn" onClick={() => startOuraOAuth()}>
-                reconnect Oura
-              </button>{' '}
-              to enable it.
-            </div>
-          )}
-          <WorkoutLog
-            key={dkey(date)}
-            sessions={wkSessionsForDate}
-            initialWkNotes={dayForDate.wkNotes}
-            phaseNote={phaseNote}
-            phase={phase}
-            suggestedPhase={phaseSuggestion}
-            onPhaseChange={p => {
-              setPhase(p)
-              save({ phase: p })
-            }}
-            ouraConnected={ouraConnected}
-            date={date}
-            onSave={save}
-          />
-        </div>
       )}
 
       {/* ── Meditation ── */}
