@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import {
   WORKOUT_PLAN,
@@ -7,8 +7,22 @@ import {
   MALE_DEFAULT_PLAN,
 } from '../../data/workouts'
 import type { Exercise, WorkoutWeek } from '../../data/workouts'
-import { bodyStatsStore, workoutPlanStore } from '../../hooks/useStore'
+import { bodyStatsStore, trackerStore, workoutPlanStore } from '../../hooks/useStore'
+import { useCyclePhase } from '../../hooks/useCyclePhase'
+import type { PhaseSuggestion } from '../../lib/cyclePhase'
+import { isOuraConnected } from '../../lib/oura'
+import { showToast } from '../../lib/toast'
 import ProfileStatsCard from '../TrackerTab/ProfileStatsCard'
+import { dkey } from '../TrackerTab/dateKey'
+import CycleToday from './CycleToday'
+
+/** Plan week (0-based) for each cycle phase in the 4-week cycle-synced plan. */
+const PHASE_WEEK: Record<PhaseSuggestion['phase'], number> = {
+  Menstrual: 0,
+  Follicular: 1,
+  Ovulatory: 2,
+  Luteal: 3,
+}
 
 // ── Sub-components ────────────────────────────────────────────────
 
@@ -109,8 +123,13 @@ interface Props {
 }
 
 export default function WorkoutsTab({ user }: Props) {
-  const [activeWeek, setActiveWeek] = useState(0)
+  // null = follow the cycle phase; a number = the user picked a week by hand
+  const [activeWeek, setActiveWeek] = useState<number | null>(null)
   const [statsSeed, setStatsSeed] = useState(0)
+  const [today] = useState(() => new Date())
+  const [ouraConnected, setOuraConnected] = useState(false)
+  // Bumped after "period started" writes a tracker day, so the estimate recomputes
+  const [trackerRev, setTrackerRev] = useState(0)
 
   // editKey = "weekIdx-dayIdx" or null when not editing
   const [editKey, setEditKey] = useState<string | null>(null)
@@ -131,8 +150,36 @@ export default function WorkoutsTab({ user }: Props) {
     : MALE_DEFAULT_PLAN
   const planGender = isAuth ? (storedPlan?.gender ?? 'female') : 'male'
 
-  const safeWeek = Math.min(activeWeek, planData.length - 1)
+  // ── Cycle sync: open the plan on the week matching today's phase ──
+  const cycleOn = isAuth && planGender === 'female' && storedStats.cycleType !== 'none'
+  useEffect(() => {
+    if (!cycleOn) return
+    isOuraConnected()
+      .then(setOuraConnected)
+      .catch(() => {})
+  }, [cycleOn])
+  const cycle = useCyclePhase(today, cycleOn && ouraConnected, trackerRev)
+  const suggestion = cycleOn ? cycle.suggestion : null
+  const phaseWeek = suggestion && planData.length >= 4 ? PHASE_WEEK[suggestion.phase] : null
+
+  const safeWeek = Math.min(activeWeek ?? phaseWeek ?? 0, planData.length - 1)
   const wk = planData[safeWeek]
+
+  // Plan days run Mon (Day 1) → Sun (Day 7); only marked on the current phase's week.
+  const todayIdx = phaseWeek === safeWeek && wk.days.length === 7 ? (today.getDay() + 6) % 7 : null
+
+  const markPeriodStart = () => {
+    const k = dkey(today)
+    trackerStore.setDay(k, { ...trackerStore.getDay(k), phase: 'Menstrual' })
+    setTrackerRev(n => n + 1)
+    setActiveWeek(null)
+    showToast('Period start saved - plan moved to Week 1', 'success')
+  }
+
+  const jumpToToday = () =>
+    document
+      .getElementById('day-card-today')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   const PHASES_FEMALE = [
     { n: 'Week 1 - Menstrual', s: 'Train as normal, drop a set on rough days', c: 'var(--purple)' },
@@ -246,6 +293,18 @@ export default function WorkoutsTab({ user }: Props) {
         )}
       </div>
 
+      {cycleOn && (
+        <CycleToday
+          suggestion={suggestion}
+          week={phaseWeek != null ? planData[phaseWeek].week : null}
+          todayKey={dkey(today)}
+          ouraConnected={ouraConnected}
+          tagScopeMissing={cycle.tagScopeMissing}
+          onJumpToday={todayIdx != null ? jumpToToday : undefined}
+          onPeriodStarted={markPeriodStart}
+        />
+      )}
+
       {isAuth && (
         <ProfileStatsCard key={statsSeed} user={user} onSaved={() => setStatsSeed(n => n + 1)} />
       )}
@@ -255,9 +314,9 @@ export default function WorkoutsTab({ user }: Props) {
         <div className="cycle-panel">
           <div className="cycle-panel__label">4-Week Cycle-Synced Plan</div>
           <div className="cycle-panel__body">
-            Restart at <strong className="text-default">Week 1</strong> whenever your period begins
-            (cycle day 1). Same 7-day structure all month - each phase only adjusts sets,
-            conditioning and swaps.
+            Each cycle phase maps to one week, and the plan opens on the week for your current phase
+            - from your Oura period log, or the period start you mark above. Same 7-day structure
+            all month - each phase only adjusts sets, conditioning and swaps.
           </div>
           <div className="cycle-phases-grid">
             {PHASES_FEMALE.map(p => (
@@ -277,6 +336,8 @@ export default function WorkoutsTab({ user }: Props) {
         {planData.map((w, i) => (
           <button
             key={w.week}
+            className={i === phaseWeek ? 'week-nav__btn--current' : undefined}
+            title={i === phaseWeek ? 'Your current cycle week' : undefined}
             onClick={() => setActiveWeek(i)}
             style={{
               background: 'var(--bg2)',
@@ -318,13 +379,24 @@ export default function WorkoutsTab({ user }: Props) {
             const hasExercises = day.exs.length > 0
             const key = `${safeWeek}-${dayIdx}`
             const isEditing = editKey === key
+            const isToday = dayIdx === todayIdx
 
             return (
-              <div key={day.slot} className="day-card">
+              <div
+                key={day.slot}
+                id={isToday ? 'day-card-today' : undefined}
+                className={isToday ? 'day-card day-card--today' : 'day-card'}
+                style={isToday ? { borderColor: day.color } : undefined}
+              >
                 <div className="day-card__header">
                   <div className="day-card__top-row">
                     <div className="day-card__slot" style={{ color: day.color }}>
                       {day.slot}
+                      {isToday && (
+                        <span className="day-card__today" style={{ background: day.color }}>
+                          Today
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div className="day-card__type">

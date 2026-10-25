@@ -1785,6 +1785,55 @@
   margin-bottom: 16px;
   flex-wrap: wrap;
 }
+// Dot on the week matching today's cycle phase
+.week-nav__btn--current::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+// ── Cycle "Today" banner (Workouts tab) ──
+.cycle-today {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 22px;
+}
+.cycle-today__label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.786rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.cycle-today__phase {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.571rem;
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+.cycle-today__src {
+  font-size: 0.929rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+.cycle-today__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  &:empty {
+    display: none;
+  }
+}
 .week-phase-header {
   border-radius: 12px;
   padding: 14px 18px;
@@ -1840,6 +1889,18 @@
   font-size: 0.786rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+.day-card--today {
+  // Clear the sticky header when scrolled to via "Today's workout"
+  scroll-margin-top: 140px;
+}
+.day-card__today {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  color: var(--bg);
+  font-size: 0.786rem;
+  letter-spacing: 0.08em;
 }
 .day-card__type {
   font-size: 0.786rem;
