@@ -3,27 +3,18 @@ import type { User } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import {
   fetchOuraDailyActivity,
-  fetchOuraReadiness,
   fetchOuraSleep,
   fetchOuraSleepSession,
-  fetchOuraWorkouts,
-  fetchOuraSessions,
   fetchOuraCardiovascularAge,
   fetchOuraSpo2,
   fetchOuraStress,
   fetchOuraResilience,
-  fetchOuraWorkoutRoute,
   startOuraOAuth,
   exchangePendingCode,
   disconnectOura,
-  readinessColor,
-  readinessLabel,
   type OuraDailyActivity,
-  type OuraReadiness,
   type OuraSleep,
   type OuraSleepSession,
-  type OuraWorkout,
-  type OuraSession,
   type OuraCardiovascularAge,
   type OuraSpo2,
   type OuraStress,
@@ -62,10 +53,6 @@ function fmtDuration(seconds: number): string {
   return `${h}h ${m}m`
 }
 
-function fmtTime(isoStr: string): string {
-  return new Date(isoStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
-
 // ── Color helpers ─────────────────────────────────────────────────
 
 function scoreColor(score: number): string {
@@ -94,31 +81,6 @@ function resilienceColor(level: string | null): string {
   if (level === 'adequate') return 'var(--teal-light)'
   if (level === 'limited') return 'var(--amber-light)'
   return 'var(--coral-light)'
-}
-
-function fmtActivity(act: string): string {
-  return act.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
-
-const SESSION_ICON: Record<string, string> = {
-  meditation: '🧘',
-  breathing: '🫁',
-  body_status: '🧠',
-  nap: '😴',
-}
-
-const SESSION_LABEL: Record<string, string> = {
-  meditation: 'Meditation',
-  breathing: 'Breathing',
-  body_status: 'Body Scan',
-  nap: 'Nap',
-}
-
-function moodColor(mood: string | null): string {
-  if (!mood) return 'var(--muted)'
-  if (['good', 'great', 'relieved'].includes(mood)) return 'var(--green-light)'
-  if (['bad', 'terrible'].includes(mood)) return 'var(--coral-light)'
-  return 'var(--teal-light)'
 }
 
 // ── Sub-components ────────────────────────────────────────────────
@@ -152,77 +114,12 @@ function Row({ label, value }: { label: string; value: string | number }) {
   )
 }
 
-function Chip({ value, teal }: { value: string; teal?: boolean }) {
-  return (
-    <span className={`oura-badge font-mono ${teal ? 'oura-badge--teal' : 'oura-badge--default'}`}>
-      {value}
-    </span>
-  )
-}
-
 function Skeleton() {
   return <div className="text-base text-muted">Loading…</div>
 }
 
 function Empty() {
   return <div className="text-base text-muted2 italic">No data</div>
-}
-
-function SessionRow({ session: s }: { session: OuraSession }) {
-  const durationSecs = Math.round(
-    (new Date(s.end_datetime).getTime() - new Date(s.start_datetime).getTime()) / 1000,
-  )
-  return (
-    <div className="oura-session-row flex flex-wrap items-center gap-10">
-      <span className="flex-shrink-0 text-xl" style={{ lineHeight: 1 }}>
-        {SESSION_ICON[s.type] ?? '🧘'}
-      </span>
-      <div className="flex-1 min-w-0" style={{ minWidth: 100 }}>
-        <div className="text-base text-default font-500">
-          {SESSION_LABEL[s.type] ?? fmtActivity(s.type)}
-        </div>
-        <div className="text-xs text-muted mt-4">{fmtTime(s.start_datetime)}</div>
-      </div>
-      <div className="flex flex-wrap items-center gap-6">
-        <Chip value={fmtDuration(durationSecs)} />
-        {s.average_hrv != null && <Chip value={`HRV ${s.average_hrv}`} />}
-        {s.average_heart_rate != null && <Chip value={`${s.average_heart_rate} bpm`} />}
-        {s.mood && (
-          <span className="font-mono uppercase text-xs" style={{ color: moodColor(s.mood) }}>
-            ♥ {s.mood}
-          </span>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function WorkoutRow({ workout, hasRoute }: { workout: OuraWorkout; hasRoute: boolean }) {
-  const durationSecs = Math.round(
-    (new Date(workout.end_datetime).getTime() - new Date(workout.start_datetime).getTime()) / 1000,
-  )
-  return (
-    <div className="oura-workout-row flex flex-wrap items-start gap-10">
-      <div className="flex-1 min-w-0" style={{ minWidth: 130 }}>
-        <div className="text-base text-default font-500">{fmtActivity(workout.activity)}</div>
-        <div className="text-xs text-muted mt-4">
-          {fmtTime(workout.start_datetime)} – {fmtTime(workout.end_datetime)}
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-6">
-        <Chip value={fmtDuration(durationSecs)} />
-        {workout.calories > 0 && <Chip value={`${workout.calories} kcal`} />}
-        {workout.distance != null && workout.distance > 0 && (
-          <Chip value={`${(workout.distance / 1000).toFixed(2)} km`} />
-        )}
-        {workout.average_heart_rate != null && (
-          <Chip value={`${workout.average_heart_rate} bpm avg`} />
-        )}
-        {workout.max_heart_rate != null && <Chip value={`${workout.max_heart_rate} bpm max`} />}
-        {hasRoute && <Chip value="🗺 Route" teal />}
-      </div>
-    </div>
-  )
 }
 
 // ── Main component ────────────────────────────────────────────────
@@ -278,57 +175,39 @@ export default function OuraTab({ user }: Props) {
     setNoToken(true)
     setError(null)
     setActivity(null)
-    setReadiness(null)
     setSleep(null)
     setSleepSession(null)
-    setWorkouts([])
-    setWorkoutErr(null)
-    setSessions([])
     setCardioAge(null)
     setSpo2(null)
     setStress(null)
     setResilience(null)
-    setRouteIds(new Set())
   }
 
   const [activity, setActivity] = useState<OuraDailyActivity | null>(null)
-  const [readiness, setReadiness] = useState<OuraReadiness | null>(null)
   const [sleep, setSleep] = useState<OuraSleep | null>(null)
   const [sleepSession, setSleepSession] = useState<OuraSleepSession | null>(null)
-  const [workouts, setWorkouts] = useState<OuraWorkout[]>([])
-  const [workoutErr, setWorkoutErr] = useState<string | null>(null)
-  const [sessions, setSessions] = useState<OuraSession[]>([])
   const [cardioAge, setCardioAge] = useState<OuraCardiovascularAge | null>(null)
   const [spo2, setSpo2] = useState<OuraSpo2 | null>(null)
   const [stress, setStress] = useState<OuraStress | null>(null)
   const [resilience, setResilience] = useState<OuraResilience | null>(null)
-  const [routeIds, setRouteIds] = useState<Set<string>>(new Set())
 
   async function fetchAll(d: string) {
     setLoading(true)
     setError(null)
     setNoToken(false)
     setActivity(null)
-    setReadiness(null)
     setSleep(null)
     setSleepSession(null)
-    setWorkouts([])
-    setWorkoutErr(null)
-    setSessions([])
     setCardioAge(null)
     setSpo2(null)
     setStress(null)
     setResilience(null)
-    setRouteIds(new Set())
 
     try {
-      const [actR, rdR, slR, slSessR, wkR, sessR, caR, sp2R, stR, reR] = await Promise.allSettled([
+      const [actR, slR, slSessR, caR, sp2R, stR, reR] = await Promise.allSettled([
         fetchOuraDailyActivity(d),
-        fetchOuraReadiness(d),
         fetchOuraSleep(d),
         fetchOuraSleepSession(d),
-        fetchOuraWorkouts(d),
-        fetchOuraSessions(d),
         fetchOuraCardiovascularAge(d),
         fetchOuraSpo2(d),
         fetchOuraStress(d),
@@ -343,7 +222,7 @@ export default function OuraTab({ user }: Props) {
         'not authorized', // scope errors: "Token is not authorized access X scope"
         'insufficient_scope',
       ]
-      const allResults = [actR, rdR, slR, slSessR, wkR, sessR, caR, sp2R, stR, reR]
+      const allResults = [actR, slR, slSessR, caR, sp2R, stR, reR]
       const scopeErr = allResults.find(
         r =>
           r.status === 'rejected' &&
@@ -378,17 +257,8 @@ export default function OuraTab({ user }: Props) {
       if (realFail) setError(realFail.reason?.message ?? 'Could not load Oura data')
 
       setActivity(actR.status === 'fulfilled' ? actR.value : null)
-      setReadiness(rdR.status === 'fulfilled' ? rdR.value : null)
       setSleep(slR.status === 'fulfilled' ? slR.value : null)
       setSleepSession(slSessR.status === 'fulfilled' ? slSessR.value : null)
-      if (wkR.status === 'fulfilled') {
-        setWorkouts(wkR.value)
-        setWorkoutErr(null)
-      } else {
-        setWorkouts([])
-        setWorkoutErr((wkR as PromiseRejectedResult).reason?.message ?? 'Could not load workouts')
-      }
-      setSessions(sessR.status === 'fulfilled' ? sessR.value : [])
       setCardioAge(caR.status === 'fulfilled' ? caR.value : null)
       setSpo2(sp2R.status === 'fulfilled' ? sp2R.value : null)
       setStress(stR.status === 'fulfilled' ? stR.value : null)
@@ -399,21 +269,6 @@ export default function OuraTab({ user }: Props) {
       setLoading(false)
     }
   }
-
-  // Auto-fetch workout routes for GPS workouts (distance > 0)
-  useEffect(() => {
-    const gps = workouts.filter(w => (w.distance ?? 0) > 0)
-    if (gps.length === 0) return
-    Promise.allSettled(
-      gps.map(w => fetchOuraWorkoutRoute(w.id).then(r => ({ id: w.id, ok: r !== null }))),
-    ).then(results => {
-      const ids = new Set<string>()
-      for (const r of results) {
-        if (r.status === 'fulfilled' && r.value.ok) ids.add(r.value.id)
-      }
-      setRouteIds(ids)
-    })
-  }, [workouts])
 
   useEffect(() => {
     if (!user) {
@@ -526,7 +381,7 @@ export default function OuraTab({ user }: Props) {
 
       {error && <div className="banner banner--error mb-16">{error}</div>}
 
-      {/* ── Row 1: Activity · Readiness · Sleep ── */}
+      {/* ── Row 1: Activity · Sleep ── */}
       <div className="flex flex-wrap gap-12 mb-12">
         <div className="metric-card" style={{ flex: '1 1 200px' }}>
           <CardHeader icon="🏃" title="Activity" />
@@ -547,47 +402,6 @@ export default function OuraTab({ user }: Props) {
                 <Row
                   label="Equiv. walk"
                   value={`${(activity.equivalent_walking_distance / 1000).toFixed(1)} km`}
-                />
-              )}
-            </>
-          )}
-        </div>
-
-        <div className="metric-card" style={{ flex: '1 1 200px' }}>
-          <CardHeader icon="💚" title="Readiness" />
-          {loading ? (
-            <Skeleton />
-          ) : !readiness ? (
-            <Empty />
-          ) : (
-            <>
-              <BigStat
-                value={readiness.score}
-                color={readinessColor(readiness.score)}
-                unit="/100"
-              />
-              <div
-                className="text-sm font-600 mb-8"
-                style={{ color: readinessColor(readiness.score) }}
-              >
-                {readinessLabel(readiness.score)}
-              </div>
-              {readiness.contributors.hrv_balance != null && (
-                <Row label="HRV balance" value={readiness.contributors.hrv_balance} />
-              )}
-              {readiness.contributors.recovery_index != null && (
-                <Row label="Recovery index" value={readiness.contributors.recovery_index} />
-              )}
-              {readiness.contributors.sleep_balance != null && (
-                <Row label="Sleep balance" value={readiness.contributors.sleep_balance} />
-              )}
-              {readiness.contributors.resting_heart_rate != null && (
-                <Row label="Resting HR" value={readiness.contributors.resting_heart_rate} />
-              )}
-              {readiness.temperature_deviation != null && (
-                <Row
-                  label="Temp deviation"
-                  value={`${readiness.temperature_deviation >= 0 ? '+' : ''}${readiness.temperature_deviation.toFixed(2)}°C`}
                 />
               )}
             </>
@@ -710,53 +524,8 @@ export default function OuraTab({ user }: Props) {
         </div>
       </div>
 
-      {/* ── Row 3: Workouts (full width) ── */}
-      <div className="mb-12">
-        <div className="metric-card">
-          <CardHeader icon="🏋️" title={loading ? 'Workouts' : `Workouts (${workouts.length})`} />
-          {loading ? (
-            <Skeleton />
-          ) : workoutErr ? (
-            <div className="text-sm text-muted2" style={{ color: 'var(--coral)' }}>
-              {workoutErr}
-            </div>
-          ) : workouts.length === 0 ? (
-            <>
-              <div className="text-base text-muted mb-6">No workouts found for this day</div>
-              <div className="text-xs text-muted2">
-                The Oura ring auto-detects most workouts, and manually started sessions sync here
-                too — but live-logged sessions can take a few minutes to appear after you end them.
-                Try tapping ↺ to refresh.
-              </div>
-            </>
-          ) : (
-            workouts.map(w => <WorkoutRow key={w.id} workout={w} hasRoute={routeIds.has(w.id)} />)
-          )}
-        </div>
-      </div>
-
-      {/* ── Row 4: Mindfulness · Stress ── */}
+      {/* ── Row 3: Stress ── */}
       <div className="flex flex-wrap gap-12">
-        {(!loading || sessions.length > 0) &&
-          (() => {
-            const mindful = sessions.filter(s => s.type !== 'nap')
-            return (
-              <div className="metric-card" style={{ flex: '1 1 280px' }}>
-                <CardHeader
-                  icon="🧘"
-                  title={loading ? 'Mindfulness' : `Mindfulness (${mindful.length})`}
-                />
-                {loading ? (
-                  <Skeleton />
-                ) : mindful.length === 0 ? (
-                  <div className="text-base text-muted">No sessions recorded</div>
-                ) : (
-                  mindful.map(s => <SessionRow key={s.id} session={s} />)
-                )}
-              </div>
-            )
-          })()}
-
         <div className="metric-card" style={{ flex: '1 1 200px' }}>
           <CardHeader icon="🧘" title="Stress" />
           {loading ? (

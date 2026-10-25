@@ -31,7 +31,6 @@ import {
   fetchOuraSpo2,
   fetchOuraStress,
   fetchOuraResilience,
-  fetchOuraWorkoutRoute,
   fetchOuraPersonalInfo,
   fetchOuraSleepSession,
   fetchOuraCardiovascularAge,
@@ -457,42 +456,6 @@ describe('isPeriodTag', () => {
     expect(isPeriodTag(tag('mood'))).toBe(false)
     expect(isPeriodTag(tag(null))).toBe(false)
     expect(isPeriodTag(tag('custom'))).toBe(false)
-  })
-})
-
-// ── fetchOuraWorkoutRoute ─────────────────────────────────────────
-
-describe('fetchOuraWorkoutRoute', () => {
-  it('returns null when route returns 404', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: vi.fn() }))
-    expect(await fetchOuraWorkoutRoute('workout-id')).toBeNull()
-  })
-
-  it('returns route data when found', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    const route = {
-      id: 'w1',
-      start_datetime: '2024-01-01T08:00:00',
-      end_datetime: '2024-01-01T09:00:00',
-      source: 'oura',
-      polyline: 'encoded_polyline',
-    }
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: vi.fn().mockResolvedValue(route),
-      }),
-    )
-    expect(await fetchOuraWorkoutRoute('w1')).toEqual(route)
-  })
-
-  it('returns null when fetch throws (network error)', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: FAKE_SESSION } } as never)
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')))
-    expect(await fetchOuraWorkoutRoute('w1')).toBeNull()
   })
 })
 

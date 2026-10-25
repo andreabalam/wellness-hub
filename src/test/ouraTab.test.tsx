@@ -27,7 +27,6 @@ vi.mock('../lib/oura', async importOriginal => {
     fetchOuraSpo2: vi.fn().mockResolvedValue(null),
     fetchOuraStress: vi.fn().mockResolvedValue(null),
     fetchOuraResilience: vi.fn().mockResolvedValue(null),
-    fetchOuraWorkoutRoute: vi.fn().mockResolvedValue(null),
     startOuraOAuth: vi.fn(),
     exchangePendingCode: vi.fn().mockResolvedValue(undefined),
     disconnectOura: vi.fn().mockResolvedValue(undefined),
@@ -162,75 +161,22 @@ describe('OuraTab — authenticated with empty data', () => {
   })
 })
 
-// ── With score data ───────────────────────────────────────────────
-describe('OuraTab — with readiness data', () => {
-  it('shows readiness score when API returns data', async () => {
-    const { fetchOuraReadiness } = await import('../lib/oura')
-    vi.mocked(fetchOuraReadiness).mockResolvedValue({
-      score: 82,
-      contributors: {
-        hrv_balance: 80,
-        recovery_index: 75,
-        sleep_balance: 85,
-        resting_heart_rate: 90,
-      },
-      temperature_deviation: 0.2,
-    } as import('../lib/oura').OuraReadiness)
-
+// ── Only Oura's own metrics ───────────────────────────────────────
+describe('OuraTab — scope', () => {
+  it('skips readiness, workouts and meditation (shown on Today and Train)', async () => {
+    const o = await import('../lib/oura')
+    vi.mocked(o.fetchOuraDailyActivity).mockClear()
+    vi.mocked(o.fetchOuraReadiness).mockClear()
+    vi.mocked(o.fetchOuraWorkouts).mockClear()
+    vi.mocked(o.fetchOuraSessions).mockClear()
     render(<OuraTab user={FAKE_USER} />)
-    await waitFor(() => {
-      expect(screen.getByText('82')).toBeInTheDocument()
-    })
-  })
-})
-
-// ── Workouts data ─────────────────────────────────────────────────
-describe('OuraTab — with workout data', () => {
-  it('shows workout activity and duration', async () => {
-    const { fetchOuraWorkouts } = await import('../lib/oura')
-    vi.mocked(fetchOuraWorkouts).mockResolvedValue([
-      {
-        id: 'w1',
-        activity: 'running',
-        start_datetime: '2024-01-15T07:00:00Z',
-        end_datetime: '2024-01-15T07:30:00Z',
-        calories: 250,
-        distance: 5000,
-        average_heart_rate: 155,
-        max_heart_rate: 175,
-      } as import('../lib/oura').OuraWorkout,
-    ])
-
-    render(<OuraTab user={FAKE_USER} />)
-    await waitFor(() => {
-      expect(screen.getByText('Running')).toBeInTheDocument()
-    })
-    expect(screen.getByText('30m')).toBeInTheDocument()
-    expect(screen.getByText('250 kcal')).toBeInTheDocument()
-  })
-})
-
-// ── Session data ──────────────────────────────────────────────────
-describe('OuraTab — with session data', () => {
-  it('shows meditation session duration', async () => {
-    const { fetchOuraSessions } = await import('../lib/oura')
-    vi.mocked(fetchOuraSessions).mockResolvedValue([
-      {
-        id: 's1',
-        type: 'meditation',
-        start_datetime: '2024-01-15T06:00:00Z',
-        end_datetime: '2024-01-15T06:15:00Z',
-        mood: 'good',
-        average_hrv: 45,
-        average_heart_rate: 62,
-      } as import('../lib/oura').OuraSession,
-    ])
-
-    render(<OuraTab user={FAKE_USER} />)
-    await waitFor(() => {
-      expect(screen.getByText('Meditation')).toBeInTheDocument()
-    })
-    expect(screen.getByText('15m')).toBeInTheDocument()
+    await waitFor(() => expect(o.fetchOuraDailyActivity).toHaveBeenCalled())
+    expect(o.fetchOuraReadiness).not.toHaveBeenCalled()
+    expect(o.fetchOuraWorkouts).not.toHaveBeenCalled()
+    expect(o.fetchOuraSessions).not.toHaveBeenCalled()
+    expect(screen.queryByText('Readiness')).toBeNull()
+    expect(screen.queryByText(/^Workouts/)).toBeNull()
+    expect(screen.queryByText(/^Mindfulness/)).toBeNull()
   })
 })
 
@@ -295,11 +241,6 @@ describe('OuraTab — all metrics populated', () => {
 
   it('renders low/varied scores to exercise the color helpers', async () => {
     const o = await import('../lib/oura')
-    vi.mocked(o.fetchOuraReadiness).mockResolvedValue({
-      score: 45,
-      contributors: { resting_heart_rate: 58 },
-      temperature_deviation: -0.3,
-    } as any)
     vi.mocked(o.fetchOuraDailyActivity).mockResolvedValue({ score: 65, steps: 3000 } as any)
     // sleep with contributors but NO session → exercises the contributors-only branch
     vi.mocked(o.fetchOuraSleep).mockResolvedValue({
@@ -323,32 +264,8 @@ describe('OuraTab — all metrics populated', () => {
       level: 'limited',
       contributors: { daytime_recovery: 60, sleep_recovery: 70, stress_impact: 55 },
     } as any)
-    vi.mocked(o.fetchOuraWorkouts).mockResolvedValue([
-      {
-        id: 'w9',
-        activity: 'running',
-        start_datetime: '2024-01-15T07:00:00Z',
-        end_datetime: '2024-01-15T07:40:00Z',
-        calories: 300,
-        distance: 6000,
-        average_heart_rate: 150,
-        max_heart_rate: 175,
-      } as any,
-    ])
-    vi.mocked(o.fetchOuraWorkoutRoute).mockResolvedValue({ id: 'w9', polyline: 'abc' } as any)
-    vi.mocked(o.fetchOuraSessions).mockResolvedValue([
-      {
-        id: 's2',
-        type: 'breathing',
-        start_datetime: '2024-01-15T06:00:00Z',
-        end_datetime: '2024-01-15T06:10:00Z',
-        average_hrv: 50,
-        average_heart_rate: 60,
-        mood: 'bad',
-      } as any,
-    ])
     render(<OuraTab user={FAKE_USER} />)
-    await waitFor(() => expect(screen.getAllByText('45').length).toBeGreaterThan(0))
+    await waitFor(() => expect(screen.getAllByText('65').length).toBeGreaterThan(0))
     expect(screen.getByText(/Restfulness/)).toBeInTheDocument()
   })
 
@@ -426,15 +343,15 @@ describe('OuraTab — disconnect & oauth exchange', () => {
 
   it('surfaces a real (non-token) fetch error', async () => {
     const o = await import('../lib/oura')
-    vi.mocked(o.fetchOuraReadiness).mockRejectedValue(new Error('Server exploded'))
+    vi.mocked(o.fetchOuraStress).mockRejectedValue(new Error('Server exploded'))
     render(<OuraTab user={FAKE_USER} />)
     await waitFor(() => expect(screen.getByText(/Server exploded/)).toBeInTheDocument())
   })
 
   it('prompts reconnect on a scope error', async () => {
     const o = await import('../lib/oura')
-    vi.mocked(o.fetchOuraReadiness).mockRejectedValue(
-      new Error('Token is not authorized access readiness scope'),
+    vi.mocked(o.fetchOuraStress).mockRejectedValue(
+      new Error('Token is not authorized access stress scope'),
     )
     render(<OuraTab user={FAKE_USER} />)
     await waitFor(() =>

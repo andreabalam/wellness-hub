@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { bodyStatsStore, trackerStore } from '../../hooks/useStore'
 import { macroTargets } from '../../hooks/macroTargets'
 import { CYCLE_CACHE_KEY } from '../../hooks/useCyclePhase'
 import { cycleHistory, weeklySummaries } from '../../lib/insights'
 import type { WeekSummary } from '../../lib/insights'
+import { isOuraConnected } from '../../lib/oura'
 import { safeGet } from '../../lib/storage'
 import { workoutWeekStats } from '../../lib/workoutWeeks'
 import OuraTab from '../OuraTab'
@@ -23,57 +24,93 @@ function fmtDay(
   return new Date(key + 'T12:00:00').toLocaleDateString('en-US', opts)
 }
 
-/** One headline number for this week, with the change vs last week. */
-function StatTile({
+/** 8-week line, oldest → newest; weeks without data leave a gap. */
+function Sparkline({ values }: { values: (number | null)[] }) {
+  const nums = values.filter((v): v is number => v != null)
+  if (nums.length < 2) return <svg className="trend-row__spark" aria-hidden="true" />
+  const W = 64
+  const H = 20
+  const lo = Math.min(...nums)
+  const span = Math.max(...nums) - lo || 1
+  const x = (i: number) => (i / (values.length - 1)) * W
+  const y = (v: number) => H - 2 - ((v - lo) / span) * (H - 4)
+  let d = ''
+  values.forEach((v, i) => {
+    if (v == null) return
+    d += `${i > 0 && values[i - 1] != null ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`
+  })
+  const last = values[values.length - 1]
+  return (
+    <svg className="trend-row__spark" viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+      <path d={d} />
+      {last != null && <circle cx={x(values.length - 1)} cy={y(last)} r={2} />}
+    </svg>
+  )
+}
+
+/** One metric: this week's value, the change vs last week and the 8-week line. */
+function TrendRow({
   label,
-  value,
-  prev,
+  sub,
+  values,
   unit = '',
   digits = 0,
   direction,
 }: {
   label: string
-  value: number | null
-  prev: number | null
+  sub?: string
+  /** Newest week first, as weeklySummaries returns them */
+  values: (number | null)[]
   unit?: string
   digits?: number
   direction: Direction
 }) {
-  let delta: { text: string; tone: 'good' | 'bad' | 'flat' } | null = null
+  const [value, prev] = values
+  let delta: { text: string; tone: 'good' | 'bad' | 'flat' } = {
+    text: value == null ? 'No data yet' : 'No data last week',
+    tone: 'flat',
+  }
   if (value != null && prev != null) {
     const d = Math.round((value - prev) * 10 ** digits) / 10 ** digits
-    if (d === 0) delta = { text: '= same as last week', tone: 'flat' }
+    if (d === 0) delta = { text: '= last week', tone: 'flat' }
     else {
       const up = d > 0
-      const tone =
-        direction === 'neutral' ? 'flat' : up === (direction === 'up-good') ? 'good' : 'bad'
       delta = {
-        text: `${up ? '▲ +' : '▼ −'}${fmtNum(Math.abs(d), digits)}${unit} vs last week`,
-        tone,
+        text: `${up ? '▲ +' : '▼ −'}${fmtNum(Math.abs(d), digits)}${unit}`,
+        tone: direction === 'neutral' ? 'flat' : up === (direction === 'up-good') ? 'good' : 'bad',
       }
     }
   }
   return (
-    <div className="kpi-tile">
-      <div className="kpi-tile__label">{label}</div>
-      <div className="kpi-tile__value">
+    <li className="trend-row">
+      <div className="trend-row__label">
+        {label}
+        {sub && <span className="trend-row__sub">{sub}</span>}
+      </div>
+      <Sparkline values={[...values].reverse()} />
+      <div className="trend-row__value">
         {value == null ? '—' : `${fmtNum(value, digits)}${unit}`}
+        <span className={`trend-row__delta trend-row__delta--${delta.tone}`}>{delta.text}</span>
       </div>
-      <div className={`kpi-tile__delta kpi-tile__delta--${delta?.tone ?? 'flat'}`}>
-        {value == null ? 'No data yet' : (delta?.text ?? 'No data last week')}
-      </div>
-    </div>
+    </li>
   )
 }
 
-const cell = (v: number | null, digits = 0) => (v == null ? '—' : fmtNum(v, digits))
-
 /**
- * Trends across days and weeks: this week's headline numbers, an 8-week
- * table, workout weeks, cycle history and the Oura dashboard.
+ * Trends across weeks: one row per metric (this week, change vs last week,
+ * 8-week line), workout weeks, cycle history and Oura's own metrics.
  */
 export default function InsightsTab({ user }: { user: User | null }) {
   const [today] = useState(() => new Date())
+  // Not connected → the Oura section opens on the connect screen
+  const [ouraConnected, setOuraConnected] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (!user) return
+    isOuraConnected()
+      .then(setOuraConnected)
+      .catch(() => {})
+  }, [user])
 
   if (!user) {
     return (
@@ -92,7 +129,7 @@ export default function InsightsTab({ user }: { user: User | null }) {
 
   const days = trackerStore.getAll()
   const weeks = weeklySummaries(days, today, 8)
-  const [thisWeek, lastWeek] = weeks as [WeekSummary, WeekSummary]
+  const [thisWeek] = weeks as [WeekSummary]
   const targets = macroTargets()
   const stats = bodyStatsStore.get()
   const cycleOn = stats.cycleType !== 'none'
@@ -108,87 +145,49 @@ export default function InsightsTab({ user }: { user: User | null }) {
 
       <section className="insights-section" aria-labelledby="ins-week">
         <h2 id="ins-week" className="insights-h">
-          This week
+          This week vs last · 8-week trend
         </h2>
-        <div className="kpi-tiles">
-          <StatTile
-            label={`Calories / day · target ${fmtNum(targets.kcal)}`}
-            value={thisWeek.kcalAvg}
-            prev={lastWeek.kcalAvg}
+        <ul className="trend-list">
+          <TrendRow
+            label="Calories / day"
+            sub={`target ${fmtNum(targets.kcal)}`}
+            values={weeks.map(w => w.kcalAvg)}
             direction="neutral"
           />
-          <StatTile
-            label={`Protein / day · target ${fmtNum(targets.prot)} g`}
-            value={thisWeek.protAvg}
-            prev={lastWeek.protAvg}
+          <TrendRow
+            label="Protein / day"
+            sub={`target ${fmtNum(targets.prot)} g`}
+            values={weeks.map(w => w.protAvg)}
             unit=" g"
             direction="up-good"
           />
-          <StatTile
-            label="Workouts"
-            value={thisWeek.workouts}
-            prev={lastWeek.workouts}
-            direction="up-good"
-          />
-          <StatTile
-            label="Sleep (check-in, of 5)"
-            value={thisWeek.sleepAvg}
-            prev={lastWeek.sleepAvg}
+          <TrendRow label="Workouts" values={weeks.map(w => w.workouts)} direction="up-good" />
+          <TrendRow
+            label="Sleep"
+            sub="check-in, of 5"
+            values={weeks.map(w => w.sleepAvg)}
             digits={1}
             direction="up-good"
           />
-          <StatTile
-            label="Energy (check-in, of 5)"
-            value={thisWeek.energyAvg}
-            prev={lastWeek.energyAvg}
+          <TrendRow
+            label="Energy"
+            sub="check-in, of 5"
+            values={weeks.map(w => w.energyAvg)}
             digits={1}
             direction="up-good"
           />
-          <StatTile
+          <TrendRow
             label="Meditation"
-            value={thisWeek.medMin}
-            prev={lastWeek.medMin}
+            values={weeks.map(w => w.medMin)}
             unit=" min"
             direction="up-good"
           />
-        </div>
-      </section>
-
-      <section className="insights-section" aria-labelledby="ins-weeks">
-        <h2 id="ins-weeks" className="insights-h">
-          Last 8 weeks
-        </h2>
-        <div className="insights-table-wrap">
-          <table className="insights-table">
-            <thead>
-              <tr>
-                <th scope="col">Week of</th>
-                <th scope="col">kcal / day</th>
-                <th scope="col">Protein</th>
-                <th scope="col">Workouts</th>
-                <th scope="col">Sleep</th>
-                <th scope="col">Energy</th>
-              </tr>
-            </thead>
-            <tbody>
-              {weeks.map(w => (
-                <tr key={w.week}>
-                  <th scope="row">{fmtDay(w.week)}</th>
-                  <td>
-                    {cell(w.kcalAvg)}
-                    {w.foodDays > 0 && <span className="insights-table__n"> ({w.foodDays}d)</span>}
-                  </td>
-                  <td>{w.protAvg == null ? '—' : `${fmtNum(w.protAvg)} g`}</td>
-                  <td>{w.workouts}</td>
-                  <td>{cell(w.sleepAvg, 1)}</td>
-                  <td>{cell(w.energyAvg, 1)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        </ul>
         <div className="train-plan-hint">
-          Averages cover days with data — (5d) means food was logged on 5 days that week.
+          Food, sleep and energy average the days you logged them
+          {thisWeek.foodDays > 0 &&
+            ` — food was logged on ${thisWeek.foodDays} day${thisWeek.foodDays === 1 ? '' : 's'} this week`}
+          .
         </div>
       </section>
 
@@ -234,12 +233,13 @@ export default function InsightsTab({ user }: { user: User | null }) {
         </section>
       )}
 
-      <section className="insights-section" aria-labelledby="ins-oura">
-        <h2 id="ins-oura" className="insights-h">
-          Oura
-        </h2>
+      {/* Oura's own metrics (readiness, workouts and meditation already show on Today/Train) */}
+      <details className="insights-section insights-oura" open={ouraConnected === false}>
+        <summary className="insights-h insights-oura__summary">
+          Oura · sleep, activity, stress &amp; more
+        </summary>
         <OuraTab user={user} />
-      </section>
+      </details>
     </>
   )
 }
