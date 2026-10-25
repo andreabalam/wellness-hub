@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
-import ScheduleTab from './components/ScheduleTab'
 import WorkoutsTab from './components/WorkoutsTab'
 import RecipesTab from './components/RecipesTab'
 import type { OpenRecipeRequest } from './components/RecipesTab'
 import TrackerTab from './components/TrackerTab'
+import TodayTab from './components/TodayTab'
 import OuraTab from './components/OuraTab'
 import UpdatePrompt from './components/UpdatePrompt'
 import AuthButton from './components/AuthButton'
@@ -37,24 +37,30 @@ import {
   syncStatusStore,
 } from './hooks/useStore'
 
-type Tab = 'tracker' | 'recipes' | 'workouts' | 'schedule' | 'oura'
+type Tab = 'today' | 'food' | 'recipes' | 'workouts' | 'oura'
 
 // Consume the OAuth callback once at module load — before React mounts.
 // Must live outside any component: React StrictMode calls useState lazy
 // initializers twice in development, which would remove oura_oauth_state
 // on the first invocation so the second invocation fails the CSRF check.
-const _initialTab: Tab = consumeOAuthCallback() ? 'oura' : 'tracker'
+const _initialTab: Tab = consumeOAuthCallback() ? 'oura' : 'today'
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'tracker', label: '📊 Tracker' },
+  { id: 'today', label: '☀️ Today' },
+  { id: 'food', label: '🍎 Food' },
   { id: 'recipes', label: '🍽 Recipes' },
   { id: 'workouts', label: '💪 Train' },
-  { id: 'schedule', label: '📅 Schedule' },
   { id: 'oura', label: '🫀 Oura' },
 ]
 
 export default function App() {
   const [active, setActive] = useState<Tab>(_initialTab)
+  // Day viewed in Today and Food — shared so switching tabs keeps the same day
+  const [dayDate, setDayDate] = useState(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  })
   // Lazy-init from window so we avoid setState inside the effect below
   const [swUpdate, setSwUpdate] = useState<(() => void) | null>(
     () => window.__swPendingUpdate ?? null,
@@ -354,17 +360,6 @@ export default function App() {
         </nav>
       </header>
 
-      <ErrorBoundary name="Schedule">
-        <div
-          role="tabpanel"
-          id="panel-schedule"
-          aria-labelledby="tab-schedule"
-          hidden={active !== 'schedule'}
-          className={`view${active === 'schedule' ? ' active' : ''}`}
-        >
-          <ScheduleTab user={user} />
-        </div>
-      </ErrorBoundary>
       <ErrorBoundary name="Workouts">
         <div
           role="tabpanel"
@@ -387,20 +382,42 @@ export default function App() {
           <RecipesTab user={user} openRequest={recipeOpenReq} />
         </div>
       </ErrorBoundary>
-      <ErrorBoundary name="Tracker">
+      {/* Today and Food mount only while active (date calculations on load) */}
+      <ErrorBoundary name="Today">
         <div
           role="tabpanel"
-          id="panel-tracker"
-          aria-labelledby="tab-tracker"
-          hidden={active !== 'tracker'}
-          className={`view${active === 'tracker' ? ' active' : ''}`}
+          id="panel-today"
+          aria-labelledby="tab-today"
+          hidden={active !== 'today'}
+          className={`view${active === 'today' ? ' active' : ''}`}
         >
-          {active === 'tracker' && (
+          {active === 'today' && (
+            <TodayTab
+              key={syncVersion}
+              user={user}
+              date={dayDate}
+              onDateChange={setDayDate}
+              onOpenFood={() => setActive('food')}
+              onOpenTrain={() => setActive('workouts')}
+            />
+          )}
+        </div>
+      </ErrorBoundary>
+      <ErrorBoundary name="Food">
+        <div
+          role="tabpanel"
+          id="panel-food"
+          aria-labelledby="tab-food"
+          hidden={active !== 'food'}
+          className={`view${active === 'food' ? ' active' : ''}`}
+        >
+          {active === 'food' && (
             <TrackerTab
               key={syncVersion}
               user={user}
               onOpenRecipe={openRecipe}
-              onOpenTrain={() => setActive('workouts')}
+              date={dayDate}
+              onDateChange={setDayDate}
             />
           )}
         </div>

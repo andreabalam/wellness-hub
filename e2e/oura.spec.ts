@@ -120,8 +120,8 @@ test.describe('Oura tab — OAuth callback handling', () => {
   test('mismatched state param is ignored — no tab switch', async ({ page }) => {
     // No matching state in sessionStorage → callback is a CSRF attempt, ignore it
     await page.goto('?code=fake-code&state=wrong-state')
-    // Should stay on Tracker tab (default), not switch to Oura
-    await expect(page.locator('nav.tabs').getByRole('tab', { name: /Tracker/i })).toHaveClass(
+    // Should stay on Today (default), not switch to Oura
+    await expect(page.locator('nav.tabs').getByRole('tab', { name: /Today/i })).toHaveClass(
       /active/,
     )
   })

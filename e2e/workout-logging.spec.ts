@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
 // Logging sets on a phone: start a plan workout, log sets, leave mid-workout,
-// resume after a reload, finish, and see it in the Tracker.
+// resume after a reload, finish, and see it on Today.
 
 const MOCK_USER = JSON.stringify({
   id: 'e2e-test-id',
@@ -28,7 +28,7 @@ test.describe('Train tab — set logging (mobile)', () => {
     await openTrain(page)
   })
 
-  test('log sets, resume after reload, finish, see it in the Tracker', async ({ page }) => {
+  test('log sets, resume after reload, finish, see it on Today', async ({ page }) => {
     const panel = page.locator('#panel-workouts')
     // First plan day with exercises ("Start workout" when it happens to be today)
     await panel
@@ -76,11 +76,8 @@ test.describe('Train tab — set logging (mobile)', () => {
     await expect(panel.getByText('12×20, 12×20.5 kg')).toBeVisible()
     await expect(panel.locator('.week-counter__tile').nth(2)).toContainText('1')
 
-    // The Tracker shows a read-only line that links back to Train
-    await page
-      .locator('nav.tabs')
-      .getByRole('tab', { name: /Tracker/i })
-      .click()
+    // Today shows a read-only line that links back to Train
+    await page.locator('nav.tabs').getByRole('tab', { name: /Today/i }).click()
     await expect(page.locator('.train-summary')).toContainText('2 sets')
     await page.getByRole('button', { name: 'Open Train →' }).click()
     await expect(panel).toBeVisible()

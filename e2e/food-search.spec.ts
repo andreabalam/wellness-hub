@@ -80,6 +80,7 @@ test.describe('Tracker food search', () => {
       localStorage.clear()
     })
     await page.reload()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Food/i }).click()
   })
 
   const mealInput = (page: import('@playwright/test').Page) =>

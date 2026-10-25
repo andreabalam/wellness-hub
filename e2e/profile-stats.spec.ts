@@ -11,8 +11,9 @@ const MOCK_USER = JSON.stringify({
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-/** Ensure we're on the Tracker food inner-tab (the default). */
+/** Open the Food tab (the app opens on Today). */
 async function goToTrackerStats(page: import('@playwright/test').Page) {
+  await page.locator('nav.tabs').getByRole('tab', { name: /Food/i }).click()
   await expect(page.getByRole('button', { name: '+ Log food' })).toBeVisible()
 }
 
@@ -159,10 +160,7 @@ test.describe('ProfileStatsCard', () => {
     await activeView(page).getByPlaceholder('65').fill('63')
     await activeView(page).getByRole('button', { name: 'Save' }).click()
 
-    await page
-      .locator('nav.tabs')
-      .getByRole('tab', { name: /Tracker/i })
-      .click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Food/i }).click()
     await goToTrackerStats(page)
     await expect(activeView(page).getByText('63 kg', { exact: true })).toBeVisible()
   })
@@ -192,6 +190,7 @@ test.describe('ProfileStatsCard', () => {
     await expect(activeView(page).getByText('69 kg', { exact: true })).toBeVisible()
 
     await page.reload()
+    await goToTrackerStats(page)
     await expect(activeView(page).getByText('69 kg', { exact: true })).toBeVisible()
   })
 
@@ -262,6 +261,7 @@ test.describe('ProfileStatsCard', () => {
     await activeView(page).getByRole('button', { name: 'Save' }).click()
     await expect(activeView(page).getByText('78 cm', { exact: true })).toBeVisible()
     await page.reload()
+    await goToTrackerStats(page)
     await expect(activeView(page).getByText('78 cm', { exact: true })).toBeVisible()
     await expect(activeView(page).getByText('97 cm', { exact: true })).toBeVisible()
   })

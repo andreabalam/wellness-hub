@@ -59,6 +59,7 @@ test.describe('Food photo feature', () => {
       localStorage.clear()
     })
     await page.reload()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Food/i }).click()
   })
 
   // ── Happy path — high confidence ──────────────────────────────────
@@ -145,12 +146,9 @@ test.describe('Food photo feature', () => {
     // Navigate away then back using the nav tabs
     await page
       .locator('nav.tabs')
-      .getByRole('tab', { name: /Schedule/i })
+      .getByRole('tab', { name: /Recipes/i })
       .click()
-    await page
-      .locator('nav.tabs')
-      .getByRole('tab', { name: /Tracker/i })
-      .click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Food/i }).click()
 
     await expect(page.getByText('Persisted Meal', { exact: true })).toBeVisible()
     await expect(page.getByText('400 / 1,380 kcal')).toBeVisible()

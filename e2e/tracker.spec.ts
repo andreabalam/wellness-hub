@@ -24,7 +24,8 @@ test.describe('Tracker tab', () => {
       localStorage.clear()
     })
     await page.reload()
-    // App defaults to Tracker tab → Food inner-tab is visible
+    // App opens on Today — the food log lives in the Food tab
+    await page.locator('nav.tabs').getByRole('tab', { name: /Food/i }).click()
   })
 
   test("shows today's date in the date label", async ({ page }) => {
@@ -87,31 +88,28 @@ test.describe('Tracker tab', () => {
     await expect(page.getByText('0 / 1,380 kcal')).toBeVisible()
   })
 
-  test('logging other activity in Train shows in the Tracker workout line', async ({ page }) => {
-    await page.getByRole('button', { name: 'Open Train →' }).click()
+  test('logging other activity in Train shows in the Today workout line', async ({ page }) => {
+    await page.locator('nav.tabs').getByRole('tab', { name: /Train/i }).click()
     const train = page.locator('#panel-workouts')
     await train.getByRole('button', { name: '＋ Other activity' }).click()
     await train.getByRole('button', { name: 'Pilates' }).first().click()
     await train.getByRole('button', { name: '+ Log activity' }).click()
     await expect(train.locator('.session-totals').getByText(/1 session · 30 min/)).toBeVisible()
-    await page
-      .locator('nav.tabs')
-      .getByRole('tab', { name: /Tracker/i })
-      .click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Today/i }).click()
     await expect(page.locator('.train-summary')).toContainText('Pilates')
   })
 
   test('logging meditation shows confirmation', async ({ page }) => {
-    // Switch to the Meditation inner tab (check-in and notes live here too)
-    await page.getByRole('button', { name: 'Meditation', exact: true }).click()
+    // Meditation, check-in and notes live on Today
+    await page.locator('nav.tabs').getByRole('tab', { name: /Today/i }).click()
     await page.getByRole('button', { name: '13 min' }).click()
     await page.getByRole('button', { name: 'Log meditation' }).click()
     await expect(page.getByText(/Total today: 13 min/)).toBeVisible()
   })
 
   test('saving check-in shows saved feedback', async ({ page }) => {
-    // The daily check-in card lives inside the Meditation inner tab
-    await page.getByRole('button', { name: 'Meditation', exact: true }).click()
+    // The daily check-in card lives on Today
+    await page.locator('nav.tabs').getByRole('tab', { name: /Today/i }).click()
     await page.getByRole('button', { name: 'Save check-in' }).click()
     await expect(page.getByRole('button', { name: 'Saved!' })).toBeVisible()
   })
@@ -154,12 +152,9 @@ test.describe('Tracker tab', () => {
     // Switch tab — TrackerTab unmounts, then remounts and re-reads localStorage
     await page
       .locator('nav.tabs')
-      .getByRole('tab', { name: /Schedule/i })
+      .getByRole('tab', { name: /Recipes/i })
       .click()
-    await page
-      .locator('nav.tabs')
-      .getByRole('tab', { name: /Tracker/i })
-      .click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Food/i }).click()
 
     await expect(page.getByText('350 / 1,380 kcal')).toBeVisible()
     await expect(page.getByText('Berry Oats', { exact: true })).toBeVisible()
@@ -172,10 +167,10 @@ test.describe('Tracker tab', () => {
   })
 
   // ── Reminders ─────────────────────────────────────────────────
-  // RemindersSection lives inside the Meditation inner-tab of TrackerTab.
+  // RemindersSection lives on the Today tab.
 
   async function goToMeditation(page: import('@playwright/test').Page) {
-    await page.getByRole('button', { name: 'Meditation' }).click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Today/i }).click()
     // Reminders is collapsed by default — expand it before interacting.
     const summary = page.locator('.rem-summary')
     await expect(summary).toBeVisible()
@@ -185,7 +180,7 @@ test.describe('Tracker tab', () => {
     await expect(page.getByPlaceholder('New reminder…')).toBeVisible()
   }
 
-  test('Reminders section is visible in the Meditation inner-tab', async ({ page }) => {
+  test('Reminders section is visible on Today', async ({ page }) => {
     await goToMeditation(page)
     await expect(page.getByPlaceholder('New reminder…')).toBeVisible()
   })

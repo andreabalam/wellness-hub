@@ -2,6 +2,7 @@
  * Component tests — covers all React components not covered by pure-logic tests.
  * AuthButton and sync.ts are excluded from coverage (require live Supabase).
  */
+import { useState } from 'react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 
@@ -53,6 +54,7 @@ import CookingMode from '../components/RecipesTab/CookingMode'
 import GroceryIngredientModal from '../components/RecipesTab/GroceryIngredientModal'
 import RecipesTab from '../components/RecipesTab'
 import WorkoutsTab from '../components/WorkoutsTab'
+import TodayTab from '../components/TodayTab'
 import ErrorBoundary from '../components/ErrorBoundary'
 import { MALE_DEFAULT_PLAN } from '../data/workouts'
 import ScheduleTab from '../components/ScheduleTab'
@@ -3061,9 +3063,10 @@ describe('RecipesTab', () => {
 // TrackerTab
 // ═════════════════════════════════════════════════════════════════
 describe('TrackerTab', () => {
-  it('renders the daily tracker heading', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    expect(screen.getByText(/Daily Tracker/)).toBeInTheDocument()
+  it('renders the Food heading and no sub-tabs', () => {
+    const { container } = render(<TrackerTab user={FAKE_USER} />)
+    expect(container.querySelector('.page-title')).toHaveTextContent('My Food')
+    expect(screen.queryByRole('button', { name: 'Meditation' })).toBeNull()
   })
 
   it('renders date navigation buttons', () => {
@@ -3075,13 +3078,6 @@ describe('TrackerTab', () => {
   it('renders the week strip', () => {
     render(<TrackerTab user={FAKE_USER} />)
     expect(screen.getByText('This week')).toBeInTheDocument()
-  })
-
-  it('renders inner tabs: Food, Workout, Meditation', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    expect(screen.getByText('Food')).toBeInTheDocument()
-    expect(screen.getByText('Workout')).toBeInTheDocument()
-    expect(screen.getByText('Meditation')).toBeInTheDocument()
   })
 
   it('Food tab is active by default with macro bars', () => {
@@ -3236,91 +3232,6 @@ describe('TrackerTab', () => {
     expect(screen.getByText(today)).toBeInTheDocument()
   })
 
-  it('switching to Meditation tab shows duration options', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    expect(screen.getByText('Meditation · 8:45 AM')).toBeInTheDocument()
-    expect(screen.getByText('13 min')).toBeInTheDocument()
-  })
-
-  it('logging meditation without duration shows alert', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    fireEvent.click(screen.getByText('Log meditation'))
-    expect(window.alert).toHaveBeenCalledWith('Select a duration first.')
-  })
-
-  it('can select a meditation duration and log it', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    fireEvent.click(screen.getByText('13 min'))
-    fireEvent.click(screen.getByText('Log meditation'))
-    // Saved state shows "Saved!" momentarily
-    expect(screen.getByText('Saved!')).toBeInTheDocument()
-  })
-
-  it('selecting same meditation duration deselects it', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    fireEvent.click(screen.getByText('13 min'))
-    fireEvent.click(screen.getByText('13 min'))
-    // no assertion needed — just no crash
-  })
-
-  it('renders the check-in section in Meditation tab', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    expect(screen.getByText('Daily check-in')).toBeInTheDocument()
-    expect(screen.getByText('Save check-in')).toBeInTheDocument()
-  })
-
-  it('can click Save check-in', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    fireEvent.click(screen.getByText('Save check-in'))
-    expect(screen.getByText('Saved!')).toBeInTheDocument()
-  })
-
-  it('renders Day notes section in Meditation tab', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    expect(screen.getByText('Day notes')).toBeInTheDocument()
-    expect(screen.getByText('Save notes')).toBeInTheDocument()
-  })
-
-  it('renders Reminders section in Meditation tab', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    expect(screen.getByText('Reminders')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('New reminder…')).toBeInTheDocument()
-  })
-
-  it('can save day notes', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    const textarea = screen.getByPlaceholderText(/Cravings/)
-    fireEvent.change(textarea, { target: { value: 'Feeling great today' } })
-    fireEvent.click(screen.getByText('Save notes'))
-    expect(screen.getByText('Saved!')).toBeInTheDocument()
-  })
-
-  it('can select a meditation style', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    fireEvent.click(screen.getByText('Breath focus'))
-    // deselect
-    fireEvent.click(screen.getByText('Breath focus'))
-  })
-
-  it('shows a read-only workout line that opens the Train tab', () => {
-    const onOpenTrain = vi.fn()
-    render(<TrackerTab user={FAKE_USER} onOpenTrain={onOpenTrain} />)
-    expect(screen.getByText('Nothing logged')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Workout' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Open Train →' }))
-    expect(onOpenTrain).toHaveBeenCalled()
-  })
-
   it('clicking a day in the week strip navigates to that day', () => {
     render(<TrackerTab user={FAKE_USER} />)
     // Week strip has 7 clickable day buttons (M T W T F S S)
@@ -3416,17 +3327,6 @@ describe('TrackerTab', () => {
     // Even if no button found, we verified no crash
   })
 
-  it('clicking a star in the daily check-in sets rating', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    // Star buttons are rendered for Energy, Mood, Sleep ratings (5 buttons each × 3 rows = 15)
-    const stars = screen.getAllByText('·')
-    if (stars.length > 0) {
-      fireEvent.click(stars[0].closest('button')!)
-      // No crash = star onClick handled
-    }
-  })
-
   it('clicking a day in the week strip navigates to that date', () => {
     render(<TrackerTab user={FAKE_USER} />)
     // WeekStrip: find the grid container via the "This week" label, then click first day cell
@@ -3444,79 +3344,6 @@ describe('TrackerTab', () => {
     // Export/Import was moved to the AuthButton signed-in panel
     expect(screen.queryByText('↓ Export')).not.toBeInTheDocument()
     expect(screen.queryByText('↑ Import')).not.toBeInTheDocument()
-  })
-
-  it('Meditation tab shows default guide links', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    expect(screen.getByText('Guided Meditation · Session 1')).toBeInTheDocument()
-    expect(screen.getByText('Guided Meditation · Session 2')).toBeInTheDocument()
-  })
-
-  it('clicking × on a guide removes it', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    expect(screen.getByText('Guided Meditation · Session 1')).toBeInTheDocument()
-    // The guides section has × remove buttons — find the first one in the guides card
-    const guideCard = screen.getByText('Favorite Guides').closest('.tcard')!
-    const removeBtn = guideCard.querySelectorAll('button[title="Remove"]')[0] as HTMLElement
-    fireEvent.click(removeBtn)
-    expect(screen.queryByText('Guided Meditation · Session 1')).not.toBeInTheDocument()
-  })
-
-  it('+ Add opens guide form and Cancel closes it', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    fireEvent.click(screen.getByText('+ Add'))
-    expect(screen.getByPlaceholderText('Title (e.g. Morning Calm · 13 min)')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Cancel'))
-    expect(
-      screen.queryByPlaceholderText('Title (e.g. Morning Calm · 13 min)'),
-    ).not.toBeInTheDocument()
-  })
-
-  it('Add guide button adds guide with title and URL', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    fireEvent.click(screen.getByText('+ Add'))
-    fireEvent.change(screen.getByPlaceholderText('Title (e.g. Morning Calm · 13 min)'), {
-      target: { value: 'My Custom Guide' },
-    })
-    fireEvent.change(screen.getByPlaceholderText('URL'), {
-      target: { value: 'https://example.com/guide' },
-    })
-    fireEvent.click(screen.getByText('Add guide'))
-    expect(screen.getByText('My Custom Guide')).toBeInTheDocument()
-  })
-
-  it('Add guide with only URL uses URL as title', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    fireEvent.click(screen.getByText('+ Add'))
-    fireEvent.change(screen.getByPlaceholderText('URL'), {
-      target: { value: 'https://example.com/guide' },
-    })
-    fireEvent.click(screen.getByText('Add guide'))
-    expect(screen.getByText('https://example.com/guide')).toBeInTheDocument()
-  })
-
-  it('Add guide with empty URL does nothing', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    fireEvent.click(screen.getByText('+ Add'))
-    const initialGuideCount = screen.getAllByTitle('Remove').length
-    fireEvent.click(screen.getByText('Add guide'))
-    expect(screen.getAllByTitle('Remove').length).toBe(initialGuideCount)
-  })
-
-  it('pressing Enter in URL field submits the guide', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    fireEvent.click(screen.getByText('+ Add'))
-    const urlInput = screen.getByPlaceholderText('URL')
-    fireEvent.change(urlInput, { target: { value: 'https://example.com' } })
-    fireEvent.keyDown(urlInput, { key: 'Enter' })
-    expect(screen.getByText('https://example.com')).toBeInTheDocument()
   })
 
   it('camera 📷 button is visible in the food tab', () => {
@@ -3570,14 +3397,6 @@ describe('TrackerTab', () => {
     expect(screen.queryByText('Data backup')).not.toBeInTheDocument()
   })
 
-  it('hovering the check-in card does not crash (syncSleepFromOura guard)', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    const checkInCard = screen.getByText('Daily check-in').closest('.tcard')!
-    fireEvent.mouseEnter(checkInCard)
-    // ouraConnected is false → function returns immediately. No crash = guard works
-  })
-
   it('Oura Ring section is not rendered in TrackerTab (moved to OuraTab)', () => {
     render(<TrackerTab user={FAKE_USER} />)
     expect(screen.queryByText('Oura Ring')).not.toBeInTheDocument()
@@ -3613,42 +3432,6 @@ describe('TrackerTab', () => {
   })
 
   // ── Tier 2: weekly goal ──────────────────────────────────────────
-  it('can save a weekly goal', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    fireEvent.change(screen.getByPlaceholderText(/Protein at every meal/), {
-      target: { value: 'Walk daily' },
-    })
-    fireEvent.click(screen.getByText('Save weekly'))
-    expect(screen.getByText('Saved!')).toBeInTheDocument()
-  })
-
-  it('weekly experiment toggle switches the goal prompt', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    fireEvent.click(screen.getByText('experiment'))
-    expect(screen.getByPlaceholderText(/If I prep 3 lunches/)).toBeInTheDocument()
-  })
-
-  it('a weekly goal suggestion chip fills the goal field', () => {
-    const { container } = render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    const weekCard = screen.getByText('Weekly goal').closest('.tcard') as HTMLElement
-    fireEvent.click(within(weekCard).getByText('Protein at every meal'))
-    const textarea = container.querySelector(
-      'textarea[placeholder^="e.g. Protein"]',
-    ) as HTMLTextAreaElement
-    expect(textarea.value).toBe('Protein at every meal')
-  })
-
-  it('recording a weekly result and saving works', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByText('Meditation'))
-    const weekCard = screen.getByText('Weekly goal').closest('.tcard') as HTMLElement
-    fireEvent.click(within(weekCard).getByText('Yes'))
-    fireEvent.click(within(weekCard).getByText('Save weekly'))
-    expect(screen.getByText('Saved!')).toBeInTheDocument()
-  })
 })
 
 // ═════════════════════════════════════════════════════════════════
@@ -3677,24 +3460,16 @@ describe('App', () => {
     expect(screen.getByText(/Wellness Hub/)).toBeInTheDocument()
   })
 
-  it('renders all 4 tab buttons', () => {
+  it('renders the tab buttons, with Today first and no Schedule tab', () => {
     render(<App />)
-    expect(screen.getByText('📊 Tracker')).toBeInTheDocument()
-    expect(screen.getByText('🍽 Recipes')).toBeInTheDocument()
-    expect(screen.getByText('💪 Train')).toBeInTheDocument()
-    expect(screen.getByText('📅 Schedule')).toBeInTheDocument()
+    const tabs = screen.getAllByRole('tab').map(t => t.textContent)
+    expect(tabs).toEqual(['☀️ Today', '🍎 Food', '🍽 Recipes', '💪 Train', '🫀 Oura'])
   })
 
-  it('shows auth gate on Tracker tab when not signed in', () => {
+  it('opens on Today, which shows its auth gate when not signed in', () => {
     render(<App />)
-    expect(screen.getByText(/Sign in to use/i)).toBeInTheDocument()
-  })
-
-  it('ScheduleTab shows sign-in gate when not authenticated', () => {
-    render(<App />)
-    fireEvent.click(screen.getByText('📅 Schedule'))
-    expect(screen.getByText(/Sign in to save your schedule/i)).toBeInTheDocument()
-    expect(screen.queryByText(/Cognitive peak/)).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '☀️ Today' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText(/Sign in to see/i)).toBeInTheDocument()
   })
 
   it('WorkoutsTab is always rendered (guest template heading visible)', () => {
@@ -3716,16 +3491,10 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Week 1' })).toBeInTheDocument()
   })
 
-  it('clicking Schedule tab shows sign-in gate when not authenticated', () => {
-    render(<App />)
-    fireEvent.click(screen.getByText('📅 Schedule'))
-    expect(screen.getByText(/Sign in to save your schedule/i)).toBeInTheDocument()
-  })
-
-  it('clicking back to Tracker tab shows auth gate when not signed in', () => {
+  it('clicking Food tab shows its auth gate when not signed in', () => {
     render(<App />)
     fireEvent.click(screen.getByText('🍽 Recipes'))
-    fireEvent.click(screen.getByText('📊 Tracker'))
+    fireEvent.click(screen.getByText('🍎 Food'))
     expect(screen.getByText(/Sign in to use/i)).toBeInTheDocument()
   })
 
@@ -4363,5 +4132,256 @@ describe('RecipesTab — open request from tracker', () => {
     )
     await waitFor(() => expect(screen.getByText('tap to collapse')).toBeInTheDocument())
     expect(screen.getByText(CUSTOM_RECIPE.name)).toBeInTheDocument()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════
+// TodayTab — home screen (check-in, meditation, reminders, notes and
+// weekly goal moved here from Tracker › Meditation)
+// ═════════════════════════════════════════════════════════════════
+function TodayHarness({
+  onOpenFood = () => {},
+  onOpenTrain = () => {},
+}: {
+  onOpenFood?: () => void
+  onOpenTrain?: () => void
+}) {
+  const [date, setDate] = useState(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  })
+  return (
+    <TodayTab
+      user={FAKE_USER}
+      date={date}
+      onDateChange={setDate}
+      onOpenFood={onOpenFood}
+      onOpenTrain={onOpenTrain}
+    />
+  )
+}
+const renderToday = (props: { onOpenFood?: () => void; onOpenTrain?: () => void } = {}) =>
+  render(<TodayHarness {...props} />)
+
+describe('TodayTab', () => {
+  it('shows the guest gate when signed out', () => {
+    render(
+      <TodayTab
+        user={null}
+        date={new Date()}
+        onDateChange={() => {}}
+        onOpenFood={() => {}}
+        onOpenTrain={() => {}}
+      />,
+    )
+    expect(screen.getByText(/Sign in to see/)).toBeInTheDocument()
+  })
+
+  it('heads with Today, moves between days, and links to Food and Train', () => {
+    const onOpenFood = vi.fn()
+    const onOpenTrain = vi.fn()
+    renderToday({ onOpenFood, onOpenTrain })
+    expect(screen.getByText('Today')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    expect(screen.queryByText('Today')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
+    expect(screen.getByText('Today')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '+ Add food' }))
+    expect(onOpenFood).toHaveBeenCalled()
+    expect(screen.getByText('Nothing logged')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open Train →' }))
+    expect(onOpenTrain).toHaveBeenCalled()
+  })
+
+  it('shows the day timeline and opens the full schedule', async () => {
+    renderToday()
+    expect(screen.getByText(/Your day/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open schedule →' }))
+    expect(await screen.findByRole('dialog', { name: 'Schedule' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close schedule' }))
+    expect(screen.queryByRole('dialog', { name: 'Schedule' })).toBeNull()
+  })
+
+  it('switching to Meditation tab shows duration options', () => {
+    renderToday()
+    expect(screen.getByText('Meditation · 8:45 AM')).toBeInTheDocument()
+    expect(screen.getByText('13 min')).toBeInTheDocument()
+  })
+
+  it('logging meditation without duration shows alert', () => {
+    renderToday()
+    fireEvent.click(screen.getByText('Log meditation'))
+    expect(window.alert).toHaveBeenCalledWith('Select a duration first.')
+  })
+
+  it('can select a meditation duration and log it', () => {
+    renderToday()
+    fireEvent.click(screen.getByText('13 min'))
+    fireEvent.click(screen.getByText('Log meditation'))
+    // Saved state shows "Saved!" momentarily
+    expect(screen.getByText('Saved!')).toBeInTheDocument()
+  })
+
+  it('selecting same meditation duration deselects it', () => {
+    renderToday()
+    fireEvent.click(screen.getByText('13 min'))
+    fireEvent.click(screen.getByText('13 min'))
+    // no assertion needed — just no crash
+  })
+
+  it('renders the check-in section in Meditation tab', () => {
+    renderToday()
+    expect(screen.getByText('Daily check-in')).toBeInTheDocument()
+    expect(screen.getByText('Save check-in')).toBeInTheDocument()
+  })
+
+  it('can click Save check-in', () => {
+    renderToday()
+    fireEvent.click(screen.getByText('Save check-in'))
+    expect(screen.getByText('Saved!')).toBeInTheDocument()
+  })
+
+  it('renders Day notes section in Meditation tab', () => {
+    renderToday()
+    expect(screen.getByText('Day notes')).toBeInTheDocument()
+    expect(screen.getByText('Save notes')).toBeInTheDocument()
+  })
+
+  it('renders Reminders section in Meditation tab', () => {
+    renderToday()
+    expect(screen.getByText('Reminders')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('New reminder…')).toBeInTheDocument()
+  })
+
+  it('can save day notes', () => {
+    renderToday()
+    const textarea = screen.getByPlaceholderText(/Cravings/)
+    fireEvent.change(textarea, { target: { value: 'Feeling great today' } })
+    fireEvent.click(screen.getByText('Save notes'))
+    expect(screen.getByText('Saved!')).toBeInTheDocument()
+  })
+
+  it('can select a meditation style', () => {
+    renderToday()
+    fireEvent.click(screen.getByText('Breath focus'))
+    // deselect
+    fireEvent.click(screen.getByText('Breath focus'))
+  })
+
+  it('clicking a star in the daily check-in sets rating', () => {
+    renderToday()
+    // Star buttons are rendered for Energy, Mood, Sleep ratings (5 buttons each × 3 rows = 15)
+    const stars = screen.getAllByText('·')
+    if (stars.length > 0) {
+      fireEvent.click(stars[0].closest('button')!)
+      // No crash = star onClick handled
+    }
+  })
+
+  it('Meditation tab shows default guide links', () => {
+    renderToday()
+    expect(screen.getByText('Guided Meditation · Session 1')).toBeInTheDocument()
+    expect(screen.getByText('Guided Meditation · Session 2')).toBeInTheDocument()
+  })
+
+  it('clicking × on a guide removes it', () => {
+    renderToday()
+    expect(screen.getByText('Guided Meditation · Session 1')).toBeInTheDocument()
+    // The guides section has × remove buttons — find the first one in the guides card
+    const guideCard = screen.getByText('Favorite Guides').closest('.tcard')!
+    const removeBtn = guideCard.querySelectorAll('button[title="Remove"]')[0] as HTMLElement
+    fireEvent.click(removeBtn)
+    expect(screen.queryByText('Guided Meditation · Session 1')).not.toBeInTheDocument()
+  })
+
+  it('+ Add opens guide form and Cancel closes it', () => {
+    renderToday()
+    fireEvent.click(screen.getByText('+ Add'))
+    expect(screen.getByPlaceholderText('Title (e.g. Morning Calm · 13 min)')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Cancel'))
+    expect(
+      screen.queryByPlaceholderText('Title (e.g. Morning Calm · 13 min)'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('Add guide button adds guide with title and URL', () => {
+    renderToday()
+    fireEvent.click(screen.getByText('+ Add'))
+    fireEvent.change(screen.getByPlaceholderText('Title (e.g. Morning Calm · 13 min)'), {
+      target: { value: 'My Custom Guide' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('URL'), {
+      target: { value: 'https://example.com/guide' },
+    })
+    fireEvent.click(screen.getByText('Add guide'))
+    expect(screen.getByText('My Custom Guide')).toBeInTheDocument()
+  })
+
+  it('Add guide with only URL uses URL as title', () => {
+    renderToday()
+    fireEvent.click(screen.getByText('+ Add'))
+    fireEvent.change(screen.getByPlaceholderText('URL'), {
+      target: { value: 'https://example.com/guide' },
+    })
+    fireEvent.click(screen.getByText('Add guide'))
+    expect(screen.getByText('https://example.com/guide')).toBeInTheDocument()
+  })
+
+  it('Add guide with empty URL does nothing', () => {
+    renderToday()
+    fireEvent.click(screen.getByText('+ Add'))
+    const initialGuideCount = screen.getAllByTitle('Remove').length
+    fireEvent.click(screen.getByText('Add guide'))
+    expect(screen.getAllByTitle('Remove').length).toBe(initialGuideCount)
+  })
+
+  it('pressing Enter in URL field submits the guide', () => {
+    renderToday()
+    fireEvent.click(screen.getByText('+ Add'))
+    const urlInput = screen.getByPlaceholderText('URL')
+    fireEvent.change(urlInput, { target: { value: 'https://example.com' } })
+    fireEvent.keyDown(urlInput, { key: 'Enter' })
+    expect(screen.getByText('https://example.com')).toBeInTheDocument()
+  })
+
+  it('hovering the check-in card does not crash (syncSleepFromOura guard)', () => {
+    renderToday()
+    const checkInCard = screen.getByText('Daily check-in').closest('.tcard')!
+    fireEvent.mouseEnter(checkInCard)
+    // ouraConnected is false → function returns immediately. No crash = guard works
+  })
+
+  it('can save a weekly goal', () => {
+    renderToday()
+    fireEvent.change(screen.getByPlaceholderText(/Protein at every meal/), {
+      target: { value: 'Walk daily' },
+    })
+    fireEvent.click(screen.getByText('Save weekly'))
+    expect(screen.getByText('Saved!')).toBeInTheDocument()
+  })
+
+  it('weekly experiment toggle switches the goal prompt', () => {
+    renderToday()
+    fireEvent.click(screen.getByText('experiment'))
+    expect(screen.getByPlaceholderText(/If I prep 3 lunches/)).toBeInTheDocument()
+  })
+
+  it('a weekly goal suggestion chip fills the goal field', () => {
+    const { container } = renderToday()
+    const weekCard = screen.getByText('Weekly goal').closest('.tcard') as HTMLElement
+    fireEvent.click(within(weekCard).getByText('Protein at every meal'))
+    const textarea = container.querySelector(
+      'textarea[placeholder^="e.g. Protein"]',
+    ) as HTMLTextAreaElement
+    expect(textarea.value).toBe('Protein at every meal')
+  })
+
+  it('recording a weekly result and saving works', () => {
+    renderToday()
+    const weekCard = screen.getByText('Weekly goal').closest('.tcard') as HTMLElement
+    fireEvent.click(within(weekCard).getByText('Yes'))
+    fireEvent.click(within(weekCard).getByText('Save weekly'))
+    expect(screen.getByText('Saved!')).toBeInTheDocument()
   })
 })
