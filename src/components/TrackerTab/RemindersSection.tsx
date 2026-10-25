@@ -200,7 +200,7 @@ function ReminderRow({
           className="rem-icon-btn"
           onClick={() => onEdit(r.id)}
           aria-label="Edit reminder"
-          style={{ fontSize: 13 }}
+          style={{ fontSize: '0.929rem' }}
         >
           ✎
         </button>
@@ -210,7 +210,7 @@ function ReminderRow({
         className="rem-icon-btn"
         onClick={() => onDelete(r.id)}
         aria-label="Delete reminder"
-        style={{ fontSize: 16 }}
+        style={{ fontSize: '1.143rem' }}
       >
         ×
       </button>

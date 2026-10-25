@@ -68,20 +68,20 @@ const WeekStrip = memo(function WeekStrip({
             >
               <div
                 className={`font-mono ${isToday ? 'text-teal' : 'text-muted2'}`}
-                style={{ fontSize: 10, marginBottom: 2 }}
+                style={{ fontSize: '0.786rem', marginBottom: 2 }}
               >
                 {lbl}
               </div>
-              <div className="text-muted2" style={{ fontSize: 10, marginBottom: 3 }}>
+              <div className="text-muted2" style={{ fontSize: '0.786rem', marginBottom: 3 }}>
                 {d.getDate()}
               </div>
               <div
                 className={`font-mono ${kcal > 0 ? 'text-green' : 'text-muted2'}`}
-                style={{ fontSize: 10 }}
+                style={{ fontSize: '0.786rem' }}
               >
                 {kcal > 0 ? kcal : '-'}
               </div>
-              <div style={{ fontSize: 11, marginTop: 2 }}>
+              <div style={{ fontSize: '0.786rem', marginTop: 2 }}>
                 {bigBurn && (
                   <span className="text-coral" title={`${wk.kcal} kcal burned`}>
                     🔥{wk.kcal}{' '}

@@ -438,7 +438,7 @@ export default function OuraTab({ user }: Props) {
   if (!user) {
     return (
       <div className="oura-guest">
-        <div style={{ fontSize: 36 }}>🫀</div>
+        <div style={{ fontSize: '2.571rem' }}>🫀</div>
         <p className="text-md text-muted" style={{ margin: 0 }}>
           Sign in to view your Oura dashboard.
         </p>
@@ -469,7 +469,12 @@ export default function OuraTab({ user }: Props) {
           }}
           disabled={connecting}
           className="tbtn"
-          style={{ background: 'var(--teal)', color: '#fff', fontSize: 14, padding: '10px 28px' }}
+          style={{
+            background: 'var(--teal)',
+            color: '#fff',
+            fontSize: '1rem',
+            padding: '10px 28px',
+          }}
         >
           Connect with Oura
         </button>

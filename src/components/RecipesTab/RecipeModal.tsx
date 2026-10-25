@@ -421,7 +421,7 @@ export default function RecipeModal({
   }
 
   const chipStyle = (active: boolean, color: string) => ({
-    fontSize: 12,
+    fontSize: '0.857rem',
     padding: '4px 12px',
     borderRadius: 7,
     border: `1px solid ${active ? color : 'var(--border)'}`,

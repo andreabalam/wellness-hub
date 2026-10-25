@@ -24,7 +24,7 @@ function ExerciseRow({
   size?: 'normal' | 'small'
 }) {
   const [open, setOpen] = useState(false)
-  const numSize = size === 'small' ? 17 : 19
+  const numSize = size === 'small' ? '1.2rem' : '1.35rem'
   const bg = size === 'small' ? 'var(--muted2)' : color
   return (
     <div className="exercise-row" onClick={() => setOpen(o => !o)}>
@@ -36,7 +36,10 @@ function ExerciseRow({
       </div>
       <div className="flex-1">
         <div className="flex items-center gap-6 flex-wrap">
-          <span className="font-500 text-default" style={{ fontSize: size === 'small' ? 12 : 13 }}>
+          <span
+            className="font-500 text-default"
+            style={{ fontSize: size === 'small' ? '0.857rem' : '0.929rem' }}
+          >
             {ex.t}
           </span>
           <span className="exercise-badge">{ex.d}</span>
@@ -281,7 +284,7 @@ export default function WorkoutsTab({ user }: Props) {
               borderRadius: 8,
               padding: '7px 18px',
               fontFamily: 'sans-serif',
-              fontSize: 13,
+              fontSize: '0.929rem',
               color: i === safeWeek ? w.color : 'var(--muted)',
               cursor: 'pointer',
               transition: 'all .2s',
@@ -427,7 +430,7 @@ export default function WorkoutsTab({ user }: Props) {
             {PLAN_NOTES.map(n => (
               <div key={n.title} className="plan-note-card">
                 <div className="plan-note-card__hdr">
-                  <span style={{ fontSize: 17 }}>{n.icon}</span>
+                  <span style={{ fontSize: '1.214rem' }}>{n.icon}</span>
                   <span className="text-base font-500" style={{ color: n.color }}>
                     {n.title}
                   </span>

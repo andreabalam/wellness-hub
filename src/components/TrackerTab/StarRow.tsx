@@ -27,7 +27,7 @@ const StarRow = memo(function StarRow({
               border: `1px solid ${i <= value ? 'var(--purple)' : 'var(--border)'}`,
               background: i <= value ? 'rgba(138,106,184,0.18)' : 'var(--bg3)',
               cursor: 'pointer',
-              fontSize: 15,
+              fontSize: '1.071rem',
               transition: 'all .15s',
             }}
           >

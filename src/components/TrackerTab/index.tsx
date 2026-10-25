@@ -831,7 +831,7 @@ export default function TrackerTab({
                       background: 'var(--bg3)',
                       color: photoStatus !== 'idle' ? 'var(--muted2)' : 'var(--teal-light)',
                       cursor: photoStatus !== 'idle' ? 'default' : 'pointer',
-                      fontSize: 15,
+                      fontSize: '1.071rem',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -968,7 +968,7 @@ export default function TrackerTab({
                 {(photoStatus !== 'idle' || photoNotes) && (
                   <div
                     style={{
-                      fontSize: 11,
+                      fontSize: '0.786rem',
                       marginBottom: 8,
                       padding: '5px 9px',
                       borderRadius: 6,
