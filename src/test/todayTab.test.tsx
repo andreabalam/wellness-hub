@@ -12,6 +12,7 @@ vi.mock('../lib/oura', async importOriginal => ({
   fetchOuraReadiness: vi.fn().mockResolvedValue(null),
 }))
 
+import * as oura from '../lib/oura'
 import TodayTab from '../components/TodayTab'
 import DayTimeline, { currentBlockIndex, dayKeyOf } from '../components/TodayTab/DayTimeline'
 import FoodCard from '../components/TodayTab/FoodCard'
@@ -202,5 +203,28 @@ describe('TodayTab status chips', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save notes' }))
     const days = JSON.parse(ls.whub_tracker_v3)
     expect(days['2026-10-28'].notes).toBe('Good day')
+  })
+
+  it('fetches and caches readiness for the day when Oura is connected', async () => {
+    vi.mocked(oura.isOuraConnected).mockResolvedValueOnce(true)
+    vi.mocked(oura.fetchOuraReadiness).mockResolvedValueOnce({
+      day: '2026-10-26',
+      score: 64,
+      contributors: {} as never,
+      temperature_deviation: 0,
+    })
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-26T09:00:00'))
+    render(
+      <TodayTab
+        user={FAKE_USER}
+        date={new Date('2026-10-26T00:00:00')}
+        onDateChange={() => {}}
+        onOpenFood={() => {}}
+        onOpenTrain={() => {}}
+      />,
+    )
+    expect(await screen.findByText('64')).toBeInTheDocument()
+    expect(JSON.parse(ls.whub_oura_readiness_v1)['2026-10-26'].score).toBe(64)
   })
 })

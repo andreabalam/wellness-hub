@@ -3463,7 +3463,7 @@ describe('App', () => {
   it('renders four tabs, with Today first', () => {
     render(<App />)
     const tabs = screen.getAllByRole('tab').map(t => t.textContent)
-    expect(tabs).toEqual(['☀️ Today', '🍎 Food', '💪 Train', '🫀 Oura'])
+    expect(tabs).toEqual(['☀️ Today', '🍎 Food', '💪 Train', '📈 Insights'])
   })
 
   it('opens on Today, which shows its auth gate when not signed in', () => {
@@ -3490,6 +3490,22 @@ describe('App', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('tab', { name: 'Train' }))
     expect(screen.getByRole('button', { name: 'Week 1' })).toBeInTheDocument()
+  })
+
+  it('Food switches between the log and recipes; Insights shows its gate', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Food' }))
+    const log = screen.getByRole('tab', { name: 'Log' })
+    expect(log).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(screen.getByRole('tab', { name: 'Recipes & grocery' }))
+    expect(screen.getByRole('tab', { name: 'Recipes & grocery' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    fireEvent.click(log)
+    expect(screen.getByText(/Sign in to use/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Insights' }))
+    expect(screen.getByText(/Sign in to see/i)).toBeInTheDocument()
   })
 
   it('clicking Food tab shows its auth gate when not signed in', () => {
