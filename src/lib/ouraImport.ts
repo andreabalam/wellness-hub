@@ -8,7 +8,8 @@
  * Policy:
  * - oura-sourced sessions are keyed `oura-<id>`; re-import replaces the whole
  *   oura subset for the date (Oura-side edits propagate), manual entries are
- *   never touched.
+ *   never touched — except that sets logged in the Workouts tab survive the
+ *   replace and move onto a matching Oura strength workout (keepLoggedSets).
  * - a removed oura session is remembered in a per-date tombstone list so the
  *   next import doesn't resurrect it.
  * - past days are effectively immutable in Oura: import once. Today/yesterday
@@ -18,6 +19,7 @@ import type { MedSession, WorkoutSession } from '../data/tracker'
 import type { OuraSession, OuraWorkout } from './oura'
 import { fetchOuraSessions, fetchOuraWorkouts, OURA_ACTIVITY_MAP, OURA_SESSION_MAP } from './oura'
 import { safeGet, safeSet } from './storage'
+import { keepLoggedSets } from './workoutLog'
 
 const IMPORT_STAMP_KEY = 'whub_oura_import_v1' // Record<date, { wk?: number; med?: number }>
 const TOMBSTONE_KEY = 'whub_oura_dismissed_v1' // Record<date, string[]>
@@ -136,7 +138,10 @@ export async function importOuraWorkouts(
   if (!force && !shouldImport(date, 'wk')) return null
   const workouts = await fetchOuraWorkouts(date)
   markImported(date, 'wk')
-  const merged = mergeSessions(existing, workouts.map(mapOuraWorkout), dismissedIds(date))
+  const merged = keepLoggedSets(
+    existing,
+    mergeSessions(existing, workouts.map(mapOuraWorkout), dismissedIds(date)),
+  )
   return sessionsChanged(existing, merged) ? merged : null
 }
 

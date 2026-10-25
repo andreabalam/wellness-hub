@@ -107,6 +107,20 @@ export function hungerLabel(id: string | undefined): string {
   return HUNGER_TYPES.find(h => h.id === id)?.label ?? ''
 }
 
+/** One set of a logged exercise. No kg = bodyweight; sec replaces reps for timed holds. */
+export interface LoggedSet {
+  reps?: number
+  kg?: number
+  sec?: number
+  done: boolean
+}
+
+/** One exercise in a logged workout, with its sets in order. */
+export interface LoggedExercise {
+  name: string
+  sets: LoggedSet[]
+}
+
 /** One workout session — structured, multiple per day, Oura-imported or manual. */
 export interface WorkoutSession {
   id: string // `oura-${OuraWorkout.id}` | `manual-${timestamp}`
@@ -118,6 +132,10 @@ export interface WorkoutSession {
   avgHr?: number
   maxHr?: number
   note?: string
+  /** Exercises + sets logged in the Workouts tab (only completed sets are stored) */
+  exercises?: LoggedExercise[]
+  /** Plan day the logged workout came from */
+  planRef?: { week: number; slot: string }
 }
 
 /** One meditation session — structured, multiple per day, Oura-imported or manual. */
@@ -204,8 +222,12 @@ export function dayMedSessions(day: DayData): MedSession[] {
   return []
 }
 
-/** Display label for a workout session: manual types use SESSION_OPTS, oura keeps its raw label. */
+/**
+ * Display label for a workout session: manual types use SESSION_OPTS (unless a
+ * logged workout carries its plan-day label), oura keeps its raw label.
+ */
 export function workoutSessionLabel(s: WorkoutSession): string {
+  if (s.src === 'manual' && s.label) return s.label
   return SESSION_OPTS.find(o => o.id === s.type)?.label ?? s.label ?? s.type
 }
 

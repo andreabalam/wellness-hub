@@ -5,8 +5,17 @@
  * with `as` and blows up deep in the UI. These guards are intentionally
  * pragmatic (shape + field types, not exhaustive) and dependency-free.
  */
-import type { DayData, FoodEntry, MedSession, QuickFood, WorkoutSession } from '../data/tracker'
+import type {
+  DayData,
+  FoodEntry,
+  LoggedExercise,
+  LoggedSet,
+  MedSession,
+  QuickFood,
+  WorkoutSession,
+} from '../data/tracker'
 import type { Recipe } from '../data/recipes'
+import type { WorkoutDraft } from './workoutLog'
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -44,6 +53,20 @@ export function isFoodEntry(v: unknown): v is FoodEntry {
   )
 }
 
+export function isLoggedSet(v: unknown): v is LoggedSet {
+  return (
+    isObject(v) &&
+    typeof v.done === 'boolean' &&
+    opt(v.reps, isNum) &&
+    opt(v.kg, isNum) &&
+    opt(v.sec, isNum)
+  )
+}
+
+export function isLoggedExercise(v: unknown): v is LoggedExercise {
+  return isObject(v) && isStr(v.name) && isArrayOf(v.sets, isLoggedSet)
+}
+
 export function isWorkoutSession(v: unknown): v is WorkoutSession {
   return (
     isObject(v) &&
@@ -55,7 +78,9 @@ export function isWorkoutSession(v: unknown): v is WorkoutSession {
     opt(v.kcal, isNum) &&
     opt(v.avgHr, isNum) &&
     opt(v.maxHr, isNum) &&
-    opt(v.note, isStr)
+    opt(v.note, isStr) &&
+    opt(v.exercises, x => isArrayOf(x, isLoggedExercise)) &&
+    opt(v.planRef, x => isObject(x) && isNum(x.week) && isStr(x.slot))
   )
 }
 
@@ -89,6 +114,18 @@ export function isDayData(v: unknown): v is DayData {
     isStr(v.medStyle) &&
     opt(v.wkSessions, x => isArrayOf(x, isWorkoutSession)) &&
     opt(v.medSessions, x => isArrayOf(x, isMedSession))
+  )
+}
+
+/** The in-progress workout saved in localStorage by the Workouts tab logger. */
+export function isWorkoutDraft(v: unknown): v is WorkoutDraft {
+  return (
+    isObject(v) &&
+    isStr(v.date) &&
+    isNum(v.startedAt) &&
+    isStr(v.title) &&
+    isStr(v.type) &&
+    isArrayOf(v.exercises, isLoggedExercise)
   )
 }
 

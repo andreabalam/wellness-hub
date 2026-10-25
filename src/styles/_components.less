@@ -2994,3 +2994,218 @@
     justify-content: flex-end;
   }
 }
+
+// ── Workout set logger (Workouts tab) ──
+// Full-screen on top of .cooking-overlay; sized for one-handed phone use
+// (44px tap targets, 16px+ inputs so iOS doesn't zoom).
+.logger__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.logger__timer {
+  font-family: 'DM Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--teal-light);
+}
+.logger__body {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 16px 16px 120px;
+  .ex-add-btn {
+    width: 100%;
+    padding: 12px;
+  }
+}
+.logger__discard {
+  display: block;
+  margin: 24px auto 0;
+}
+.logger__footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+.logger__finish {
+  display: block;
+  width: 100%;
+  max-width: 620px;
+  min-height: 48px;
+  margin: 0 auto;
+  font-size: 1rem;
+}
+.logger-ex {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.logger-ex__hdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.logger-ex__num {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--teal);
+  color: #fff;
+  font-size: 0.857rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.logger-ex__name {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  color: var(--text);
+  font-size: 1.071rem;
+  font-weight: 500;
+  padding: 4px 0;
+  &:focus {
+    outline: none;
+    border-bottom-color: var(--teal);
+  }
+}
+.logger-icon-btn {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.286rem;
+  cursor: pointer;
+}
+.logger-ex__last {
+  font-size: 0.857rem;
+  color: var(--amber-light);
+  margin: 0 0 8px 2rem;
+}
+.logger-ex__actions {
+  display: flex;
+  gap: 16px;
+  margin: 4px 0 0 1.6rem;
+}
+.logger-set {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.logger-set__idx {
+  flex: none;
+  width: 1.1rem;
+  text-align: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.857rem;
+  color: var(--muted);
+}
+.logger-set__check {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--border2);
+  background: none;
+  color: var(--muted);
+  font-size: 1.286rem;
+  cursor: pointer;
+  &[aria-pressed='true'] {
+    background: var(--teal);
+    border-color: var(--teal);
+    color: #fff;
+  }
+}
+.logger-set--done .stepper {
+  opacity: 0.55;
+}
+.stepper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.stepper__btn {
+  flex: none;
+  width: 36px;
+  height: 44px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 1.286rem;
+  cursor: pointer;
+  &:active {
+    background: var(--border2);
+  }
+}
+.stepper__input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  text-align: right;
+  font-size: 1.143rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  &:focus {
+    outline: none;
+  }
+}
+.stepper__unit {
+  flex: none;
+  padding-left: 3px;
+  font-size: 0.714rem;
+  color: var(--muted);
+}
+
+// Day card: log / resume button + logged chip
+.day-card__log {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  .btn {
+    margin-left: auto;
+  }
+}
+.day-card__logged {
+  font-size: 0.857rem;
+  color: var(--green-light);
+}
+
+// Tracker session list: logged sets summary
+.logged-sets {
+  margin-top: 3px;
+  summary {
+    cursor: pointer;
+    font-size: 0.857rem;
+    color: var(--teal-light);
+  }
+}
+.logged-sets__row {
+  font-size: 0.857rem;
+  color: var(--muted);
+  padding-left: 12px;
+}
