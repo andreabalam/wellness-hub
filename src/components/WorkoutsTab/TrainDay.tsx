@@ -1,24 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
 import { SESSION_OPTS } from '../../data/tracker'
 import type { DayData, WorkoutSession } from '../../data/tracker'
 import { fetchOuraReadiness, readinessColor, readinessLabel } from '../../lib/oura'
 import type { OuraReadiness } from '../../lib/oura'
 import { dismissOuraSession, importOuraWorkouts } from '../../lib/ouraImport'
-import type { PhaseSuggestion } from '../../lib/cyclePhase'
 import { showToast } from '../../lib/toast'
 import { reportError } from '../../lib/errorLog'
 import { safeGet, safeSet } from '../../lib/storage'
-import { WorkoutSessionList } from './SessionList'
-import { dkey } from './dateKey'
-
-const PHASES = ['Menstrual', 'Follicular', 'Ovulatory', 'Luteal', 'Unsure'] as const
-const PHASE_COLORS = [
-  'var(--purple)',
-  'var(--green)',
-  'var(--teal)',
-  'var(--amber)',
-  'var(--muted2)',
-]
+import { WorkoutSessionList } from '../TrackerTab/SessionList'
+import { dkey } from '../TrackerTab/dateKey'
 
 // ── Oura readiness cache (one entry per date) ─────────────────────
 const READINESS_CACHE_KEY = 'whub_oura_readiness_v1'
@@ -35,28 +26,32 @@ interface Props {
   /** Persisted sessions for the day (reactive; legacy days pre-synthesized by the parent). */
   sessions: WorkoutSession[]
   initialWkNotes: string
-  phaseNote: string
-  phase: string
-  /** Estimated phase shown as a ghost suggestion when no phase is set. */
-  suggestedPhase: PhaseSuggestion | null
-  onPhaseChange: (p: string) => void
   ouraConnected: boolean
   date: Date
+  isToday: boolean
+  /** Move the viewed day by ±1 (back-fill past days; never past today). */
+  onShiftDate: (delta: -1 | 1) => void
   onSave: (patch: Partial<DayData>) => void
+  /** Today's plan workout row, rendered under the readiness badge */
+  children?: ReactNode
 }
 
-/** Workout logger: session list + type/minutes/kcal entry, Oura readiness + auto-import. */
-export default function WorkoutLog({
+/**
+ * The Train tab's day card: readiness, the day's plan workout (children),
+ * every session logged or imported from Oura, a quick form for activity
+ * outside the plan (walks, classes) and how-it-felt notes.
+ */
+export default function TrainDay({
   sessions,
   initialWkNotes,
-  phaseNote,
-  phase,
-  suggestedPhase,
-  onPhaseChange,
   ouraConnected,
   date,
+  isToday,
+  onShiftDate,
   onSave,
+  children,
 }: Props) {
+  const [otherOpen, setOtherOpen] = useState(false)
   const [selSession, setSess] = useState<string | null>(null)
   const [wkMin, setWkMin] = useState('30')
   const [wkKcal, setWkKcal] = useState('')
@@ -162,6 +157,7 @@ export default function WorkoutLog({
     onSave({ wkSessions: [...sessions, entry], workout: sessions[0]?.type ?? selSession, wkNotes })
     setSess(null)
     setWkKcal('')
+    setOtherOpen(false)
   }
 
   const removeSession = (s: WorkoutSession) => {
@@ -171,12 +167,38 @@ export default function WorkoutLog({
 
   const saveNotes = () => onSave({ wkNotes })
 
+  const dayLabel = date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+
   return (
-    <div className="tcard">
-      <div className="flex-between mb-6">
-        <div className="tlabel" style={{ color: 'var(--coral)', marginBottom: 0 }}>
-          Workout log · 4:30 PM
+    <div className="tcard train-day">
+      <div className="train-day__hdr">
+        <button
+          type="button"
+          className="date-nav-btn"
+          onClick={() => onShiftDate(-1)}
+          aria-label="Previous day"
+        >
+          ‹
+        </button>
+        <div className="train-day__date">
+          <div className="tlabel" style={{ color: 'var(--coral)', marginBottom: 0 }}>
+            {isToday ? 'Today' : 'Logging for'}
+          </div>
+          <div className="text-md font-500 text-default">{dayLabel}</div>
         </div>
+        <button
+          type="button"
+          className="date-nav-btn"
+          onClick={() => onShiftDate(1)}
+          disabled={isToday}
+          aria-label="Next day"
+        >
+          ›
+        </button>
         {ouraConnected && (
           <button
             onClick={syncWorkoutFromOura}
@@ -216,102 +238,79 @@ export default function WorkoutLog({
         </div>
       )}
 
-      <div className="mb-10">
-        <div className="text-sm text-muted mb-6">
-          Cycle phase
-          {!phase && suggestedPhase && (
-            <span className="text-muted2 text-2xs" style={{ marginLeft: 6 }}>
-              · from {suggestedPhase.source === 'oura-tag' ? 'Oura' : 'history'} (estimated, day{' '}
-              {suggestedPhase.cycleDay})
-            </span>
-          )}
-        </div>
-        <div className="flex gap-6 flex-wrap">
-          {PHASES.map((p, i) => {
-            const active = phase === p
-            const ghost = !phase && suggestedPhase?.phase === p
-            return (
-              <button
-                key={p}
-                onClick={() => onPhaseChange(active ? '' : p)}
-                className="phase-btn"
-                style={{
-                  border: `1px ${ghost ? 'dashed' : 'solid'} ${active || ghost ? PHASE_COLORS[i] : 'var(--border)'}`,
-                  background: active ? `${PHASE_COLORS[i]}20` : 'var(--bg3)',
-                  color: active || ghost ? PHASE_COLORS[i] : 'var(--muted)',
-                }}
-              >
-                {p}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-      <div className="phase-note">
-        {phase
-          ? phaseNote
-          : suggestedPhase
-            ? `Estimated ${suggestedPhase.phase.toLowerCase()} — tap to confirm or correct.`
-            : phaseNote}
-      </div>
+      {children}
 
-      {/* Today's sessions */}
-      <div className="text-sm text-muted mb-6">Today's sessions:</div>
+      {/* The day's sessions: plan workouts, Oura imports, other activity */}
+      <div className="text-sm text-muted mb-6">Activity</div>
       <WorkoutSessionList sessions={sessions} onRemove={removeSession} />
 
-      <div className="text-sm text-muted mb-8">Log a session:</div>
-      <div className="flex flex-wrap gap-6 mb-10">
-        {SESSION_OPTS.map(s => (
-          <button
-            key={s.id}
-            onClick={() => setSess(selSession === s.id ? null : s.id)}
-            className="session-type-btn"
-            style={{
-              border: `1px solid ${selSession === s.id ? s.color : 'var(--border)'}`,
-              background: selSession === s.id ? `${s.color}20` : 'var(--bg3)',
-              color: selSession === s.id ? s.color : 'var(--muted)',
-            }}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
-      <div className="flex gap-8 mb-10 items-center flex-wrap">
-        <label className="session-num-label">
-          <input
-            type="number"
-            min={0}
-            max={600}
-            value={wkMin}
-            onChange={e => setWkMin(e.target.value)}
-            className="tinput session-num-input"
-          />
-          min
-        </label>
-        <label className="session-num-label">
-          <input
-            type="number"
-            min={0}
-            max={5000}
-            value={wkKcal}
-            onChange={e => setWkKcal(e.target.value)}
-            placeholder="—"
-            className="tinput session-num-input"
-          />
-          kcal (optional)
-        </label>
-      </div>
+      {otherOpen ? (
+        <div className="train-other">
+          <div className="text-sm text-muted mb-8">Other activity (walk, class, sport):</div>
+          <div className="flex flex-wrap gap-6 mb-10">
+            {SESSION_OPTS.map(s => (
+              <button
+                key={s.id}
+                onClick={() => setSess(selSession === s.id ? null : s.id)}
+                className="session-type-btn"
+                style={{
+                  border: `1px solid ${selSession === s.id ? s.color : 'var(--border)'}`,
+                  background: selSession === s.id ? `${s.color}20` : 'var(--bg3)',
+                  color: selSession === s.id ? s.color : 'var(--muted)',
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-8 mb-10 items-center flex-wrap">
+            <label className="session-num-label">
+              <input
+                type="number"
+                min={0}
+                max={600}
+                value={wkMin}
+                onChange={e => setWkMin(e.target.value)}
+                className="tinput session-num-input"
+              />
+              min
+            </label>
+            <label className="session-num-label">
+              <input
+                type="number"
+                min={0}
+                max={5000}
+                value={wkKcal}
+                onChange={e => setWkKcal(e.target.value)}
+                placeholder="—"
+                className="tinput session-num-input"
+              />
+              kcal (optional)
+            </label>
+          </div>
+          <div className="flex gap-8 mb-10">
+            <button onClick={logWorkout} className="tbtn tbtn--coral">
+              + Log activity
+            </button>
+            <button onClick={() => setOtherOpen(false)} className="tbtn tbtn-ghost">
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="ex-add-btn mb-10" onClick={() => setOtherOpen(true)}>
+          ＋ Other activity
+        </button>
+      )}
+
       <textarea
-        className="tinput resize-vertical mb-8"
+        className="tinput resize-vertical"
         value={wkNotes}
         onChange={e => setWkNotes(e.target.value)}
         onBlur={saveNotes}
         placeholder="How did it feel? PRs? Modifications?"
-        rows={3}
+        rows={2}
       />
-      <button onClick={logWorkout} className="tbtn tbtn--coral">
-        + Log workout
-      </button>
     </div>
   )
 }

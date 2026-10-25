@@ -136,7 +136,10 @@ describe('WorkoutLogger', () => {
       planRef: { week: 1, slot: 'Day 1' },
     })
     expect(day.wkSessions[0].exercises[0].sets).toHaveLength(1)
-    expect(screen.getByText('✓ Logged today · 1 sets')).toBeInTheDocument()
+    expect(screen.getByText('✓ Logged · 1 sets')).toBeInTheDocument()
+    // …and it shows in the day card's activity list and the weeks counter
+    expect(screen.getByText(/^1 exercise · 1 sets/)).toBeInTheDocument()
+    expect(screen.getByText('workout this week').previousSibling).toHaveTextContent('1')
   })
 
   it('closing keeps the draft for Resume; Escape closes too', () => {
@@ -237,6 +240,8 @@ describe('CycleToday text variants', () => {
     ouraConnected: true,
     tagScopeMissing: false,
     onPeriodStarted: () => {},
+    manualPhase: '',
+    onPhaseChange: () => {},
   }
 
   it('Oura tag source with a temperature shift', () => {
@@ -255,7 +260,6 @@ describe('CycleToday text variants', () => {
     expect(screen.getByText(/logged in Oura on Oct 7/)).toHaveTextContent(
       /Temperature rise on Oct 21/,
     )
-    expect(screen.queryByRole('button', { name: /Today's workout/ })).toBeNull()
   })
 
   it('estimated start, reconnect prompt, and not-connected hint', () => {
@@ -278,5 +282,41 @@ describe('CycleToday text variants', () => {
     expect(screen.getByRole('button', { name: 'My period started today' })).toBeInTheDocument()
     rerender(<CycleToday {...base} ouraConnected={false} suggestion={null} />)
     expect(screen.getByText(/connect Oura in the Oura tab/)).toBeInTheDocument()
+  })
+
+  it('a phase set by hand overrides the estimate and can be cleared', () => {
+    const onPhaseChange = vi.fn()
+    const suggestion = {
+      phase: 'Luteal' as const,
+      source: 'oura-tag' as const,
+      cycleDay: 19,
+      anchorDate: '2026-10-07',
+    }
+    const { rerender } = render(
+      <CycleToday {...base} suggestion={suggestion} onPhaseChange={onPhaseChange} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Not right? Change phase' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Follicular' }))
+    expect(onPhaseChange).toHaveBeenCalledWith('Follicular')
+
+    rerender(
+      <CycleToday
+        {...base}
+        week={2}
+        suggestion={suggestion}
+        manualPhase="Follicular"
+        onPhaseChange={onPhaseChange}
+      />,
+    )
+    expect(screen.getByText(/Follicular phase/)).toHaveTextContent('Follicular phase → Week 2')
+    expect(screen.getByText(/You set today’s phase. The estimate says luteal./)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Not right? Change phase' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use the estimate' }))
+    expect(onPhaseChange).toHaveBeenLastCalledWith('')
+  })
+
+  it('with no estimate, offers to set the phase by hand', () => {
+    render(<CycleToday {...base} suggestion={null} />)
+    expect(screen.getByRole('button', { name: 'Set phase by hand' })).toBeInTheDocument()
   })
 })

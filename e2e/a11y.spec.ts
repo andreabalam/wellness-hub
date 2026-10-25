@@ -29,10 +29,7 @@ test.describe('accessibility smoke', () => {
 
   test('workouts view (content rendered) has no serious/critical violations', async ({ page }) => {
     await page.goto('/')
-    await page
-      .locator('nav.tabs')
-      .getByRole('tab', { name: /Workouts/i })
-      .click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Train/i }).click()
     await expect(page.getByText('3×/week Template')).toBeVisible()
     const violations = await scan(page)
     expect(violations.map(v => v.id)).toEqual([])

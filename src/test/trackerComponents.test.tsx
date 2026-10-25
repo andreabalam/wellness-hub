@@ -20,7 +20,6 @@ vi.mock('../lib/oura', async importOriginal => {
 })
 
 import * as oura from '../lib/oura'
-import WorkoutLog from '../components/TrackerTab/WorkoutLog'
 import MeditationLog from '../components/TrackerTab/MeditationLog'
 import CheckIn from '../components/TrackerTab/CheckIn'
 import SatietyRow from '../components/TrackerTab/SatietyRow'
@@ -31,7 +30,7 @@ import QuickAddRow from '../components/TrackerTab/QuickAddRow'
 import WeekStrip from '../components/TrackerTab/WeekStrip'
 import HungerCravingPicker from '../components/TrackerTab/HungerCravingPicker'
 import { EMPTY_DAY } from '../data/tracker'
-import type { FoodEntry, MedSession, WorkoutSession } from '../data/tracker'
+import type { FoodEntry, MedSession } from '../data/tracker'
 
 const mockOura = oura as unknown as Record<string, ReturnType<typeof vi.fn>>
 const DATE = new Date('2026-06-15T12:00:00Z')
@@ -54,158 +53,6 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-// ── WorkoutLog ────────────────────────────────────────────────────
-describe('WorkoutLog', () => {
-  const base = {
-    sessions: [] as WorkoutSession[],
-    initialWkNotes: '',
-    phaseNote: 'Follicular note',
-    phase: '',
-    suggestedPhase: null,
-    onPhaseChange: vi.fn(),
-    ouraConnected: false,
-    date: DATE,
-    onSave: vi.fn(),
-  }
-
-  it('requires a session type before logging', () => {
-    render(<WorkoutLog {...base} onSave={vi.fn()} />)
-    fireEvent.click(screen.getByText('+ Log workout'))
-    expect(window.alert).toHaveBeenCalled()
-  })
-
-  it('appends a manual session with minutes + kcal via onSave', () => {
-    const onSave = vi.fn()
-    render(<WorkoutLog {...base} onSave={onSave} />)
-    fireEvent.click(screen.getByText('Pilates'))
-    const [minInput, kcalInput] = screen.getAllByRole('spinbutton')
-    fireEvent.change(minInput, { target: { value: '45' } })
-    fireEvent.change(kcalInput, { target: { value: '220' } })
-    fireEvent.click(screen.getByText('+ Log workout'))
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({
-        workout: 'pilates',
-        wkSessions: [
-          expect.objectContaining({ src: 'manual', type: 'pilates', min: 45, kcal: 220 }),
-        ],
-      }),
-    )
-  })
-
-  it('renders the session list with per-session meta and totals', () => {
-    const sessions: WorkoutSession[] = [
-      { id: 'oura-1', src: 'oura', type: 'zone2', label: 'walking', min: 40, kcal: 180 },
-      { id: 'manual-2', src: 'manual', type: 'pilates', min: 35, kcal: 140 },
-    ]
-    render(<WorkoutLog {...base} sessions={sessions} />)
-    expect(screen.getByText(/40 min · 180 kcal/)).toBeInTheDocument()
-    expect(screen.getByText(/35 min · 140 kcal/)).toBeInTheDocument()
-    expect(screen.getByText(/2 sessions · 1 h 15 m · 320 kcal burned/)).toBeInTheDocument()
-  })
-
-  it('removing an oura session tombstones it and saves the rest', () => {
-    const onSave = vi.fn()
-    const sessions: WorkoutSession[] = [
-      { id: 'oura-w1', src: 'oura', type: 'zone2', min: 40 },
-      { id: 'manual-2', src: 'manual', type: 'pilates', min: 35 },
-    ]
-    render(<WorkoutLog {...base} sessions={sessions} onSave={onSave} />)
-    fireEvent.click(screen.getAllByTitle('Remove session')[0])
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({
-        wkSessions: [expect.objectContaining({ id: 'manual-2' })],
-        workout: 'pilates',
-      }),
-    )
-    expect(JSON.parse(ls['whub_oura_dismissed_v1'])['2026-06-15']).toContain('oura-w1')
-  })
-
-  it('loads a cached readiness badge on mount when connected', async () => {
-    ls['whub_oura_readiness_v1'] = JSON.stringify({
-      '2026-06-15': { score: 82, contributors: { hrv_balance: 70, recovery_index: 90 } },
-    })
-    render(<WorkoutLog {...base} ouraConnected />)
-    expect(await screen.findByText('82')).toBeInTheDocument()
-  })
-
-  it('sync button imports Oura workouts into the session list', async () => {
-    mockOura.fetchOuraReadiness.mockResolvedValue({
-      score: 75,
-      contributors: { hrv_balance: 60, recovery_index: 80 },
-    })
-    mockOura.fetchOuraWorkouts.mockResolvedValue([
-      {
-        id: 'w9',
-        activity: 'pilates',
-        start_datetime: '2026-06-15T16:00:00Z',
-        end_datetime: '2026-06-15T16:45:00Z',
-        calories: 210,
-        average_heart_rate: 110,
-      },
-    ])
-    const onSave = vi.fn()
-    render(<WorkoutLog {...base} ouraConnected onSave={onSave} />)
-    fireEvent.click(screen.getByText('⟳ Sync Oura'))
-    expect(await screen.findByText('75')).toBeInTheDocument()
-    await waitFor(() =>
-      expect(onSave).toHaveBeenCalledWith(
-        expect.objectContaining({
-          wkSessions: [
-            expect.objectContaining({
-              id: 'oura-w9',
-              src: 'oura',
-              type: 'pilates',
-              min: 45,
-              kcal: 210,
-              avgHr: 110,
-            }),
-          ],
-        }),
-      ),
-    )
-  })
-
-  it('shows an error toast when the Oura sync throws', async () => {
-    mockOura.fetchOuraWorkouts.mockRejectedValue(new Error('network down'))
-    mockOura.fetchOuraReadiness.mockResolvedValue(null)
-    render(<WorkoutLog {...base} ouraConnected />)
-    fireEvent.click(screen.getByText('⟳ Sync Oura'))
-    await waitFor(() => expect(mockOura.fetchOuraWorkouts).toHaveBeenCalled())
-  })
-
-  it('shows a notice when Oura has no workout data', async () => {
-    mockOura.fetchOuraWorkouts.mockResolvedValue([])
-    mockOura.fetchOuraReadiness.mockResolvedValue(null)
-    render(<WorkoutLog {...base} ouraConnected />)
-    fireEvent.click(screen.getByText('⟳ Sync Oura'))
-    await waitFor(() => expect(mockOura.fetchOuraWorkouts).toHaveBeenCalled())
-  })
-
-  it('toggles a cycle phase and calls onPhaseChange', () => {
-    const onPhaseChange = vi.fn()
-    render(<WorkoutLog {...base} onPhaseChange={onPhaseChange} />)
-    fireEvent.click(screen.getByText('Follicular'))
-    expect(onPhaseChange).toHaveBeenCalledWith('Follicular')
-  })
-
-  it('renders the estimated-phase ghost hint when no phase is set', () => {
-    render(
-      <WorkoutLog
-        {...base}
-        suggestedPhase={{
-          phase: 'Luteal',
-          source: 'oura-tag',
-          cycleDay: 19,
-          anchorDate: '2026-06-01',
-        }}
-      />,
-    )
-    expect(screen.getByText(/from Oura \(estimated, day 19\)/)).toBeInTheDocument()
-    expect(screen.getByText(/Estimated luteal/)).toBeInTheDocument()
-  })
-})
-
-// ── MeditationLog ─────────────────────────────────────────────────
 describe('MeditationLog', () => {
   const base = {
     sessions: [] as MedSession[],

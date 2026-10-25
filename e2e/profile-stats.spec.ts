@@ -18,10 +18,7 @@ async function goToTrackerStats(page: import('@playwright/test').Page) {
 
 /** Switch to the Workouts tab. */
 async function goToWorkoutsStats(page: import('@playwright/test').Page) {
-  await page
-    .locator('nav.tabs')
-    .getByRole('tab', { name: /Workouts/i })
-    .click()
+  await page.locator('nav.tabs').getByRole('tab', { name: /Train/i }).click()
 }
 
 /**
@@ -217,8 +214,8 @@ test.describe('ProfileStatsCard', () => {
   test('form shows cm and in toggle buttons, defaulting to cm', async ({ page }) => {
     await goToTrackerStats(page)
     await activeView(page).getByRole('button', { name: '+ Set up' }).click()
-    await expect(activeView(page).getByRole('button', { name: 'cm' })).toBeVisible()
-    await expect(activeView(page).getByRole('button', { name: 'in' })).toBeVisible()
+    await expect(activeView(page).getByRole('button', { name: 'cm', exact: true })).toBeVisible()
+    await expect(activeView(page).getByRole('button', { name: 'in', exact: true })).toBeVisible()
     // cm placeholder appears (75 for waist)
     await expect(activeView(page).getByPlaceholder('75')).toBeVisible()
   })
@@ -226,7 +223,7 @@ test.describe('ProfileStatsCard', () => {
   test('switching to inches updates placeholders', async ({ page }) => {
     await goToTrackerStats(page)
     await activeView(page).getByRole('button', { name: '+ Set up' }).click()
-    await activeView(page).getByRole('button', { name: 'in' }).click()
+    await activeView(page).getByRole('button', { name: 'in', exact: true }).click()
     await expect(activeView(page).getByPlaceholder('30')).toBeVisible()
     await expect(activeView(page).getByPlaceholder('37')).toBeVisible()
   })
@@ -248,7 +245,7 @@ test.describe('ProfileStatsCard', () => {
     await goToTrackerStats(page)
     await activeView(page).getByRole('button', { name: '+ Set up' }).click()
     await activeView(page).getByPlaceholder('65').fill('65')
-    await activeView(page).getByRole('button', { name: 'in' }).click()
+    await activeView(page).getByRole('button', { name: 'in', exact: true }).click()
     await activeView(page).getByPlaceholder('30').fill('30')
     await activeView(page).getByPlaceholder('37').fill('37')
     await activeView(page).getByRole('button', { name: 'Save' }).click()

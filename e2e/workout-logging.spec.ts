@@ -13,14 +13,11 @@ const MOCK_USER = JSON.stringify({
   created_at: '',
 })
 
-async function openWorkouts(page: Page) {
-  await page
-    .locator('nav.tabs')
-    .getByRole('tab', { name: /Workouts/i })
-    .click()
+async function openTrain(page: Page) {
+  await page.locator('nav.tabs').getByRole('tab', { name: /Train/i }).click()
 }
 
-test.describe('Workouts tab — set logging (mobile)', () => {
+test.describe('Train tab — set logging (mobile)', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })
 
   test.beforeEach(async ({ page }) => {
@@ -28,7 +25,7 @@ test.describe('Workouts tab — set logging (mobile)', () => {
     await page.goto('/')
     await page.evaluate(() => localStorage.clear())
     await page.reload()
-    await openWorkouts(page)
+    await openTrain(page)
   })
 
   test('log sets, resume after reload, finish, see it in the Tracker', async ({ page }) => {
@@ -60,7 +57,7 @@ test.describe('Workouts tab — set logging (mobile)', () => {
     await logger.getByRole('button', { name: 'Close logger' }).click()
     await expect(logger).toBeHidden()
     await page.reload()
-    await openWorkouts(page)
+    await openTrain(page)
     await panel.getByRole('button', { name: /Resume workout/ }).click()
     await expect(card.getByLabel('Set 1 reps', { exact: true })).toHaveValue('12')
     await expect(card.getByRole('button', { name: 'Set 1 done' })).toHaveAttribute(
@@ -70,17 +67,23 @@ test.describe('Workouts tab — set logging (mobile)', () => {
 
     await logger.getByRole('button', { name: /Finish workout · 2\// }).click()
     await expect(page.getByText(/Workout saved · 1 exercise, 2 sets/)).toBeVisible()
-    await expect(panel.getByText('✓ Logged today · 2 sets')).toBeVisible()
+    await expect(panel.getByText('✓ Logged · 2 sets')).toBeVisible()
 
+    // The day card's activity list shows the sets; the weeks counter picks it up
+    const summary = panel.getByText('1 exercise · 2 sets · 486 kg')
+    await expect(summary).toBeVisible()
+    await summary.click()
+    await expect(panel.getByText('12×20, 12×20.5 kg')).toBeVisible()
+    await expect(panel.locator('.week-counter__tile').nth(2)).toContainText('1')
+
+    // The Tracker shows a read-only line that links back to Train
     await page
       .locator('nav.tabs')
       .getByRole('tab', { name: /Tracker/i })
       .click()
-    await page.getByRole('button', { name: 'Workout', exact: true }).click()
-    const summary = page.getByText('1 exercise · 2 sets · 486 kg')
-    await expect(summary).toBeVisible()
-    await summary.click()
-    await expect(page.getByText('12×20, 12×20.5 kg')).toBeVisible()
+    await expect(page.locator('.train-summary')).toContainText('2 sets')
+    await page.getByRole('button', { name: 'Open Train →' }).click()
+    await expect(panel).toBeVisible()
   })
 
   test('finishing with no ticked sets keeps the logger open', async ({ page }) => {
