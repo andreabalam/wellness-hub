@@ -74,7 +74,6 @@ test.describe('Train tab — set logging (mobile)', () => {
     await expect(summary).toBeVisible()
     await summary.click()
     await expect(panel.getByText('12×20, 12×20.5 kg')).toBeVisible()
-    await expect(panel.locator('.week-counter__tile').nth(2)).toContainText('1')
 
     // Fix a typo afterwards: Edit sets → change reps → Save changes
     await panel.getByRole('button', { name: 'Edit sets' }).click()

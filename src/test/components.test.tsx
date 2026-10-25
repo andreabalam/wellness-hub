@@ -53,6 +53,7 @@ import RecipeModal from '../components/RecipesTab/RecipeModal'
 import CookingMode from '../components/RecipesTab/CookingMode'
 import GroceryIngredientModal from '../components/RecipesTab/GroceryIngredientModal'
 import RecipesTab from '../components/RecipesTab'
+import ProfileStatsCard from '../components/TrackerTab/ProfileStatsCard'
 import WorkoutsTab from '../components/WorkoutsTab'
 import TodayTab from '../components/TodayTab'
 import ErrorBoundary from '../components/ErrorBoundary'
@@ -1433,25 +1434,25 @@ describe('WorkoutsTab', () => {
   })
 
   it('auth: "+ Set up" button is shown when no stats saved', () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     expect(screen.getByRole('button', { name: /\+ Set up/i })).toBeInTheDocument()
   })
 
   it('auth: clicking "+ Set up" opens the profile edit form', () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     expect(screen.getByPlaceholderText('65')).toBeInTheDocument()
   })
 
   it('auth: Cancel closes the profile edit form', () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     fireEvent.click(screen.getByRole('button', { name: /Cancel/i }))
     expect(screen.queryByPlaceholderText('65')).not.toBeInTheDocument()
   })
 
   it('auth: Save persists updated weight to localStorage', () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     const weightInput = screen.getByPlaceholderText('65')
     fireEvent.change(weightInput, { target: { value: '72' } })
@@ -1477,7 +1478,7 @@ describe('WorkoutsTab', () => {
       fatLossGoal: '0.4-0.5 kg/wk',
       chronotype: 'late',
     })
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     // "58 kg" appears in both the plan subtitle and ProfileStatsCard grid
     expect(screen.getAllByText('58 kg').length).toBeGreaterThan(0)
     // Stats strip has "Daily target" label; use getAllByText since kcal appears in weekly note too
@@ -1516,7 +1517,7 @@ describe('WorkoutsTab', () => {
       fatLossGoal: '0.4-0.5 kg/wk',
       chronotype: 'late',
     })
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /✎ Edit/ }))
     // Form should appear with the weight pre-filled
     const weightInput = screen.getByPlaceholderText('65') as HTMLInputElement
@@ -1536,7 +1537,7 @@ describe('WorkoutsTab', () => {
       fatLossGoal: '',
       chronotype: 'bear',
     })
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /✎ Edit/ }))
     expect(screen.getByPlaceholderText('65')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Cancel/i }))
@@ -1556,7 +1557,7 @@ describe('WorkoutsTab', () => {
       fatLossGoal: '',
       chronotype: 'bear',
     })
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /✎ Edit/ }))
     const cycleSelect = screen.getByDisplayValue('None / N/A')
     fireEvent.change(cycleSelect, { target: { value: 'regular' } })
@@ -1564,7 +1565,7 @@ describe('WorkoutsTab', () => {
   })
 
   it('auth: "↺ Fill from Oura" button is present and callable when user is set', async () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     // Button is rendered in the open form when a user prop is provided
     const fillBtn = screen.getByText(/Fill from Oura/)
@@ -1587,7 +1588,7 @@ describe('WorkoutsTab', () => {
   })
 
   it('auth: changing chronotype select in edit form works', () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     const chrono = screen.getByDisplayValue('Not set')
     fireEvent.change(chrono, { target: { value: 'wolf' } })
@@ -1595,7 +1596,7 @@ describe('WorkoutsTab', () => {
   })
 
   it('auth: custom macro split shows "Set individual macro targets" message', async () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     // Enter a TDEE so computed targets section appears
     const tdeeInput = screen.getByPlaceholderText('2 100')
@@ -1609,7 +1610,7 @@ describe('WorkoutsTab', () => {
   })
 
   it('auth: computed targets appear after entering TDEE with balanced split', async () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     const tdeeInput = screen.getByPlaceholderText('2 100')
     fireEvent.change(tdeeInput, { target: { value: '2000' } })
@@ -1619,7 +1620,7 @@ describe('WorkoutsTab', () => {
   })
 
   it('auth: high_protein macro split shows correct macros', async () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     const tdeeInput = screen.getByPlaceholderText('2 100')
     fireEvent.change(tdeeInput, { target: { value: '2000' } })
@@ -1631,7 +1632,7 @@ describe('WorkoutsTab', () => {
   })
 
   it('auth: low_carb macro split shows correct macros', async () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     const tdeeInput = screen.getByPlaceholderText('2 100')
     fireEvent.change(tdeeInput, { target: { value: '2000' } })
@@ -1643,7 +1644,7 @@ describe('WorkoutsTab', () => {
   })
 
   it('auth: fat loss rate select changes affect computed deficit', async () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     const tdeeInput = screen.getByPlaceholderText('2 100')
     fireEvent.change(tdeeInput, { target: { value: '2000' } })
@@ -1661,7 +1662,7 @@ describe('WorkoutsTab', () => {
 // ═════════════════════════════════════════════════════════════════
 describe('ProfileStatsCard — measurements', () => {
   it('form shows Measurements section with Waist and Glutes labels', () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     expect(screen.getByText('Measurements')).toBeInTheDocument()
     expect(screen.getByText(/Waist/)).toBeInTheDocument()
@@ -1670,14 +1671,14 @@ describe('ProfileStatsCard — measurements', () => {
   })
 
   it('form defaults to cm unit and shows cm placeholders', () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     expect(screen.getByPlaceholderText('75')).toBeInTheDocument() // waist cm
     expect(screen.getByPlaceholderText('95')).toBeInTheDocument() // glutes cm
   })
 
   it('switching to inches updates placeholders to inch values', () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     fireEvent.click(screen.getByRole('button', { name: 'in' }))
     expect(screen.getByPlaceholderText('30')).toBeInTheDocument() // waist in
@@ -1685,7 +1686,7 @@ describe('ProfileStatsCard — measurements', () => {
   })
 
   it('saves waist and glutes in cm to localStorage', () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     fireEvent.change(screen.getByPlaceholderText('75'), { target: { value: '80' } })
     fireEvent.change(screen.getByPlaceholderText('95'), { target: { value: '100' } })
@@ -1697,7 +1698,7 @@ describe('ProfileStatsCard — measurements', () => {
   })
 
   it('saves measurements in inches and converts to cm in localStorage', () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     fireEvent.click(screen.getByRole('button', { name: 'in' }))
     fireEvent.change(screen.getByPlaceholderText('30'), { target: { value: '30' } })
@@ -1730,7 +1731,7 @@ describe('ProfileStatsCard — measurements', () => {
       protRange: '',
       fatLossGoal: '',
     })
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     expect(screen.getByText('Waist')).toBeInTheDocument()
     expect(screen.getByText('75 cm')).toBeInTheDocument()
     expect(screen.getByText('Glutes')).toBeInTheDocument()
@@ -1757,13 +1758,13 @@ describe('ProfileStatsCard — measurements', () => {
       protRange: '',
       fatLossGoal: '',
     })
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     expect(screen.getByText('30 in')).toBeInTheDocument() // 76.2 / 2.54 = 30.0
     expect(screen.getByText('37 in')).toBeInTheDocument() // 93.98 / 2.54 ≈ 37.0
   })
 
   it('toggling cm → in converts existing input values', () => {
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     // Enter a value in cm
     fireEvent.change(screen.getByPlaceholderText('75'), { target: { value: '76.2' } })
@@ -1793,7 +1794,7 @@ describe('ProfileStatsCard — measurements', () => {
       protRange: '',
       fatLossGoal: '',
     })
-    render(<WorkoutsTab user={FAKE_USER} />)
+    render(<ProfileStatsCard user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: /✎ Edit/i }))
     expect((screen.getByPlaceholderText('75') as HTMLInputElement).value).toBe('80')
     expect((screen.getByPlaceholderText('95') as HTMLInputElement).value).toBe('100')

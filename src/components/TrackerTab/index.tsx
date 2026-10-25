@@ -12,7 +12,6 @@ import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
 import { significantBurnKcal } from '../../lib/stats'
 import { macroTargets } from '../../hooks/macroTargets'
-import ProfileStatsCard from './ProfileStatsCard'
 import { QUICK_FOODS, WATER_MAX, dayWorkoutSessions, workoutTotals } from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
 import { BUILTIN_RECIPES } from '../../data/recipes'
@@ -56,7 +55,6 @@ export default function TrackerTab({
   todayBase.setHours(0, 0, 0, 0)
 
   // Macro bar targets: prefer bodyStats (with macroSplit) over legacy settings
-  const [statsSeed, setStatsSeed] = useState(0) // increment to force re-read after ProfileStatsCard save
   const activeStats = bodyStatsStore.get()
   const {
     kcal: activeKcalTarget,
@@ -948,13 +946,6 @@ export default function TrackerTab({
 
         {/* Browsable craving-swap reference */}
         <CravingSwapReference />
-
-        {/* Profile & Targets — consolidated stats module */}
-        <ProfileStatsCard
-          key={statsSeed}
-          user={user ?? null}
-          onSaved={() => setStatsSeed(n => n + 1)}
-        />
       </>
     </>
   )

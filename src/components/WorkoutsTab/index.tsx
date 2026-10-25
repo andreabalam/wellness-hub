@@ -8,7 +8,7 @@ import {
   MALE_DEFAULT_PLAN,
 } from '../../data/workouts'
 import type { Exercise, WorkoutWeek } from '../../data/workouts'
-import { bodyStatsStore, trackerStore, workoutPlanStore } from '../../hooks/useStore'
+import { bodyStatsStore, trackerStore, useStoreRev, workoutPlanStore } from '../../hooks/useStore'
 import { useCyclePhase } from '../../hooks/useCyclePhase'
 import type { PhaseSuggestion } from '../../lib/cyclePhase'
 import { isOuraConnected } from '../../lib/oura'
@@ -28,13 +28,10 @@ import type { WorkoutDraft } from '../../lib/workoutLog'
 import { dayWorkoutSessions, workoutSessionLabel } from '../../data/tracker'
 import type { DayData, WorkoutSession } from '../../data/tracker'
 import type { WorkoutDay } from '../../data/workouts'
-import ProfileStatsCard from '../TrackerTab/ProfileStatsCard'
 import { dkey } from '../TrackerTab/dateKey'
 import CycleToday from './CycleToday'
 import TrainDay from './TrainDay'
-import WeekCounter from './WeekCounter'
 import WorkoutLogger from './WorkoutLogger'
-import { workoutWeekStats } from '../../lib/workoutWeeks'
 import { importOuraWorkoutHistory } from '../../lib/ouraImport'
 import TrainHistory from './TrainHistory'
 
@@ -185,13 +182,12 @@ interface Props {
 export default function WorkoutsTab({ user }: Props) {
   // null = follow the cycle phase; a number = the user picked a week by hand
   const [activeWeek, setActiveWeek] = useState<number | null>(null)
-  const [statsSeed, setStatsSeed] = useState(0)
   const [today] = useState(() => new Date())
   // The day being viewed/logged in the day card (‹ › back-fills past days)
   const [date, setDate] = useState(today)
   const [ouraConnected, setOuraConnected] = useState(false)
-  // Bumped after any tracker write here, so derived reads (phase, sessions, counter) refresh
-  const [trackerRev, setTrackerRev] = useState(0)
+  // Bumped on any tracker / profile write (any tab), so derived reads refresh
+  const storeRev = useStoreRev()
 
   // editKey = "weekIdx-dayIdx" or null when not editing
   const [editKey, setEditKey] = useState<string | null>(null)
@@ -201,7 +197,6 @@ export default function WorkoutsTab({ user }: Props) {
   const storedPlan = workoutPlanStore.get()
 
   const isAuth = !!user
-  const hasStats = isAuth && storedStats.weightKg > 0
 
   // A stored plan saved before the current plan version is outdated - show the new built-in plan.
   const storedIsCurrent = storedPlan?.planData?.[0]?.v === WORKOUT_PLAN_VERSION
@@ -219,25 +214,23 @@ export default function WorkoutsTab({ user }: Props) {
       .catch(() => {})
   }, [isAuth])
 
-  // ── Tracker reads (refreshed via trackerRev after writes from this tab) ──
+  // ── Tracker reads (refreshed via storeRev) ──
   const todayKey = dkey(today)
   const dateKey = dkey(date)
   const isToday = dateKey === todayKey
-  const { allDays, todayPhase, dayData, weekStats } = (() => {
-    void trackerRev
+  const { allDays, todayPhase, dayData } = (() => {
+    void storeRev
     const all = trackerStore.getAll()
     return {
       allDays: all,
       todayPhase: trackerStore.getDay(todayKey).phase,
       dayData: trackerStore.getDay(dateKey),
-      weekStats: workoutWeekStats(all, today),
     }
   })()
   const daySessions = dayWorkoutSessions(dayData)
 
   const saveDay = (patch: Partial<DayData>) => {
     trackerStore.setDay(dateKey, { ...trackerStore.getDay(dateKey), ...patch })
-    setTrackerRev(n => n + 1)
   }
 
   // Once a day, backfill ~12 weeks of Oura workouts in one request so History
@@ -263,7 +256,6 @@ export default function WorkoutsTab({ user }: Props) {
             workout: changed[d][0]?.type ?? null,
           })
         if (!dates.length) return
-        setTrackerRev(n => n + 1)
         showToast(
           `Imported Oura workouts for ${dates.length} past day${dates.length === 1 ? '' : 's'}`,
           'info',
@@ -285,7 +277,7 @@ export default function WorkoutsTab({ user }: Props) {
 
   // ── Cycle sync: open the plan on the week matching today's phase ──
   const cycleOn = isAuth && planGender === 'female' && storedStats.cycleType !== 'none'
-  const cycle = useCyclePhase(today, cycleOn && ouraConnected, trackerRev)
+  const cycle = useCyclePhase(today, cycleOn && ouraConnected, storeRev)
   const suggestion = cycleOn ? cycle.suggestion : null
   // A phase set by hand for today wins over the estimate
   const phase = cycleOn
@@ -306,7 +298,6 @@ export default function WorkoutsTab({ user }: Props) {
 
   const setTodayPhase = (p: string) => {
     trackerStore.setDay(todayKey, { ...trackerStore.getDay(todayKey), phase: p })
-    setTrackerRev(n => n + 1)
     setActiveWeek(null)
   }
 
@@ -364,7 +355,6 @@ export default function WorkoutsTab({ user }: Props) {
       })
       setDraft(null)
       setLoggerOpen(false)
-      setTrackerRev(n => n + 1)
       showToast('Workout updated', 'success')
       return
     }
@@ -385,7 +375,6 @@ export default function WorkoutsTab({ user }: Props) {
     const sum = loggedSummary(exercises)
     setDraft(null)
     setLoggerOpen(false)
-    setTrackerRev(n => n + 1)
     showToast(
       `Workout saved · ${sum.exercises} exercise${sum.exercises === 1 ? '' : 's'}, ${sum.sets} sets`,
       'success',
@@ -495,8 +484,6 @@ export default function WorkoutsTab({ user }: Props) {
         </div>
       )}
 
-      {isAuth && <WeekCounter stats={weekStats} today={today} />}
-
       {cycleOn && (
         <CycleToday
           suggestion={suggestion}
@@ -560,13 +547,6 @@ export default function WorkoutsTab({ user }: Props) {
             </>
           )}
         </div>
-        {isAuth && hasStats && (
-          <div className="plan-label" style={{ maxWidth: 580 }}>
-            {storedStats.weightKg} kg · {storedStats.bodyFatPct}% body fat · {storedStats.heightM} m
-            {storedStats.cycleType !== 'none' && ` · ${storedStats.cycleType} cycle`}
-            {storedStats.equipment && ` · ${storedStats.equipment}`}
-          </div>
-        )}
         {!isAuth && (
           <div className="plan-label">
             A 3-week progressive full-body template. Week 1 shows example exercises — create an
@@ -787,12 +767,6 @@ export default function WorkoutsTab({ user }: Props) {
           </div>
         )}
       </div>
-
-      {isAuth && (
-        <div className="mt-20">
-          <ProfileStatsCard key={statsSeed} user={user} onSaved={() => setStatsSeed(n => n + 1)} />
-        </div>
-      )}
 
       {loggerOpen && draft && (
         <WorkoutLogger
