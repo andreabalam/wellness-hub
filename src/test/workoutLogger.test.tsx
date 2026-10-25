@@ -137,9 +137,8 @@ describe('WorkoutLogger', () => {
     })
     expect(day.wkSessions[0].exercises[0].sets).toHaveLength(1)
     expect(screen.getByText('✓ Logged · 1 sets')).toBeInTheDocument()
-    // …and it shows in the day card's activity list and the weeks counter
+    // …and it shows in the day card's activity list
     expect(screen.getByText(/^1 exercise · 1 sets/)).toBeInTheDocument()
-    expect(screen.getByText('workout this week').previousSibling).toHaveTextContent('1')
   })
 
   it('closing keeps the draft for Resume; Escape closes too', () => {

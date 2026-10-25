@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { DayData, QuickFood } from '../data/tracker'
 import { EMPTY_DAY, FIBER_TARGET } from '../data/tracker'
 import type { Recipe } from '../data/recipes'
@@ -80,6 +81,26 @@ async function tryPush(fn: (userId: string) => Promise<void>) {
   }
 }
 
+// ── Local change notifications ── tracker days + body stats ──────
+// Tabs that stay mounted (Train) or read stores at render (Today) subscribe so
+// a write from another tab or a background Oura import shows up immediately.
+const changeListeners = new Set<() => void>()
+const notifyChange = () => changeListeners.forEach(l => l())
+
+export function subscribeToChanges(l: () => void): () => void {
+  changeListeners.add(l)
+  return () => {
+    changeListeners.delete(l)
+  }
+}
+
+/** Re-render on every tracker / body-stats write; returns a counter to key reads on. */
+export function useStoreRev(): number {
+  const [rev, setRev] = useState(0)
+  useEffect(() => subscribeToChanges(() => setRev(n => n + 1)), [])
+  return rev
+}
+
 // ── Tracker ── plain functions, safe to call anywhere ────────────
 export const trackerStore = {
   getAll: () => safeGet<Record<string, DayData>>(TRACKER_KEY, {}, isDayDataMap),
@@ -94,6 +115,7 @@ export const trackerStore = {
     all[dateKey] = data
     safeSet(TRACKER_KEY, all)
     tryPush(uid => sync.pushDay(uid, dateKey, data))
+    notifyChange()
   },
 }
 
@@ -321,6 +343,7 @@ export const bodyStatsStore = {
     const next = { ...bodyStatsStore.get(), ...patch }
     safeSet(BODY_STATS_KEY, next)
     tryPush(uid => sync.upsertUserBodyStats(uid, next))
+    notifyChange()
   },
 
   /** Used during syncAll — writes remote value without re-triggering a push */
