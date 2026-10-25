@@ -33,6 +33,9 @@ export function significantBurnKcal(tdeeKcal: number): number {
   return Math.max(250, Math.round(tdeeKcal * 0.15))
 }
 
+/** Daily fiber target (g) for every split — mirrors FIBER_TARGET in data/tracker.ts (this file has no imports). */
+const FIBER_G = 30
+
 /** Macro gram targets from a calorie total + split. Returns null for custom / zero kcal. */
 export function macrosFromKcal(kcal: number, split: MacroSplit): MacroTargets | null {
   if (split === 'custom' || kcal <= 0) return null
@@ -42,7 +45,7 @@ export function macrosFromKcal(kcal: number, split: MacroSplit): MacroTargets | 
       prot: Math.round((kcal * 0.3) / 4),
       carb: Math.round((kcal * 0.4) / 4),
       fat: Math.round((kcal * 0.3) / 9),
-      fiber: 25,
+      fiber: FIBER_G,
     }
   if (split === 'high_protein')
     return {
@@ -50,7 +53,7 @@ export function macrosFromKcal(kcal: number, split: MacroSplit): MacroTargets | 
       prot: Math.round((kcal * 0.35) / 4),
       carb: Math.round((kcal * 0.35) / 4),
       fat: Math.round((kcal * 0.3) / 9),
-      fiber: 25,
+      fiber: FIBER_G,
     }
   if (split === 'low_carb')
     return {
@@ -58,7 +61,7 @@ export function macrosFromKcal(kcal: number, split: MacroSplit): MacroTargets | 
       prot: Math.round((kcal * 0.35) / 4),
       carb: Math.round((kcal * 0.2) / 4),
       fat: Math.round((kcal * 0.45) / 9),
-      fiber: 25,
+      fiber: FIBER_G,
     }
   return null
 }

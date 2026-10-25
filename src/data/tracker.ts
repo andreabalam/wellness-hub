@@ -17,7 +17,7 @@ export const KCAL_TARGET = 1380
 export const PROT_TARGET = 110
 export const CARB_TARGET = 130
 export const FAT_TARGET = 52
-export const FIBER_TARGET = 25
+export const FIBER_TARGET = 30
 
 export const QUICK_FOODS: QuickFood[] = [
   { n: 'Berry Oats', k: 350, p: 18, c: 42, f: 12, fi: 9 },
