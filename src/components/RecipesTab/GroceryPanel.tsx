@@ -113,7 +113,7 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
           startEdit()
         }}
         className="item-icon-btn"
-        style={{ fontSize: 12 }}
+        style={{ fontSize: '0.857rem' }}
       >
         ✎
       </button>
@@ -124,7 +124,7 @@ function GroceryItemRow({ item, checked, onToggle, onEdit, onRemove }: RowProps)
           onRemove(item.id)
         }}
         className="item-icon-btn"
-        style={{ fontSize: 14, padding: '0 2px' }}
+        style={{ fontSize: '1rem', padding: '0 2px' }}
       >
         ×
       </button>
@@ -352,7 +352,7 @@ export default function GroceryPanel({ user }: { user?: User | null }) {
                 value={nutSrv}
                 onChange={e => setNutSrv(e.target.value)}
                 aria-label="Serving size"
-                style={{ fontSize: 12, marginBottom: 6 }}
+                style={{ fontSize: '0.857rem', marginBottom: 6 }}
               />
 
               <div className="nutri-grid">

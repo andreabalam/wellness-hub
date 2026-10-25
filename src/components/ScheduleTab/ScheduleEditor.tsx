@@ -301,7 +301,7 @@ export default function ScheduleEditor({
               style={{
                 flex: 1,
                 padding: '6px 0',
-                fontSize: 12,
+                fontSize: '0.857rem',
                 borderRadius: 6,
                 border: 'none',
                 background: scope === s ? 'var(--teal)' : 'transparent',
@@ -351,7 +351,7 @@ export default function ScheduleEditor({
                   <span className="block-list-title">{b.title}</span>
                   <span className="block-list-meta">{b.time}</span>
                   {b.dur && (
-                    <span className="text-muted2" style={{ fontSize: 11, marginLeft: 6 }}>
+                    <span className="text-muted2" style={{ fontSize: '0.786rem', marginLeft: 6 }}>
                       {b.dur}
                     </span>
                   )}

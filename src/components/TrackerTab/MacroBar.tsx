@@ -30,7 +30,7 @@ const MacroBar = memo(function MacroBar({
         <span className="macro-bar-label">
           {label}{' '}
           {sub && (
-            <span className="text-muted2" style={{ fontSize: 10 }}>
+            <span className="text-muted2" style={{ fontSize: '0.786rem' }}>
               · {sub}
             </span>
           )}

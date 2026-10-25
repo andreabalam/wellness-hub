@@ -19,7 +19,7 @@ const SatietyRow = memo(function SatietyRow({
               width: 26,
               height: 26,
               borderRadius: 6,
-              fontSize: 12,
+              fontSize: '0.857rem',
               border: `1px solid ${i === value ? 'var(--teal)' : 'var(--border)'}`,
               background: i === value ? 'rgba(74,158,158,0.18)' : 'var(--bg3)',
               color: i === value ? 'var(--teal-light)' : 'var(--muted)',

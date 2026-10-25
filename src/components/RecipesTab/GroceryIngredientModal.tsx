@@ -57,7 +57,7 @@ export default function GroceryIngredientModal({ recipe, onAdd, onClose }: Props
         {/* Header */}
         <div className="modal-header">
           <div>
-            <div className="modal-title" style={{ fontSize: 20 }}>
+            <div className="modal-title" style={{ fontSize: '1.429rem' }}>
               Add to <em className="italic text-green">Grocery</em>
             </div>
             <div className="text-sm text-muted mt-4">{recipe.name}</div>
