@@ -5,7 +5,7 @@ import RecipesTab from './components/RecipesTab'
 import type { OpenRecipeRequest } from './components/RecipesTab'
 import TrackerTab from './components/TrackerTab'
 import TodayTab from './components/TodayTab'
-import OuraTab from './components/OuraTab'
+import InsightsTab from './components/InsightsTab'
 import UpdatePrompt from './components/UpdatePrompt'
 import AuthButton from './components/AuthButton'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -37,19 +37,19 @@ import {
   syncStatusStore,
 } from './hooks/useStore'
 
-type Tab = 'today' | 'food' | 'workouts' | 'oura'
+type Tab = 'today' | 'food' | 'workouts' | 'insights'
 
 // Consume the OAuth callback once at module load — before React mounts.
 // Must live outside any component: React StrictMode calls useState lazy
 // initializers twice in development, which would remove oura_oauth_state
 // on the first invocation so the second invocation fails the CSRF check.
-const _initialTab: Tab = consumeOAuthCallback() ? 'oura' : 'today'
+const _initialTab: Tab = consumeOAuthCallback() ? 'insights' : 'today'
 
 const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: 'today', icon: '☀️', label: 'Today' },
   { id: 'food', icon: '🍎', label: 'Food' },
   { id: 'workouts', icon: '💪', label: 'Train' },
-  { id: 'oura', icon: '🫀', label: 'Oura' },
+  { id: 'insights', icon: '📈', label: 'Insights' },
 ]
 
 type FoodView = 'log' | 'recipes'
@@ -437,15 +437,16 @@ export default function App() {
         </div>
       </ErrorBoundary>
 
-      <ErrorBoundary name="Oura">
+      <ErrorBoundary name="Insights">
         <div
           role="tabpanel"
-          id="panel-oura"
-          aria-labelledby="tab-oura"
-          hidden={active !== 'oura'}
-          className={`view${active === 'oura' ? ' active' : ''}`}
+          id="panel-insights"
+          aria-labelledby="tab-insights"
+          hidden={active !== 'insights'}
+          className={`view${active === 'insights' ? ' active' : ''}`}
         >
-          <OuraTab user={user} />
+          {/* Mounted only while active: roll-ups read every tracker day */}
+          {active === 'insights' && <InsightsTab key={syncVersion} user={user} />}
         </div>
       </ErrorBoundary>
 

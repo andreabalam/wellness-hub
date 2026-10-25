@@ -15,8 +15,8 @@ test.describe('Tab navigation', () => {
     await expect(page.getByText(/Sign in to see/i)).toBeVisible()
   })
 
-  test('has four tabs: Today, Food, Train and Oura', async ({ page }) => {
-    await expect(tabBar(page).getByRole('tab')).toHaveText([/Today/, /Food/, /Train/, /Oura/])
+  test('has four tabs: Today, Food, Train and Insights', async ({ page }) => {
+    await expect(tabBar(page).getByRole('tab')).toHaveText([/Today/, /Food/, /Train/, /Insights/])
   })
 
   test('switches to Train tab', async ({ page }) => {
@@ -40,10 +40,12 @@ test.describe('Tab navigation', () => {
     await expect(page.getByText(/Sign in to use/i)).toBeVisible()
   })
 
-  test('switches to Oura tab showing sign-in gate when unauthenticated', async ({ page }) => {
-    await tabBar(page).getByRole('tab', { name: /Oura/i }).click()
-    await expect(tabBar(page).getByRole('tab', { name: /Oura/i })).toHaveClass(/active/)
-    await expect(page.getByText(/Sign in to view your Oura dashboard/i)).toBeVisible()
+  test('switches to Insights showing its sign-in gate when unauthenticated', async ({ page }) => {
+    await tabBar(page)
+      .getByRole('tab', { name: /Insights/i })
+      .click()
+    await expect(tabBar(page).getByRole('tab', { name: /Insights/i })).toHaveClass(/active/)
+    await expect(page.getByText(/Sign in to see Insights/i)).toBeVisible()
   })
 
   test('tabs retain their state when switching away and back', async ({ page }) => {
@@ -54,7 +56,9 @@ test.describe('Tab navigation', () => {
     await expect(page.getByText(/Progressive Overload/)).toBeVisible()
 
     // Switch away and back
-    await tabBar(page).getByRole('tab', { name: /Oura/i }).click()
+    await tabBar(page)
+      .getByRole('tab', { name: /Insights/i })
+      .click()
     await page.getByRole('tab', { name: /Train/i }).click()
     // Week 2 content still showing (React state preserved)
     await expect(page.getByText(/Progressive Overload/)).toBeVisible()
