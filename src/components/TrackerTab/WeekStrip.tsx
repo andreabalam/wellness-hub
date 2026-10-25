@@ -46,8 +46,7 @@ const WeekStrip = memo(function WeekStrip({
           const data = getDay(k)
           const kcal = data.foods.reduce((s, f) => s + f.k, 0)
           const wk = workoutTotals(dayWorkoutSessions(data))
-          const hasW = wk.sessions > 0
-          const bigBurn = wk.kcal >= burnThreshold
+          const bigBurn = wk.sessions > 0 && wk.kcal >= burnThreshold
           const hasM = dayMedSessions(data).length > 0
           const isToday = d.getTime() === today.getTime()
           const isCur = d.getTime() === currentDate.getTime()
@@ -83,12 +82,10 @@ const WeekStrip = memo(function WeekStrip({
                 {kcal > 0 ? kcal : '-'}
               </div>
               <div style={{ fontSize: 11, marginTop: 2 }}>
-                {bigBurn ? (
+                {bigBurn && (
                   <span className="text-coral" title={`${wk.kcal} kcal burned`}>
                     🔥{wk.kcal}{' '}
                   </span>
-                ) : (
-                  hasW && <span className="text-coral">W</span>
                 )}
                 {hasM && <span className="text-gold">M</span>}
               </div>
@@ -99,9 +96,6 @@ const WeekStrip = memo(function WeekStrip({
       <div className="week-strip-legend">
         <span>
           <span className="text-green">●</span> kcal
-        </span>
-        <span>
-          <span className="text-coral">W</span> workout
         </span>
         <span>
           <span className="text-coral">🔥</span> big burn
