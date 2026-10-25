@@ -150,10 +150,7 @@ test.describe('Tracker tab', () => {
     await expect(page.getByText('Berry Oats', { exact: true })).toBeVisible()
 
     // Switch tab — TrackerTab unmounts, then remounts and re-reads localStorage
-    await page
-      .locator('nav.tabs')
-      .getByRole('tab', { name: /Recipes/i })
-      .click()
+    await page.locator('nav.tabs').getByRole('tab', { name: /Train/i }).click()
     await page.locator('nav.tabs').getByRole('tab', { name: /Food/i }).click()
 
     await expect(page.getByText('350 / 1,380 kcal')).toBeVisible()

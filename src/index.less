@@ -1128,4 +1128,50 @@ body {
   .grocery-grid {
     grid-template-columns: 1fr;
   }
+
+  /* Bottom nav: the four main tabs sit under the thumb */
+  .hdr {
+    padding-bottom: 12px;
+  }
+  .hdr-top {
+    margin-bottom: 0;
+  }
+  .tabs {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 200;
+    overflow: visible;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-height: 56px;
+    padding: 8px 4px 6px;
+    font-size: 0.786rem;
+    border-bottom: none;
+    border-top: 2px solid transparent;
+    margin: -1px 0 0;
+    &.active {
+      border-top-color: var(--green);
+    }
+  }
+  .tab__icon {
+    font-size: 1.286rem;
+    line-height: 1;
+  }
+  .view {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+  .toast-host,
+  .update-prompt {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
 }
