@@ -1,18 +1,18 @@
 import { describe, it, expect } from 'vitest'
-import { WORKOUT_PLAN, PLAN_NOTES } from '../data/workouts'
+import { WORKOUT_PLAN, WORKOUT_PLAN_VERSION, PLAN_NOTES } from '../data/workouts'
 
 describe('WORKOUT_PLAN', () => {
-  it('has exactly 3 weeks', () => {
-    expect(WORKOUT_PLAN).toHaveLength(3)
+  it('has exactly 4 weeks', () => {
+    expect(WORKOUT_PLAN).toHaveLength(4)
   })
 
   it('weeks are numbered 1, 2, 3', () => {
-    expect(WORKOUT_PLAN.map(w => w.week)).toEqual([1, 2, 3])
+    expect(WORKOUT_PLAN.map(w => w.week)).toEqual([1, 2, 3, 4])
   })
 
-  it('every week has 4 training days', () => {
+  it('every week has 7 days', () => {
     WORKOUT_PLAN.forEach(w => {
-      expect(w.days).toHaveLength(4)
+      expect(w.days).toHaveLength(7)
     })
   })
 
@@ -49,6 +49,14 @@ describe('WORKOUT_PLAN', () => {
     expect(withAlts.length).toBeGreaterThan(0)
   })
 
+  it('every week carries the current plan version', () => {
+    WORKOUT_PLAN.forEach(w => expect(w.v).toBe(WORKOUT_PLAN_VERSION))
+  })
+
+  it('swap options exist on Day 6 every week', () => {
+    WORKOUT_PLAN.forEach(w => expect(w.days[5].alts?.length).toBeGreaterThan(0))
+  })
+
   it('week colors are CSS variables', () => {
     WORKOUT_PLAN.forEach(w => {
       expect(w.color).toMatch(/^var\(--/)
@@ -57,8 +65,8 @@ describe('WORKOUT_PLAN', () => {
 })
 
 describe('PLAN_NOTES', () => {
-  it('has 5 guidance notes', () => {
-    expect(PLAN_NOTES).toHaveLength(5)
+  it('has 6 guidance notes', () => {
+    expect(PLAN_NOTES).toHaveLength(6)
   })
 
   it('every note has icon, title, color, text', () => {

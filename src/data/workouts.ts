@@ -23,6 +23,8 @@ export interface WorkoutWeek {
   note: string
   nutr: string
   days: WorkoutDay[]
+  /** plan version (WORKOUT_PLAN_VERSION); absent on plans saved before v2 */
+  v?: number
 }
 
 export interface PlanNote {
@@ -32,615 +34,462 @@ export interface PlanNote {
   text: string
 }
 
+/**
+ * Bump when WORKOUT_PLAN changes shape or content. A stored (synced) plan whose
+ * weeks don't carry this version is treated as outdated and the built-in plan
+ * is shown instead — so a new release actually reaches signed-in users.
+ */
+export const WORKOUT_PLAN_VERSION = 2
+
+// ── Cycle-synced plan builders ───────────────────────────────────
+// Same 7-day structure every week; each cycle phase only adjusts sets,
+// conditioning intensity and the swap options. Research (Colenso-Semple 2023,
+// McNulty 2020) finds no reliable phase effect on strength or hypertrophy, so
+// the plan trains all month and adjusts by symptoms rather than switching
+// programmes.
+
+const ex = (t: string, d: string, i: string): Exercise => ({ t, d, i })
+
+interface PhaseDose {
+  /** sets on the first (main) lift of Day 1 and Day 4 */
+  main: number
+  /** added to every other set count (-1 in the maintain week) */
+  acc: number
+  /** cue appended to the main lifts */
+  cue: string
+  /** extra warm-up minutes before the strength days */
+  warmup: string
+}
+
+const sets = (base: number, p: PhaseDose) => Math.max(2, base + p.acc)
+
+const MOBILITY_10: Exercise[] = [
+  ex(
+    'Cat-cow',
+    '1 min',
+    'On hands and knees, alternate arching and rounding your back with your breath.',
+  ),
+  ex(
+    'Thread the needle',
+    '30s per side',
+    'From hands and knees, slide one arm under your body and rest that shoulder and your head on the mat to rotate your upper back.',
+  ),
+  ex(
+    "World's greatest stretch",
+    '45s per side',
+    'Deep lunge with the back knee down, both hands inside the front foot. Reach the inside arm to the ceiling and back down 5 times.',
+  ),
+  ex(
+    'Half-kneeling hip flexor stretch',
+    '45s per side',
+    'Back knee on the mat. Squeeze the glute of that leg and gently shift your hips forward until you feel the front of the hip.',
+  ),
+  ex(
+    '90/90 hip switches',
+    '1 min',
+    'Sit with both knees bent at 90°, one leg in front and one to the side. Rotate the knees side to side, hands off the floor if you can.',
+  ),
+  ex(
+    'Pigeon or figure-4 stretch',
+    '1 min per side',
+    'Pigeon if your knees are happy. Otherwise lie on your back, cross one ankle over the opposite knee and pull that thigh toward you.',
+  ),
+  ex(
+    "Child's pose with side reach",
+    '1 min',
+    'Sit back on your heels with arms forward, then walk both hands to one side for 20s and to the other for 20s.',
+  ),
+  ex(
+    'Supine spinal twist',
+    '30s per side',
+    'On your back, drop both knees to one side with your arms out wide.',
+  ),
+]
+
+const PILATES_B: Exercise[] = [
+  ex(
+    'Supine breathing',
+    '2 min',
+    'Knees bent, feet flat. Breathe into the sides and back of the ribs; let the belly soften.',
+  ),
+  ex(
+    'Pelvic curl',
+    '8 reps',
+    'Peel the spine up one vertebra at a time into a bridge, then roll down the same way.',
+  ),
+  ex(
+    'Supine knee drops',
+    '10 per side',
+    'Knees together, let them fall slowly to one side and back. Shoulders stay down.',
+  ),
+  ex(
+    'Single-leg circles',
+    '5 each direction per leg',
+    'Small and slow. Pelvis stays completely still; circle from the hip socket.',
+  ),
+  ex(
+    'Clamshells',
+    '2×15 per side',
+    'Loop band above knees optional. Hips stacked, top knee opens without rolling back.',
+  ),
+  ex(
+    'Bird-dog',
+    '2×8 per side, 2s hold',
+    'All fours. Reach opposite arm and leg long, hold, return without shifting the hips.',
+  ),
+  ex(
+    'Rolling like a ball',
+    '8 reps',
+    'Hug the shins and rock back to the shoulder blades and up. Or just rock gently hugging the knees.',
+  ),
+  ex(
+    'Mermaid side stretch',
+    '4 per side',
+    'Seated with legs to one side, reach the opposite arm overhead and breathe into the side of the ribs.',
+  ),
+  ex("Child's pose to cat-cow flow", '3 min', 'Flow slowly between the two to finish.'),
+]
+
+function day1(p: PhaseDose, color: string): WorkoutDay {
+  return {
+    slot: 'Day 1',
+    type: 'Home',
+    label: 'Glutes & Hamstrings',
+    time: '45-50 min',
+    color,
+    solin: `Main lift ${p.main} sets. ${p.cue}`,
+    exs: [
+      ex(
+        'Warm-up',
+        p.warmup,
+        'Banded glute bridges 2×20, then 10 bodyweight good mornings and 10 leg swings per side.',
+      ),
+      ex(
+        'Single-leg hip thrust',
+        `${p.main}×10-12 per side`,
+        'Upper back on the couch, 15 lb DB on the working hip. Drive through the heel, pause 2s at the top. Start with the right leg and match those reps on the left.',
+      ),
+      ex(
+        'Single-leg RDL (15 lb)',
+        `${sets(3, p)}×10 per side, 3s down`,
+        'Soft knee, hinge from the hip, DB in the opposite hand. Stop when you feel the hamstring stretch; squeeze the glute to stand.',
+      ),
+      ex(
+        'B-stance hip thrust',
+        `${sets(3, p)}×15 per side`,
+        'Loop band above knees. Working foot flat, the other heel lifted slightly forward as a kickstand. Push the knees out against the band.',
+      ),
+      ex(
+        'Sliding hamstring curls',
+        `${sets(3, p)}×10-12, 3s slide-out`,
+        'Heels on a towel or in socks on a hard floor. Bridge up, slide heels out until legs are nearly straight, pull back in with hips up. On carpet or a mat: single-leg glute bridge walkouts 3×8-10.',
+      ),
+      ex(
+        'OR loop-band lying hamstring curl',
+        `${sets(3, p)}×15-20 per side, 2s pause at top`,
+        'Face down, loop band around both ankles. Pin one leg to the mat and curl the other heel toward your butt.',
+      ),
+      ex(
+        'Frog pumps',
+        '2×max',
+        'On your back, soles together, knees wide. Pump the hips up, squeeze hard at the top.',
+      ),
+    ],
+  }
+}
+
+function day2(p: PhaseDose, color: string): WorkoutDay {
+  return {
+    slot: 'Day 2',
+    type: 'Home',
+    label: 'Upper Body + Core',
+    time: '40-45 min',
+    color,
+    solin:
+      'Upper body twice a week (here and Day 6) builds the muscle that drives overall fat loss.',
+    exs: [
+      ex(
+        'One-arm DB row',
+        `${sets(4, p)}×10-12 per side`,
+        'Hand and knee on a bench or couch. Pull the elbow toward the hip, pause, lower slowly.',
+      ),
+      ex(
+        'Push-ups',
+        `${sets(4, p)}×AMRAP`,
+        'As many reps as you can, stopping 1-2 before failure. Elevate hands on a couch or counter if needed; lower the incline as you get stronger.',
+      ),
+      ex(
+        'Seated DB shoulder press',
+        `${sets(3, p)}×10-12`,
+        'Ribs down, press overhead, control the way down.',
+      ),
+      ex(
+        'Bent-over DB reverse flys',
+        `${sets(3, p)}×12-15, 1s squeeze`,
+        'Hinge to about 45°, light DBs, arms slightly bent. Lift out to the sides by squeezing the shoulder blades.',
+      ),
+      ex(
+        'OR band pull-aparts',
+        `${sets(3, p)}×20`,
+        'Long band only. Arms straight at chest height, pull the band apart to your chest.',
+      ),
+      ex(
+        'Lateral raises',
+        `${sets(3, p)}×12-15`,
+        'Lead with the elbows, stop at shoulder height, 2s down.',
+      ),
+      ex(
+        'Dead bug + plank',
+        `${sets(3, p)}×10 per side + ${sets(3, p)}×30-45s`,
+        'Dead bug: lower back stays pressed to the floor as opposite arm and leg lower. Plank: squeeze glutes, ribs down.',
+      ),
+    ],
+  }
+}
+
+function day3(color: string): WorkoutDay {
+  return {
+    slot: 'Day 3',
+    type: 'Pilates',
+    label: 'Pilates A - Glutes & Core (mat)',
+    time: '~40 min',
+    color,
+    solin:
+      'Home mat Pilates. Slow, controlled, quality over speed. Loop band adds load to the side-lying series.',
+    exs: [
+      ex(
+        'Pelvic curl',
+        '8 reps',
+        'Slow bridge, peeling the spine up and down one vertebra at a time.',
+      ),
+      ex(
+        'The Hundred',
+        '100 pumps',
+        'Head and shoulders up, arms pumping. Breathe in 5 pumps, out 5. Bend knees to tabletop if the lower back lifts.',
+      ),
+      ex(
+        'Single-leg stretch',
+        '10 per side',
+        'Head up, pull one knee in while the other leg extends long. Switch with control.',
+      ),
+      ex(
+        'Criss-cross',
+        '10 per side, slow',
+        'Rotate the ribs toward the bent knee, hold 1s each side. Elbows stay wide.',
+      ),
+      ex(
+        'Side-lying series (loop band above knees)',
+        '10-15 each move per side',
+        'Leg lifts, front/back kicks, clamshells, small circles. Hips stacked, waist lifted off the mat.',
+      ),
+      ex(
+        'Single-leg kicks (prone)',
+        '8 per side',
+        'On your forearms, chest lifted. Kick one heel to your butt twice, switch.',
+      ),
+      ex(
+        'Swan prep',
+        '8 reps',
+        'Face down, hands under shoulders. Small back extension using the back muscles, not the arms.',
+      ),
+      ex(
+        'Kneeling side kicks',
+        '10 per side',
+        'One hand and knee down, top leg at hip height. Kick forward and back without the torso moving.',
+      ),
+      ex(
+        'Teaser prep',
+        '5 reps, 3s hold',
+        'Bent knees, roll up to a V and hold. Roll down with control.',
+      ),
+      ex(
+        'Spine stretch forward + saw',
+        '5 each',
+        'Seated, legs wide. Round forward over the legs, then twist and reach toward the opposite foot.',
+      ),
+    ],
+  }
+}
+
+function day4(p: PhaseDose, color: string): WorkoutDay {
+  return {
+    slot: 'Day 4',
+    type: 'Home',
+    label: 'Glutes & Quads',
+    time: '45-50 min',
+    color,
+    solin: `Main lift ${p.main} sets. ${p.cue}`,
+    exs: [
+      ex(
+        'Warm-up',
+        p.warmup,
+        'Bodyweight squats 15, banded lateral walks 10 each way, 5 reverse lunges per side.',
+      ),
+      ex(
+        'Bulgarian split squat (2×15 lb)',
+        `${p.main}×8-12 per side, 3s down`,
+        'Back foot on the couch. Lean the torso slightly forward for more glute. Right leg first, match on the left.',
+      ),
+      ex(
+        'Goblet squat, 2s pause at bottom',
+        `${sets(3, p)}×12-15`,
+        'Hold one DB at the chest. Sit between the heels, pause, drive up.',
+      ),
+      ex(
+        'Deficit reverse lunge',
+        `${sets(3, p)}×10 per side`,
+        'Front foot on a book or low step. Step back into a deep lunge, keep weight in the front heel.',
+      ),
+      ex(
+        'Lateral lunge',
+        `${sets(3, p)}×10 per side`,
+        'Step wide, sit back into the stepping hip, the other leg stays straight.',
+      ),
+      ex(
+        'Banded lateral walks',
+        `${sets(3, p)}×15 steps each way`,
+        "Loop band above knees or at ankles. Stay low, toes forward, don't let the feet touch.",
+      ),
+    ],
+  }
+}
+
+function day5(color: string): WorkoutDay {
+  return {
+    slot: 'Day 5',
+    type: 'Recovery',
+    label: 'Active Recovery - Walk + Mobility',
+    time: '55-70 min',
+    color,
+    solin:
+      'Easy movement speeds recovery and keeps daily steps up. The hip flexor stretch and thread the needle are worth repeating on desk days.',
+    exs: [
+      ex('Walk', '45-60 min', 'Conversational pace. Counts toward your 7-10k daily steps.'),
+      ...MOBILITY_10,
+    ],
+  }
+}
+
+function day6(rounds: string, work: string, pilatesFirst: boolean, color: string): WorkoutDay {
+  const conditioning: Exercise[] = [
+    ex(
+      'Conditioning circuit',
+      `${rounds} rounds, ${work}`,
+      'DB thruster, DB swing, renegade row, reverse lunge, mountain climbers back-to-back. Rest 60s between rounds.',
+    ),
+    ex(
+      'Banded hip thrust, 1.5 reps',
+      '3×15',
+      'Go halfway back down and up again before finishing each rep. Band above knees.',
+    ),
+    ex(
+      'Banded kickbacks',
+      '3×15 per side',
+      'On all fours, loop band around ankles or above knees. Drive the heel to the ceiling.',
+    ),
+    ex(
+      'Curtsy lunge (DBs)',
+      '3×12 per side',
+      'Step back and across, keep the front knee over the toes.',
+    ),
+  ]
+  return {
+    slot: 'Day 6',
+    type: pilatesFirst ? 'Pilates' : 'Home',
+    label: pilatesFirst ? 'Pilates B - Restorative (or Conditioning)' : 'Conditioning + Glute Pump',
+    time: pilatesFirst ? '~30 min' : '35-40 min',
+    color,
+    solin: pilatesFirst
+      ? 'Lower-energy week: Pilates B by default. Do the lighter conditioning instead if you feel good.'
+      : 'Keeps heart rate up while adding glute volume.',
+    exs: pilatesFirst ? PILATES_B : conditioning,
+    altLabel: pilatesFirst
+      ? `Swap: Conditioning (${rounds} rounds, ${work})`
+      : 'Swap: Pilates B - Restorative (~30 min)',
+    alts: pilatesFirst ? conditioning : PILATES_B,
+  }
+}
+
+function day7(color: string): WorkoutDay {
+  return {
+    slot: 'Day 7',
+    type: 'Rest',
+    label: 'Rest',
+    time: 'Full rest',
+    color,
+    solin: 'Muscle grows during recovery. A relaxed walk is fine.',
+    exs: [
+      ex('Easy walk (optional)', '20-30 min', 'Relaxed pace, no targets.'),
+      ex('Sleep', '7.5-8 h', 'The biggest recovery lever you have.'),
+    ],
+  }
+}
+
+function buildWeek(
+  week: number,
+  label: string,
+  color: string,
+  note: string,
+  nutr: string,
+  p: PhaseDose,
+  d6: { rounds: string; work: string; pilatesFirst: boolean },
+): WorkoutWeek {
+  return {
+    week,
+    label,
+    color,
+    note,
+    nutr,
+    v: WORKOUT_PLAN_VERSION,
+    days: [
+      day1(p, color),
+      day2(p, color),
+      day3(color),
+      day4(p, color),
+      day5(color),
+      day6(d6.rounds, d6.work, d6.pilatesFirst, color),
+      day7('var(--muted2)'),
+    ],
+  }
+}
+
 export const WORKOUT_PLAN: WorkoutWeek[] = [
-  {
-    week: 1,
-    label: 'Week 1 - Menstrual Phase',
-    color: 'var(--purple)',
-    note: 'Energy and tolerance are lowest. Pilates, gentle glute activation, Zone 2 walking. Stay consistent without overreaching.',
-    nutr: 'Stick to ~1,380 kcal. Extra magnesium-rich foods (dark chocolate, walnuts, spinach) help with cramping and mood.',
-    days: [
-      {
-        slot: 'Day A',
-        type: 'Pilates',
-        label: 'Reformer / Mat Pilates',
-        time: '60 min - weekend preferred',
-        color: 'var(--purple)',
-        solin:
-          "Pilates aligns with Solin's activation-first philosophy - mind-muscle connection before load.",
-        exs: [
-          {
-            t: 'Footwork series',
-            d: '4 min',
-            i: 'Reformer footwork or supine foot press against wall. Heels, arches, toes. Slow and controlled.',
-          },
-          {
-            t: 'Hundred',
-            d: '3 sets',
-            i: 'Classic core pump. Keep lower back imprinted. Breathe 5 pumps in, 5 out. Bend knees if lower back lifts.',
-          },
-          {
-            t: 'Single leg circle',
-            d: '5 each direction x3',
-            i: 'Pelvis stays absolutely still. Circle from the hip socket. Builds hip stability.',
-          },
-          {
-            t: 'Rolling like a ball',
-            d: '8 reps',
-            i: 'Spinal massage, mobility, parasympathetic activation. Perfect for Day 1 of your period.',
-          },
-          {
-            t: 'Side-lying series',
-            d: '12 reps x3 each side',
-            i: 'Leg lifts, clamshells, kick-backs. Isolate glute med and minimus.',
-          },
-          {
-            t: 'Mermaid + spine twist',
-            d: '5 each',
-            i: 'Lateral spine mobility. Hold each, breathe into the stretch.',
-          },
-        ],
-        altLabel: 'Home Alternative - Gentle Glute Activation',
-        alts: [
-          {
-            t: 'Supine hip circles',
-            d: '10 each direction',
-            i: 'Lying on back, draw circles with knees. Hip mobilisation.',
-          },
-          {
-            t: 'Glute bridge pulses',
-            d: '3x20 - 5 lb DB',
-            i: '5 lb dumbbell on hips. Pulse at top. Activates glutes without heavy loading.',
-          },
-          {
-            t: 'Side-lying clamshells',
-            d: '3x15 each',
-            i: 'Keep hips stacked. Top knee opens like a clamshell. Slow and controlled.',
-          },
-          {
-            t: 'Bird-dog',
-            d: '3x10 each side',
-            i: 'All fours. Extend opposite arm and leg. Hold 2 sec. Core and glute stability.',
-          },
-          {
-            t: "Child's pose + cat-cow",
-            d: '5 min',
-            i: 'Flow between the two for full spinal mobility.',
-          },
-        ],
-      },
-      {
-        slot: 'Day B',
-        type: 'Home',
-        label: 'Glute Activation + Zone 2 Walk',
-        time: '45 min',
-        color: 'var(--purple)',
-        solin:
-          "From Solin's Busy Girl Guide: short targeted glute sessions on low-energy days beat skipping entirely.",
-        exs: [
-          {
-            t: 'Warm-up walk',
-            d: '5 min',
-            i: 'Easy pace. Get blood moving without spiking cortisol.',
-          },
-          {
-            t: 'Donkey kick - 3 lb DB behind knee',
-            d: '3x15 each',
-            i: 'On all fours. 3 lb DB tucked behind knee. Drive heel to ceiling, squeeze at top. Solin signature: isolate glute max without lower back.',
-          },
-          {
-            t: 'Fire hydrant',
-            d: '3x15 each',
-            i: 'Same position. Lift knee laterally to hip height. Pause 1 sec. Targets glute medius.',
-          },
-          {
-            t: 'Frog pump',
-            d: '3x20',
-            i: 'Lying on back, soles together, knees wide. Pump hips up. Short range but intense glute burn.',
-          },
-          {
-            t: 'Zone 2 walk',
-            d: '20 min',
-            i: 'Brisk walking at conversational pace, 60-70% max HR. Fat oxidation is highest here without cortisol spike.',
-          },
-          {
-            t: 'Hip flexor + pigeon stretch',
-            d: '5 min',
-            i: '90 sec each side. Non-optional - desk work makes hip flexors chronically tight.',
-          },
-        ],
-      },
-      {
-        slot: 'Day C',
-        type: 'Rest',
-        label: 'Rest or Gentle Yoga / Walk',
-        time: 'Optional - 20-30 min',
-        color: 'var(--muted2)',
-        solin:
-          'Rest is programmed. Solin explicitly builds in deload days - overtraining during menstruation raises cortisol and stalls fat loss.',
-        exs: [
-          {
-            t: 'Gentle yoga or stretching',
-            d: '20-30 min',
-            i: 'Any yin yoga sequence. Hips, lower back, hamstrings. Or a slow walk with your dog.',
-          },
-          {
-            t: 'Box breathing',
-            d: '5 min',
-            i: '4 sec in / 4 hold / 4 out / 4 hold. Activates parasympathetic system. Do before bed too.',
-          },
-        ],
-      },
-      {
-        slot: 'Day D',
-        type: 'Pilates',
-        label: 'Reformer / Mat Pilates - Session 2',
-        time: '60 min',
-        color: 'var(--purple)',
-        solin:
-          'Second Pilates session. Focus on lower body endurance - long holds build slow-twitch glute fibres that contribute to shape.',
-        exs: [
-          {
-            t: 'Spine articulation warm-up',
-            d: '3 min',
-            i: 'Roll down vertebra by vertebra. Roll up the same way. 6 reps.',
-          },
-          {
-            t: 'Leg press or wall sit',
-            d: '3x45 sec',
-            i: 'Full leg press with even weight. Or wall sit with heels pressed down for glute activation.',
-          },
-          {
-            t: 'Long box pulling straps',
-            d: '3x10',
-            i: 'Prone on reformer or floor. Arms extend overhead and pull back - back extension with lat activation.',
-          },
-          {
-            t: 'Side split / lateral lunge',
-            d: '3x12 each',
-            i: 'Wide lateral movement. Challenges hip abductors and inner thighs.',
-          },
-          {
-            t: 'Teaser prep',
-            d: '5 reps',
-            i: 'V-sit hold with arms parallel. Hold 3-5 sec each rep.',
-          },
-          { t: 'Spine stretch cool-down', d: '5 min', i: 'Full cool-down. Breath focus.' },
-        ],
-        altLabel: 'Home Alternative - Lower Body Endurance',
-        alts: [
-          {
-            t: 'Bodyweight sumo squat',
-            d: '3x20',
-            i: 'Wide stance, toes out 45 deg. Slow 3-sec descent. 5 lb DB at chest if desired.',
-          },
-          {
-            t: 'Reverse lunge with knee drive',
-            d: '3x12 each',
-            i: 'Step back, lower knee near floor, drive front knee up on return. Balance and control focus.',
-          },
-          {
-            t: 'Romanian deadlift',
-            d: '3x12 - 10 lb DBs',
-            i: 'Hinge at hips, feel hamstring stretch, drive hips forward. 3 sec eccentric.',
-          },
-          {
-            t: 'Standing hip abduction',
-            d: '3x15 each',
-            i: 'Stand on one leg, raise other laterally to hip height. Wall for balance. Glute med.',
-          },
-          {
-            t: 'Calf raises + ankle circles',
-            d: '2 min',
-            i: 'Circulation and ankle mobility. Important for lower body biomechanics.',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    week: 2,
-    label: 'Week 2 - Follicular Phase',
-    color: 'var(--green)',
-    note: 'Your strongest week. Rising estrogen improves neuromuscular recruitment, pain tolerance, and recovery. Push heavier, add reps, attempt PRs.',
-    nutr: "Metabolism is slightly lower - you may feel less hungry. Don't undereat. Hit ~1,380 kcal with protein emphasis. Muscle synthesis efficiency is highest right now.",
-    days: [
-      {
-        slot: 'Day A',
-        type: 'Home',
-        label: 'Solin Glute Build - Heavy Lower Body',
-        time: '55-60 min',
-        color: 'var(--green)',
-        solin:
-          'Directly from Glute Build and Shred: compound lift first, isolation superset, metabolic burnout. 3-1-1 tempo (3 sec down, 1 pause, 1 up).',
-        exs: [
-          {
-            t: 'Warm-up: hip activation circuit',
-            d: '8 min',
-            i: 'Glute bridge 20 > clamshell 15 each > donkey kick 10 each. Two rounds. Prime before loading.',
-          },
-          {
-            t: 'A1: Romanian Deadlift',
-            d: '4x10 - 10 lb DBs',
-            i: 'Hinge deep, feel full hamstring stretch, squeeze glutes hard at top. 3 sec eccentric. No rounding spine. Builds the hamstring-glute tie-in that creates the under-butt shape.',
-          },
-          {
-            t: 'A2: Sumo squat hold',
-            d: '4x30 sec - 5 lb DB',
-            i: 'Superset with RDL. Wide stance, toes out, goblet grip. Hold at bottom - isometric glute and inner thigh. Rest 60 sec between supersets.',
-          },
-          {
-            t: 'B1: Single-leg glute bridge',
-            d: '3x12 each - 5 lb DB',
-            i: '5 lb DB on working hip. Drive through heel, non-working leg extended. Full hip extension at top.',
-          },
-          {
-            t: 'B2: Lateral step with pause',
-            d: '3x15 each direction',
-            i: 'Superset with bridge. Step wide, hold at wide position 1 sec, step back. Glute med.',
-          },
-          {
-            t: 'C: Reverse lunge to curtsy lunge',
-            d: '3x10 each',
-            i: 'Metabolic finisher. Reverse lunge, return to stand, curtsy lunge same leg. Hits glute max, med, and hip abductors.',
-          },
-          {
-            t: 'Cool-down',
-            d: '8 min',
-            i: 'Pigeon 90 sec each, lying hamstring stretch, low lunge hip flexor, figure-4 glute stretch.',
-          },
-        ],
-      },
-      {
-        slot: 'Day B',
-        type: 'Pilates',
-        label: 'Reformer / Mat Pilates - Power and Control',
-        time: '60 min',
-        color: 'var(--green)',
-        solin:
-          'Follicular Pilates: push into harder variations. Your nervous system is primed. Attempt progressions you normally avoid.',
-        exs: [
-          { t: 'Roll-down + cat-cow warm-up', d: '3 min', i: '8 roll-downs, 10 cat-cows.' },
-          {
-            t: 'Reformer footwork - heavier spring',
-            d: '4 min',
-            i: 'Progress resistance. Heels to arches to toes to single leg if possible.',
-          },
-          {
-            t: 'Plank to pike',
-            d: '3x8',
-            i: 'From plank, pike hips up pressing through shoulders. Deep core and shoulder stability.',
-          },
-          {
-            t: 'Kneeling side kick series',
-            d: '3x12 each',
-            i: 'Kneeling on one knee, other leg extended. Kick forward and back. Glute med and lateral core.',
-          },
-          {
-            t: 'Swan / back extension',
-            d: '3x8',
-            i: 'Prone back extension. Builds posterior chain, counteracts desk-posture flexion.',
-          },
-          { t: 'Teaser', d: '3x5', i: 'Full V-sit roll-back and up. Bent-knee version if needed.' },
-          {
-            t: 'Spine stretch + mermaid cool-down',
-            d: '5 min',
-            i: 'Deep forward fold, lateral stretch, breathing.',
-          },
-        ],
-        altLabel: 'Home Alternative - Upper Body + Core',
-        alts: [
-          {
-            t: 'Push-up progression',
-            d: '4x10',
-            i: 'Full push-ups or incline on bed edge. Follicular peak - attempt full range. 3 sec eccentric.',
-          },
-          {
-            t: 'Bent-over row',
-            d: '3x12 - 10 lb DBs',
-            i: 'Hinge 45 deg, row elbows back and up, squeeze shoulder blades.',
-          },
-          {
-            t: 'Overhead press',
-            d: '3x10 - 5 lb DBs',
-            i: 'Seated. Press overhead, control the descent.',
-          },
-          {
-            t: 'Tricep kickback',
-            d: '3x12 - 3 lb DBs',
-            i: 'Hinge, upper arm parallel to floor, extend forearm back. Squeeze at full extension.',
-          },
-          {
-            t: 'Dead bug',
-            d: '3x10 each',
-            i: 'Lower opposite arm and leg to 2 inches from floor. Lower back stays imprinted.',
-          },
-          {
-            t: 'Hollow body hold',
-            d: '3x20 sec',
-            i: 'Arms by ears, legs low. Press lower back into floor.',
-          },
-        ],
-      },
-      {
-        slot: 'Day C',
-        type: 'Home',
-        label: 'Glute Shred Circuit - Solin Metabolic Style',
-        time: '45 min',
-        color: 'var(--green)',
-        solin:
-          'Directly from the Busy Girl Glute Guide: high-rep, short-rest circuits that keep heart rate elevated while targeting the glutes.',
-        exs: [
-          {
-            t: 'Warm-up: jumping jacks + hip swings',
-            d: '5 min',
-            i: '2 min jacks, 90 sec hip swings each side, 30 sec high knees.',
-          },
-          {
-            t: 'Circuit x4 rounds (45 sec on / 15 sec rest)',
-            d: '60 sec rest between rounds',
-            i: 'All 5 exercises back-to-back. Rest 60 sec between full rounds. The Solin shred format.',
-          },
-          {
-            t: 'Squat pulse',
-            d: '45 sec',
-            i: 'Bodyweight or 3 lb DBs. Sink to parallel, pulse 2 inches up-down.',
-          },
-          {
-            t: 'Glute bridge march',
-            d: '45 sec',
-            i: 'Hips up in bridge, alternate lifting knees to chest.',
-          },
-          {
-            t: 'Lateral lunge',
-            d: '45 sec alternating',
-            i: 'Step wide to each side, sit into the stepping leg. Inner thighs and glutes.',
-          },
-          {
-            t: 'Donkey kick',
-            d: '45 sec each side',
-            i: 'All fours. Drive heel to ceiling. Squeeze at top.',
-          },
-          {
-            t: 'Reverse lunge',
-            d: '45 sec alternating',
-            i: 'Step back, lower knee near floor. Drive through front heel. Add 3 lb DBs if manageable.',
-          },
-          { t: 'Cool-down', d: '7 min', i: "Pigeon, hamstring stretch, low lunge, child's pose." },
-        ],
-      },
-      {
-        slot: 'Day D',
-        type: 'Rest',
-        label: 'Active Recovery + Stretching',
-        time: '30 min',
-        color: 'var(--muted2)',
-        solin:
-          'Active recovery is programmed - not optional. Follicular allows faster recovery but skipping accumulates fatigue that blunts Week 3.',
-        exs: [
-          {
-            t: 'Dog walk or easy walk',
-            d: '20 min',
-            i: 'Zone 2 pace. NEAT - non-exercise activity thermogenesis - contributes meaningfully to weekly calorie burn.',
-          },
-          {
-            t: 'Full body stretch',
-            d: '10 min',
-            i: 'Hip flexors, hamstrings, glutes, upper back, chest. Hold each 45-60 sec.',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    week: 3,
-    label: 'Week 3 - Ovulatory to Luteal Phase',
-    color: 'var(--amber)',
-    note: 'Bridges ovulation (high energy) into early luteal (progesterone rising, recovery slower). First half: maintain intensity. Second half: moderate load, more isolation.',
-    nutr: "Metabolic rate rises ~100-200 kcal. Allow ~1,500 kcal on the 2 highest-intensity days. Don't restrict aggressively when progesterone peaks - it raises cortisol and impairs fat metabolism.",
-    days: [
-      {
-        slot: 'Day A',
-        type: 'Home',
-        label: 'Solin Glute Build - Moderate Load High Reps',
-        time: '55 min',
-        color: 'var(--amber)',
-        solin:
-          'Same Solin structure as Week 2 Day A - dial weights down one step, reps up. 10 lb to 5 lb, 12 reps to 15 reps.',
-        exs: [
-          {
-            t: 'Warm-up: glute activation',
-            d: '8 min',
-            i: 'Frog pumps 20, clamshell 15 each, fire hydrant 12 each.',
-          },
-          {
-            t: 'A1: Romanian Deadlift',
-            d: '4x15 - 5 lb DBs',
-            i: 'Lighter than Week 2, deeper stretch, more time under tension. 3 sec eccentric, 1 sec pause at bottom, 1 sec up.',
-          },
-          {
-            t: 'A2: Hip thrust hold',
-            d: '4x15 - 5 lb DB',
-            i: 'Upper back on sofa edge, 5 lb DB on hips. Full extension, 2 sec hold at top. Solin signature - hip thrust is the highest-EMG glute max exercise.',
-          },
-          {
-            t: 'B1: Sumo goblet squat',
-            d: '3x15 - 5 lb DB',
-            i: 'Wide stance, DB at chest. Slow descent, drive knees out, squeeze glutes at top.',
-          },
-          {
-            t: 'B2: Seated abduction',
-            d: '3x20',
-            i: 'Seated, push knees out against hands or 3 lb DBs on knees.',
-          },
-          {
-            t: 'C: Glute bridge to marching',
-            d: '3x20 total',
-            i: 'Hips up, hold, march knees alternately. Low impact, high glute endurance.',
-          },
-          {
-            t: 'Cool-down',
-            d: '8 min',
-            i: "Extended pigeon 2 min each, lying spinal twist, child's pose with breathing.",
-          },
-        ],
-      },
-      {
-        slot: 'Day B',
-        type: 'Pilates',
-        label: 'Reformer / Mat Pilates - Restore and Strengthen',
-        time: '60 min',
-        color: 'var(--amber)',
-        solin:
-          'Pilates perfectly placed in luteal phase - controlled, mindful movement that maintains training stimulus without high cortisol impact.',
-        exs: [
-          {
-            t: 'Breathing + spine articulation warm-up',
-            d: '5 min',
-            i: 'Ribcage breathing, full roll-down, cat-cow. Luteal phase benefits hugely from parasympathetic activation before exercise.',
-          },
-          {
-            t: 'Reformer footwork or wall series',
-            d: '5 min',
-            i: 'Standard footwork. Focus on even pressure through both feet.',
-          },
-          {
-            t: 'Hundred (modified)',
-            d: '3 sets',
-            i: 'Bent-knee version if lower back is tender. Progesterone can increase lower back sensitivity.',
-          },
-          {
-            t: 'Long stretch / plank variations',
-            d: '3x10',
-            i: 'Hold plank, add small pike. Focus on stability over speed.',
-          },
-          {
-            t: 'Side-lying glute series',
-            d: '3x15 each',
-            i: 'Leg lifts, circles, kick-backs. Glute med and minimus.',
-          },
-          { t: 'Elephant / forward fold', d: '5 reps', i: 'Deep hamstring and calf stretch.' },
-          {
-            t: "Rolling like a ball + child's pose cool-down",
-            d: '5 min',
-            i: 'Spinal massage, breath, parasympathetic activation.',
-          },
-        ],
-        altLabel: 'Home Alternative - Full Body Moderate + Core',
-        alts: [
-          {
-            t: 'Bodyweight squat to lateral raise',
-            d: '3x12 - 3 lb DBs',
-            i: 'Squat, stand, raise arms laterally to shoulder height. Controlled tempo.',
-          },
-          {
-            t: 'Single-leg Romanian deadlift',
-            d: '3x10 each - 5 lb DB',
-            i: 'Balance challenge. Hinge slowly, feel hamstring, return.',
-          },
-          {
-            t: 'Chest fly',
-            d: '3x12 - 3 lb DBs',
-            i: 'Lying on floor. Arms wide, slight elbow bend, bring together overhead.',
-          },
-          {
-            t: 'Bicycle crunch',
-            d: '3x20',
-            i: 'Slow controlled rotation. Elbow to opposite knee.',
-          },
-          {
-            t: 'Glute bridge with 5 lb DB',
-            d: '3x15',
-            i: 'Maintain glute stimulus even during the lower-intensity week.',
-          },
-        ],
-      },
-      {
-        slot: 'Day C',
-        type: 'Home',
-        label: 'Dumbbell Full Body + Glute Isolation Burnout',
-        time: '50 min',
-        color: 'var(--amber)',
-        solin:
-          "Solin's programme keeps glute isolation in every session - even 10 min of targeted work preserves hypertrophy stimulus.",
-        exs: [
-          {
-            t: 'Warm-up',
-            d: '5 min',
-            i: 'March in place 1 min, arm circles, leg swings, bodyweight squats 10 reps.',
-          },
-          {
-            t: 'Dumbbell deadlift',
-            d: '3x12 - 10 lb DBs',
-            i: 'Both DBs, conventional stance. Full hinge, neutral spine.',
-          },
-          {
-            t: 'Bent-over row',
-            d: '3x12 - 5 lb DBs',
-            i: 'Hinge 45 deg, elbows drive back and up. Targets lats and rhomboids.',
-          },
-          {
-            t: 'Overhead press',
-            d: '3x10 - 5 lb DBs',
-            i: 'Seated. Press overhead. Control the descent.',
-          },
-          {
-            t: 'Bicep to hammer curl',
-            d: '3x10 each - 3 lb DBs',
-            i: 'Standard curl then hammer curl. Light weights, high quality reps.',
-          },
-          {
-            t: 'GLUTE BURNOUT (Solin-style) - 3 rounds',
-            d: '90 sec rest between rounds',
-            i: 'These 4 exercises back-to-back, no rest within the round.',
-          },
-          {
-            t: '>> Frog pump',
-            d: '30 reps',
-            i: 'Soles together, hips pump up. Glute max from a shortened position.',
-          },
-          { t: '>> Donkey kick', d: '15 each - 3 lb DB', i: 'Heel to ceiling, hard squeeze.' },
-          { t: '>> Fire hydrant', d: '15 each', i: 'Knee out to hip height. Slow and controlled.' },
-          {
-            t: '>> Glute bridge march',
-            d: '20 total',
-            i: 'Hips up, alternate knees to chest. 10 each side.',
-          },
-          {
-            t: 'Cool-down',
-            d: '8 min',
-            i: "Pigeon, child's pose, supine spinal twist, box breathing.",
-          },
-        ],
-      },
-      {
-        slot: 'Day D',
-        type: 'Rest',
-        label: 'Rest Day + Self-Care',
-        time: 'Optional walk only',
-        color: 'var(--muted2)',
-        solin:
-          "Solin's guides are explicit: rest in late luteal is not weakness - it's programming. Cortisol + progesterone make overtraining especially harmful here.",
-        exs: [
-          {
-            t: 'Gentle dog walk',
-            d: '20 min',
-            i: "Low intensity. NEAT contribution - don't skip, but don't push.",
-          },
-          {
-            t: 'Yin yoga or stretching',
-            d: 'Optional 20 min',
-            i: "Hips, lower back, chest. Search 'yin yoga for PMS' on YouTube.",
-          },
-          {
-            t: 'Sleep priority',
-            d: 'Tonight',
-            i: 'Progesterone disrupts sleep in the luteal phase. Protect your 8 hours. No screens after 10 PM this week.',
-          },
-        ],
-      },
-    ],
-  },
+  buildWeek(
+    1,
+    'Week 1 - Menstrual (about cycle days 1-5)',
+    'var(--purple)',
+    "Train as normal if you feel fine - movement tends to ease cramps. On rough days drop 1 set from each exercise and keep the weights the same. Day 6 defaults to Pilates B. Don't skip Day 5's walk; a heat pack helps too.",
+    'Stick to ~1,380 kcal. Magnesium-rich foods (dark chocolate, walnuts, spinach) and iron sources (red meat, lentils, spinach with vitamin C) are useful this week.',
+    { main: 4, acc: 0, cue: 'Normal sets; drop one per exercise on rough days.', warmup: '5 min' },
+    { rounds: '4', work: '40s on / 20s off', pilatesFirst: true },
+  ),
+  buildWeek(
+    2,
+    'Week 2 - Follicular (about cycle days 6-13)',
+    'var(--green)',
+    'The push week. Add 1 set to the first lift on Days 1 and 4, aim for the top of every rep range, and try your hardest progressions: slower tempo, 1.5 reps, single-leg sliding curls. Day 6 at full intensity.',
+    "Hit ~1,380 kcal with protein at every meal. Don't undereat on the harder training days.",
+    { main: 5, acc: 0, cue: 'Push: top of the rep range, hardest progression.', warmup: '5 min' },
+    { rounds: '5', work: '40s on / 20s off', pilatesFirst: false },
+  ),
+  buildWeek(
+    3,
+    'Week 3 - Ovulation to early luteal (about cycle days 14-21)',
+    'var(--amber)',
+    "Keep Week 2's weights, sets and reps - no new jumps in difficulty. Spend 2-3 extra minutes warming up before Days 1 and 4 and keep knees tracking over toes on lunges and squats.",
+    'Energy needs rise slightly. Allow ~1,500 kcal on Days 1 and 4 by adding a protein serving.',
+    { main: 5, acc: 0, cue: 'Hold Week 2 loads; extra warm-up.', warmup: '8 min' },
+    { rounds: '4', work: '40s on / 20s off', pilatesFirst: false },
+  ),
+  buildWeek(
+    4,
+    'Week 4 - Late luteal (about cycle days 22-28)',
+    'var(--coral)',
+    'The maintain week. Same weights, 1 set fewer on everything - a built-in light week. Day 6 defaults to Pilates B, or 3 rounds of 30s on / 30s off. Hard cardio feels harder now because body temperature runs a bit higher.',
+    'Hunger often rises: go up to ~1,500 kcal with an extra protein serving rather than fighting it. Drink more water. Scale weight often reads higher this week from water - not fat.',
+    { main: 3, acc: -1, cue: 'Same weights, one set fewer.', warmup: '5 min' },
+    { rounds: '3', work: '30s on / 30s off', pilatesFirst: true },
+  ),
 ]
 
 // ── Male default full-body 3×/week template ──────────────────────
@@ -894,12 +743,18 @@ export const PLAN_NOTES: PlanNote[] = [
     icon: '📏',
     title: 'Measuring Progress',
     color: 'var(--teal)',
-    text: 'Weight fluctuates 1-2 kg across your cycle. Track: waist + hip measurements every 2 weeks, progress photos monthly in same lighting, strength benchmarks, energy quality. Scale in Week 3 often reads heavier from water retention - not fat gain.',
+    text: 'Weight fluctuates 1-2 kg across your cycle. Track: waist + hip measurements every 2 weeks, progress photos monthly in same lighting, strength benchmarks, energy quality. Scale in Week 4 (late luteal) often reads heavier from water retention - not fat gain.',
   },
   {
     icon: '🎯',
     title: 'Realistic Timeline',
     color: 'var(--coral)',
     text: 'At 0.4-0.5 kg/week fat loss: from 35% body fat, reaching ~28-30% takes approximately 12-16 weeks of consistent execution. Lean mass will be more visible, glutes will have grown, and energy should improve significantly.',
+  },
+  {
+    icon: '🔬',
+    title: 'Why the plan barely changes by phase',
+    color: 'var(--purple)',
+    text: 'Current reviews (Colenso-Semple 2023, McNulty 2020) find no reliable effect of cycle phase on strength or muscle growth - consistent training all month wins. What is supported: exercise eases period pain, body temperature runs higher in the luteal phase so hard cardio feels tougher, and hunger often rises before your period. So the structure stays the same and only sets, conditioning and swaps change. On hormonal birth control, follow Week 2 settings and adjust by how you feel.',
   },
 ]

@@ -1405,7 +1405,9 @@ describe('WorkoutsTab', () => {
   it('auth: clicking Week 3 shows week 3 content label', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: 'Week 3' }))
-    expect(screen.getByText('Week 3 - Ovulatory to Luteal Phase')).toBeInTheDocument()
+    expect(
+      screen.getByText('Week 3 - Ovulation to early luteal (about cycle days 14-21)'),
+    ).toBeInTheDocument()
   })
 
   it('auth: clicking back to Week 1 restores plan notes', () => {
@@ -1423,9 +1425,9 @@ describe('WorkoutsTab', () => {
 
   it('auth: clicking an ExerciseRow expands its instruction', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
-    const exerciseTitle = screen.getByText('Footwork series')
+    const exerciseTitle = screen.getByText('Frog pumps')
     fireEvent.click(exerciseTitle.closest('.exercise-row')!)
-    expect(screen.getByText(/Reformer footwork/i)).toBeInTheDocument()
+    expect(screen.getByText(/soles together, knees wide/i)).toBeInTheDocument()
   })
 
   it('auth: "+ Set up" button is shown when no stats saved', () => {
@@ -1482,7 +1484,7 @@ describe('WorkoutsTab', () => {
     expect(screen.getByText('105-115g/day')).toBeInTheDocument()
   })
 
-  it('auth with stats: shows 3-Week Rotating Cycle for irregular cycle type', () => {
+  it('auth with stats: shows 4-Week Cycle-Synced Plan for irregular cycle type', () => {
     ls['whub_body_stats_v1'] = JSON.stringify({
       weightKg: 58,
       bodyFatPct: 35,
@@ -1496,7 +1498,7 @@ describe('WorkoutsTab', () => {
       chronotype: 'late',
     })
     render(<WorkoutsTab user={FAKE_USER} />)
-    expect(screen.getByText('3-Week Rotating Cycle')).toBeInTheDocument()
+    expect(screen.getByText('4-Week Cycle-Synced Plan')).toBeInTheDocument()
   })
 
   it('auth with stats: "✎ Edit" button opens pre-filled form', () => {
@@ -1661,7 +1663,8 @@ describe('ProfileStatsCard — measurements', () => {
     fireEvent.click(screen.getByRole('button', { name: /\+ Set up/i }))
     expect(screen.getByText('Measurements')).toBeInTheDocument()
     expect(screen.getByText(/Waist/)).toBeInTheDocument()
-    expect(screen.getByText(/Glutes/)).toBeInTheDocument()
+    // day cards also mention glutes, so assert the label exists among them
+    expect(screen.getAllByText(/^Glutes/).length).toBeGreaterThan(0)
   })
 
   it('form defaults to cm unit and shows cm placeholders', () => {
@@ -1798,9 +1801,9 @@ describe('ProfileStatsCard — measurements', () => {
 
   it('auth: each day card has an exercise edit button (✎)', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
-    // Week 1 has 4 day cards, each with a ✎ edit button
+    // Week 1 has 7 day cards, each with a ✎ edit button
     const editBtns = screen.getAllByTitle('Edit exercises')
-    expect(editBtns.length).toBe(4)
+    expect(editBtns.length).toBe(7)
   })
 
   it('auth: clicking ✎ opens an edit panel with exercise inputs', () => {

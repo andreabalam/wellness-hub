@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { WORKOUT_PLAN, PLAN_NOTES, MALE_DEFAULT_PLAN } from '../../data/workouts'
+import {
+  WORKOUT_PLAN,
+  WORKOUT_PLAN_VERSION,
+  PLAN_NOTES,
+  MALE_DEFAULT_PLAN,
+} from '../../data/workouts'
 import type { Exercise, WorkoutWeek } from '../../data/workouts'
 import { bodyStatsStore, workoutPlanStore } from '../../hooks/useStore'
 import ProfileStatsCard from '../TrackerTab/ProfileStatsCard'
@@ -114,17 +119,23 @@ export default function WorkoutsTab({ user }: Props) {
   const isAuth = !!user
   const hasStats = isAuth && storedStats.weightKg > 0
 
-  const planData = isAuth ? (storedPlan?.planData ?? WORKOUT_PLAN) : MALE_DEFAULT_PLAN
+  // A stored plan saved before the current plan version is outdated - show the new built-in plan.
+  const storedIsCurrent = storedPlan?.planData?.[0]?.v === WORKOUT_PLAN_VERSION
+  const planData = isAuth
+    ? storedIsCurrent && storedPlan
+      ? storedPlan.planData
+      : WORKOUT_PLAN
+    : MALE_DEFAULT_PLAN
   const planGender = isAuth ? (storedPlan?.gender ?? 'female') : 'male'
 
   const safeWeek = Math.min(activeWeek, planData.length - 1)
   const wk = planData[safeWeek]
 
   const PHASES_FEMALE = [
-    { n: 'Week 1 - Menstrual', s: 'Low intensity, Pilates focus', c: 'var(--purple)' },
-    { n: 'Week 2 - Follicular', s: 'Build strength, peak energy', c: 'var(--green)' },
-    { n: 'Week 3 - Luteal', s: 'Moderate load, glute shred', c: 'var(--amber)' },
-    { n: 'Restart Week 1', s: 'When next period begins', c: 'var(--coral)' },
+    { n: 'Week 1 - Menstrual', s: 'Train as normal, drop a set on rough days', c: 'var(--purple)' },
+    { n: 'Week 2 - Follicular', s: 'Push week: add sets, top of rep ranges', c: 'var(--green)' },
+    { n: 'Week 3 - Ovulation', s: 'Hold loads, longer warm-up', c: 'var(--amber)' },
+    { n: 'Week 4 - Late luteal', s: 'Same weights, one set fewer', c: 'var(--coral)' },
   ]
 
   const startEdit = (weekIdx: number, dayIdx: number) => {
@@ -143,6 +154,7 @@ export default function WorkoutsTab({ user }: Props) {
     const filtered = draftExs.filter(e => e.t.trim())
     const newPlanData: WorkoutWeek[] = planData.map((wkk, wi) => ({
       ...wkk,
+      v: WORKOUT_PLAN_VERSION,
       days: wkk.days.map((day, di) => {
         if (wi === weekIdx && di === dayIdx) return { ...day, exs: filtered }
         return day
@@ -235,13 +247,14 @@ export default function WorkoutsTab({ user }: Props) {
         <ProfileStatsCard key={statsSeed} user={user} onSaved={() => setStatsSeed(n => n + 1)} />
       )}
 
-      {/* 3-week rotating cycle */}
+      {/* 4-week cycle-synced plan */}
       {isAuth && planGender === 'female' && storedStats.cycleType !== 'none' && (
         <div className="cycle-panel">
-          <div className="cycle-panel__label">3-Week Rotating Cycle</div>
+          <div className="cycle-panel__label">4-Week Cycle-Synced Plan</div>
           <div className="cycle-panel__body">
-            Restart at <strong className="text-default">Week 1</strong> whenever your period begins.
-            The plan mirrors the four hormonal phases without requiring you to track exact days.
+            Restart at <strong className="text-default">Week 1</strong> whenever your period begins
+            (cycle day 1). Same 7-day structure all month - each phase only adjusts sets,
+            conditioning and swaps.
           </div>
           <div className="cycle-phases-grid">
             {PHASES_FEMALE.map(p => (
@@ -297,7 +310,8 @@ export default function WorkoutsTab({ user }: Props) {
         {/* Day cards */}
         <div className="day-cards-grid">
           {wk.days.map((day, dayIdx) => {
-            const typeIcon = { Home: '🏠', Pilates: '🧘', Rest: '😴' }[day.type] ?? '💪'
+            const typeIcon =
+              { Home: '🏠', Pilates: '🧘', Rest: '😴', Recovery: '🚶' }[day.type] ?? '💪'
             const hasExercises = day.exs.length > 0
             const key = `${safeWeek}-${dayIdx}`
             const isEditing = editKey === key
@@ -391,7 +405,7 @@ export default function WorkoutsTab({ user }: Props) {
                       )}
                       {day.alts && day.alts.length > 0 && (
                         <div className="alt-block">
-                          <div className="alt-block__label">If no Pilates available</div>
+                          <div className="alt-block__label">Swap option</div>
                           <div className="alt-block__title">{day.altLabel}</div>
                           {day.alts.map((ex, ei) => (
                             <ExerciseRow key={ei} ex={ex} idx={ei} color={day.color} size="small" />
