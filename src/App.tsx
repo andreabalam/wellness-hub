@@ -1,15 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import type { User } from '@supabase/supabase-js'
-import WorkoutsTab from './components/WorkoutsTab'
-import RecipesTab from './components/RecipesTab'
 import type { OpenRecipeRequest } from './components/RecipesTab'
-import TrackerTab from './components/TrackerTab'
 import TodayTab from './components/TodayTab'
-import InsightsTab from './components/InsightsTab'
 import UpdatePrompt from './components/UpdatePrompt'
 import AuthButton from './components/AuthButton'
 import ErrorBoundary from './components/ErrorBoundary'
 import SharedRecipeView from './components/SharedRecipeView'
+// Today is the home tab and ships in the main bundle; the rest load on first
+// visit so the initial download is just what Today needs.
+const WorkoutsTab = lazy(() => import('./components/WorkoutsTab'))
+const RecipesTab = lazy(() => import('./components/RecipesTab'))
+const TrackerTab = lazy(() => import('./components/TrackerTab'))
+const InsightsTab = lazy(() => import('./components/InsightsTab'))
 import { parseShareRoute } from './lib/recipeShare'
 import { supabase } from './lib/supabase'
 import { consumeOAuthCallback } from './lib/oura'
@@ -64,6 +66,15 @@ export default function App() {
   const [active, setActive] = useState<Tab>(_initialTab)
   // Food tab: the day's log or the recipe library (with grocery list)
   const [foodView, setFoodView] = useState<FoodView>('log')
+  // Train and Recipes mount on first visit, then stay mounted so their state
+  // (workout in progress, recipe search/filters) survives tab switches.
+  // Adjusted during render, not in an effect, so the first visit renders once.
+  const trainShown = active === 'workouts'
+  const recipesShown = active === 'food' && foodView === 'recipes'
+  const [mounted, setMounted] = useState({ train: trainShown, recipes: recipesShown })
+  if ((trainShown && !mounted.train) || (recipesShown && !mounted.recipes)) {
+    setMounted(m => ({ train: m.train || trainShown, recipes: m.recipes || recipesShown }))
+  }
   // Day viewed in Today and Food — shared so switching tabs keeps the same day
   const [dayDate, setDayDate] = useState(() => {
     const d = new Date()
@@ -409,7 +420,11 @@ export default function App() {
           hidden={active !== 'workouts'}
           className={`view${active === 'workouts' ? ' active' : ''}`}
         >
-          <WorkoutsTab user={user} />
+          {mounted.train && (
+            <Suspense fallback={null}>
+              <WorkoutsTab user={user} />
+            </Suspense>
+          )}
         </div>
       </ErrorBoundary>
       {/* Today and Food mount only while active (date calculations on load) */}
@@ -456,17 +471,23 @@ export default function App() {
             ))}
           </div>
           {active === 'food' && foodView === 'log' && (
-            <TrackerTab
-              key={syncVersion}
-              user={user}
-              onOpenRecipe={openRecipe}
-              date={dayDate}
-              onDateChange={setDayDate}
-            />
+            <Suspense fallback={null}>
+              <TrackerTab
+                key={syncVersion}
+                user={user}
+                onOpenRecipe={openRecipe}
+                date={dayDate}
+                onDateChange={setDayDate}
+              />
+            </Suspense>
           )}
-          {/* Recipes stay mounted (search, filters and open cards survive switching) */}
+          {/* Recipes stay mounted once opened (search, filters and open cards survive switching) */}
           <div hidden={foodView !== 'recipes'}>
-            <RecipesTab user={user} openRequest={recipeOpenReq} syncVersion={syncVersion} />
+            {mounted.recipes && (
+              <Suspense fallback={null}>
+                <RecipesTab user={user} openRequest={recipeOpenReq} syncVersion={syncVersion} />
+              </Suspense>
+            )}
           </div>
         </div>
       </ErrorBoundary>
@@ -480,7 +501,11 @@ export default function App() {
           className={`view${active === 'insights' ? ' active' : ''}`}
         >
           {/* Mounted only while active: roll-ups read every tracker day */}
-          {active === 'insights' && <InsightsTab key={syncVersion} user={user} />}
+          {active === 'insights' && (
+            <Suspense fallback={null}>
+              <InsightsTab key={syncVersion} user={user} />
+            </Suspense>
+          )}
         </div>
       </ErrorBoundary>
 

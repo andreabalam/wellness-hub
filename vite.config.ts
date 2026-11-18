@@ -72,6 +72,27 @@ export default defineConfig({
     }),
   ],
   base: '/wellness-hub/',
+  build: {
+    // Main chunk budget (kB, minified). Vendors are split out below, so this
+    // tracks app code + whatever the Today tab pulls in eagerly.
+    chunkSizeWarningLimit: 300,
+    rolldownOptions: {
+      output: {
+        // Vendor code changes far less often than app code: separate chunks
+        // stay cached across deploys instead of re-downloading with every fix.
+        codeSplitting: {
+          groups: [
+            {
+              name: 'react',
+              test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+              priority: 20,
+            },
+            { name: 'supabase', test: /node_modules[\\/]@supabase[\\/]/, priority: 10 },
+          ],
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,

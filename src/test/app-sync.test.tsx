@@ -108,7 +108,14 @@ beforeEach(() => {
     },
     clear: () => Object.keys(ls).forEach(k => delete ls[k]),
   })
-  vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:mock'), revokeObjectURL: vi.fn() })
+  // Keep URL a real constructor (module loading needs it); stub only the blob helpers
+  vi.stubGlobal(
+    'URL',
+    Object.assign(class extends URL {}, {
+      createObjectURL: vi.fn(() => 'blob:mock'),
+      revokeObjectURL: vi.fn(),
+    }),
+  )
   vi.stubGlobal(
     'confirm',
     vi.fn(() => true),

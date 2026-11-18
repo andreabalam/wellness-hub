@@ -375,6 +375,14 @@ export default function WorkoutsTab({ user }: Props) {
       wkSessions: sessions,
       workout: sessions[0]?.type ?? null,
     })
+    // Keep the plan row open so its "✓ Logged" chip is what you see next
+    // (it was open only because the workout was in progress).
+    const ref = draft.planRef
+    if (ref) {
+      const wi = planData.findIndex(w => w.week === ref.week)
+      const di = wi >= 0 ? planData[wi].days.findIndex(d => d.slot === ref.slot) : -1
+      if (di >= 0) setDayOpen(o => ({ ...o, [`${wi}-${di}`]: true }))
+    }
     const sum = loggedSummary(exercises)
     setDraft(null)
     setLoggerOpen(false)

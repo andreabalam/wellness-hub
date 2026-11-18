@@ -1,4 +1,3 @@
-import Tesseract from 'tesseract.js'
 import { supabase } from './supabase'
 import { functionErrorMessage } from './functionError'
 
@@ -120,7 +119,10 @@ export async function analyzeImage(
   try {
     const {
       data: { text },
-    } = await Tesseract.recognize(resized ? dataURLtoBlob(resized) : file, 'eng')
+    } = await (
+      await import('tesseract.js')
+    ).default // ~400 kB: load OCR only when a label is scanned
+      .recognize(resized ? dataURLtoBlob(resized) : file, 'eng')
     ocrText = text
   } catch (err) {
     console.error('[analyzeFood] OCR failed — treating as food photo:', err)

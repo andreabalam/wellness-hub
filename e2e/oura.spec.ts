@@ -72,11 +72,11 @@ test.describe('Oura (in Insights) — authenticated, no token', () => {
       if (req.url().includes('ouraring.com/oauth/authorize')) redirected = true
     })
 
+    // Insights loads on demand — wait for the button before the timed check
+    const connect = page.getByRole('button', { name: /Connect with Oura/i })
+    await expect(connect).toBeVisible()
     // Don't await — navigation away from app is expected
-    page
-      .getByRole('button', { name: /Connect with Oura/i })
-      .click()
-      .catch(() => {})
+    connect.click().catch(() => {})
     // Give the redirect a moment to fire
     await page.waitForTimeout(500)
 
