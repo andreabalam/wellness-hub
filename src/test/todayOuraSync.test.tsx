@@ -21,7 +21,7 @@ vi.mock('../lib/oura', async importOriginal => {
 import * as oura from '../lib/oura'
 import TodayTab from '../components/TodayTab'
 import { trackerStore } from '../hooks/useStore'
-import { dkey } from '../components/TrackerTab/dateKey'
+import { dkey } from '../lib/dateKey'
 
 const mockOura = oura as unknown as Record<string, ReturnType<typeof vi.fn>>
 const USER = { id: 'u1' } as User

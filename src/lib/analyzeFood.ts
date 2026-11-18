@@ -1,5 +1,5 @@
-import Tesseract from 'tesseract.js'
 import { supabase } from './supabase'
+import { functionErrorMessage } from './functionError'
 
 export interface PhotoAnalysisResult {
   name: string
@@ -119,7 +119,10 @@ export async function analyzeImage(
   try {
     const {
       data: { text },
-    } = await Tesseract.recognize(resized ? dataURLtoBlob(resized) : file, 'eng')
+    } = await (
+      await import('tesseract.js')
+    ).default // ~400 kB: load OCR only when a label is scanned
+      .recognize(resized ? dataURLtoBlob(resized) : file, 'eng')
     ocrText = text
   } catch (err) {
     console.error('[analyzeFood] OCR failed — treating as food photo:', err)
@@ -152,13 +155,7 @@ export async function analyzeImage(
 
   if (error) {
     // FunctionsHttpError carries the Response in .context — surface the server's reason
-    let detail = ''
-    try {
-      const ctx = (error as { context?: Response }).context
-      detail = ((await ctx?.json()) as { error?: string } | undefined)?.error ?? ''
-    } catch {
-      /* no JSON body */
-    }
+    const detail = await functionErrorMessage(error, '')
     console.error('[analyzeFood] analyze-food-photo failed:', error, detail)
     throw new Error(
       detail

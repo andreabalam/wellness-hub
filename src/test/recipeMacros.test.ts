@@ -5,12 +5,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('../lib/supabase', () => ({ supabase: null }))
 
 import { parseIngredientAmount } from '../lib/ingredientAmount'
-import {
-  computeRecipeMacros,
-  makeCachedUsdaLookup,
-  USDA_CACHE_KEY,
-  type Per100gLookup,
-} from '../lib/recipeMacros'
+import { computeRecipeMacros, makeCachedUsdaLookup, type Per100gLookup } from '../lib/recipeMacros'
+import { USDA_CACHE_KEY } from '../lib/storageKeys'
 import { searchUSDAPer100g, type UsdaPer100g } from '../lib/foodSearch'
 
 // ── localStorage mock (project convention — jsdom storage is not stubbed globally) ──

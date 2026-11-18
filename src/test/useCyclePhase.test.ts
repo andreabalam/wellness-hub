@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { OuraEnhancedTag, OuraReadiness } from '../lib/oura'
-import { dkey } from '../components/TrackerTab/dateKey'
+import { dkey } from '../lib/dateKey'
 
 const fetchOuraTags = vi.fn<(s: string, e: string) => Promise<OuraEnhancedTag[]>>()
 const fetchOuraReadinessRange = vi.fn<(s: string, e: string) => Promise<OuraReadiness[]>>()
@@ -12,7 +12,8 @@ vi.mock('../lib/oura', async importOriginal => ({
   fetchOuraReadinessRange: (s: string, e: string) => fetchOuraReadinessRange(s, e),
 }))
 
-const { useCyclePhase, CYCLE_CACHE_KEY } = await import('../hooks/useCyclePhase')
+const { useCyclePhase } = await import('../hooks/useCyclePhase')
+const { CYCLE_CACHE_KEY } = await import('../lib/storageKeys')
 
 const ls: Record<string, string> = {}
 

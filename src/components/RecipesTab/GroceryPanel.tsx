@@ -6,8 +6,7 @@ import { useGroceryStore, useGroceryCatalogStore } from '../../hooks/useStore'
 import { searchUSDA } from '../../lib/foodSearch'
 import { safeHas, safeSet } from '../../lib/storage'
 import { InlineEdit } from '../common'
-
-const SEEDED_KEY = 'whub_grocery_initialized_v1'
+import { SEEDED_KEY } from '../../lib/storageKeys'
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`

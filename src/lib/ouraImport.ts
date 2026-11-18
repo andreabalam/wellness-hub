@@ -26,9 +26,9 @@ import {
 } from './oura'
 import { safeGet, safeSet } from './storage'
 import { keepLoggedSets } from './workoutLog'
+import { addDaysToKey, fromKey } from './dateKey'
+import { IMPORT_STAMP_KEY, TOMBSTONE_KEY } from './storageKeys'
 
-const IMPORT_STAMP_KEY = 'whub_oura_import_v1' // Record<date, { wk?: number; med?: number }>
-const TOMBSTONE_KEY = 'whub_oura_dismissed_v1' // Record<date, string[]>
 const IMPORT_TTL_MS = 30 * 60 * 1000
 
 // ── Mapping ──────────────────────────────────────────────────────
@@ -110,7 +110,7 @@ export function dismissOuraSession(date: string, id: string): void {
 type ImportKind = 'wk' | 'med'
 
 function isRecentDate(date: string, now: number): boolean {
-  const d = new Date(date + 'T12:00:00')
+  const d = fromKey(date)
   const ageDays = (now - d.getTime()) / 86_400_000
   return ageDays < 2 // today or yesterday — Oura may still add data
 }
@@ -160,11 +160,7 @@ export async function importOuraWorkouts(
   return sessionsChanged(existing, merged) ? merged : null
 }
 
-function nextDay(date: string): string {
-  const d = new Date(date + 'T12:00:00')
-  d.setDate(d.getDate() + 1)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+const nextDay = (date: string) => addDaysToKey(date, 1)
 
 /**
  * Backfill Oura workouts for a date range with a single request, so history

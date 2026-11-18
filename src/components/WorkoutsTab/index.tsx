@@ -28,17 +28,16 @@ import type { WorkoutDraft } from '../../lib/workoutLog'
 import { dayWorkoutSessions, workoutSessionLabel } from '../../data/tracker'
 import type { DayData, WorkoutSession } from '../../data/tracker'
 import type { WorkoutDay } from '../../data/workouts'
-import { dkey } from '../TrackerTab/dateKey'
+import { dkey } from '../../lib/dateKey'
 import CycleToday from './CycleToday'
 import TrainDay from './TrainDay'
 import WorkoutLogger from './WorkoutLogger'
 import { importOuraWorkoutHistory } from '../../lib/ouraImport'
 import TrainHistory from './TrainHistory'
+import { DRAFT_KEY, HISTORY_SYNC_KEY } from '../../lib/storageKeys'
 
 /** The workout in progress — survives closing the logger or the app. */
-const DRAFT_KEY = 'whub_workout_draft_v1'
 /** Last Oura history backfill (ms) — at most once a day */
-const HISTORY_SYNC_KEY = 'whub_oura_history_sync_v1'
 const HISTORY_SYNC_MS = 24 * 60 * 60 * 1000
 const HISTORY_DAYS = 84
 
@@ -141,6 +140,9 @@ function ExerciseEditRow({
     </div>
   )
 }
+
+/** Id for a manually logged session (called from event handlers only). */
+const newManualSessionId = () => `manual-${Date.now()}`
 
 // ── Log / resume button + "logged today" chip on a day card ──────
 
@@ -362,7 +364,7 @@ export default function WorkoutsTab({ user }: Props) {
       return
     }
     const sessions = attachLoggedWorkout(dayWorkoutSessions(day), {
-      id: `manual-${Date.now()}`,
+      id: newManualSessionId(),
       src: 'manual',
       type: draft.type,
       label: draft.title,
@@ -375,6 +377,14 @@ export default function WorkoutsTab({ user }: Props) {
       wkSessions: sessions,
       workout: sessions[0]?.type ?? null,
     })
+    // Keep the plan row open so its "✓ Logged" chip is what you see next
+    // (it was open only because the workout was in progress).
+    const ref = draft.planRef
+    if (ref) {
+      const wi = planData.findIndex(w => w.week === ref.week)
+      const di = wi >= 0 ? planData[wi].days.findIndex(d => d.slot === ref.slot) : -1
+      if (di >= 0) setDayOpen(o => ({ ...o, [`${wi}-${di}`]: true }))
+    }
     const sum = loggedSummary(exercises)
     setDraft(null)
     setLoggerOpen(false)

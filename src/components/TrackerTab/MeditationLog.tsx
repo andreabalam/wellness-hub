@@ -5,7 +5,7 @@ import { dismissOuraSession, importOuraMeditations } from '../../lib/ouraImport'
 import { showToast } from '../../lib/toast'
 import { reportError } from '../../lib/errorLog'
 import { MedSessionList } from './SessionList'
-import { dkey } from './dateKey'
+import { dkey } from '../../lib/dateKey'
 
 interface Props {
   /** Persisted sessions for the day (reactive; legacy days pre-synthesized by the parent). */

@@ -29,10 +29,14 @@ beforeEach(() => {
     },
     clear: () => Object.keys(ls).forEach(k => delete ls[k]),
   })
-  vi.stubGlobal('URL', {
-    createObjectURL: vi.fn(() => 'blob:mock'),
-    revokeObjectURL: vi.fn(),
-  })
+  // Keep URL a real constructor (module loading needs it); stub only the blob helpers
+  vi.stubGlobal(
+    'URL',
+    Object.assign(class extends URL {}, {
+      createObjectURL: vi.fn(() => 'blob:mock'),
+      revokeObjectURL: vi.fn(),
+    }),
+  )
   vi.stubGlobal(
     'confirm',
     vi.fn(() => true),
@@ -3483,27 +3487,33 @@ describe('App', () => {
     expect(screen.getByText(/Sign in to see/i)).toBeInTheDocument()
   })
 
-  it('WorkoutsTab is always rendered (guest template heading visible)', () => {
+  it('Train loads on first visit, then stays mounted when hidden', async () => {
     render(<App />)
+    expect(screen.queryByText(/3×\/week Template/i)).toBeNull() // not loaded on Today
+    fireEvent.click(screen.getByRole('tab', { name: 'Train' }))
     // Without a signed-in user, App renders the guest male template
-    expect(screen.getByText(/3×\/week Template/i)).toBeInTheDocument()
+    expect(await screen.findByText(/3×\/week Template/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Today' }))
+    expect(screen.getByText(/3×\/week Template/i)).not.toBeVisible() // kept, just hidden
   })
 
-  it('clicking Recipes tab shows sign-in gate when not authenticated', () => {
+  it('clicking Recipes tab shows sign-in gate when not authenticated', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('tab', { name: 'Food' }))
     fireEvent.click(screen.getByRole('tab', { name: 'Recipes & grocery' }))
-    expect(screen.getByText(/Create, save and organise your personal recipes/i)).toBeInTheDocument()
+    expect(
+      await screen.findByText(/Create, save and organise your personal recipes/i),
+    ).toBeInTheDocument()
     expect(screen.queryByPlaceholderText('Search recipes, ingredients…')).not.toBeInTheDocument()
   })
 
-  it('clicking Train tab preserves week navigation', () => {
+  it('clicking Train tab preserves week navigation', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('tab', { name: 'Train' }))
-    expect(screen.getByRole('button', { name: 'Week 1' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Week 1' })).toBeInTheDocument()
   })
 
-  it('Food switches between the log and recipes; Insights shows its gate', () => {
+  it('Food switches between the log and recipes; Insights shows its gate', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('tab', { name: 'Food' }))
     const log = screen.getByRole('tab', { name: 'Log' })
@@ -3514,9 +3524,9 @@ describe('App', () => {
       'true',
     )
     fireEvent.click(log)
-    expect(screen.getByText(/Sign in to use/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Sign in to use/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Insights' }))
-    expect(screen.getByText(/Sign in to see/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Sign in to see/i)).toBeInTheDocument()
   })
 
   it('clicking Food tab shows its auth gate when not signed in', () => {
@@ -4220,6 +4230,17 @@ describe('TodayTab', () => {
     expect(screen.getByText('Nothing logged')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open Train →' }))
     expect(onOpenTrain).toHaveBeenCalled()
+  })
+
+  it('still heads with Today in the evening (day key is local, not UTC)', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 17, 17, 30)) // UTC is already the 18th in the Americas
+    try {
+      renderToday()
+      expect(screen.getByText('Today')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows the day timeline and opens the full schedule', async () => {

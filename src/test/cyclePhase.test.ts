@@ -8,6 +8,7 @@ import {
   detectTempShift,
 } from '../lib/cyclePhase'
 import type { TempReading } from '../lib/cyclePhase'
+import { dkey } from '../lib/dateKey'
 import { EMPTY_DAY } from '../data/tracker'
 import type { DayData } from '../data/tracker'
 
@@ -18,7 +19,7 @@ function series(end: string, devs: number[]): TempReading[] {
   const endMs = new Date(end + 'T12:00:00').getTime()
   return devs.map((dev, i) => {
     const d = new Date(endMs - (devs.length - 1 - i) * 86_400_000)
-    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const date = dkey(d)
     return { date, dev }
   })
 }

@@ -5,9 +5,9 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const getUser = vi.fn()
+const getSession = vi.fn()
 vi.mock('../lib/supabase', () => ({
-  supabase: { auth: { getUser: (...a: unknown[]) => getUser(...a) } },
+  supabase: { auth: { getSession: (...a: unknown[]) => getSession(...a) } },
   isConfigured: true,
 }))
 
@@ -21,6 +21,9 @@ vi.mock('../lib/sync', () => ({
   upsertUserSettings: vi.fn().mockResolvedValue(undefined),
   upsertUserBodyStats: vi.fn().mockResolvedValue(undefined),
   upsertUserWorkoutPlan: vi.fn().mockResolvedValue(undefined),
+  pushMedGuides: vi.fn().mockResolvedValue(undefined),
+  fetchUserRecipes: vi.fn().mockResolvedValue([]),
+  upsertUserRecipe: vi.fn().mockResolvedValue(99),
   pushErrorLog: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -44,11 +47,13 @@ beforeEach(() => {
     clear: () => Object.keys(ls).forEach(k => delete ls[k]),
   })
   vi.clearAllMocks()
-  getUser.mockResolvedValue({ data: { user: { id: 'u-1' } } })
+  signedIn()
 })
 afterEach(() => vi.unstubAllGlobals())
 
 const flush = () => new Promise(r => setTimeout(r, 0))
+const signedIn = () => getSession.mockResolvedValue({ data: { session: { user: { id: 'u-1' } } } })
+const signedOut = () => getSession.mockResolvedValue({ data: { session: null } })
 
 describe('store tryPush callbacks (signed in)', () => {
   it('pushes a tracker day on setDay', async () => {
@@ -99,10 +104,159 @@ describe('store tryPush callbacks (signed in)', () => {
     expect(store.syncStatusStore.isPending()).toBe(true)
   })
 
-  it('handles getUser throwing without surfacing', async () => {
-    getUser.mockRejectedValue(new Error('no auth'))
+  it('handles getSession throwing without surfacing', async () => {
+    getSession.mockRejectedValue(new Error('no auth'))
     expect(() => store.groceryStore.toggle('Beans')).not.toThrow()
     await flush()
+  })
+})
+
+describe('dirty records (unconfirmed local edits)', () => {
+  const day = { ...EMPTY_DAY, foods: [] }
+
+  it('clears a day once its push is confirmed', async () => {
+    store.trackerStore.setDay('2026-06-15', day)
+    expect(store.dirtyStore.has('2026-06-15')).toBe(true)
+    await flush()
+    expect(store.dirtyStore.has('2026-06-15')).toBe(false)
+  })
+
+  it('keeps a day dirty when the push fails', async () => {
+    mockSync['pushDay'].mockRejectedValueOnce(new Error('offline'))
+    store.trackerStore.setDay('2026-06-15', day)
+    await flush()
+    await flush()
+    expect(store.dirtyStore.has('2026-06-15')).toBe(true)
+  })
+
+  it('keeps a day dirty while signed out', async () => {
+    signedOut()
+    store.trackerStore.setDay('2026-06-15', day)
+    await flush()
+    expect(mockSync['pushDay']).not.toHaveBeenCalled()
+    expect(store.dirtyStore.has('2026-06-15')).toBe(true)
+  })
+
+  it("a slow push of an older write doesn't clear a newer write's mark", async () => {
+    let resolveFirst!: () => void
+    mockSync['pushDay'].mockImplementationOnce(() => new Promise<void>(r => (resolveFirst = r)))
+    mockSync['pushDay'].mockRejectedValueOnce(new Error('offline'))
+    store.trackerStore.setDay('2026-06-15', day) // slow push
+    await flush()
+    store.trackerStore.setDay('2026-06-15', { ...day, notes: 'newer' }) // fails
+    await flush()
+    resolveFirst()
+    await flush()
+    expect(store.dirtyStore.has('2026-06-15')).toBe(true)
+  })
+
+  it('importFromRemote keeps dirty settings, body stats and plan', async () => {
+    signedOut()
+    store.bodyStatsStore.set({ weightKg: 61 })
+    store.userSettingsStore.set({ kcalTarget: 1800 })
+    store.workoutPlanStore.set({ days: [], gender: 'female' } as never)
+    store.bodyStatsStore.importFromRemote({ ...store.bodyStatsStore.get(), weightKg: 70 })
+    store.userSettingsStore.importFromRemote({ ...store.userSettingsStore.get(), kcalTarget: 2500 })
+    store.workoutPlanStore.importFromRemote({ days: [], gender: 'male' } as never)
+    expect(store.bodyStatsStore.get().weightKg).toBe(61)
+    expect(store.userSettingsStore.get().kcalTarget).toBe(1800)
+    expect(store.workoutPlanStore.get()!.gender).toBe('female')
+  })
+
+  it('importFromRemote overwrites once the local edit is confirmed', async () => {
+    store.bodyStatsStore.set({ weightKg: 61 })
+    await flush()
+    store.bodyStatsStore.importFromRemote({ ...store.bodyStatsStore.get(), weightKg: 70 })
+    expect(store.bodyStatsStore.get().weightKg).toBe(70)
+  })
+
+  it('med guides push through the store and are tracked', async () => {
+    signedOut()
+    store.medGuidesStore.save([{ title: 'A', url: 'https://example.com' }])
+    expect(store.medGuidesStore.get()).toEqual([{ title: 'A', url: 'https://example.com' }])
+    expect(store.dirtyStore.has(store.DIRTY_MED_GUIDES)).toBe(true)
+    signedIn()
+    store.medGuidesStore.save([])
+    await flush()
+    expect(mockSync['pushMedGuides']).toHaveBeenCalledWith('u-1', [])
+    expect(store.dirtyStore.has(store.DIRTY_MED_GUIDES)).toBe(false)
+  })
+})
+
+describe('syncCustomRecipes', () => {
+  const recipe = (id: number, name: string) =>
+    ({
+      id,
+      name,
+      cat: 'meal',
+      type: 'Meal',
+      color: '',
+      sc: '',
+      tag: '',
+      prepL: '',
+      prepC: '',
+      hk: 0,
+      hp: '',
+      hc: '',
+      hf: '',
+      mk: 0,
+      mp: '',
+      mc: '',
+      mf: '',
+      ings: [],
+      steps: [],
+      tip: '',
+      custom: true,
+    }) as never
+  const names = () => store.recipeStore.getRecipes().map(r => `${r.id}:${r.name}`)
+
+  it('pulls DB recipes, pushes never-synced ones and adopts their DB id', async () => {
+    store.recipeStore.saveRecipes([recipe(1.7e12, 'Local only')])
+    mockSync['fetchUserRecipes'].mockResolvedValue([recipe(2, 'From DB')])
+    mockSync['upsertUserRecipe'].mockResolvedValue(7)
+    expect(await store.syncCustomRecipes('u-1')).toBe(true)
+    expect(mockSync['upsertUserRecipe']).toHaveBeenCalledWith(
+      'u-1',
+      expect.objectContaining({ name: 'Local only' }),
+    )
+    expect(names().sort()).toEqual(['2:From DB', '7:Local only'])
+  })
+
+  it('prunes a synced recipe deleted on another device', async () => {
+    store.recipeStore.saveRecipes([recipe(3, 'Deleted elsewhere'), recipe(2, 'Kept')])
+    mockSync['fetchUserRecipes'].mockResolvedValue([recipe(2, 'Kept')])
+    await store.syncCustomRecipes('u-1')
+    expect(names()).toEqual(['2:Kept'])
+  })
+
+  it('leaves local recipes untouched when the pull fails', async () => {
+    store.recipeStore.saveRecipes([recipe(3, 'Synced earlier')])
+    mockSync['fetchUserRecipes'].mockRejectedValue(new Error('offline'))
+    expect(await store.syncCustomRecipes('u-1')).toBe(false)
+    expect(names()).toEqual(['3:Synced earlier'])
+  })
+
+  it('reports a failed push and keeps the placeholder for a retry', async () => {
+    store.recipeStore.saveRecipes([recipe(1.7e12, 'Local only')])
+    mockSync['fetchUserRecipes'].mockResolvedValue([])
+    mockSync['upsertUserRecipe'].mockResolvedValue(null)
+    expect(await store.syncCustomRecipes('u-1')).toBe(false)
+    expect(names()).toEqual(['1700000000000:Local only'])
+  })
+
+  it('keeps a recipe saved locally while pushes were in flight', async () => {
+    store.recipeStore.saveRecipes([recipe(1.7e12, 'Pushing')])
+    mockSync['fetchUserRecipes'].mockResolvedValue([])
+    let resolvePush!: (id: number) => void
+    mockSync['upsertUserRecipe'].mockImplementation(
+      () => new Promise<number>(r => (resolvePush = r)),
+    )
+    const done = store.syncCustomRecipes('u-1')
+    await flush() // pull done, push pending
+    store.recipeStore.addRecipe(recipe(1.8e12, 'Saved mid-sync'))
+    resolvePush(5)
+    expect(await done).toBe(true)
+    expect(names()).toEqual(['5:Pushing', '1800000000000:Saved mid-sync'])
   })
 })
 

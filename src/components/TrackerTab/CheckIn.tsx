@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import StarRow from './StarRow'
-import { dkey } from './dateKey'
+import { dkey } from '../../lib/dateKey'
 import { fetchOuraSleep, fetchOuraStress, sleepScoreToStars, stressToScale } from '../../lib/oura'
 
 interface Props {

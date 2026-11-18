@@ -18,6 +18,7 @@
  * Everything here is pure — callers fetch tags/temps and pass them in.
  */
 import type { DayData } from '../data/tracker'
+import { addDaysToKey, daysBetweenKeys } from './dateKey'
 
 export interface CycleAnchor {
   date: string // YYYY-MM-DD period start
@@ -43,23 +44,12 @@ export interface TempReading {
   dev: number
 }
 
-const DAY_MS = 86_400_000
 const DEFAULT_CYCLE_LEN = 28
 const MIN_CYCLE_LEN = 21
 const MAX_CYCLE_LEN = 40
 
-function toDate(key: string): Date {
-  return new Date(key + 'T12:00:00')
-}
-
-function daysBetween(a: string, b: string): number {
-  return Math.round((toDate(b).getTime() - toDate(a).getTime()) / DAY_MS)
-}
-
-function addDaysKey(key: string, n: number): string {
-  const d = new Date(toDate(key).getTime() + n * DAY_MS)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+const daysBetween = daysBetweenKeys
+const addDaysKey = addDaysToKey
 
 /** Earliest cycle day a temperature shift is accepted (earlier rises are noise). */
 const MIN_SHIFT_CYCLE_DAY = 10
@@ -92,9 +82,7 @@ export function anchorsFromTracker(days: Record<string, DayData>): CycleAnchor[]
   const set = new Set(menstrual)
   return menstrual
     .filter(k => {
-      const prev = new Date(toDate(k).getTime() - DAY_MS)
-      const prevKey = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`
-      return !set.has(prevKey)
+      return !set.has(addDaysToKey(k, -1))
     })
     .map(date => ({ date, source: 'manual' as const }))
 }

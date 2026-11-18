@@ -20,28 +20,18 @@ import {
   type OuraStress,
   type OuraResilience,
 } from '../../lib/oura'
+import { addDaysToKey, fromKey, todayKey } from '../../lib/dateKey'
 
 // ── Date helpers ──────────────────────────────────────────────────
 
-function localDateStr(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function todayStr() {
-  return localDateStr(new Date())
-}
-
-function addDays(dateStr: string, n: number): string {
-  const d = new Date(dateStr + 'T12:00:00')
-  d.setDate(d.getDate() + n)
-  return localDateStr(d)
-}
+const todayStr = todayKey
+const addDays = addDaysToKey
 
 function fmtDate(dateStr: string): string {
   const today = todayStr()
   if (dateStr === today) return 'Today'
   if (dateStr === addDays(today, -1)) return 'Yesterday'
-  const d = new Date(dateStr + 'T12:00:00')
+  const d = fromKey(dateStr)
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 

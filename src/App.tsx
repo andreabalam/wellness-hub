@@ -1,21 +1,21 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import type { User } from '@supabase/supabase-js'
-import WorkoutsTab from './components/WorkoutsTab'
-import RecipesTab from './components/RecipesTab'
 import type { OpenRecipeRequest } from './components/RecipesTab'
-import TrackerTab from './components/TrackerTab'
 import TodayTab from './components/TodayTab'
-import InsightsTab from './components/InsightsTab'
 import UpdatePrompt from './components/UpdatePrompt'
 import AuthButton from './components/AuthButton'
 import ErrorBoundary from './components/ErrorBoundary'
 import SharedRecipeView from './components/SharedRecipeView'
+// Today is the home tab and ships in the main bundle; the rest load on first
+// visit so the initial download is just what Today needs.
+const WorkoutsTab = lazy(() => import('./components/WorkoutsTab'))
+const RecipesTab = lazy(() => import('./components/RecipesTab'))
+const TrackerTab = lazy(() => import('./components/TrackerTab'))
+const InsightsTab = lazy(() => import('./components/InsightsTab'))
 import { parseShareRoute } from './lib/recipeShare'
 import { supabase } from './lib/supabase'
 import { consumeOAuthCallback } from './lib/oura'
 import * as sync from './lib/sync'
-import type { MedGuide } from './lib/sync'
-import { safeGet } from './lib/storage'
 import { reportError } from './lib/errorLog'
 import { showToast } from './lib/toast'
 import { ToastHost } from './components/common'
@@ -28,14 +28,22 @@ import {
   groceryCatalogStore,
   remindersStore,
   importRemoteData,
-  MED_GUIDES_KEY,
+  medGuidesStore,
+  dirtyStore,
+  DIRTY_WEEK_SCHEDULE,
+  DIRTY_MED_GUIDES,
+  DIRTY_USER_SETTINGS,
+  DIRTY_BODY_STATS,
+  DIRTY_WORKOUT_PLAN,
   exportAllData,
   importAllData,
   userSettingsStore,
   bodyStatsStore,
   workoutPlanStore,
   syncStatusStore,
+  syncCustomRecipes,
 } from './hooks/useStore'
+import { todayKey } from './lib/dateKey'
 
 type Tab = 'today' | 'food' | 'workouts' | 'insights'
 
@@ -58,6 +66,15 @@ export default function App() {
   const [active, setActive] = useState<Tab>(_initialTab)
   // Food tab: the day's log or the recipe library (with grocery list)
   const [foodView, setFoodView] = useState<FoodView>('log')
+  // Train and Recipes mount on first visit, then stay mounted so their state
+  // (workout in progress, recipe search/filters) survives tab switches.
+  // Adjusted during render, not in an effect, so the first visit renders once.
+  const trainShown = active === 'workouts'
+  const recipesShown = active === 'food' && foodView === 'recipes'
+  const [mounted, setMounted] = useState({ train: trainShown, recipes: recipesShown })
+  if ((trainShown && !mounted.train) || (recipesShown && !mounted.recipes)) {
+    setMounted(m => ({ train: m.train || trainShown, recipes: m.recipes || recipesShown }))
+  }
   // Day viewed in Today and Food — shared so switching tabs keeps the same day
   const [dayDate, setDayDate] = useState(() => {
     const d = new Date()
@@ -112,7 +129,7 @@ export default function App() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `wellness_hub_backup_${new Date().toISOString().split('T')[0]}.json`
+    a.download = `wellness_hub_backup_${todayKey()}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -161,8 +178,11 @@ export default function App() {
         sync.fetchReminders(userId),
       ])
 
-      // Merge: remote wins for tracker day conflicts (another device is authoritative);
-      // tags, grocery, and food library are unioned so local-only items are never lost.
+      // Records edited locally whose push isn't confirmed yet (offline, signed
+      // out, or a failed push). These win over the remote copy below; every
+      // other conflict is "remote wins" (another device is authoritative).
+      // Tags, grocery and food library are unioned so local-only items survive.
+      const dirty = dirtyStore.all()
       const mergedTags = [...new Set([...recipeStore.getTags(), ...remoteTags])]
       const mergedGrocery = [...new Set([...groceryStore.getChecked(), ...remoteGrocery])]
 
@@ -174,13 +194,15 @@ export default function App() {
         ...localLib.filter(f => !remoteLibNames.has(f.n.toLowerCase())),
       ]
 
-      // Week schedule: remote wins; fall back to local if no remote copy exists yet
+      // Week schedule / med guides: remote wins unless the local copy is dirty;
+      // fall back to local if no remote copy exists yet.
       const localWeekSchedule = scheduleStore.getWeek()
-      const mergedWeekSchedule = remoteWeekSchedule ?? localWeekSchedule
+      const weekScheduleLocalWins = DIRTY_WEEK_SCHEDULE in dirty || !remoteWeekSchedule
+      const mergedWeekSchedule = weekScheduleLocalWins ? localWeekSchedule : remoteWeekSchedule
 
-      // Med guides: remote wins; fall back to local if no remote copy exists yet
-      const localMedGuides = safeGet<MedGuide[] | null>(MED_GUIDES_KEY, null)
-      const mergedMedGuides = remoteMedGuides ?? localMedGuides
+      const localMedGuides = medGuidesStore.get()
+      const medGuidesLocalWins = DIRTY_MED_GUIDES in dirty || !remoteMedGuides
+      const mergedMedGuides = medGuidesLocalWins ? localMedGuides : remoteMedGuides
 
       // Reminders: union by id — remote wins per id, local-only reminders are kept
       const localReminders = remindersStore.getAll()
@@ -208,9 +230,17 @@ export default function App() {
       })
 
       // A5: re-read tracker days right before writing so a day edited during the
-      // pull window survives. Remote still wins same-day conflicts (the rule),
-      // but a brand-new local-only edit is no longer clobbered by stale state.
-      const mergedDays = { ...trackerStore.getAll(), ...remoteDays }
+      // pull window survives. Remote wins same-day conflicts unless the local
+      // day is dirty. Only days that differ from the cloud need pushing back.
+      const localDays = trackerStore.getAll()
+      const mergedDays = { ...localDays, ...remoteDays }
+      const daysToPush: string[] = []
+      for (const date of Object.keys(localDays)) {
+        const localWins = date in dirty || !(date in remoteDays)
+        if (!localWins) continue
+        mergedDays[date] = localDays[date]
+        daysToPush.push(date)
+      }
 
       // Write merged data to localStorage (bypasses push to avoid a loop)
       importRemoteData({
@@ -224,8 +254,9 @@ export default function App() {
         reminders: mergedReminders,
       })
 
-      // User settings / body stats / workout plan: remote wins; settings push
-      // happens only when there's no remote copy yet (included in the push batch).
+      // User settings / body stats / workout plan: remote wins unless the local
+      // copy is dirty (importFromRemote skips it then). Push when there's no
+      // remote copy yet or the local one is dirty.
       const remoteSettings = await sync.fetchUserSettings(userId).catch(() => null)
       if (remoteSettings) userSettingsStore.importFromRemote(remoteSettings)
       const remoteBodyStats = await sync.fetchUserBodyStats(userId).catch(() => null)
@@ -238,18 +269,32 @@ export default function App() {
       // the UI can show "changes not synced" and the next syncAll reconciles it.
       try {
         await Promise.all([
-          ...Object.entries(mergedDays).map(([date, data]) => sync.pushDay(userId, date, data)),
+          ...daysToPush.map(date => sync.pushDay(userId, date, mergedDays[date])),
           sync.pushTags(userId, mergedTags),
           sync.pushGrocery(userId, mergedGrocery),
           sync.pushFoodLibrary(userId, mergedFoodLib),
-          ...(mergedWeekSchedule ? [sync.pushWeekSchedule(userId, mergedWeekSchedule)] : []),
-          ...(mergedMedGuides ? [sync.pushMedGuides(userId, mergedMedGuides)] : []),
+          ...(weekScheduleLocalWins ? [sync.pushWeekSchedule(userId, mergedWeekSchedule)] : []),
+          ...(medGuidesLocalWins && mergedMedGuides
+            ? [sync.pushMedGuides(userId, mergedMedGuides)]
+            : []),
           ...(mergedGroceryCatalog.length
             ? [sync.pushUserGroceryCatalog(userId, mergedGroceryCatalog)]
             : []),
           ...mergedReminders.map(r => sync.upsertReminder(userId, r)),
-          ...(remoteSettings ? [] : [sync.upsertUserSettings(userId, userSettingsStore.get())]),
+          ...(!remoteSettings || DIRTY_USER_SETTINGS in dirty
+            ? [sync.upsertUserSettings(userId, userSettingsStore.get())]
+            : []),
+          ...(DIRTY_BODY_STATS in dirty
+            ? [sync.upsertUserBodyStats(userId, bodyStatsStore.get())]
+            : []),
+          syncCustomRecipes(userId).then(ok => {
+            if (!ok) throw new Error('recipe sync incomplete')
+          }),
+          ...(DIRTY_WORKOUT_PLAN in dirty && workoutPlanStore.get()
+            ? [sync.upsertUserWorkoutPlan(userId, workoutPlanStore.get()!)]
+            : []),
         ])
+        dirtyStore.confirm(dirty) // pushed — unless edited again meanwhile
         syncStatusStore.clear() // everything confirmed in the cloud
       } catch (pushErr) {
         reportError('syncAll:push', pushErr)
@@ -375,7 +420,11 @@ export default function App() {
           hidden={active !== 'workouts'}
           className={`view${active === 'workouts' ? ' active' : ''}`}
         >
-          <WorkoutsTab user={user} />
+          {mounted.train && (
+            <Suspense fallback={null}>
+              <WorkoutsTab user={user} />
+            </Suspense>
+          )}
         </div>
       </ErrorBoundary>
       {/* Today and Food mount only while active (date calculations on load) */}
@@ -422,17 +471,23 @@ export default function App() {
             ))}
           </div>
           {active === 'food' && foodView === 'log' && (
-            <TrackerTab
-              key={syncVersion}
-              user={user}
-              onOpenRecipe={openRecipe}
-              date={dayDate}
-              onDateChange={setDayDate}
-            />
+            <Suspense fallback={null}>
+              <TrackerTab
+                key={syncVersion}
+                user={user}
+                onOpenRecipe={openRecipe}
+                date={dayDate}
+                onDateChange={setDayDate}
+              />
+            </Suspense>
           )}
-          {/* Recipes stay mounted (search, filters and open cards survive switching) */}
+          {/* Recipes stay mounted once opened (search, filters and open cards survive switching) */}
           <div hidden={foodView !== 'recipes'}>
-            <RecipesTab user={user} openRequest={recipeOpenReq} />
+            {mounted.recipes && (
+              <Suspense fallback={null}>
+                <RecipesTab user={user} openRequest={recipeOpenReq} syncVersion={syncVersion} />
+              </Suspense>
+            )}
           </div>
         </div>
       </ErrorBoundary>
@@ -446,7 +501,11 @@ export default function App() {
           className={`view${active === 'insights' ? ' active' : ''}`}
         >
           {/* Mounted only while active: roll-ups read every tracker day */}
-          {active === 'insights' && <InsightsTab key={syncVersion} user={user} />}
+          {active === 'insights' && (
+            <Suspense fallback={null}>
+              <InsightsTab key={syncVersion} user={user} />
+            </Suspense>
+          )}
         </div>
       </ErrorBoundary>
 

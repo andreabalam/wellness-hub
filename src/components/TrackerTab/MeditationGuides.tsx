@@ -1,9 +1,6 @@
 import { useState } from 'react'
 import type { MedGuide } from '../../lib/sync'
-import * as sync from '../../lib/sync'
-import { supabase } from '../../lib/supabase'
-import { safeGet, safeSet } from '../../lib/storage'
-import { MED_GUIDES_KEY } from '../../hooks/useStore'
+import { medGuidesStore } from '../../hooks/useStore'
 
 const DEFAULT_GUIDES: MedGuide[] = [
   {
@@ -16,25 +13,8 @@ const DEFAULT_GUIDES: MedGuide[] = [
   },
 ]
 
-function loadGuides(): MedGuide[] {
-  return safeGet<MedGuide[]>(MED_GUIDES_KEY, DEFAULT_GUIDES)
-}
-
-async function saveGuides(g: MedGuide[]) {
-  safeSet(MED_GUIDES_KEY, g)
-  if (!supabase) return
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (user)
-      sync.pushMedGuides(user.id, g).catch(() => {
-        /* offline */
-      })
-  } catch {
-    /* ignore */
-  }
-}
+const loadGuides = (): MedGuide[] => medGuidesStore.get() ?? DEFAULT_GUIDES
+const saveGuides = medGuidesStore.save
 
 /** Editable list of favorite meditation guide links. Persists to localStorage
  *  (and Supabase when signed in) independently of the day's tracker data. */

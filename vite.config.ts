@@ -3,6 +3,13 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import pkg from './package.json' with { type: 'json' }
 
+// Unit tests run in a timezone west of UTC by default, so a day key built from
+// UTC (toISOString) fails every evening instead of only on a developer's
+// machine after 4 pm. Override with TZ=... to test other zones (CI also runs
+// Pacific/Auckland, east of UTC). Workers inherit this env.
+declare const process: { env: Record<string, string | undefined>; versions: { node: string } } // no @types/node here
+if (process.env.VITEST) process.env.TZ ||= 'America/Los_Angeles'
+
 // https://vitejs.dev/config/
 export default defineConfig({
   define: {
@@ -65,11 +72,42 @@ export default defineConfig({
     }),
   ],
   base: '/wellness-hub/',
+  build: {
+    // Main chunk budget (kB, minified). Vendors are split out below, so this
+    // tracks app code + whatever the Today tab pulls in eagerly.
+    chunkSizeWarningLimit: 300,
+    rolldownOptions: {
+      output: {
+        // Vendor code changes far less often than app code: separate chunks
+        // stay cached across deploys instead of re-downloading with every fix.
+        codeSplitting: {
+          groups: [
+            {
+              name: 'react',
+              test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+              priority: 20,
+            },
+            { name: 'supabase', test: /node_modules[\\/]@supabase[\\/]/, priority: 10 },
+          ],
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/test/**/*.test.{ts,tsx}'],
+    // Hermetic: never pick up a developer's .env.local. Without this, unit tests
+    // got a live Supabase client locally (null in CI) and store writes could
+    // reach the real project. Tests that need a client mock ../lib/supabase.
+    env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' },
+    // Node 25+ ships its own `localStorage` global (an empty stub without
+    // --localstorage-file) that shadows jsdom's. Turn it off in workers.
+    execArgv:
+      Number(process.versions.node.split('.')[0]) >= 22 ? ['--no-experimental-webstorage'] : [],
+    // supabase/ is local-only (gitignored; the repo is public and some
+    // migrations hold personal data). Its tests run where the folder exists.
+    include: ['src/test/**/*.test.{ts,tsx}', 'supabase/tests/**/*.test.ts'],
     exclude: ['e2e/**', 'node_modules/**'],
     coverage: {
       provider: 'v8',

@@ -13,29 +13,33 @@ import * as sync from '../lib/sync'
 import { safeGet, safeSet, safeRemove, safeHas } from '../lib/storage'
 import { reportError } from '../lib/errorLog'
 import { isDayDataMap, isRecipe, isQuickFood, isArrayOf } from '../lib/schema'
+import { mergeRecipes, applyIdMap } from '../lib/recipeSync'
+import {
+  BODY_STATS_KEY,
+  BUILTIN_CACHE_KEY,
+  FOOD_LIBRARY_KEY,
+  GROCERY_CATALOG_KEY,
+  GROCERY_KEY,
+  HIDDEN_RECIPES_KEY,
+  MED_GUIDES_KEY,
+  RECIPES_KEY,
+  REMINDERS_KEY,
+  SCHEDULE_KEY,
+  SYNC_DIRTY_KEY,
+  SYNC_DIRTY_RECORDS_KEY,
+  TAGS_KEY,
+  TRACKER_KEY,
+  USER_SETTINGS_KEY,
+  WEEK_SCHEDULE_KEY,
+  WORKOUT_PLAN_KEY,
+} from '../lib/storageKeys'
 
 const isRecipeArray = (v: unknown): v is Recipe[] => isArrayOf(v, isRecipe)
 const isQuickFoodArray = (v: unknown): v is QuickFood[] => isArrayOf(v, isQuickFood)
 
-const TRACKER_KEY = 'whub_tracker_v3'
-const RECIPES_KEY = 'whub_custom_recipes_v1'
-const TAGS_KEY = 'whub_custom_tags_v1'
-const GROCERY_KEY = 'whub_grocery_v1'
-const GROCERY_CATALOG_KEY = 'whub_grocery_catalog_v1'
-const FOOD_LIBRARY_KEY = 'whub_food_library_v1'
-const SCHEDULE_KEY = 'whub_schedule_v1'
-const WEEK_SCHEDULE_KEY = 'whub_schedule_v2'
-export const MED_GUIDES_KEY = 'whub_med_guides_v1'
-const REMINDERS_KEY = 'whub_reminders_v1'
-const HIDDEN_RECIPES_KEY = 'whub_hidden_recipes_v1'
-const USER_SETTINGS_KEY = 'whub_user_settings_v1'
-const BODY_STATS_KEY = 'whub_body_stats_v1'
-const WORKOUT_PLAN_KEY = 'whub_workout_plan_v1'
-
 // ── Sync status ── whether local writes are pending a confirmed push ─────
 // Persisted so the "changes not yet synced" hint survives a reload (e.g. edits
 // made offline). Cleared by syncAll once every push succeeds.
-const SYNC_DIRTY_KEY = 'whub_sync_dirty'
 type SyncStatusListener = (pending: boolean) => void
 const syncStatusListeners = new Set<SyncStatusListener>()
 
@@ -59,26 +63,80 @@ export const syncStatusStore = {
   },
 }
 
+// ── Unconfirmed local edits ── per record ───────────────────────
+// A record (a tracker day key, or one of the DIRTY_* singletons) is marked
+// dirty when written locally and un-marked only once its push is confirmed.
+// syncAll lets a dirty local copy win over the remote one, so an edit made
+// offline (or signed out, or whose push failed) is never overwritten by an
+// older cloud copy. Each mark carries a sequence number so a slow push of an
+// older write can't clear the mark of a newer one.
+export const DIRTY_WEEK_SCHEDULE = 'weekSchedule'
+export const DIRTY_MED_GUIDES = 'medGuides'
+export const DIRTY_USER_SETTINGS = 'userSettings'
+export const DIRTY_BODY_STATS = 'bodyStats'
+export const DIRTY_WORKOUT_PLAN = 'workoutPlan'
+type DirtyMap = Record<string, number>
+let dirtySeq = 0
+
+export const dirtyStore = {
+  all: (): DirtyMap => safeGet<DirtyMap>(SYNC_DIRTY_RECORDS_KEY, {}),
+  has: (key: string): boolean => key in dirtyStore.all(),
+  /** Mark a record as edited locally. Returns this write's sequence number. */
+  mark: (key: string): number => {
+    const seq = Date.now() * 1000 + (dirtySeq++ % 1000)
+    safeSet(SYNC_DIRTY_RECORDS_KEY, { ...dirtyStore.all(), [key]: seq })
+    return seq
+  },
+  /** Clear the marks in `confirmed` whose write hasn't been superseded since. */
+  confirm: (confirmed: DirtyMap) => {
+    const cur = dirtyStore.all()
+    let changed = false
+    for (const [k, seq] of Object.entries(confirmed)) {
+      if (cur[k] === seq) {
+        delete cur[k]
+        changed = true
+      }
+    }
+    if (changed) safeSet(SYNC_DIRTY_RECORDS_KEY, cur)
+  },
+}
+
+/** Id of the signed-in user from the locally cached session (no network). */
+async function currentUserId(): Promise<string | null> {
+  if (!supabase) return null
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  return session?.user.id ?? null
+}
+
 /**
  * Fire-and-forget push to Supabase — only runs when a user is signed in.
- * The local store is the source of truth; a failed push is logged and flips the
- * sync-pending flag so the next syncAll reconciles it (syncAll re-pushes all
- * local data), and the UI can show a "changes not yet synced" hint.
+ * The local store is the source of truth. With `dirtyKey`, the record stays
+ * marked dirty until the push is confirmed (see dirtyStore). A failed push is
+ * logged and flips the sync-pending flag so the UI can show a "changes not yet
+ * synced" hint; the next syncAll pushes the dirty local copy.
  */
-async function tryPush(fn: (userId: string) => Promise<void>) {
+function tryPush(fn: (userId: string) => Promise<void>, dirtyKey?: string) {
   if (!supabase) return // not configured (tests / dev without .env.local)
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (user)
-      fn(user.id).catch(err => {
-        reportError('tryPush:push', err)
-        syncStatusStore.markPending()
-      })
-  } catch (err) {
-    reportError('tryPush:getUser', err)
-  }
+  const seq = dirtyKey ? dirtyStore.mark(dirtyKey) : 0
+  void (async () => {
+    let uid: string | null
+    try {
+      uid = await currentUserId()
+    } catch (err) {
+      reportError('tryPush:session', err)
+      return
+    }
+    if (!uid) return // signed out — stays dirty; pushed by syncAll at next sign-in
+    try {
+      await fn(uid)
+      if (dirtyKey) dirtyStore.confirm({ [dirtyKey]: seq })
+    } catch (err) {
+      reportError('tryPush:push', err)
+      syncStatusStore.markPending()
+    }
+  })()
 }
 
 // ── Local change notifications ── tracker days + body stats ──────
@@ -114,7 +172,7 @@ export const trackerStore = {
     const all = safeGet<Record<string, DayData>>(TRACKER_KEY, {}, isDayDataMap)
     all[dateKey] = data
     safeSet(TRACKER_KEY, all)
-    tryPush(uid => sync.pushDay(uid, dateKey, data))
+    tryPush(uid => sync.pushDay(uid, dateKey, data), dateKey)
     notifyChange()
   },
 }
@@ -135,8 +193,9 @@ export const trackerStore = {
 })()
 
 // ── Recipes ── plain functions ───────────────────────────────────
-// Note: recipe sync to Supabase is handled explicitly in RecipesTab
-// via upsertUserRecipe / deleteUserRecipe — not through tryPush here.
+// Recipe pushes need the DB-assigned id back, so they don't go through
+// tryPush: RecipesTab saves/deletes explicitly, and syncCustomRecipes (called
+// from syncAll) reconciles the whole set.
 export const recipeStore = {
   getRecipes: () => safeGet<Recipe[]>(RECIPES_KEY, [], isRecipeArray),
   saveRecipes: (arr: Recipe[]) => safeSet(RECIPES_KEY, arr),
@@ -155,11 +214,51 @@ export const recipeStore = {
   },
 }
 
+/**
+ * Reconcile local custom recipes with the user's DB rows (called from syncAll):
+ * prune recipes deleted on another device, push never-synced local ones and
+ * adopt their DB ids. See mergeRecipes for the id-as-tombstone rule.
+ *
+ * Returns false when anything failed — the pull (local recipes are then left
+ * untouched; an empty result from a failed fetch must never prune) or a push
+ * (that recipe keeps its placeholder id and is retried next sync).
+ */
+export async function syncCustomRecipes(userId: string): Promise<boolean> {
+  let remote: Recipe[]
+  try {
+    remote = await sync.fetchUserRecipes(userId)
+  } catch (err) {
+    reportError('recipe-sync:pull', err)
+    return false
+  }
+  const before = recipeStore.getRecipes()
+  const { merged, toPush } = mergeRecipes(before, remote)
+
+  const idMap = new Map<number, number>() // placeholder id → DB id
+  let ok = true
+  await Promise.all(
+    toPush.map(async r => {
+      const dbId = await sync.upsertUserRecipe(userId, r).catch(err => {
+        reportError('recipe-sync:push', err)
+        return null
+      })
+      if (dbId == null) ok = false
+      else if (dbId !== r.id) idMap.set(r.id!, dbId)
+    }),
+  )
+
+  // Keep anything saved locally while we were talking to the DB; it isn't in
+  // `merged`, and RecipesTab's own save pushes it.
+  const seen = new Set(before.map(r => r.id))
+  const addedMeanwhile = recipeStore.getRecipes().filter(r => !seen.has(r.id))
+  recipeStore.saveRecipes([...applyIdMap(merged, idMap), ...addedMeanwhile])
+  return ok
+}
+
 // ── Built-in recipe catalog cache ────────────────────────────────
 // The full catalog lives in the Supabase `recipes` table (user_id IS NULL).
 // RecipesTab refreshes this cache on every fetch; TrackerTab reads it so the
 // log-food search can match built-in recipes without its own network round-trip.
-const BUILTIN_CACHE_KEY = 'whub_builtin_recipes_v1'
 export const builtinRecipeCacheStore = {
   getAll: (): Recipe[] => safeGet<Recipe[]>(BUILTIN_CACHE_KEY, [], isRecipeArray),
   save: (arr: Recipe[]) => safeSet(BUILTIN_CACHE_KEY, arr),
@@ -211,12 +310,12 @@ export const scheduleStore = {
   saveDay(day: DayKey, blocks: CustomBlock[]) {
     const next = { ...scheduleStore.getWeek(), [day]: blocks }
     safeSet(WEEK_SCHEDULE_KEY, next)
-    tryPush(uid => sync.pushWeekSchedule(uid, next))
+    tryPush(uid => sync.pushWeekSchedule(uid, next), DIRTY_WEEK_SCHEDULE)
   },
 
   saveWeek(week: WeekSchedule) {
     safeSet(WEEK_SCHEDULE_KEY, week)
-    tryPush(uid => sync.pushWeekSchedule(uid, week))
+    tryPush(uid => sync.pushWeekSchedule(uid, week), DIRTY_WEEK_SCHEDULE)
   },
 
   resetDay(day: DayKey) {
@@ -303,11 +402,13 @@ export const userSettingsStore = {
   set: (patch: Partial<UserSettings>) => {
     const next = { ...userSettingsStore.get(), ...patch }
     safeSet(USER_SETTINGS_KEY, next)
-    tryPush(uid => sync.upsertUserSettings(uid, next))
+    tryPush(uid => sync.upsertUserSettings(uid, next), DIRTY_USER_SETTINGS)
   },
 
-  /** Used during syncAll — writes remote value without re-triggering a push */
-  importFromRemote: (s: UserSettings) => safeSet(USER_SETTINGS_KEY, s),
+  /** Used during syncAll — writes the remote value (unless a local edit is unconfirmed) */
+  importFromRemote: (s: UserSettings) => {
+    if (!dirtyStore.has(DIRTY_USER_SETTINGS)) safeSet(USER_SETTINGS_KEY, s)
+  },
 }
 
 export function useUserSettingsStore() {
@@ -342,12 +443,14 @@ export const bodyStatsStore = {
   set: (patch: Partial<UserBodyStats>) => {
     const next = { ...bodyStatsStore.get(), ...patch }
     safeSet(BODY_STATS_KEY, next)
-    tryPush(uid => sync.upsertUserBodyStats(uid, next))
+    tryPush(uid => sync.upsertUserBodyStats(uid, next), DIRTY_BODY_STATS)
     notifyChange()
   },
 
-  /** Used during syncAll — writes remote value without re-triggering a push */
-  importFromRemote: (s: UserBodyStats) => safeSet(BODY_STATS_KEY, s),
+  /** Used during syncAll — writes the remote value (unless a local edit is unconfirmed) */
+  importFromRemote: (s: UserBodyStats) => {
+    if (!dirtyStore.has(DIRTY_BODY_STATS)) safeSet(BODY_STATS_KEY, s)
+  },
 }
 
 export function useBodyStatsStore() {
@@ -361,15 +464,27 @@ export const workoutPlanStore = {
 
   set: (plan: UserWorkoutPlan) => {
     safeSet(WORKOUT_PLAN_KEY, plan)
-    tryPush(uid => sync.upsertUserWorkoutPlan(uid, plan))
+    tryPush(uid => sync.upsertUserWorkoutPlan(uid, plan), DIRTY_WORKOUT_PLAN)
   },
 
-  /** Used during syncAll — writes remote value without re-triggering a push */
-  importFromRemote: (p: UserWorkoutPlan) => safeSet(WORKOUT_PLAN_KEY, p),
+  /** Used during syncAll — writes the remote value (unless a local edit is unconfirmed) */
+  importFromRemote: (p: UserWorkoutPlan) => {
+    if (!dirtyStore.has(DIRTY_WORKOUT_PLAN)) safeSet(WORKOUT_PLAN_KEY, p)
+  },
 }
 
 export function useWorkoutPlanStore() {
   return workoutPlanStore
+}
+
+// ── Meditation guide links ──────────────────────────────────────
+export const medGuidesStore = {
+  /** Saved guides, or null when the user has never edited the list. */
+  get: (): MedGuide[] | null => safeGet<MedGuide[] | null>(MED_GUIDES_KEY, null),
+  save: (guides: MedGuide[]) => {
+    safeSet(MED_GUIDES_KEY, guides)
+    tryPush(uid => sync.pushMedGuides(uid, guides), DIRTY_MED_GUIDES)
+  },
 }
 
 // ── Reminders ── persistent cross-day checklist ───────────────────
