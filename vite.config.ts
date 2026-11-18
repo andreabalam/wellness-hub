@@ -76,6 +76,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // Hermetic: never pick up a developer's .env.local. Without this, unit tests
+    // got a live Supabase client locally (null in CI) and store writes could
+    // reach the real project. Tests that need a client mock ../lib/supabase.
+    env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' },
     // Node 25+ ships its own `localStorage` global (an empty stub without
     // --localstorage-file) that shadows jsdom's. Turn it off in workers.
     execArgv:

@@ -14,8 +14,6 @@ import { parseShareRoute } from './lib/recipeShare'
 import { supabase } from './lib/supabase'
 import { consumeOAuthCallback } from './lib/oura'
 import * as sync from './lib/sync'
-import type { MedGuide } from './lib/sync'
-import { safeGet } from './lib/storage'
 import { reportError } from './lib/errorLog'
 import { showToast } from './lib/toast'
 import { ToastHost } from './components/common'
@@ -28,7 +26,13 @@ import {
   groceryCatalogStore,
   remindersStore,
   importRemoteData,
-  MED_GUIDES_KEY,
+  medGuidesStore,
+  dirtyStore,
+  DIRTY_WEEK_SCHEDULE,
+  DIRTY_MED_GUIDES,
+  DIRTY_USER_SETTINGS,
+  DIRTY_BODY_STATS,
+  DIRTY_WORKOUT_PLAN,
   exportAllData,
   importAllData,
   userSettingsStore,
@@ -162,8 +166,11 @@ export default function App() {
         sync.fetchReminders(userId),
       ])
 
-      // Merge: remote wins for tracker day conflicts (another device is authoritative);
-      // tags, grocery, and food library are unioned so local-only items are never lost.
+      // Records edited locally whose push isn't confirmed yet (offline, signed
+      // out, or a failed push). These win over the remote copy below; every
+      // other conflict is "remote wins" (another device is authoritative).
+      // Tags, grocery and food library are unioned so local-only items survive.
+      const dirty = dirtyStore.all()
       const mergedTags = [...new Set([...recipeStore.getTags(), ...remoteTags])]
       const mergedGrocery = [...new Set([...groceryStore.getChecked(), ...remoteGrocery])]
 
@@ -175,13 +182,15 @@ export default function App() {
         ...localLib.filter(f => !remoteLibNames.has(f.n.toLowerCase())),
       ]
 
-      // Week schedule: remote wins; fall back to local if no remote copy exists yet
+      // Week schedule / med guides: remote wins unless the local copy is dirty;
+      // fall back to local if no remote copy exists yet.
       const localWeekSchedule = scheduleStore.getWeek()
-      const mergedWeekSchedule = remoteWeekSchedule ?? localWeekSchedule
+      const weekScheduleLocalWins = DIRTY_WEEK_SCHEDULE in dirty || !remoteWeekSchedule
+      const mergedWeekSchedule = weekScheduleLocalWins ? localWeekSchedule : remoteWeekSchedule
 
-      // Med guides: remote wins; fall back to local if no remote copy exists yet
-      const localMedGuides = safeGet<MedGuide[] | null>(MED_GUIDES_KEY, null)
-      const mergedMedGuides = remoteMedGuides ?? localMedGuides
+      const localMedGuides = medGuidesStore.get()
+      const medGuidesLocalWins = DIRTY_MED_GUIDES in dirty || !remoteMedGuides
+      const mergedMedGuides = medGuidesLocalWins ? localMedGuides : remoteMedGuides
 
       // Reminders: union by id — remote wins per id, local-only reminders are kept
       const localReminders = remindersStore.getAll()
@@ -209,9 +218,17 @@ export default function App() {
       })
 
       // A5: re-read tracker days right before writing so a day edited during the
-      // pull window survives. Remote still wins same-day conflicts (the rule),
-      // but a brand-new local-only edit is no longer clobbered by stale state.
-      const mergedDays = { ...trackerStore.getAll(), ...remoteDays }
+      // pull window survives. Remote wins same-day conflicts unless the local
+      // day is dirty. Only days that differ from the cloud need pushing back.
+      const localDays = trackerStore.getAll()
+      const mergedDays = { ...localDays, ...remoteDays }
+      const daysToPush: string[] = []
+      for (const date of Object.keys(localDays)) {
+        const localWins = date in dirty || !(date in remoteDays)
+        if (!localWins) continue
+        mergedDays[date] = localDays[date]
+        daysToPush.push(date)
+      }
 
       // Write merged data to localStorage (bypasses push to avoid a loop)
       importRemoteData({
@@ -225,8 +242,9 @@ export default function App() {
         reminders: mergedReminders,
       })
 
-      // User settings / body stats / workout plan: remote wins; settings push
-      // happens only when there's no remote copy yet (included in the push batch).
+      // User settings / body stats / workout plan: remote wins unless the local
+      // copy is dirty (importFromRemote skips it then). Push when there's no
+      // remote copy yet or the local one is dirty.
       const remoteSettings = await sync.fetchUserSettings(userId).catch(() => null)
       if (remoteSettings) userSettingsStore.importFromRemote(remoteSettings)
       const remoteBodyStats = await sync.fetchUserBodyStats(userId).catch(() => null)
@@ -239,18 +257,29 @@ export default function App() {
       // the UI can show "changes not synced" and the next syncAll reconciles it.
       try {
         await Promise.all([
-          ...Object.entries(mergedDays).map(([date, data]) => sync.pushDay(userId, date, data)),
+          ...daysToPush.map(date => sync.pushDay(userId, date, mergedDays[date])),
           sync.pushTags(userId, mergedTags),
           sync.pushGrocery(userId, mergedGrocery),
           sync.pushFoodLibrary(userId, mergedFoodLib),
-          ...(mergedWeekSchedule ? [sync.pushWeekSchedule(userId, mergedWeekSchedule)] : []),
-          ...(mergedMedGuides ? [sync.pushMedGuides(userId, mergedMedGuides)] : []),
+          ...(weekScheduleLocalWins ? [sync.pushWeekSchedule(userId, mergedWeekSchedule)] : []),
+          ...(medGuidesLocalWins && mergedMedGuides
+            ? [sync.pushMedGuides(userId, mergedMedGuides)]
+            : []),
           ...(mergedGroceryCatalog.length
             ? [sync.pushUserGroceryCatalog(userId, mergedGroceryCatalog)]
             : []),
           ...mergedReminders.map(r => sync.upsertReminder(userId, r)),
-          ...(remoteSettings ? [] : [sync.upsertUserSettings(userId, userSettingsStore.get())]),
+          ...(!remoteSettings || DIRTY_USER_SETTINGS in dirty
+            ? [sync.upsertUserSettings(userId, userSettingsStore.get())]
+            : []),
+          ...(DIRTY_BODY_STATS in dirty
+            ? [sync.upsertUserBodyStats(userId, bodyStatsStore.get())]
+            : []),
+          ...(DIRTY_WORKOUT_PLAN in dirty && workoutPlanStore.get()
+            ? [sync.upsertUserWorkoutPlan(userId, workoutPlanStore.get()!)]
+            : []),
         ])
+        dirtyStore.confirm(dirty) // pushed — unless edited again meanwhile
         syncStatusStore.clear() // everything confirmed in the cloud
       } catch (pushErr) {
         reportError('syncAll:push', pushErr)

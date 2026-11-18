@@ -48,7 +48,9 @@ vi.mock('../lib/sync', () => ({
   fetchUserSettings: vi.fn(),
   upsertUserSettings: vi.fn(),
   fetchUserBodyStats: vi.fn(),
+  upsertUserBodyStats: vi.fn(),
   fetchUserWorkoutPlan: vi.fn(),
+  upsertUserWorkoutPlan: vi.fn(),
   pushErrorLog: vi.fn(),
 }))
 
@@ -57,6 +59,7 @@ import App from '../App'
 import { supabase } from '../lib/supabase'
 import * as sync from '../lib/sync'
 import { syncStatusStore } from '../hooks/useStore'
+import { EMPTY_DAY } from '../data/tracker'
 
 const mockAuth = supabase!.auth as unknown as {
   getSession: ReturnType<typeof vi.fn>
@@ -121,6 +124,8 @@ beforeEach(() => {
   mockSync['upsertUserSettings'].mockResolvedValue(undefined)
   mockSync['fetchUserBodyStats'].mockResolvedValue(null)
   mockSync['fetchUserWorkoutPlan'].mockResolvedValue(null)
+  mockSync['upsertUserBodyStats'].mockResolvedValue(undefined)
+  mockSync['upsertUserWorkoutPlan'].mockResolvedValue(undefined)
 })
 
 afterEach(() => {
@@ -423,5 +428,73 @@ describe('App (with mocked Supabase)', () => {
       },
       { timeout: 3000 },
     )
+  })
+  describe('offline edits vs remote copies', () => {
+    const day = (notes: string) => ({ ...EMPTY_DAY, foods: [], notes })
+    const signIn = () =>
+      mockAuth.getSession.mockResolvedValue({ data: { session: { user: MOCK_USER } }, error: null })
+    const storedDays = () => JSON.parse(ls['whub_tracker_v3'])
+
+    it('a day edited offline wins over an older remote copy and is pushed', async () => {
+      ls['whub_tracker_v3'] = JSON.stringify({ '2026-11-17': day('lunch logged offline') })
+      ls['whub_sync_dirty_records_v1'] = JSON.stringify({ '2026-11-17': 1 })
+      mockSync['pullAllDays'].mockResolvedValue({ '2026-11-17': day('stale cloud copy') })
+      signIn()
+      render(<App />)
+      await waitFor(() =>
+        expect(mockSync['pushDay']).toHaveBeenCalledWith(
+          MOCK_USER.id,
+          '2026-11-17',
+          expect.objectContaining({ notes: 'lunch logged offline' }),
+        ),
+      )
+      expect(storedDays()['2026-11-17'].notes).toBe('lunch logged offline')
+      await waitFor(() => expect(ls['whub_sync_dirty_records_v1']).toBe('{}'))
+    })
+
+    it('a clean local day takes the remote copy and is not re-pushed', async () => {
+      ls['whub_tracker_v3'] = JSON.stringify({
+        '2026-11-16': day('old local'),
+        '2026-11-15': day('local only'),
+      })
+      mockSync['pullAllDays'].mockResolvedValue({ '2026-11-16': day('edited on phone') })
+      signIn()
+      render(<App />)
+      await waitFor(() => expect(mockSync['pushDay']).toHaveBeenCalled())
+      expect(storedDays()['2026-11-16'].notes).toBe('edited on phone')
+      const pushed = mockSync['pushDay'].mock.calls.map(c => c[1])
+      expect(pushed).toEqual(['2026-11-15'])
+    })
+
+    it('a dirty week schedule wins and is pushed; body stats edited offline are pushed', async () => {
+      const localWeek = { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
+      ls['whub_schedule_v2'] = JSON.stringify(localWeek)
+      ls['whub_body_stats_v1'] = JSON.stringify({ weightKg: 61 })
+      ls['whub_sync_dirty_records_v1'] = JSON.stringify({ weekSchedule: 1, bodyStats: 2 })
+      mockSync['pullWeekSchedule'].mockResolvedValue({ ...localWeek, mon: [{ id: 'remote' }] })
+      mockSync['fetchUserBodyStats'].mockResolvedValue({ weightKg: 70 })
+      signIn()
+      render(<App />)
+      await waitFor(() =>
+        expect(mockSync['pushWeekSchedule']).toHaveBeenCalledWith(MOCK_USER.id, localWeek),
+      )
+      expect(mockSync['upsertUserBodyStats']).toHaveBeenCalledWith(
+        MOCK_USER.id,
+        expect.objectContaining({ weightKg: 61 }),
+      )
+      expect(JSON.parse(ls['whub_body_stats_v1']).weightKg).toBe(61)
+    })
+
+    it('a clean week schedule takes the remote copy without pushing', async () => {
+      const localWeek = { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] }
+      const remoteWeek = { ...localWeek, mon: [{ id: 'remote' }] }
+      ls['whub_schedule_v2'] = JSON.stringify(localWeek)
+      mockSync['pullWeekSchedule'].mockResolvedValue(remoteWeek)
+      signIn()
+      render(<App />)
+      await waitFor(() => expect(mockSync['pushTags']).toHaveBeenCalled())
+      expect(mockSync['pushWeekSchedule']).not.toHaveBeenCalled()
+      expect(JSON.parse(ls['whub_schedule_v2'])).toEqual(remoteWeek)
+    })
   })
 })

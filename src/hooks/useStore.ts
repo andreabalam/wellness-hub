@@ -59,26 +59,81 @@ export const syncStatusStore = {
   },
 }
 
+// ── Unconfirmed local edits ── per record ───────────────────────
+// A record (a tracker day key, or one of the DIRTY_* singletons) is marked
+// dirty when written locally and un-marked only once its push is confirmed.
+// syncAll lets a dirty local copy win over the remote one, so an edit made
+// offline (or signed out, or whose push failed) is never overwritten by an
+// older cloud copy. Each mark carries a sequence number so a slow push of an
+// older write can't clear the mark of a newer one.
+const SYNC_DIRTY_RECORDS_KEY = 'whub_sync_dirty_records_v1'
+export const DIRTY_WEEK_SCHEDULE = 'weekSchedule'
+export const DIRTY_MED_GUIDES = 'medGuides'
+export const DIRTY_USER_SETTINGS = 'userSettings'
+export const DIRTY_BODY_STATS = 'bodyStats'
+export const DIRTY_WORKOUT_PLAN = 'workoutPlan'
+type DirtyMap = Record<string, number>
+let dirtySeq = 0
+
+export const dirtyStore = {
+  all: (): DirtyMap => safeGet<DirtyMap>(SYNC_DIRTY_RECORDS_KEY, {}),
+  has: (key: string): boolean => key in dirtyStore.all(),
+  /** Mark a record as edited locally. Returns this write's sequence number. */
+  mark: (key: string): number => {
+    const seq = Date.now() * 1000 + (dirtySeq++ % 1000)
+    safeSet(SYNC_DIRTY_RECORDS_KEY, { ...dirtyStore.all(), [key]: seq })
+    return seq
+  },
+  /** Clear the marks in `confirmed` whose write hasn't been superseded since. */
+  confirm: (confirmed: DirtyMap) => {
+    const cur = dirtyStore.all()
+    let changed = false
+    for (const [k, seq] of Object.entries(confirmed)) {
+      if (cur[k] === seq) {
+        delete cur[k]
+        changed = true
+      }
+    }
+    if (changed) safeSet(SYNC_DIRTY_RECORDS_KEY, cur)
+  },
+}
+
+/** Id of the signed-in user from the locally cached session (no network). */
+async function currentUserId(): Promise<string | null> {
+  if (!supabase) return null
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  return session?.user.id ?? null
+}
+
 /**
  * Fire-and-forget push to Supabase — only runs when a user is signed in.
- * The local store is the source of truth; a failed push is logged and flips the
- * sync-pending flag so the next syncAll reconciles it (syncAll re-pushes all
- * local data), and the UI can show a "changes not yet synced" hint.
+ * The local store is the source of truth. With `dirtyKey`, the record stays
+ * marked dirty until the push is confirmed (see dirtyStore). A failed push is
+ * logged and flips the sync-pending flag so the UI can show a "changes not yet
+ * synced" hint; the next syncAll pushes the dirty local copy.
  */
-async function tryPush(fn: (userId: string) => Promise<void>) {
+function tryPush(fn: (userId: string) => Promise<void>, dirtyKey?: string) {
   if (!supabase) return // not configured (tests / dev without .env.local)
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (user)
-      fn(user.id).catch(err => {
-        reportError('tryPush:push', err)
-        syncStatusStore.markPending()
-      })
-  } catch (err) {
-    reportError('tryPush:getUser', err)
-  }
+  const seq = dirtyKey ? dirtyStore.mark(dirtyKey) : 0
+  void (async () => {
+    let uid: string | null
+    try {
+      uid = await currentUserId()
+    } catch (err) {
+      reportError('tryPush:session', err)
+      return
+    }
+    if (!uid) return // signed out — stays dirty; pushed by syncAll at next sign-in
+    try {
+      await fn(uid)
+      if (dirtyKey) dirtyStore.confirm({ [dirtyKey]: seq })
+    } catch (err) {
+      reportError('tryPush:push', err)
+      syncStatusStore.markPending()
+    }
+  })()
 }
 
 // ── Local change notifications ── tracker days + body stats ──────
@@ -114,7 +169,7 @@ export const trackerStore = {
     const all = safeGet<Record<string, DayData>>(TRACKER_KEY, {}, isDayDataMap)
     all[dateKey] = data
     safeSet(TRACKER_KEY, all)
-    tryPush(uid => sync.pushDay(uid, dateKey, data))
+    tryPush(uid => sync.pushDay(uid, dateKey, data), dateKey)
     notifyChange()
   },
 }
@@ -211,12 +266,12 @@ export const scheduleStore = {
   saveDay(day: DayKey, blocks: CustomBlock[]) {
     const next = { ...scheduleStore.getWeek(), [day]: blocks }
     safeSet(WEEK_SCHEDULE_KEY, next)
-    tryPush(uid => sync.pushWeekSchedule(uid, next))
+    tryPush(uid => sync.pushWeekSchedule(uid, next), DIRTY_WEEK_SCHEDULE)
   },
 
   saveWeek(week: WeekSchedule) {
     safeSet(WEEK_SCHEDULE_KEY, week)
-    tryPush(uid => sync.pushWeekSchedule(uid, week))
+    tryPush(uid => sync.pushWeekSchedule(uid, week), DIRTY_WEEK_SCHEDULE)
   },
 
   resetDay(day: DayKey) {
@@ -303,11 +358,13 @@ export const userSettingsStore = {
   set: (patch: Partial<UserSettings>) => {
     const next = { ...userSettingsStore.get(), ...patch }
     safeSet(USER_SETTINGS_KEY, next)
-    tryPush(uid => sync.upsertUserSettings(uid, next))
+    tryPush(uid => sync.upsertUserSettings(uid, next), DIRTY_USER_SETTINGS)
   },
 
-  /** Used during syncAll — writes remote value without re-triggering a push */
-  importFromRemote: (s: UserSettings) => safeSet(USER_SETTINGS_KEY, s),
+  /** Used during syncAll — writes the remote value (unless a local edit is unconfirmed) */
+  importFromRemote: (s: UserSettings) => {
+    if (!dirtyStore.has(DIRTY_USER_SETTINGS)) safeSet(USER_SETTINGS_KEY, s)
+  },
 }
 
 export function useUserSettingsStore() {
@@ -342,12 +399,14 @@ export const bodyStatsStore = {
   set: (patch: Partial<UserBodyStats>) => {
     const next = { ...bodyStatsStore.get(), ...patch }
     safeSet(BODY_STATS_KEY, next)
-    tryPush(uid => sync.upsertUserBodyStats(uid, next))
+    tryPush(uid => sync.upsertUserBodyStats(uid, next), DIRTY_BODY_STATS)
     notifyChange()
   },
 
-  /** Used during syncAll — writes remote value without re-triggering a push */
-  importFromRemote: (s: UserBodyStats) => safeSet(BODY_STATS_KEY, s),
+  /** Used during syncAll — writes the remote value (unless a local edit is unconfirmed) */
+  importFromRemote: (s: UserBodyStats) => {
+    if (!dirtyStore.has(DIRTY_BODY_STATS)) safeSet(BODY_STATS_KEY, s)
+  },
 }
 
 export function useBodyStatsStore() {
@@ -361,15 +420,27 @@ export const workoutPlanStore = {
 
   set: (plan: UserWorkoutPlan) => {
     safeSet(WORKOUT_PLAN_KEY, plan)
-    tryPush(uid => sync.upsertUserWorkoutPlan(uid, plan))
+    tryPush(uid => sync.upsertUserWorkoutPlan(uid, plan), DIRTY_WORKOUT_PLAN)
   },
 
-  /** Used during syncAll — writes remote value without re-triggering a push */
-  importFromRemote: (p: UserWorkoutPlan) => safeSet(WORKOUT_PLAN_KEY, p),
+  /** Used during syncAll — writes the remote value (unless a local edit is unconfirmed) */
+  importFromRemote: (p: UserWorkoutPlan) => {
+    if (!dirtyStore.has(DIRTY_WORKOUT_PLAN)) safeSet(WORKOUT_PLAN_KEY, p)
+  },
 }
 
 export function useWorkoutPlanStore() {
   return workoutPlanStore
+}
+
+// ── Meditation guide links ──────────────────────────────────────
+export const medGuidesStore = {
+  /** Saved guides, or null when the user has never edited the list. */
+  get: (): MedGuide[] | null => safeGet<MedGuide[] | null>(MED_GUIDES_KEY, null),
+  save: (guides: MedGuide[]) => {
+    safeSet(MED_GUIDES_KEY, guides)
+    tryPush(uid => sync.pushMedGuides(uid, guides), DIRTY_MED_GUIDES)
+  },
 }
 
 // ── Reminders ── persistent cross-day checklist ───────────────────
