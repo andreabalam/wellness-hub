@@ -7,7 +7,7 @@ import pkg from './package.json' with { type: 'json' }
 // UTC (toISOString) fails every evening instead of only on a developer's
 // machine after 4 pm. Override with TZ=... to test other zones (CI also runs
 // Pacific/Auckland, east of UTC). Workers inherit this env.
-declare const process: { env: Record<string, string | undefined> } // no @types/node here
+declare const process: { env: Record<string, string | undefined>; versions: { node: string } } // no @types/node here
 if (process.env.VITEST) process.env.TZ ||= 'America/Los_Angeles'
 
 // https://vitejs.dev/config/
@@ -76,6 +76,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // Node 25+ ships its own `localStorage` global (an empty stub without
+    // --localstorage-file) that shadows jsdom's. Turn it off in workers.
+    execArgv:
+      Number(process.versions.node.split('.')[0]) >= 22 ? ['--no-experimental-webstorage'] : [],
     include: ['src/test/**/*.test.{ts,tsx}'],
     exclude: ['e2e/**', 'node_modules/**'],
     coverage: {

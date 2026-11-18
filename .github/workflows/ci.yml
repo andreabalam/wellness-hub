@@ -14,12 +14,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
-        with: { node-version: 20, cache: npm }
+        with: { node-version-file: .nvmrc, cache: npm }
       - run: npm ci
       - run: npm run format:check # Prettier — fails if anything is unformatted
       - run: npm run lint # fails on errors; warnings are allowed
       - run: npm run typecheck # explicit type-check (not just implied by build)
       - run: npm run test:coverage # unit tests + enforced coverage thresholds
+      # Default test zone is America/Los_Angeles (west of UTC); re-run east of
+      # UTC so day-key bugs can't hide on either side of the date line.
+      - run: npm test
+        env: { TZ: Pacific/Auckland }
       - run: npm run build
       - name: Audit dependencies (advisory)
         run: npm audit --audit-level=high
