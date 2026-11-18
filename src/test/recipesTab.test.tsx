@@ -88,35 +88,23 @@ afterEach(() => vi.unstubAllGlobals())
 const settled = () =>
   waitFor(() => expect(screen.queryByText('Loading recipes…')).not.toBeInTheDocument())
 
-describe('RecipesTab — fetch & merge effect', () => {
-  it('loads the remote builtin catalog and merges DB custom recipes', async () => {
-    mockSync['fetchUserRecipes'].mockResolvedValue([DB_CUSTOM])
+describe('RecipesTab — catalog fetch & sync refresh', () => {
+  it('loads the remote builtin catalog; custom recipes come from the store', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([DB_CUSTOM])
     render(<RecipesTab user={FAKE_USER} />)
     await settled()
     expect(screen.getByText('Built Bowl')).toBeInTheDocument()
     expect(screen.getByText('DB Smoothie')).toBeInTheDocument()
+    // User recipes are reconciled by syncAll, not by the tab
+    expect(mockSync['fetchUserRecipes']).not.toHaveBeenCalled()
   })
 
-  it('pushes a never-synced local recipe and applies the DB id', async () => {
-    const placeholder = recipe({ id: 1.7e12, name: 'Local Only', custom: true })
-    ls['whub_custom_recipes_v1'] = JSON.stringify([placeholder])
-    mockSync['fetchUserRecipes'].mockResolvedValue([])
-    mockSync['upsertUserRecipe'].mockResolvedValue(7)
-    render(<RecipesTab user={FAKE_USER} />)
-    await waitFor(() =>
-      expect(mockSync['upsertUserRecipe']).toHaveBeenCalledWith(
-        FAKE_USER.id,
-        expect.objectContaining({ name: 'Local Only' }),
-      ),
-    )
-  })
-
-  it('reports a user-fetch error without wiping local recipes', async () => {
-    ls['whub_custom_recipes_v1'] = JSON.stringify([DB_CUSTOM])
-    mockSync['fetchUserRecipes'].mockRejectedValue(new Error('offline'))
-    render(<RecipesTab user={FAKE_USER} />)
+  it('re-reads custom recipes from the store after a sync', async () => {
+    const { rerender } = render(<RecipesTab user={FAKE_USER} syncVersion={0} />)
     await settled()
-    // local recipe is preserved (null user-fetch → keep local untouched)
+    expect(screen.queryByText('DB Smoothie')).not.toBeInTheDocument()
+    ls['whub_custom_recipes_v1'] = JSON.stringify([DB_CUSTOM]) // written by syncAll
+    rerender(<RecipesTab user={FAKE_USER} syncVersion={1} />)
     expect(screen.getByText('DB Smoothie')).toBeInTheDocument()
   })
 
@@ -166,7 +154,7 @@ describe('RecipesTab — save id reconciliation', () => {
 
 describe('RecipesTab — delete, fork, cook, hide, grocery', () => {
   it('deletes a custom recipe through Supabase', async () => {
-    mockSync['fetchUserRecipes'].mockResolvedValue([DB_CUSTOM])
+    ls['whub_custom_recipes_v1'] = JSON.stringify([DB_CUSTOM])
     render(<RecipesTab user={FAKE_USER} />)
     await settled()
     fireEvent.click(screen.getByText('DB Smoothie').closest('.rcard') as HTMLElement)
@@ -178,7 +166,7 @@ describe('RecipesTab — delete, fork, cook, hide, grocery', () => {
   const cardOf = (name: string) => screen.getByText(name).closest('.rcard') as HTMLElement
 
   it('updates an existing custom recipe (edit → save changes)', async () => {
-    mockSync['fetchUserRecipes'].mockResolvedValue([DB_CUSTOM])
+    ls['whub_custom_recipes_v1'] = JSON.stringify([DB_CUSTOM])
     render(<RecipesTab user={FAKE_USER} />)
     await settled()
     const card = cardOf('DB Smoothie')

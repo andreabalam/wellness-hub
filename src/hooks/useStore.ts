@@ -13,6 +13,7 @@ import * as sync from '../lib/sync'
 import { safeGet, safeSet, safeRemove, safeHas } from '../lib/storage'
 import { reportError } from '../lib/errorLog'
 import { isDayDataMap, isRecipe, isQuickFood, isArrayOf } from '../lib/schema'
+import { mergeRecipes, applyIdMap } from '../lib/recipeSync'
 
 const isRecipeArray = (v: unknown): v is Recipe[] => isArrayOf(v, isRecipe)
 const isQuickFoodArray = (v: unknown): v is QuickFood[] => isArrayOf(v, isQuickFood)
@@ -190,8 +191,9 @@ export const trackerStore = {
 })()
 
 // ── Recipes ── plain functions ───────────────────────────────────
-// Note: recipe sync to Supabase is handled explicitly in RecipesTab
-// via upsertUserRecipe / deleteUserRecipe — not through tryPush here.
+// Recipe pushes need the DB-assigned id back, so they don't go through
+// tryPush: RecipesTab saves/deletes explicitly, and syncCustomRecipes (called
+// from syncAll) reconciles the whole set.
 export const recipeStore = {
   getRecipes: () => safeGet<Recipe[]>(RECIPES_KEY, [], isRecipeArray),
   saveRecipes: (arr: Recipe[]) => safeSet(RECIPES_KEY, arr),
@@ -208,6 +210,47 @@ export const recipeStore = {
     const tags = recipeStore.getTags()
     if (!tags.includes(tag)) recipeStore.saveTags([...tags, tag])
   },
+}
+
+/**
+ * Reconcile local custom recipes with the user's DB rows (called from syncAll):
+ * prune recipes deleted on another device, push never-synced local ones and
+ * adopt their DB ids. See mergeRecipes for the id-as-tombstone rule.
+ *
+ * Returns false when anything failed — the pull (local recipes are then left
+ * untouched; an empty result from a failed fetch must never prune) or a push
+ * (that recipe keeps its placeholder id and is retried next sync).
+ */
+export async function syncCustomRecipes(userId: string): Promise<boolean> {
+  let remote: Recipe[]
+  try {
+    remote = await sync.fetchUserRecipes(userId)
+  } catch (err) {
+    reportError('recipe-sync:pull', err)
+    return false
+  }
+  const before = recipeStore.getRecipes()
+  const { merged, toPush } = mergeRecipes(before, remote)
+
+  const idMap = new Map<number, number>() // placeholder id → DB id
+  let ok = true
+  await Promise.all(
+    toPush.map(async r => {
+      const dbId = await sync.upsertUserRecipe(userId, r).catch(err => {
+        reportError('recipe-sync:push', err)
+        return null
+      })
+      if (dbId == null) ok = false
+      else if (dbId !== r.id) idMap.set(r.id!, dbId)
+    }),
+  )
+
+  // Keep anything saved locally while we were talking to the DB; it isn't in
+  // `merged`, and RecipesTab's own save pushes it.
+  const seen = new Set(before.map(r => r.id))
+  const addedMeanwhile = recipeStore.getRecipes().filter(r => !seen.has(r.id))
+  recipeStore.saveRecipes([...applyIdMap(merged, idMap), ...addedMeanwhile])
+  return ok
 }
 
 // ── Built-in recipe catalog cache ────────────────────────────────

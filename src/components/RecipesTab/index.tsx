@@ -13,7 +13,6 @@ import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
 import { reportError } from '../../lib/errorLog'
 import { showToast } from '../../lib/toast'
-import { mergeRecipes, applyIdMap } from '../../lib/recipeSync'
 import { EmptyState } from '../common'
 import RecipeCard from './RecipeCard'
 import GroceryPanel from './GroceryPanel'
@@ -55,9 +54,12 @@ export interface OpenRecipeRequest {
 export default function RecipesTab({
   user,
   openRequest,
+  syncVersion = 0,
 }: {
   user?: User | null
   openRequest?: OpenRecipeRequest | null
+  /** Bumped by App after each syncAll; custom recipes are re-read from the store. */
+  syncVersion?: number
 }) {
   const isAuth = !!user
   const store = useRecipeStore()
@@ -91,73 +93,40 @@ export default function RecipesTab({
   // If Supabase is configured, the effect below upgrades this to the full DB catalog.
   const [builtinRecipes, setBuiltinRecipes] = useState<Recipe[]>(BUILTIN_RECIPES)
   const [hiddenIds, setHiddenIds] = useState<number[]>(() => hiddenStore.getAll())
-  const [loading, setLoading] = useState(false)
+  // True until the built-in catalog fetch below settles
+  const [loading, setLoading] = useState(() => !!supabase)
   const [loadError] = useState(false)
 
-  // When Supabase is available, upgrade the static fallback to the full DB catalog.
-  // Re-runs when the signed-in user changes so sign-in on any device loads their recipes.
+  // Custom recipes are reconciled with the DB by syncAll (syncCustomRecipes);
+  // this tab only re-reads the store when a sync completes. Adjusting state
+  // during render (not in an effect) avoids a stale extra render.
+  const [seenSyncVersion, setSeenSyncVersion] = useState(syncVersion)
+  if (syncVersion !== seenSyncVersion) {
+    setSeenSyncVersion(syncVersion)
+    setCustomRecipes(store.getRecipes())
+  }
+
+  // When Supabase is available, upgrade the static fallback to the full
+  // built-in catalog (public rows, not per-user).
   useEffect(() => {
     if (!supabase) return
     let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      const remote = await sync.fetchBuiltinRecipes().catch(() => null)
-      // null = no user or the fetch failed; only a successful fetch is safe to
-      // merge/prune against (an error must not wipe synced recipes).
-      let userRecipes: Recipe[] | null = null
-      if (user) {
-        try {
-          userRecipes = await sync.fetchUserRecipes(user.id)
-        } catch (err) {
-          reportError('recipe-sync:pull', err)
-        }
-      }
-      if (cancelled) return
-
-      if (remote) {
-        // Full DB catalog replaces the static fallback
-        setBuiltinRecipes(remote)
-        // Cache for the tracker's log-food search (read-only consumer)
-        builtinRecipeCacheStore.save(remote)
-      }
-
-      if (userRecipes === null) {
-        // No successful user fetch — keep whatever is local, untouched.
-        setCustomRecipes(store.getRecipes())
-        setLoading(false)
-        return
-      }
-
-      // Merge against the DB: prune recipes deleted on other devices, push
-      // never-synced local ones. See mergeRecipes for the id-as-tombstone rule.
-      const { merged, toPush } = mergeRecipes(store.getRecipes(), userRecipes)
-
-      let finalMerged = merged
-      if (user && toPush.length) {
-        const idMap = new Map<number, number>() // old placeholder id → new DB id
-        await Promise.all(
-          toPush.map(async r => {
-            const dbId = await sync.upsertUserRecipe(user.id, r).catch(err => {
-              reportError('recipe-sync:push', err)
-              return null
-            })
-            if (dbId != null && dbId !== r.id) idMap.set(r.id!, dbId)
-          }),
-        )
+    sync
+      .fetchBuiltinRecipes()
+      .catch(() => null)
+      .then(remote => {
         if (cancelled) return
-        finalMerged = applyIdMap(merged, idMap)
-      }
-
-      // Persist the reconciled set to localStorage so custom recipes survive
-      // reloads, work offline, and appear in JSON backups; prunes are dropped here.
-      store.saveRecipes(finalMerged)
-      setCustomRecipes(finalMerged)
-      setLoading(false)
-    })()
+        if (remote) {
+          setBuiltinRecipes(remote)
+          // Cache for the tracker's log-food search (read-only consumer)
+          builtinRecipeCacheStore.save(remote)
+        }
+        setLoading(false)
+      })
     return () => {
       cancelled = true
     }
-  }, [user?.id])
+  }, [])
 
   // Open-from-tracker: when a 📖 badge is tapped, expand the linked recipe.
   // Resolve by id first; ids can go stale after the first sync (placeholder →

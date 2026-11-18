@@ -60,6 +60,30 @@ import { supabase } from '../lib/supabase'
 import * as sync from '../lib/sync'
 import { syncStatusStore } from '../hooks/useStore'
 import { EMPTY_DAY } from '../data/tracker'
+import type { Recipe } from '../data/recipes'
+
+const EXAMPLE_RECIPE: Recipe = {
+  cat: 'meal',
+  type: 'Meal',
+  color: 'var(--green)',
+  sc: 'cg',
+  name: 'Example',
+  tag: 'tag',
+  prepL: '10 min',
+  prepC: 'var(--green)',
+  hk: 400,
+  hp: '20g',
+  hc: '30g',
+  hf: '10g',
+  mk: 400,
+  mp: '20g',
+  mc: '30g',
+  mf: '10g',
+  ings: [['Egg', '2']],
+  steps: ['Cook'],
+  tip: '',
+  custom: true,
+}
 
 const mockAuth = supabase!.auth as unknown as {
   getSession: ReturnType<typeof vi.fn>
@@ -429,6 +453,17 @@ describe('App (with mocked Supabase)', () => {
       { timeout: 3000 },
     )
   })
+  it('syncAll reconciles custom recipes; a failed recipe push flags pending', async () => {
+    ls['whub_custom_recipes_v1'] = JSON.stringify([
+      { ...EXAMPLE_RECIPE, id: 1.7e12, name: 'Never synced' },
+    ])
+    mockSync['upsertUserRecipe'].mockResolvedValue(null)
+    mockAuth.getSession.mockResolvedValue({ data: { session: { user: MOCK_USER } }, error: null })
+    render(<App />)
+    await waitFor(() => expect(mockSync['fetchUserRecipes']).toHaveBeenCalledWith(MOCK_USER.id))
+    await waitFor(() => expect(syncStatusStore.isPending()).toBe(true))
+  })
+
   describe('offline edits vs remote copies', () => {
     const day = (notes: string) => ({ ...EMPTY_DAY, foods: [], notes })
     const signIn = () =>

@@ -22,6 +22,8 @@ vi.mock('../lib/sync', () => ({
   upsertUserBodyStats: vi.fn().mockResolvedValue(undefined),
   upsertUserWorkoutPlan: vi.fn().mockResolvedValue(undefined),
   pushMedGuides: vi.fn().mockResolvedValue(undefined),
+  fetchUserRecipes: vi.fn().mockResolvedValue([]),
+  upsertUserRecipe: vi.fn().mockResolvedValue(99),
   pushErrorLog: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -178,6 +180,83 @@ describe('dirty records (unconfirmed local edits)', () => {
     await flush()
     expect(mockSync['pushMedGuides']).toHaveBeenCalledWith('u-1', [])
     expect(store.dirtyStore.has(store.DIRTY_MED_GUIDES)).toBe(false)
+  })
+})
+
+describe('syncCustomRecipes', () => {
+  const recipe = (id: number, name: string) =>
+    ({
+      id,
+      name,
+      cat: 'meal',
+      type: 'Meal',
+      color: '',
+      sc: '',
+      tag: '',
+      prepL: '',
+      prepC: '',
+      hk: 0,
+      hp: '',
+      hc: '',
+      hf: '',
+      mk: 0,
+      mp: '',
+      mc: '',
+      mf: '',
+      ings: [],
+      steps: [],
+      tip: '',
+      custom: true,
+    }) as never
+  const names = () => store.recipeStore.getRecipes().map(r => `${r.id}:${r.name}`)
+
+  it('pulls DB recipes, pushes never-synced ones and adopts their DB id', async () => {
+    store.recipeStore.saveRecipes([recipe(1.7e12, 'Local only')])
+    mockSync['fetchUserRecipes'].mockResolvedValue([recipe(2, 'From DB')])
+    mockSync['upsertUserRecipe'].mockResolvedValue(7)
+    expect(await store.syncCustomRecipes('u-1')).toBe(true)
+    expect(mockSync['upsertUserRecipe']).toHaveBeenCalledWith(
+      'u-1',
+      expect.objectContaining({ name: 'Local only' }),
+    )
+    expect(names().sort()).toEqual(['2:From DB', '7:Local only'])
+  })
+
+  it('prunes a synced recipe deleted on another device', async () => {
+    store.recipeStore.saveRecipes([recipe(3, 'Deleted elsewhere'), recipe(2, 'Kept')])
+    mockSync['fetchUserRecipes'].mockResolvedValue([recipe(2, 'Kept')])
+    await store.syncCustomRecipes('u-1')
+    expect(names()).toEqual(['2:Kept'])
+  })
+
+  it('leaves local recipes untouched when the pull fails', async () => {
+    store.recipeStore.saveRecipes([recipe(3, 'Synced earlier')])
+    mockSync['fetchUserRecipes'].mockRejectedValue(new Error('offline'))
+    expect(await store.syncCustomRecipes('u-1')).toBe(false)
+    expect(names()).toEqual(['3:Synced earlier'])
+  })
+
+  it('reports a failed push and keeps the placeholder for a retry', async () => {
+    store.recipeStore.saveRecipes([recipe(1.7e12, 'Local only')])
+    mockSync['fetchUserRecipes'].mockResolvedValue([])
+    mockSync['upsertUserRecipe'].mockResolvedValue(null)
+    expect(await store.syncCustomRecipes('u-1')).toBe(false)
+    expect(names()).toEqual(['1700000000000:Local only'])
+  })
+
+  it('keeps a recipe saved locally while pushes were in flight', async () => {
+    store.recipeStore.saveRecipes([recipe(1.7e12, 'Pushing')])
+    mockSync['fetchUserRecipes'].mockResolvedValue([])
+    let resolvePush!: (id: number) => void
+    mockSync['upsertUserRecipe'].mockImplementation(
+      () => new Promise<number>(r => (resolvePush = r)),
+    )
+    const done = store.syncCustomRecipes('u-1')
+    await flush() // pull done, push pending
+    store.recipeStore.addRecipe(recipe(1.8e12, 'Saved mid-sync'))
+    resolvePush(5)
+    expect(await done).toBe(true)
+    expect(names()).toEqual(['5:Pushing', '1800000000000:Saved mid-sync'])
   })
 })
 

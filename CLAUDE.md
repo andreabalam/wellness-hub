@@ -22,7 +22,7 @@ npx vitest run src/test/tracker.test.ts
 npx playwright test e2e/tracker.spec.ts
 ```
 
-Unit tests live in `src/test/` and use jsdom — no browser. E2E tests live in `e2e/` and run against the real dev server (port 5173). `sync.ts` and `AuthButton.tsx` are excluded from unit coverage because they're covered by E2E.
+Unit tests live in `src/test/` and use jsdom — no browser. They never see `.env.local` (Supabase is `null` unless a test mocks `../lib/supabase`). E2E tests live in `e2e/` and run against the real dev server (port 5173). `sync.ts` and `AuthButton.tsx` are excluded from unit coverage because they're covered by E2E.
 
 ## Git workflow
 
@@ -36,7 +36,9 @@ All user data lives in `localStorage` — the app works fully offline. Supabase 
 
 - **Reads always come from localStorage** via the stores in `src/hooks/useStore.ts`
 - **Writes go to localStorage first**, then fire-and-forget to Supabase via `tryPush()`
-- **Bidirectional sync** runs once on sign-in (`syncAll` in `App.tsx`): pull remote → merge → push merged back. Merge rules: remote wins for tracker days; union for recipes/tags/grocery/food library (local-only items are never lost)
+- **Bidirectional sync** runs once on sign-in (`syncAll` in `App.tsx`): pull remote → merge → push back what differs. Merge rules: remote wins for tracker days and singletons (schedule, med guides, settings, body stats, workout plan) **unless the local copy is dirty**; union for tags/grocery/food library (local-only items are never lost). Custom recipes are reconciled by `syncCustomRecipes` (id-as-tombstone, see `lib/recipeSync.ts`).
+- **Dirty records** (`dirtyStore` in `useStore.ts`): a write passed to `tryPush` with a dirty key stays marked until its push is confirmed, so offline / signed-out / failed edits are never overwritten by an older cloud copy.
+- **Day keys are local dates.** Always use `src/lib/dateKey.ts` (`dkey`, `todayKey`, `fromKey`, `addDaysToKey`…); never `toISOString()` (UTC) — lint enforces this. Unit tests run in `America/Los_Angeles` by default; CI also runs `TZ=Pacific/Auckland`.
 
 ### Data layer
 

@@ -39,6 +39,7 @@ import {
   bodyStatsStore,
   workoutPlanStore,
   syncStatusStore,
+  syncCustomRecipes,
 } from './hooks/useStore'
 import { todayKey } from './lib/dateKey'
 
@@ -275,6 +276,9 @@ export default function App() {
           ...(DIRTY_BODY_STATS in dirty
             ? [sync.upsertUserBodyStats(userId, bodyStatsStore.get())]
             : []),
+          syncCustomRecipes(userId).then(ok => {
+            if (!ok) throw new Error('recipe sync incomplete')
+          }),
           ...(DIRTY_WORKOUT_PLAN in dirty && workoutPlanStore.get()
             ? [sync.upsertUserWorkoutPlan(userId, workoutPlanStore.get()!)]
             : []),
@@ -462,7 +466,7 @@ export default function App() {
           )}
           {/* Recipes stay mounted (search, filters and open cards survive switching) */}
           <div hidden={foodView !== 'recipes'}>
-            <RecipesTab user={user} openRequest={recipeOpenReq} />
+            <RecipesTab user={user} openRequest={recipeOpenReq} syncVersion={syncVersion} />
           </div>
         </div>
       </ErrorBoundary>
