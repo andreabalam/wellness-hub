@@ -44,6 +44,7 @@ import {
   syncCustomRecipes,
 } from './hooks/useStore'
 import { todayKey } from './lib/dateKey'
+import { useFollowToday, useToday } from './hooks/useToday'
 
 type Tab = 'today' | 'food' | 'workouts' | 'insights'
 
@@ -76,11 +77,10 @@ export default function App() {
     setMounted(m => ({ train: m.train || trainShown, recipes: m.recipes || recipesShown }))
   }
   // Day viewed in Today and Food — shared so switching tabs keeps the same day
-  const [dayDate, setDayDate] = useState(() => {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    return d
-  })
+  const today = useToday()
+  const [dayDate, setDayDate] = useState(today)
+  // Viewing today when midnight passes (or the app resumes next morning)? Follow it.
+  useFollowToday(today, dayDate, setDayDate)
   // Lazy-init from window so we avoid setState inside the effect below
   const [swUpdate, setSwUpdate] = useState<(() => void) | null>(
     () => window.__swPendingUpdate ?? null,

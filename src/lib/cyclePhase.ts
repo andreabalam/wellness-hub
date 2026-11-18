@@ -10,6 +10,9 @@
  * 2. cycle-day arithmetic (1–5 menstrual, 6–13 follicular, 14–16 ovulatory,
  *    17+ luteal), using the observed average cycle length when ≥2 anchors
  *    exist;
+ * 2b. a phase set by hand (Follicular / Ovulatory / Luteal) after the last
+ *    period re-anchors the count when it disagrees with the estimate, so the
+ *    correction carries forward instead of applying to that one day;
  * 3. a confirmed post-ovulation temperature shift in the current cycle
  *    (daily_readiness.temperature_deviation, "3 over 6" rule) marks Luteal;
  *    without one, a sustained recent elevation still nudges follicular→luteal
@@ -51,6 +54,18 @@ const MAX_CYCLE_LEN = 40
 const daysBetween = daysBetweenKeys
 const addDaysKey = addDaysToKey
 
+/** Marks within this many days of a period's first day belong to that same
+ *  period — a cycle can't be shorter than MIN_CYCLE_LEN, so a second
+ *  "period started" tap (or Oura tag) a few days in isn't a new cycle. */
+const SAME_PERIOD_DAYS = 10
+
+/** First cycle day of each phase — where a by-hand phase pins the count. */
+const PHASE_START_DAY: Record<Exclude<PhaseSuggestion['phase'], 'Menstrual'>, number> = {
+  Follicular: 6,
+  Ovulatory: 14,
+  Luteal: 17,
+}
+
 /** Earliest cycle day a temperature shift is accepted (earlier rises are noise). */
 const MIN_SHIFT_CYCLE_DAY = 10
 /** How far the third high reading must clear the baseline (°C). */
@@ -62,29 +77,40 @@ const SHIFT_MARGIN = 0.1
  * whose tag_type_code matches a period code, any order.
  */
 export function anchorsFromTags(tagDays: string[]): CycleAnchor[] {
-  const sorted = [...new Set(tagDays)].sort()
-  const anchors: CycleAnchor[] = []
-  for (let i = 0; i < sorted.length; i++) {
-    if (i === 0 || daysBetween(sorted[i - 1], sorted[i]) > 1)
-      anchors.push({ date: sorted[i], source: 'oura-tag' })
+  return periodStarts(tagDays).map(date => ({ date, source: 'oura-tag' as const }))
+}
+
+/** First day of each period in a set of period-marked days (any order). */
+function periodStarts(markedDays: string[]): string[] {
+  const sorted = [...new Set(markedDays)].sort()
+  const starts: string[] = []
+  for (const d of sorted) {
+    const start = starts[starts.length - 1]
+    if (!start || daysBetween(start, d) > SAME_PERIOD_DAYS) starts.push(d)
   }
-  return anchors
+  return starts
 }
 
 /**
- * Period-start anchors from manual tracker history: days with
- * phase === 'Menstrual' whose previous calendar day isn't.
+ * Period-start anchors from manual tracker history: the first of each run of
+ * phase === 'Menstrual' days (gaps up to SAME_PERIOD_DAYS stay one period).
  */
 export function anchorsFromTracker(days: Record<string, DayData>): CycleAnchor[] {
-  const menstrual = Object.keys(days)
-    .filter(k => days[k].phase === 'Menstrual')
+  return periodStarts(Object.keys(days).filter(k => days[k].phase === 'Menstrual')).map(date => ({
+    date,
+    source: 'manual' as const,
+  }))
+}
+
+/** Non-menstrual phases the user set by hand, oldest first. */
+function phaseHints(days: Record<string, DayData>): { date: string; startDay: number }[] {
+  return Object.keys(days)
+    .filter(k => days[k].phase in PHASE_START_DAY)
     .sort()
-  const set = new Set(menstrual)
-  return menstrual
-    .filter(k => {
-      return !set.has(addDaysToKey(k, -1))
-    })
-    .map(date => ({ date, source: 'manual' as const }))
+    .map(date => ({
+      date,
+      startDay: PHASE_START_DAY[days[date].phase as keyof typeof PHASE_START_DAY],
+    }))
 }
 
 /** Observed average cycle length from consecutive anchors; 28 when <2 usable gaps. */
@@ -150,7 +176,21 @@ export function estimatePhase(
   const anchor = past[past.length - 1]
 
   const len = cycleLength(anchors)
-  const cycleDay = (daysBetween(anchor.date, date) % len) + 1
+  const dayOf = (from: string, d: string) => (daysBetween(from, d) % len) + 1
+
+  // The latest by-hand phase since that period, up to `date`, wins when it
+  // disagrees with the count: re-anchor so it falls on its phase's first day.
+  let countFrom = anchor.date
+  const hint = phaseHints(trackerDays)
+    .filter(h => h.date > anchor.date && h.date <= date)
+    .pop()
+  if (hint) {
+    const hintDay = dayOf(anchor.date, hint.date)
+    const hinted = phaseForCycleDay(hint.startDay)
+    if (phaseForCycleDay(hintDay) !== hinted)
+      countFrom = addDaysKey(hint.date, -(hint.startDay - 1))
+  }
+  const cycleDay = dayOf(countFrom, date)
 
   let phase = phaseForCycleDay(cycleDay)
 

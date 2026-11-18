@@ -35,6 +35,7 @@ import WorkoutLogger from './WorkoutLogger'
 import { importOuraWorkoutHistory } from '../../lib/ouraImport'
 import TrainHistory from './TrainHistory'
 import { DRAFT_KEY, HISTORY_SYNC_KEY } from '../../lib/storageKeys'
+import { useFollowToday, useToday } from '../../hooks/useToday'
 
 /** The workout in progress — survives closing the logger or the app. */
 /** Last Oura history backfill (ms) — at most once a day */
@@ -187,9 +188,12 @@ export default function WorkoutsTab({ user }: Props) {
   const [view, setView] = useState<'plan' | 'history' | 'progress'>('plan')
   // Day rows the user opened/closed by hand ("week-day" → open); others follow the default
   const [dayOpen, setDayOpen] = useState<Record<string, boolean>>({})
-  const [today] = useState(() => new Date())
+  // Train stays mounted for the whole session: keep "today" current so the
+  // cycle phase and plan day advance on their own every day.
+  const today = useToday()
   // The day being viewed/logged in the day card (‹ › back-fills past days)
   const [date, setDate] = useState(today)
+  useFollowToday(today, date, setDate)
   const [ouraConnected, setOuraConnected] = useState(false)
   // Bumped on any tracker / profile write (any tab), so derived reads refresh
   const storeRev = useStoreRev()
@@ -515,7 +519,6 @@ export default function WorkoutsTab({ user }: Props) {
             <CycleToday
               suggestion={suggestion}
               week={phaseWeek != null ? planData[phaseWeek].week : null}
-              todayKey={todayKey}
               ouraConnected={ouraConnected}
               tagScopeMissing={cycle.tagScopeMissing}
               onPeriodStarted={markPeriodStart}

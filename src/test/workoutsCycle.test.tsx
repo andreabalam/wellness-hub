@@ -4,7 +4,7 @@
  * Oura is not connected here (no Supabase), so anchors come from tracker days.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { act, render, screen, fireEvent, within } from '@testing-library/react'
 import type { User } from '@supabase/supabase-js'
 import WorkoutsTab from '../components/WorkoutsTab'
 import { EMPTY_DAY } from '../data/tracker'
@@ -91,6 +91,62 @@ describe('WorkoutsTab cycle sync', () => {
     expect(JSON.parse(ls.whub_tracker_v3)[daysAgo(0)].phase).toBe('Menstrual')
     // Today is now the anchor — the button goes away
     expect(screen.queryByRole('button', { name: 'My period started today' })).toBeNull()
+  })
+
+  describe('follows the calendar without manual updates', () => {
+    const at = (d: number, h = 8) => new Date(2026, 10, d, h, 0) // Nov 2026, local time
+    const periodOn = (date: string) =>
+      (ls.whub_tracker_v3 = JSON.stringify({
+        [date]: { ...EMPTY_DAY, foods: [], phase: 'Menstrual' },
+      }))
+    const resume = () => act(() => window.dispatchEvent(new Event('focus')))
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      ls.whub_body_stats_v1 = JSON.stringify({ weightKg: 60, cycleType: 'regular' })
+    })
+    afterEach(() => vi.useRealTimers())
+
+    it('moves to the next cycle day when the app resumes the next morning', () => {
+      vi.setSystemTime(at(17, 21)) // Nov 17, 9 pm
+      periodOn('2026-11-01')
+      render(<WorkoutsTab user={FAKE_USER} />)
+      expect(screen.getByText('cycle day 17')).toBeInTheDocument()
+
+      vi.setSystemTime(at(18)) // app left open overnight
+      resume()
+      expect(screen.getByText('cycle day 18')).toBeInTheDocument()
+      vi.setSystemTime(at(22))
+      resume()
+      expect(screen.getByText('cycle day 22')).toBeInTheDocument()
+    })
+
+    it('hides "My period started today" while a logged period is in progress', () => {
+      vi.setSystemTime(at(3))
+      periodOn('2026-11-01')
+      render(<WorkoutsTab user={FAKE_USER} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Details' }))
+      expect(screen.queryByRole('button', { name: 'My period started today' })).toBeNull()
+
+      vi.setSystemTime(at(20)) // late in the cycle the period may start: offer it again
+      resume()
+      fireEvent.click(screen.getByRole('button', { name: 'Details' }))
+      expect(screen.getByRole('button', { name: 'My period started today' })).toBeInTheDocument()
+    })
+
+    it('a phase corrected by hand carries into the next day', () => {
+      vi.setSystemTime(at(10)) // cycle day 10 = Follicular by the count
+      periodOn('2026-11-01')
+      render(<WorkoutsTab user={FAKE_USER} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Details' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Not right? Change phase' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Luteal' }))
+
+      vi.setSystemTime(at(11))
+      resume()
+      expect(screen.getByText(/Luteal phase/)).toHaveTextContent('Luteal phase → Week 4')
+      expect(screen.getByText('cycle day 18')).toBeInTheDocument()
+    })
   })
 
   it('stays hidden when cycle tracking is off', () => {

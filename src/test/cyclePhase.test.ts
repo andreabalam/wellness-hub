@@ -8,7 +8,7 @@ import {
   detectTempShift,
 } from '../lib/cyclePhase'
 import type { TempReading } from '../lib/cyclePhase'
-import { dkey } from '../lib/dateKey'
+import { addDaysToKey, dkey } from '../lib/dateKey'
 import { EMPTY_DAY } from '../data/tracker'
 import type { DayData } from '../data/tracker'
 
@@ -214,5 +214,83 @@ describe('estimatePhase with a temperature shift', () => {
     expect(s?.anchorDate).toBe('2026-05-29')
     expect(s?.anchorEstimated).toBe(true)
     expect(estimatePhase('2026-05-10', ['2026-05-01'], {})?.anchorEstimated).toBeUndefined()
+  })
+})
+
+describe('daily progression from one logged period', () => {
+  it('advances through every phase day by day with no further input', () => {
+    const days = { '2026-11-01': day('Menstrual') }
+    for (let i = 0; i < 60; i++) {
+      const date = addDaysToKey('2026-11-01', i)
+      const s = estimatePhase(date, [], days)!
+      const expected = (i % 28) + 1
+      expect(s.cycleDay, date).toBe(expected)
+      expect(s.phase, date).toBe(phaseForCycleDay(expected))
+    }
+  })
+
+  it('a second "period started" mark a few days in does not restart the cycle', () => {
+    const days = { '2026-11-01': day('Menstrual'), '2026-11-03': day('Menstrual') }
+    expect(anchorsFromTracker(days)).toEqual([{ date: '2026-11-01', source: 'manual' }])
+    expect(estimatePhase('2026-11-06', [], days)).toMatchObject({
+      phase: 'Follicular',
+      cycleDay: 6,
+      anchorDate: '2026-11-01',
+    })
+  })
+
+  it('a mark more than 10 days after the period start is a new cycle', () => {
+    const days = { '2026-11-01': day('Menstrual'), '2026-11-27': day('Menstrual') }
+    expect(anchorsFromTracker(days).map(a => a.date)).toEqual(['2026-11-01', '2026-11-27'])
+    expect(estimatePhase('2026-11-28', [], days)).toMatchObject({ cycleDay: 2 })
+  })
+
+  it('Oura period tags a few days apart collapse into one period', () => {
+    expect(anchorsFromTags(['2026-11-01', '2026-11-02', '2026-11-04'])).toEqual([
+      { date: '2026-11-01', source: 'oura-tag' },
+    ])
+  })
+})
+
+describe('by-hand phase corrections carry forward', () => {
+  const period = { '2026-11-01': day('Menstrual') }
+
+  it('a correction that disagrees re-anchors the following days', () => {
+    // Estimate says day 10 = Follicular; user says Luteal → day 10 becomes day 17
+    const days = { ...period, '2026-11-10': day('Luteal') }
+    expect(estimatePhase('2026-11-11', [], days)).toMatchObject({
+      phase: 'Luteal',
+      cycleDay: 18,
+      anchorEstimated: true,
+    })
+    expect(estimatePhase('2026-11-13', [], days)).toMatchObject({ phase: 'Luteal', cycleDay: 20 })
+    // …and the next period is expected 28 days from the shifted start (Oct 25)
+    expect(estimatePhase('2026-11-22', [], days)).toMatchObject({
+      phase: 'Menstrual',
+      cycleDay: 1,
+    })
+  })
+
+  it('a correction that agrees with the estimate changes nothing', () => {
+    const days = { ...period, '2026-11-08': day('Follicular') }
+    expect(estimatePhase('2026-11-09', [], days)).toMatchObject({
+      cycleDay: 9,
+      anchorDate: '2026-11-01',
+    })
+    expect(estimatePhase('2026-11-09', [], days)?.anchorEstimated).toBeUndefined()
+  })
+
+  it('a newer logged period overrides an older correction', () => {
+    const days = { ...period, '2026-11-10': day('Luteal'), '2026-11-25': day('Menstrual') }
+    expect(estimatePhase('2026-11-27', [], days)).toMatchObject({
+      phase: 'Menstrual',
+      cycleDay: 3,
+      anchorDate: '2026-11-25',
+    })
+  })
+
+  it('a correction only affects days on or after it', () => {
+    const days = { ...period, '2026-11-10': day('Luteal') }
+    expect(estimatePhase('2026-11-09', [], days)).toMatchObject({ cycleDay: 9 })
   })
 })
