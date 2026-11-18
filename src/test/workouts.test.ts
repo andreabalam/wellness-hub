@@ -10,9 +10,23 @@ describe('WORKOUT_PLAN', () => {
     expect(WORKOUT_PLAN.map(w => w.week)).toEqual([1, 2, 3, 4])
   })
 
-  it('every week has 7 days', () => {
+  it('every week is the same 6-workout rotation (no rest or walk days)', () => {
     WORKOUT_PLAN.forEach(w => {
-      expect(w.days).toHaveLength(7)
+      expect(w.days.map(d => d.slot)).toEqual([
+        'Day 1',
+        'Day 2',
+        'Day 3',
+        'Day 4',
+        'Day 5',
+        'Day 6',
+      ])
+      expect(w.days.some(d => d.type === 'Rest' || d.type === 'Recovery')).toBe(false)
+    })
+  })
+
+  it('trains upper body at least twice per rotation', () => {
+    WORKOUT_PLAN.forEach(w => {
+      expect(w.days.filter(d => /^Upper/.test(d.label))).toHaveLength(2)
     })
   })
 
@@ -43,18 +57,32 @@ describe('WORKOUT_PLAN', () => {
     })
   })
 
-  it('Pilates days optionally have alts', () => {
-    const pilatesDays = WORKOUT_PLAN.flatMap(w => w.days.filter(d => d.type === 'Pilates'))
-    const withAlts = pilatesDays.filter(d => d.alts && d.alts.length > 0)
-    expect(withAlts.length).toBeGreaterThan(0)
+  it('weights are the default every day; Pilates is only ever Option B', () => {
+    WORKOUT_PLAN.forEach(w => {
+      expect(w.days.every(d => d.type !== 'Pilates')).toBe(true)
+      const withB = w.days.filter(d => d.alts?.length)
+      expect(withB.map(d => d.slot)).toEqual(['Day 5', 'Day 6'])
+      withB.forEach(d => {
+        expect(d.altType).toBe('Pilates')
+        expect(d.altLabel).toMatch(/^Option B: Pilates/)
+      })
+    })
   })
 
   it('every week carries the current plan version', () => {
     WORKOUT_PLAN.forEach(w => expect(w.v).toBe(WORKOUT_PLAN_VERSION))
   })
 
-  it('swap options exist on Day 6 every week', () => {
-    WORKOUT_PLAN.forEach(w => expect(w.days[5].alts?.length).toBeGreaterThan(0))
+  it('the cycle week changes the dose, not the exercises', () => {
+    const names = (w: (typeof WORKOUT_PLAN)[number]) => w.days.map(d => d.exs.map(e => e.t))
+    WORKOUT_PLAN.forEach(w => expect(names(w)).toEqual(names(WORKOUT_PLAN[0])))
+    const mainSets = WORKOUT_PLAN.map(w => w.days[0].exs[1].d)
+    expect(mainSets).toEqual([
+      '4×10-12 per side',
+      '5×10-12 per side',
+      '5×10-12 per side',
+      '3×10-12 per side',
+    ])
   })
 
   it('week colors are CSS variables', () => {

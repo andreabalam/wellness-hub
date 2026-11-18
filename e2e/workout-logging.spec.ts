@@ -70,7 +70,11 @@ test.describe('Train tab — set logging (mobile)', () => {
     await expect(logger).toBeHidden()
     await page.reload()
     await openTrain(page)
-    await panel.getByRole('button', { name: /Resume workout/ }).click()
+    // The top row of the day card holds the workout in progress
+    await panel
+      .locator('.train-plan-row')
+      .getByRole('button', { name: /Resume workout/ })
+      .click()
     await expect(card.getByLabel('Set 1 reps', { exact: true })).toHaveValue('12')
     await expect(card.getByRole('button', { name: 'Set 1 done' })).toHaveAttribute(
       'aria-pressed',

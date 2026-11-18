@@ -12,8 +12,11 @@ export interface WorkoutDay {
   color: string
   solin: string
   exs: Exercise[]
+  /** Option B: an alternative session for the same slot (logged as this day) */
   altLabel?: string
   alts?: Exercise[]
+  /** Session type when Option B is logged (e.g. 'Pilates'); defaults to `type` */
+  altType?: string
 }
 
 export interface WorkoutWeek {
@@ -39,10 +42,12 @@ export interface PlanNote {
  * weeks don't carry this version is treated as outdated and the built-in plan
  * is shown instead — so a new release actually reaches signed-in users.
  */
-export const WORKOUT_PLAN_VERSION = 2
+export const WORKOUT_PLAN_VERSION = 3
 
 // ── Cycle-synced plan builders ───────────────────────────────────
-// Same 7-day structure every week; each cycle phase only adjusts sets,
+// A 6-workout rotation, followed in order from where you left off (not by
+// weekday): 2 lower, 2 upper, 1 full body, 1 conditioning; Days 5 and 6 have
+// Pilates as Option B. Same structure every week; each cycle phase only adjusts sets,
 // conditioning intensity and the swap options. Research (Colenso-Semple 2023,
 // McNulty 2020) finds no reliable phase effect on strength or hypertrophy, so
 // the plan trains all month and adjusts by symptoms rather than switching
@@ -51,7 +56,7 @@ export const WORKOUT_PLAN_VERSION = 2
 const ex = (t: string, d: string, i: string): Exercise => ({ t, d, i })
 
 interface PhaseDose {
-  /** sets on the first (main) lift of Day 1 and Day 4 */
+  /** sets on the first (main) lift of each strength day (Days 1-4) */
   main: number
   /** added to every other set count (-1 in the maintain week) */
   acc: number
@@ -62,49 +67,6 @@ interface PhaseDose {
 }
 
 const sets = (base: number, p: PhaseDose) => Math.max(2, base + p.acc)
-
-const MOBILITY_10: Exercise[] = [
-  ex(
-    'Cat-cow',
-    '1 min',
-    'On hands and knees, alternate arching and rounding your back with your breath.',
-  ),
-  ex(
-    'Thread the needle',
-    '30s per side',
-    'From hands and knees, slide one arm under your body and rest that shoulder and your head on the mat to rotate your upper back.',
-  ),
-  ex(
-    "World's greatest stretch",
-    '45s per side',
-    'Deep lunge with the back knee down, both hands inside the front foot. Reach the inside arm to the ceiling and back down 5 times.',
-  ),
-  ex(
-    'Half-kneeling hip flexor stretch',
-    '45s per side',
-    'Back knee on the mat. Squeeze the glute of that leg and gently shift your hips forward until you feel the front of the hip.',
-  ),
-  ex(
-    '90/90 hip switches',
-    '1 min',
-    'Sit with both knees bent at 90°, one leg in front and one to the side. Rotate the knees side to side, hands off the floor if you can.',
-  ),
-  ex(
-    'Pigeon or figure-4 stretch',
-    '1 min per side',
-    'Pigeon if your knees are happy. Otherwise lie on your back, cross one ankle over the opposite knee and pull that thigh toward you.',
-  ),
-  ex(
-    "Child's pose with side reach",
-    '1 min',
-    'Sit back on your heels with arms forward, then walk both hands to one side for 20s and to the other for 20s.',
-  ),
-  ex(
-    'Supine spinal twist',
-    '30s per side',
-    'On your back, drop both knees to one side with your arms out wide.',
-  ),
-]
 
 const PILATES_B: Exercise[] = [
   ex(
@@ -154,7 +116,7 @@ function day1(p: PhaseDose, color: string): WorkoutDay {
   return {
     slot: 'Day 1',
     type: 'Home',
-    label: 'Glutes & Hamstrings',
+    label: 'Lower A - Glutes & Hamstrings',
     time: '45-50 min',
     color,
     solin: `Main lift ${p.main} sets. ${p.cue}`,
@@ -198,124 +160,11 @@ function day1(p: PhaseDose, color: string): WorkoutDay {
   }
 }
 
-function day2(p: PhaseDose, color: string): WorkoutDay {
-  return {
-    slot: 'Day 2',
-    type: 'Home',
-    label: 'Upper Body + Core',
-    time: '40-45 min',
-    color,
-    solin:
-      'Upper body twice a week (here and Day 6) builds the muscle that drives overall fat loss.',
-    exs: [
-      ex(
-        'One-arm DB row',
-        `${sets(4, p)}×10-12 per side`,
-        'Hand and knee on a bench or couch. Pull the elbow toward the hip, pause, lower slowly.',
-      ),
-      ex(
-        'Push-ups',
-        `${sets(4, p)}×AMRAP`,
-        'As many reps as you can, stopping 1-2 before failure. Elevate hands on a couch or counter if needed; lower the incline as you get stronger.',
-      ),
-      ex(
-        'Seated DB shoulder press',
-        `${sets(3, p)}×10-12`,
-        'Ribs down, press overhead, control the way down.',
-      ),
-      ex(
-        'Bent-over DB reverse flys',
-        `${sets(3, p)}×12-15, 1s squeeze`,
-        'Hinge to about 45°, light DBs, arms slightly bent. Lift out to the sides by squeezing the shoulder blades.',
-      ),
-      ex(
-        'OR band pull-aparts',
-        `${sets(3, p)}×20`,
-        'Long band only. Arms straight at chest height, pull the band apart to your chest.',
-      ),
-      ex(
-        'Lateral raises',
-        `${sets(3, p)}×12-15`,
-        'Lead with the elbows, stop at shoulder height, 2s down.',
-      ),
-      ex(
-        'Dead bug + plank',
-        `${sets(3, p)}×10 per side + ${sets(3, p)}×30-45s`,
-        'Dead bug: lower back stays pressed to the floor as opposite arm and leg lower. Plank: squeeze glutes, ribs down.',
-      ),
-    ],
-  }
-}
-
-function day3(color: string): WorkoutDay {
+function lowerQuads(p: PhaseDose, color: string): WorkoutDay {
   return {
     slot: 'Day 3',
-    type: 'Pilates',
-    label: 'Pilates A - Glutes & Core (mat)',
-    time: '~40 min',
-    color,
-    solin:
-      'Home mat Pilates. Slow, controlled, quality over speed. Loop band adds load to the side-lying series.',
-    exs: [
-      ex(
-        'Pelvic curl',
-        '8 reps',
-        'Slow bridge, peeling the spine up and down one vertebra at a time.',
-      ),
-      ex(
-        'The Hundred',
-        '100 pumps',
-        'Head and shoulders up, arms pumping. Breathe in 5 pumps, out 5. Bend knees to tabletop if the lower back lifts.',
-      ),
-      ex(
-        'Single-leg stretch',
-        '10 per side',
-        'Head up, pull one knee in while the other leg extends long. Switch with control.',
-      ),
-      ex(
-        'Criss-cross',
-        '10 per side, slow',
-        'Rotate the ribs toward the bent knee, hold 1s each side. Elbows stay wide.',
-      ),
-      ex(
-        'Side-lying series (loop band above knees)',
-        '10-15 each move per side',
-        'Leg lifts, front/back kicks, clamshells, small circles. Hips stacked, waist lifted off the mat.',
-      ),
-      ex(
-        'Single-leg kicks (prone)',
-        '8 per side',
-        'On your forearms, chest lifted. Kick one heel to your butt twice, switch.',
-      ),
-      ex(
-        'Swan prep',
-        '8 reps',
-        'Face down, hands under shoulders. Small back extension using the back muscles, not the arms.',
-      ),
-      ex(
-        'Kneeling side kicks',
-        '10 per side',
-        'One hand and knee down, top leg at hip height. Kick forward and back without the torso moving.',
-      ),
-      ex(
-        'Teaser prep',
-        '5 reps, 3s hold',
-        'Bent knees, roll up to a V and hold. Roll down with control.',
-      ),
-      ex(
-        'Spine stretch forward + saw',
-        '5 each',
-        'Seated, legs wide. Round forward over the legs, then twist and reach toward the opposite foot.',
-      ),
-    ],
-  }
-}
-
-function day4(p: PhaseDose, color: string): WorkoutDay {
-  return {
-    slot: 'Day 4',
     type: 'Home',
-    label: 'Glutes & Quads',
+    label: 'Lower B - Glutes & Quads',
     time: '45-50 min',
     color,
     solin: `Main lift ${p.main} sets. ${p.cue}`,
@@ -354,74 +203,247 @@ function day4(p: PhaseDose, color: string): WorkoutDay {
   }
 }
 
-function day5(color: string): WorkoutDay {
+function upperPush(p: PhaseDose, color: string): WorkoutDay {
+  return {
+    slot: 'Day 2',
+    type: 'Home',
+    label: 'Upper A - Push (chest, shoulders, triceps)',
+    time: '40-45 min',
+    color,
+    solin: `Push-ups ${p.main} sets. ${p.cue} Progress push-ups by lowering the incline, then a 3s descent.`,
+    exs: [
+      ex(
+        'Warm-up',
+        p.warmup,
+        'Arm circles 30s each way, band pull-aparts 2×15, 10 scap push-ups (arms straight, squeeze and spread the shoulder blades).',
+      ),
+      ex(
+        'Push-ups',
+        `${p.main}×AMRAP`,
+        'Stop 1-2 reps before failure. Hands on the couch or counter if needed; lower the incline as you get stronger, then slow the way down to 3s.',
+      ),
+      ex(
+        'DB floor press (2×15 lb)',
+        `${sets(3, p)}×12-15, 3s down`,
+        'On your back, knees bent, elbows at about 45°. Lower until the upper arms touch the floor, pause, press.',
+      ),
+      ex(
+        'Seated DB shoulder press',
+        `${sets(3, p)}×10-12`,
+        'Ribs down, press overhead, control the way down.',
+      ),
+      ex(
+        'One-arm DB row',
+        `${sets(3, p)}×10-12 per side`,
+        'Balances the pushing. Hand and knee on the couch; pull the elbow toward the hip, pause, lower slowly.',
+      ),
+      ex(
+        'Lateral raises',
+        `${sets(3, p)}×12-15`,
+        'Lead with the elbows, stop at shoulder height, 2s down.',
+      ),
+      ex(
+        'Overhead DB triceps extension',
+        `${sets(3, p)}×12-15`,
+        'One DB held with both hands behind the head. Elbows point forward and stay close; extend fully.',
+      ),
+      ex(
+        'OR couch triceps dips',
+        `${sets(3, p)}×10-15`,
+        'Hands on the couch edge, knees bent. Lower until the elbows reach 90°, shoulders away from the ears.',
+      ),
+      ex(
+        'Plank shoulder taps',
+        `${sets(3, p)}×20 taps`,
+        'High plank, feet wide. Tap the opposite shoulder without letting the hips rock.',
+      ),
+    ],
+  }
+}
+
+function upperPull(p: PhaseDose, color: string): WorkoutDay {
+  return {
+    slot: 'Day 4',
+    type: 'Home',
+    label: 'Upper B - Pull (back, rear shoulders, biceps) + Core',
+    time: '40-45 min',
+    color,
+    solin: `Main row ${p.main} sets. ${p.cue} A strong back is what makes the upper body look and feel toned.`,
+    exs: [
+      ex(
+        'Warm-up',
+        p.warmup,
+        'Cat-cow 1 min, band pull-aparts 2×15, 10 slow DB rows per side with the lightest weight.',
+      ),
+      ex(
+        'One-arm DB row, 2s pause',
+        `${p.main}×10-12 per side`,
+        'Hand and knee on the couch. Pull the elbow toward the hip, hold 2s at the top, 3s down.',
+      ),
+      ex(
+        'Bent-over two-DB row',
+        `${sets(3, p)}×12-15`,
+        'Hinge to about 45°, back flat. Row both DBs to the lower ribs, squeeze the shoulder blades together.',
+      ),
+      ex(
+        'DB pullover',
+        `${sets(3, p)}×12`,
+        'Lying on the floor or across the couch, one DB held over the chest with both hands. Lower it behind the head with slightly bent arms, pull back over the chest with the lats.',
+      ),
+      ex(
+        'Band face pulls',
+        `${sets(3, p)}×15-20`,
+        'Long band anchored at face height (door hinge or a post). Pull toward the eyes, elbows high, ending in a "double biceps" pose.',
+      ),
+      ex(
+        'OR bent-over DB reverse flys',
+        `${sets(3, p)}×12-15, 1s squeeze`,
+        'Light DBs, arms slightly bent. Lift out to the sides by squeezing the shoulder blades.',
+      ),
+      ex(
+        'DB curls, 3s down',
+        `${sets(3, p)}×10-12`,
+        'Elbows pinned to the sides. Curl up, lower slowly. Alternate with a hammer grip each week.',
+      ),
+      ex(
+        'Dead bug + side plank',
+        `${sets(3, p)}×10 per side + ${sets(2, p)}×30s per side`,
+        'Dead bug: lower back stays pressed to the floor. Side plank: hips high, knees down to make it easier.',
+      ),
+    ],
+  }
+}
+
+const PILATES_A: Exercise[] = [
+  ex('Pelvic curl', '8 reps', 'Slow bridge, peeling the spine up and down one vertebra at a time.'),
+  ex(
+    'The Hundred',
+    '100 pumps',
+    'Head and shoulders up, arms pumping. Breathe in 5 pumps, out 5. Bend knees to tabletop if the lower back lifts.',
+  ),
+  ex(
+    'Single-leg stretch',
+    '10 per side',
+    'Head up, pull one knee in while the other leg extends long. Switch with control.',
+  ),
+  ex(
+    'Criss-cross',
+    '10 per side, slow',
+    'Rotate the ribs toward the bent knee, hold 1s each side. Elbows stay wide.',
+  ),
+  ex(
+    'Side-lying series (loop band above knees)',
+    '10-15 each move per side',
+    'Leg lifts, front/back kicks, clamshells, small circles. Hips stacked, waist lifted off the mat.',
+  ),
+  ex(
+    'Single-leg kicks (prone)',
+    '8 per side',
+    'On your forearms, chest lifted. Kick one heel to your butt twice, switch.',
+  ),
+  ex(
+    'Swan prep',
+    '8 reps',
+    'Face down, hands under shoulders. Small back extension using the back muscles, not the arms.',
+  ),
+  ex(
+    'Kneeling side kicks',
+    '10 per side',
+    'One hand and knee down, top leg at hip height. Kick forward and back without the torso moving.',
+  ),
+  ex(
+    'Teaser prep',
+    '5 reps, 3s hold',
+    'Bent knees, roll up to a V and hold. Roll down with control.',
+  ),
+  ex(
+    'Spine stretch forward + saw',
+    '5 each',
+    'Seated, legs wide. Round forward over the legs, then twist and reach toward the opposite foot.',
+  ),
+]
+
+function fullBody(p: PhaseDose, color: string): WorkoutDay {
   return {
     slot: 'Day 5',
-    type: 'Recovery',
-    label: 'Active Recovery - Walk + Mobility',
-    time: '55-70 min',
+    type: 'Home',
+    label: 'Full Body - Strength Supersets',
+    time: '40-45 min',
     color,
     solin:
-      'Easy movement speeds recovery and keeps daily steps up. The hip flexor stretch and thread the needle are worth repeating on desk days.',
+      'Pairs of upper + lower moves back to back, 60-90s rest after each pair. More muscle worked in less time - the most efficient session for recomposition.',
     exs: [
-      ex('Walk', '45-60 min', 'Conversational pace. Counts toward your 7-10k daily steps.'),
-      ...MOBILITY_10,
+      ex(
+        'Warm-up',
+        p.warmup,
+        '5 inchworms (walk the hands out to a plank and back), 15 bodyweight squats, band pull-aparts 15.',
+      ),
+      ex(
+        'A1 Goblet squat',
+        `${sets(3, p)}×12`,
+        'One DB at the chest. Sit between the heels, drive up. Go straight into A2.',
+      ),
+      ex('A2 Push-ups', `${sets(3, p)}×8-12`, 'Same incline as on Day 2, or one step easier.'),
+      ex(
+        'B1 DB Romanian deadlift (2×15 lb)',
+        `${sets(3, p)}×12, 3s down`,
+        'Soft knees, push the hips back until you feel the hamstrings, squeeze the glutes to stand.',
+      ),
+      ex(
+        'B2 Bent-over two-DB row',
+        `${sets(3, p)}×12`,
+        'Stay hinged from B1 if your back is happy; otherwise stand up between the moves.',
+      ),
+      ex(
+        'C1 Reverse lunge',
+        `${sets(3, p)}×10 per side`,
+        'DBs at your sides. Step back, front shin vertical, push through the front heel.',
+      ),
+      ex(
+        'C2 Arnold press',
+        `${sets(3, p)}×10`,
+        'Start with palms facing you at chin height, rotate them forward as you press overhead.',
+      ),
+      ex(
+        'Finisher: renegade rows',
+        `${sets(2, p)}×6 per side`,
+        'High plank on the DBs, feet wide. Row one DB without twisting the hips.',
+      ),
     ],
+    altLabel: 'Option B: Pilates A - Glutes & Core (~40 min)',
+    altType: 'Pilates',
+    alts: PILATES_A,
   }
 }
 
-function day6(rounds: string, work: string, pilatesFirst: boolean, color: string): WorkoutDay {
-  const conditioning: Exercise[] = [
-    ex(
-      'Conditioning circuit',
-      `${rounds} rounds, ${work}`,
-      'DB thruster, DB swing, renegade row, reverse lunge, mountain climbers back-to-back. Rest 60s between rounds.',
-    ),
-    ex(
-      'Banded hip thrust, 1.5 reps',
-      '3×15',
-      'Go halfway back down and up again before finishing each rep. Band above knees.',
-    ),
-    ex(
-      'Banded kickbacks',
-      '3×15 per side',
-      'On all fours, loop band around ankles or above knees. Drive the heel to the ceiling.',
-    ),
-    ex(
-      'Curtsy lunge (DBs)',
-      '3×12 per side',
-      'Step back and across, keep the front knee over the toes.',
-    ),
-  ]
+function conditioning(rounds: string, work: string, color: string): WorkoutDay {
   return {
     slot: 'Day 6',
-    type: pilatesFirst ? 'Pilates' : 'Home',
-    label: pilatesFirst ? 'Pilates B - Restorative (or Conditioning)' : 'Conditioning + Glute Pump',
-    time: pilatesFirst ? '~30 min' : '35-40 min',
+    type: 'Home',
+    label: 'Conditioning + Core',
+    time: '30-35 min',
     color,
-    solin: pilatesFirst
-      ? 'Lower-energy week: Pilates B by default. Do the lighter conditioning instead if you feel good.'
-      : 'Keeps heart rate up while adding glute volume.',
-    exs: pilatesFirst ? PILATES_B : conditioning,
-    altLabel: pilatesFirst
-      ? `Swap: Conditioning (${rounds} rounds, ${work})`
-      : 'Swap: Pilates B - Restorative (~30 min)',
-    alts: pilatesFirst ? conditioning : PILATES_B,
-  }
-}
-
-function day7(color: string): WorkoutDay {
-  return {
-    slot: 'Day 7',
-    type: 'Rest',
-    label: 'Rest',
-    time: 'Full rest',
-    color,
-    solin: 'Muscle grows during recovery. A relaxed walk is fine.',
+    solin: `${rounds} rounds, ${work}. Keeps the heart rate up for fat loss while the upper body keeps working.`,
     exs: [
-      ex('Easy walk (optional)', '20-30 min', 'Relaxed pace, no targets.'),
-      ex('Sleep', '7.5-8 h', 'The biggest recovery lever you have.'),
+      ex(
+        'Conditioning circuit',
+        `${rounds} rounds, ${work}`,
+        'DB thruster, renegade row, push-up, DB swing, mountain climbers back-to-back. Rest 60s between rounds.',
+      ),
+      ex(
+        'Banded hip thrust, 1.5 reps',
+        '2×15',
+        'Go halfway back down and up again before finishing each rep. Band above knees.',
+      ),
+      ex(
+        'Core trio',
+        '2 rounds',
+        'Hollow hold 20-30s (knees bent to make it easier), bird-dog 8 per side, side plank 20s per side.',
+      ),
     ],
+    altLabel: 'Option B: Pilates B - Restorative (~30 min)',
+    altType: 'Pilates',
+    alts: PILATES_B,
   }
 }
 
@@ -432,7 +454,7 @@ function buildWeek(
   note: string,
   nutr: string,
   p: PhaseDose,
-  d6: { rounds: string; work: string; pilatesFirst: boolean },
+  d6: { rounds: string; work: string },
 ): WorkoutWeek {
   return {
     week,
@@ -443,12 +465,11 @@ function buildWeek(
     v: WORKOUT_PLAN_VERSION,
     days: [
       day1(p, color),
-      day2(p, color),
-      day3(color),
-      day4(p, color),
-      day5(color),
-      day6(d6.rounds, d6.work, d6.pilatesFirst, color),
-      day7('var(--muted2)'),
+      upperPush(p, color),
+      lowerQuads(p, color),
+      upperPull(p, color),
+      fullBody(p, color),
+      conditioning(d6.rounds, d6.work, color),
     ],
   }
 }
@@ -458,37 +479,37 @@ export const WORKOUT_PLAN: WorkoutWeek[] = [
     1,
     'Week 1 - Menstrual (about cycle days 1-5)',
     'var(--purple)',
-    "Train as normal if you feel fine - movement tends to ease cramps. On rough days drop 1 set from each exercise and keep the weights the same. Day 6 defaults to Pilates B. Don't skip Day 5's walk; a heat pack helps too.",
+    'Train as normal if you feel fine - movement tends to ease cramps. On rough days drop 1 set from each exercise and keep the weights the same, or pick Option B (Pilates) on Days 5 and 6. A walk and a heat pack help too.',
     'Stick to ~1,380 kcal. Magnesium-rich foods (dark chocolate, walnuts, spinach) help this week. For iron, have heme iron (red meat, poultry, fish) with a vitamin C source, and keep tea and coffee away from meals.',
     { main: 4, acc: 0, cue: 'Normal sets; drop one per exercise on rough days.', warmup: '5 min' },
-    { rounds: '4', work: '40s on / 20s off', pilatesFirst: true },
+    { rounds: '4', work: '40s on / 20s off' },
   ),
   buildWeek(
     2,
     'Week 2 - Follicular (about cycle days 6-13)',
     'var(--green)',
-    'The push week. Add 1 set to the first lift on Days 1 and 4, aim for the top of every rep range, and try your hardest progressions: slower tempo, 1.5 reps, single-leg sliding curls. Day 6 at full intensity.',
+    'The push week. Add 1 set to the first lift of each strength day (Days 1-4), aim for the top of every rep range, and try your hardest progressions: slower tempo, 1.5 reps, a lower push-up incline. Conditioning at full intensity.',
     "Hit ~1,380 kcal with protein at every meal. Don't undereat on the harder training days.",
     { main: 5, acc: 0, cue: 'Push: top of the rep range, hardest progression.', warmup: '5 min' },
-    { rounds: '5', work: '40s on / 20s off', pilatesFirst: false },
+    { rounds: '5', work: '40s on / 20s off' },
   ),
   buildWeek(
     3,
     'Week 3 - Ovulation to early luteal (about cycle days 14-21)',
     'var(--amber)',
-    "Keep Week 2's weights, sets and reps - no new jumps in difficulty. Spend 2-3 extra minutes warming up before Days 1 and 4 and keep knees tracking over toes on lunges and squats.",
-    'Energy needs rise slightly. Allow ~1,500 kcal on Days 1 and 4 by adding a protein serving.',
+    "Keep Week 2's weights, sets and reps - no new jumps in difficulty. Spend 2-3 extra minutes warming up and keep knees tracking over toes on lunges and squats.",
+    'Energy needs rise slightly. Allow ~1,500 kcal on the lower-body days (Days 1 and 3) by adding a protein serving.',
     { main: 5, acc: 0, cue: 'Hold Week 2 loads; extra warm-up.', warmup: '8 min' },
-    { rounds: '4', work: '40s on / 20s off', pilatesFirst: false },
+    { rounds: '4', work: '40s on / 20s off' },
   ),
   buildWeek(
     4,
     'Week 4 - Late luteal (about cycle days 22-28)',
     'var(--coral)',
-    'The maintain week. Same weights, 1 set fewer on everything - a built-in light week. Day 6 defaults to Pilates B, or 3 rounds of 30s on / 30s off. Hard cardio feels harder now because body temperature runs a bit higher.',
+    'The maintain week. Same weights, 1 set fewer on everything - a built-in light week. Conditioning drops to 3 rounds of 30s on / 30s off, and Option B (Pilates) is a good pick on low-energy days. Hard cardio feels harder now because body temperature runs a bit higher.',
     'Hunger often rises: go up to ~1,500 kcal with an extra protein serving rather than fighting it. Drink more water. Scale weight often reads higher this week from water - not fat.',
     { main: 3, acc: -1, cue: 'Same weights, one set fewer.', warmup: '5 min' },
-    { rounds: '3', work: '30s on / 30s off', pilatesFirst: true },
+    { rounds: '3', work: '30s on / 30s off' },
   ),
 ]
 

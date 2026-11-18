@@ -11,7 +11,9 @@ import {
   lastPerformance,
   loggedSummary,
   newDraft,
+  optionBDay,
   parsePlanDose,
+  planProgress,
   prefillSets,
 } from '../lib/workoutLog'
 import type { WorkoutDraft } from '../lib/workoutLog'
@@ -284,5 +286,82 @@ describe('editing a saved workout', () => {
     const out = applyEdit([other, logged([thrust])], 'manual-1', [])
     expect(out[0]).toBe(other)
     expect(out[1]).toMatchObject({ id: 'manual-1', min: 40, exercises: [] })
+  })
+})
+
+describe('planProgress (rotation)', () => {
+  const day = (slot: string, type = 'Home', exs = 2) =>
+    ({
+      slot,
+      type,
+      label: slot,
+      time: '',
+      color: '',
+      solin: '',
+      exs: Array.from({ length: exs }, (_, i) => ({ t: `${slot} ex${i}`, d: '3×10', i: '' })),
+    }) as WorkoutDay
+  const days = [day('A'), day('B'), day('Rest', 'Rest'), day('C'), day('Empty', 'Home', 0)]
+  const log = (slot: string) => ({
+    ...EMPTY_DAY,
+    foods: [],
+    wkSessions: [
+      { id: slot, src: 'manual' as const, type: 'full-body', min: 30, planRef: { week: 1, slot } },
+    ],
+  })
+
+  it('starts at the first training day', () => {
+    expect(planProgress(days, {}, '2026-11-18')).toEqual({ next: 0 })
+  })
+
+  it('goes to the day after the last logged one, skipping rest and empty days', () => {
+    expect(planProgress(days, { '2026-11-10': log('B') }, '2026-11-18')).toEqual({
+      next: 3,
+      last: { idx: 1, date: '2026-11-10' },
+    })
+    expect(planProgress(days, { '2026-11-10': log('C') }, '2026-11-18').next).toBe(0) // wraps
+  })
+
+  it('uses the most recent date and ignores days after upTo', () => {
+    const history = { '2026-11-10': log('A'), '2026-11-12': log('B'), '2026-11-20': log('C') }
+    expect(planProgress(days, history, '2026-11-18').last).toEqual({ idx: 1, date: '2026-11-12' })
+  })
+
+  it('ignores sessions without a plan slot (Oura imports, other activity) or unknown slots', () => {
+    const other = {
+      ...EMPTY_DAY,
+      foods: [],
+      wkSessions: [{ id: 'o', src: 'oura' as const, type: 'walking', min: 30 }],
+    }
+    expect(
+      planProgress(days, { '2026-11-10': other, '2026-11-11': log('Gone') }, '2026-11-18'),
+    ).toEqual({ next: 0 })
+  })
+
+  it('returns -1 when the plan has no training days', () => {
+    expect(planProgress([day('Rest', 'Rest')], {}, '2026-11-18').next).toBe(-1)
+  })
+})
+
+describe('optionBDay', () => {
+  it('turns Option B into a loggable day for the same slot', () => {
+    const d = {
+      slot: 'Day 5',
+      type: 'Home',
+      label: 'Full Body',
+      time: '',
+      color: '',
+      solin: '',
+      exs: [{ t: 'Squat', d: '3×12', i: '' }],
+      altLabel: 'Option B: Pilates A - Glutes & Core (~40 min)',
+      altType: 'Pilates',
+      alts: [{ t: 'The Hundred', d: '100', i: '' }],
+    }
+    expect(optionBDay(d)).toMatchObject({
+      slot: 'Day 5',
+      type: 'Pilates',
+      label: 'Pilates A - Glutes & Core (~40 min)',
+      exs: [{ t: 'The Hundred' }],
+    })
+    expect(optionBDay({ ...d, alts: [] })).toBeNull()
   })
 })

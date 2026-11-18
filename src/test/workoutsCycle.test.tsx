@@ -48,19 +48,26 @@ beforeEach(() => {
 })
 
 describe('WorkoutsTab cycle sync', () => {
-  it('opens on Week 4 in the luteal phase and marks today', () => {
+  it('early luteal (cycle day 19) opens on Week 3, matching its "days 14-21" label', () => {
     seed({ periodDaysAgo: 18 }) // cycle day 19
     render(<WorkoutsTab user={FAKE_USER} />)
     expect(screen.getByText('cycle day 19')).toBeInTheDocument()
-    expect(screen.getByText(/Luteal phase/)).toHaveTextContent('Luteal phase → Week 4')
-    expect(screen.getByRole('button', { name: 'Week 4' })).toHaveClass('week-nav__btn--current')
+    expect(screen.getByText(/Luteal phase/)).toHaveTextContent('Luteal phase → Week 3')
+    expect(screen.getByRole('button', { name: 'Week 3' })).toHaveClass('week-nav__btn--current')
     // Where the estimate comes from sits behind Details
     expect(screen.queryByText(/Counting from the period start you marked/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Details' }))
     expect(screen.getByText(/Counting from the period start you marked/)).toBeInTheDocument()
     expect(document.querySelector('.day-card__today')).toHaveTextContent('Today')
-    // The day card leads with today's plan workout from the phase week
-    expect(screen.getByText(/^Week 4 plan$|Today.s plan: rest/)).toBeInTheDocument()
+    // The day card leads with the next plan workout from the phase week
+    expect(screen.getByText('Week 3 plan · next up')).toBeInTheDocument()
+  })
+
+  it('late luteal (cycle day 23) opens on Week 4, the light week', () => {
+    seed({ periodDaysAgo: 22 })
+    render(<WorkoutsTab user={FAKE_USER} />)
+    expect(screen.getByText(/Luteal phase/)).toHaveTextContent('Luteal phase → Week 4')
+    expect(screen.getByText('Week 4 plan · next up')).toBeInTheDocument()
   })
 
   it('a manual week pick overrides the phase week but keeps the current-week dot', () => {
@@ -68,8 +75,8 @@ describe('WorkoutsTab cycle sync', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
     fireEvent.click(screen.getByRole('button', { name: 'Week 2' }))
     expect(document.querySelector('.day-card__today')).toBeNull()
-    expect(screen.getByText(/^Week 4 plan$|Today.s plan: rest/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Week 4' })).toHaveClass('week-nav__btn--current')
+    expect(screen.getByText('Week 3 plan · next up')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Week 3' })).toHaveClass('week-nav__btn--current')
   })
 
   it('setting the phase by hand moves the plan to that week', () => {
@@ -144,43 +151,94 @@ describe('WorkoutsTab cycle sync', () => {
 
       vi.setSystemTime(at(11))
       resume()
-      expect(screen.getByText(/Luteal phase/)).toHaveTextContent('Luteal phase → Week 4')
+      expect(screen.getByText(/Luteal phase/)).toHaveTextContent('Luteal phase → Week 3')
       expect(screen.getByText('cycle day 18')).toBeInTheDocument()
     })
   })
 
-  it('stays hidden when cycle tracking is off', () => {
+  it('stays hidden when cycle tracking is off; the rotation still works', () => {
     seed({ cycleType: 'none', periodDaysAgo: 18 })
     render(<WorkoutsTab user={FAKE_USER} />)
     expect(screen.queryByText(/Today · cycle day/)).not.toBeInTheDocument()
     expect(screen.queryByText(/No period logged yet/)).not.toBeInTheDocument()
-    expect(document.querySelector('.day-card__today')).toBeNull()
+    expect(screen.getByText('Week 1 plan · next up')).toBeInTheDocument()
   })
 
   describe('day card on a fixed date', () => {
     afterEach(() => vi.useRealTimers())
 
-    it('on a Monday, leads with Day 1 and starts it', () => {
+    const logged = (date: string, slot: string, week = 4) => ({
+      [date]: {
+        ...EMPTY_DAY,
+        foods: [],
+        wkSessions: [
+          {
+            id: `manual-${date}`,
+            src: 'manual',
+            type: 'full-body',
+            min: 40,
+            planRef: { week, slot },
+          },
+        ],
+      },
+    })
+    const topRow = () => document.querySelector('.train-plan-row') as HTMLElement
+    const sunday = () => {
       vi.useFakeTimers({ toFake: ['Date'] })
-      vi.setSystemTime(new Date('2026-10-26T09:00:00')) // Monday
-      seed({ periodDaysAgo: 18 })
+      vi.setSystemTime(new Date('2026-10-25T09:00:00')) // a Sunday
+    }
+
+    it('with nothing logged, Day 1 is next whatever the weekday', () => {
+      sunday()
+      seed({ periodDaysAgo: 22 })
+      ls.whub_tracker_v3 = JSON.stringify({}) // no anchor: plain rotation
       render(<WorkoutsTab user={FAKE_USER} />)
-      const row = screen.getByText('Week 4 plan').closest('.train-plan-row') as HTMLElement
-      expect(row).toHaveTextContent(/Day 1 ·/)
-      fireEvent.click(within(row).getByRole('button', { name: '▶ Start workout' }))
+      expect(topRow()).toHaveTextContent('Day 1 · Lower A - Glutes & Hamstrings')
+      fireEvent.click(within(topRow()).getByRole('button', { name: '▶ Start workout' }))
       expect(screen.getByRole('dialog', { name: 'Log workout' })).toBeInTheDocument()
     })
 
-    it('on a Sunday, shows the rest day without a Start button', () => {
-      vi.useFakeTimers({ toFake: ['Date'] })
-      vi.setSystemTime(new Date('2026-10-25T09:00:00')) // Sunday
-      seed({ periodDaysAgo: 18 })
+    it('continues from where you left off, even days later', () => {
+      sunday()
+      seed({})
+      ls.whub_tracker_v3 = JSON.stringify(logged('2026-10-20', 'Day 2'))
       render(<WorkoutsTab user={FAKE_USER} />)
-      expect(screen.getByText(/Today's plan: rest/)).toBeInTheDocument()
-      const day7 = document.getElementById('day-card-today') as HTMLElement
-      expect(
-        within(day7).queryByRole('button', { name: /Start workout|Log this workout/ }),
-      ).toBeNull()
+      expect(topRow()).toHaveTextContent('next up')
+      expect(topRow()).toHaveTextContent('Day 3 · Lower B - Glutes & Quads')
+    })
+
+    it("shows today's logged workout as done, with what comes next", () => {
+      sunday()
+      seed({})
+      ls.whub_tracker_v3 = JSON.stringify({
+        ...logged('2026-10-20', 'Day 2'),
+        ...logged('2026-10-25', 'Day 3'),
+      })
+      render(<WorkoutsTab user={FAKE_USER} />)
+      expect(topRow()).toHaveTextContent('done today')
+      expect(topRow()).toHaveTextContent('Day 3 · Lower B')
+      expect(topRow()).toHaveTextContent('Next time: Day 4 · Upper B')
+    })
+
+    it('wraps from Day 6 back to Day 1', () => {
+      sunday()
+      seed({})
+      ls.whub_tracker_v3 = JSON.stringify(logged('2026-10-23', 'Day 6'))
+      render(<WorkoutsTab user={FAKE_USER} />)
+      expect(topRow()).toHaveTextContent('Day 1 · Lower A')
+    })
+
+    it('Option B logs Pilates and counts as that plan day', () => {
+      sunday()
+      seed({})
+      ls.whub_tracker_v3 = JSON.stringify(logged('2026-10-22', 'Day 4', 1))
+      render(<WorkoutsTab user={FAKE_USER} />)
+      expect(topRow()).toHaveTextContent('Day 5 · Full Body - Strength Supersets')
+      fireEvent.click(within(topRow()).getByRole('button', { name: 'Start option B' }))
+      const logger = screen.getByRole('dialog', { name: 'Log workout' })
+      expect(within(logger).getByText(/Day 5 · Pilates A/)).toBeInTheDocument()
+      const d = JSON.parse(ls.whub_workout_draft_v1)
+      expect(d).toMatchObject({ type: 'pilates', planRef: { slot: 'Day 5' } })
     })
 
     it('back-fills a past day: logs other activity to that date', () => {
