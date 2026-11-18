@@ -1,5 +1,6 @@
 import Tesseract from 'tesseract.js'
 import { supabase } from './supabase'
+import { functionErrorMessage } from './functionError'
 
 export interface PhotoAnalysisResult {
   name: string
@@ -152,13 +153,7 @@ export async function analyzeImage(
 
   if (error) {
     // FunctionsHttpError carries the Response in .context — surface the server's reason
-    let detail = ''
-    try {
-      const ctx = (error as { context?: Response }).context
-      detail = ((await ctx?.json()) as { error?: string } | undefined)?.error ?? ''
-    } catch {
-      /* no JSON body */
-    }
+    const detail = await functionErrorMessage(error, '')
     console.error('[analyzeFood] analyze-food-photo failed:', error, detail)
     throw new Error(
       detail

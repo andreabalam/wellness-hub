@@ -19,6 +19,14 @@ describe('parseFoodLog (AI, mocked supabase)', () => {
     await expect(parseFoodLog('eggs and toast')).rejects.toThrow('rate limited')
   })
 
+  it("prefers the server's reason from the response body (e.g. the daily limit)", async () => {
+    const context = new Response(
+      JSON.stringify({ error: 'Daily limit reached (30 per 24 hours).' }),
+    )
+    invoke.mockResolvedValue({ data: null, error: { message: 'non-2xx', context } })
+    await expect(parseFoodLog('eggs')).rejects.toThrow('Daily limit reached')
+  })
+
   it('throws a generic message when the edge function errors without a message', async () => {
     invoke.mockResolvedValue({ data: null, error: {} })
     await expect(parseFoodLog('eggs')).rejects.toThrow(/Parse failed/)

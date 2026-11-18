@@ -11,6 +11,7 @@
 
 import type { QuickFood } from '../data/tracker'
 import { supabase } from './supabase'
+import { functionErrorMessage } from './functionError'
 
 // Keep in sync with MAX_TEXT_CHARS in the edge function.
 const MAX_TEXT_CHARS = 8_000
@@ -31,7 +32,10 @@ export async function parseFoodLog(text: string): Promise<QuickFood[]> {
   const { data, error } = await supabase.functions.invoke('parse-food-log', {
     body: { text: trimmed.slice(0, MAX_TEXT_CHARS) },
   })
-  if (error) throw new Error(error.message || 'Parse failed — please try again.')
+  if (error)
+    throw new Error(
+      await functionErrorMessage(error, error.message || 'Parse failed — please try again.'),
+    )
 
   const entries = (data as { entries?: QuickFood[] } | null)?.entries
   if (!entries?.length) throw new Error('No foods found in that text')
