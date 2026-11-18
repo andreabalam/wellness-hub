@@ -142,6 +142,9 @@ function ExerciseEditRow({
   )
 }
 
+/** Id for a manually logged session (called from event handlers only). */
+const newManualSessionId = () => `manual-${Date.now()}`
+
 // ── Log / resume button + "logged today" chip on a day card ──────
 
 function DayLogBar({
@@ -362,7 +365,7 @@ export default function WorkoutsTab({ user }: Props) {
       return
     }
     const sessions = attachLoggedWorkout(dayWorkoutSessions(day), {
-      id: `manual-${Date.now()}`,
+      id: newManualSessionId(),
       src: 'manual',
       type: draft.type,
       label: draft.title,
