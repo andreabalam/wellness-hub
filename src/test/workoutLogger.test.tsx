@@ -48,6 +48,8 @@ function firstWeighted(logger: HTMLElement): HTMLElement {
 }
 
 const draft = () => JSON.parse(ls.whub_workout_draft_v1)
+/** The day card's top row: today's workout from the rotation */
+const topRow = () => within(document.querySelector('.train-plan-row') as HTMLElement)
 
 describe('WorkoutLogger', () => {
   it('opens prefilled from the plan and autosaves a draft', () => {
@@ -111,7 +113,7 @@ describe('WorkoutLogger', () => {
       exercises: [{ name: 'Plank', sets: [{ sec: 30, done: false }] }],
     })
     render(<WorkoutsTab user={FAKE_USER} />)
-    fireEvent.click(screen.getByRole('button', { name: /Resume workout/ }))
+    fireEvent.click(topRow().getByRole('button', { name: /Resume workout/ }))
     const logger = screen.getByRole('dialog', { name: 'Log workout' })
     fireEvent.click(within(logger).getByRole('button', { name: 'More Set 1 seconds' }))
     expect(within(logger).getByLabelText('Set 1 seconds')).toHaveValue('35')
@@ -136,7 +138,7 @@ describe('WorkoutLogger', () => {
       planRef: { week: 1, slot: 'Day 1' },
     })
     expect(day.wkSessions[0].exercises[0].sets).toHaveLength(1)
-    expect(screen.getByText('✓ Logged · 1 sets')).toBeInTheDocument()
+    expect(topRow().getByText('✓ Logged · 1 sets')).toBeInTheDocument()
     // …and it shows in the day card's activity list
     expect(screen.getByText(/^1 exercise · 1 sets/)).toBeInTheDocument()
   })
@@ -145,7 +147,7 @@ describe('WorkoutLogger', () => {
     const logger = openDay1()
     fireEvent.click(within(logger).getByRole('button', { name: 'Close logger' }))
     expect(screen.queryByRole('dialog')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /Resume workout/ }))
+    fireEvent.click(topRow().getByRole('button', { name: /Resume workout/ }))
     expect(screen.getByRole('dialog', { name: 'Log workout' })).toBeInTheDocument()
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()

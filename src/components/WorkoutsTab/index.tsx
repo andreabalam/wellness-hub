@@ -23,6 +23,8 @@ import {
   draftMinutes,
   loggedSummary,
   newDraft,
+  optionBDay,
+  planProgress,
 } from '../../lib/workoutLog'
 import type { WorkoutDraft } from '../../lib/workoutLog'
 import { dayWorkoutSessions, workoutSessionLabel } from '../../data/tracker'
@@ -43,6 +45,9 @@ const HISTORY_SYNC_MS = 24 * 60 * 60 * 1000
 const HISTORY_DAYS = 84
 
 /** Plan week (0-based) for each cycle phase in the 4-week cycle-synced plan. */
+/** Plan week index for a cycle day, matching the week labels (1-5, 6-13, 14-21, 22+). */
+const weekForCycleDay = (d: number) => (d <= 5 ? 0 : d <= 13 ? 1 : d <= 21 ? 2 : 3)
+
 const PHASE_WEEK: Record<PhaseSuggestion['phase'], number> = {
   Menstrual: 0,
   Follicular: 1,
@@ -152,11 +157,14 @@ function DayLogBar({
   inProgress,
   isToday,
   onStart,
+  onStartB,
 }: {
   logged: WorkoutSession | undefined
   inProgress: boolean
   isToday: boolean
   onStart: () => void
+  /** Log the day's Option B instead (counts as this plan day) */
+  onStartB?: () => void
 }) {
   return (
     <div className="day-card__log">
@@ -172,6 +180,11 @@ function DayLogBar({
       >
         {inProgress ? '▶ Resume workout' : isToday ? '▶ Start workout' : 'Log this workout'}
       </button>
+      {onStartB && !inProgress && (
+        <button type="button" className="btn btn--sm btn--ghost" onClick={onStartB}>
+          {isToday ? 'Start option B' : 'Log option B'}
+        </button>
+      )}
     </div>
   )
 }
@@ -294,16 +307,30 @@ export default function WorkoutsTab({ user }: Props) {
       ? (todayPhase as PhaseSuggestion['phase'])
       : suggestion?.phase
     : undefined
-  const phaseWeek = phase && planData.length >= 4 ? PHASE_WEEK[phase] : null
+  // The week (dose) comes from the cycle DAY, matching the week labels
+  // (1-5, 6-13, 14-21, 22+). A phase set by hand already moves the count.
+  const phaseWeek =
+    !cycleOn || planData.length < 4
+      ? null
+      : suggestion
+        ? weekForCycleDay(suggestion.cycleDay)
+        : phase
+          ? PHASE_WEEK[phase]
+          : null
 
   const safeWeek = Math.min(activeWeek ?? phaseWeek ?? 0, planData.length - 1)
   const wk = planData[safeWeek]
 
-  // Plan days run Mon (Day 1) → Sun (Day 7); only marked on the current phase's week.
-  const weekdayIdx = (today.getDay() + 6) % 7
-  const todayIdx = phaseWeek === safeWeek && wk.days.length === 7 ? weekdayIdx : null
-  const todayPlanWeek = phaseWeek != null ? planData[phaseWeek] : null
-  const todayPlanDay = todayPlanWeek?.days.length === 7 ? todayPlanWeek.days[weekdayIdx] : undefined
+  // The plan is a rotation, not a weekly calendar: today's workout is the one
+  // already logged today, otherwise the one after the last plan workout logged.
+  const rotationWeekIdx = phaseWeek ?? safeWeek
+  const todayPlanWeek = planData[rotationWeekIdx]
+  const progress = planProgress(todayPlanWeek.days, allDays, todayKey)
+  const doneToday = progress.last?.date === todayKey
+  const rotationIdx = doneToday ? progress.last!.idx : progress.next
+  const todayPlanDay = rotationIdx >= 0 ? todayPlanWeek.days[rotationIdx] : undefined
+  const upNext = doneToday && progress.next >= 0 ? todayPlanWeek.days[progress.next] : undefined
+  const todayIdx = safeWeek === rotationWeekIdx && rotationIdx >= 0 ? rotationIdx : null
 
   const setTodayPhase = (p: string) => {
     trackerStore.setDay(todayKey, { ...trackerStore.getDay(todayKey), phase: p })
@@ -411,30 +438,35 @@ export default function WorkoutsTab({ user }: Props) {
         Tap “Log this workout” on a plan day below to log it for this day.
       </div>
     )
-  else if (todayPlanWeek && todayPlanDay?.exs.length && todayPlanDay.type !== 'Rest')
+  else if (todayPlanDay) {
+    const optionB = optionBDay(todayPlanDay)
     planRow = (
       <div className="train-plan-row">
         <div className="flex-1">
           <div className="tlabel text-muted2" style={{ marginBottom: 2 }}>
-            Week {todayPlanWeek.week} plan
+            Week {todayPlanWeek.week} plan · {doneToday ? 'done today' : 'next up'}
           </div>
           <div className="text-md font-500 text-default">
             {todayPlanDay.slot} · {todayPlanDay.label}
           </div>
+          {upNext && (
+            <div className="text-xs text-muted2">
+              Next time: {upNext.slot} · {upNext.label}
+            </div>
+          )}
         </div>
         <DayLogBar
           logged={loggedFor(todayPlanWeek.week, todayPlanDay.slot)}
           inProgress={inProgress(todayPlanWeek.week, todayPlanDay.slot)}
           isToday
           onStart={() => startLogging(todayPlanDay, todayPlanWeek.week)}
+          onStartB={
+            optionB && !doneToday ? () => startLogging(optionB, todayPlanWeek.week) : undefined
+          }
         />
       </div>
     )
-  else if (todayPlanDay)
-    planRow = (
-      <div className="train-plan-hint">Today's plan: {todayPlanDay.label.toLowerCase()} 😴</div>
-    )
-  else planRow = <div className="train-plan-hint">Tap “Start” on a plan day below.</div>
+  } else planRow = <div className="train-plan-hint">Tap “Start” on a plan day below.</div>
 
   const PHASES_FEMALE = [
     { n: 'Week 1 - Menstrual', s: 'Train as normal, drop a set on rough days', c: 'var(--purple)' },
@@ -732,6 +764,11 @@ export default function WorkoutsTab({ user }: Props) {
                                 inProgress={inProgress(wk.week, day.slot)}
                                 isToday={isToday && isTodayCard}
                                 onStart={() => startLogging(day, wk.week)}
+                                onStartB={
+                                  day.alts?.length
+                                    ? () => startLogging(optionBDay(day)!, wk.week)
+                                    : undefined
+                                }
                               />
                             )}
                           </>
@@ -751,7 +788,7 @@ export default function WorkoutsTab({ user }: Props) {
                         )}
                         {day.alts && day.alts.length > 0 && (
                           <div className="alt-block">
-                            <div className="alt-block__label">Swap option</div>
+                            <div className="alt-block__label">Option B</div>
                             <div className="alt-block__title">{day.altLabel}</div>
                             {day.alts.map((ex, ei) => (
                               <ExerciseRow

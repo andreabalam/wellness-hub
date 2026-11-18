@@ -56,13 +56,14 @@ test.describe('Train tab — cycle sync', () => {
     await page.locator('nav.tabs').getByRole('tab', { name: /Train/i }).click()
   })
 
-  test("opens on the luteal week with today's plan in the day card", async ({ page }) => {
+  test('opens on the week for the cycle day with the next workout in the day card', async ({
+    page,
+  }) => {
     const panel = page.locator('#panel-workouts')
     await expect(panel.getByText('cycle day 19')).toBeVisible()
-    await expect(panel.getByText('Luteal phase → Week 4')).toBeVisible()
-    await expect(
-      panel.getByText('Week 4 plan').or(panel.getByText(/Today's plan: rest/)),
-    ).toBeVisible()
+    // Cycle day 19 is early luteal: Week 3 ("about cycle days 14-21")
+    await expect(panel.getByText('Luteal phase → Week 3')).toBeVisible()
+    await expect(panel.getByText('Week 3 plan · next up')).toBeVisible()
     await expect(page.locator('#day-card-today')).toBeAttached()
   })
 

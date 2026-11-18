@@ -265,3 +265,52 @@ export function keepLoggedSets(
   }
   return out
 }
+
+// ── Plan rotation: follow where you left off ─────────────────────
+
+export interface PlanProgress {
+  /** Index in `days` of the plan workout to do next */
+  next: number
+  /** The most recently logged plan workout (index in `days`, and its date) */
+  last?: { idx: number; date: string }
+}
+
+/**
+ * Which plan day comes next. The plan is a rotation, not a weekly calendar:
+ * after you log a plan workout (any week — weeks only change the dose), the
+ * next one is the following training day in the list, wrapping around.
+ * Rest days and empty days are skipped; with nothing logged yet it's the first.
+ * Only history on or before `upTo` (YYYY-MM-DD) counts.
+ */
+export function planProgress(
+  days: WorkoutDay[],
+  history: Record<string, DayData>,
+  upTo: string,
+): PlanProgress {
+  const training = days.flatMap((d, i) => (d.type !== 'Rest' && d.exs.length ? [i] : []))
+  if (!training.length) return { next: -1 }
+
+  let last: PlanProgress['last']
+  for (const date of Object.keys(history)
+    .filter(k => k <= upTo)
+    .sort()) {
+    for (const s of dayWorkoutSessions(history[date])) {
+      const idx = s.planRef ? days.findIndex(d => d.slot === s.planRef!.slot) : -1
+      if (idx >= 0) last = { idx, date }
+    }
+  }
+  if (!last) return { next: training[0] }
+  const pos = training.indexOf(last.idx)
+  return { next: training[(pos + 1) % training.length], last }
+}
+
+/** A plan day's Option B as a loggable day: same slot, so it counts as that day done. */
+export function optionBDay(day: WorkoutDay): WorkoutDay | null {
+  if (!day.alts?.length) return null
+  return {
+    ...day,
+    type: day.altType ?? day.type,
+    label: day.altLabel?.replace(/^(Swap|Option B):\s*/, '') ?? `${day.label} (option B)`,
+    exs: day.alts,
+  }
+}

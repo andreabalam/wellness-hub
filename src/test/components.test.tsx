@@ -1818,9 +1818,9 @@ describe('ProfileStatsCard — measurements', () => {
 
   it('auth: each day card has an exercise edit button (✎)', () => {
     render(<WorkoutsTab user={FAKE_USER} />)
-    // Week 1 has 7 day cards, each with a ✎ edit button
+    // Week 1 has 6 day cards, each with a ✎ edit button
     const editBtns = screen.getAllByTitle('Edit exercises')
-    expect(editBtns.length).toBe(7)
+    expect(editBtns.length).toBe(6)
   })
 
   it('auth: clicking ✎ opens an edit panel with exercise inputs', () => {
