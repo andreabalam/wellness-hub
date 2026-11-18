@@ -27,9 +27,8 @@ import {
 import { safeGet, safeSet } from './storage'
 import { keepLoggedSets } from './workoutLog'
 import { addDaysToKey, fromKey } from './dateKey'
+import { IMPORT_STAMP_KEY, TOMBSTONE_KEY } from './storageKeys'
 
-const IMPORT_STAMP_KEY = 'whub_oura_import_v1' // Record<date, { wk?: number; med?: number }>
-const TOMBSTONE_KEY = 'whub_oura_dismissed_v1' // Record<date, string[]>
 const IMPORT_TTL_MS = 30 * 60 * 1000
 
 // ── Mapping ──────────────────────────────────────────────────────

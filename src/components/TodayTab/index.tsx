@@ -25,11 +25,10 @@ import type { WeekGoalPayload } from '../TrackerTab/WeekGoal'
 import { PHASE_COLOR } from '../WorkoutsTab/CycleToday'
 import DayTimeline, { dayKeyOf } from './DayTimeline'
 import FoodCard from './FoodCard'
+import { READINESS_CACHE_KEY } from '../../lib/storageKeys'
 
 // Full Schedule (editor, .ics export, cognitive peak) — opened from the timeline
 const ScheduleTab = lazy(() => import('../ScheduleTab'))
-
-const READINESS_CACHE_KEY = 'whub_oura_readiness_v1'
 
 /** Full-screen sheet over Today (Schedule, Profile & targets). */
 function Sheet({

@@ -14,29 +14,32 @@ import { safeGet, safeSet, safeRemove, safeHas } from '../lib/storage'
 import { reportError } from '../lib/errorLog'
 import { isDayDataMap, isRecipe, isQuickFood, isArrayOf } from '../lib/schema'
 import { mergeRecipes, applyIdMap } from '../lib/recipeSync'
+import {
+  BODY_STATS_KEY,
+  BUILTIN_CACHE_KEY,
+  FOOD_LIBRARY_KEY,
+  GROCERY_CATALOG_KEY,
+  GROCERY_KEY,
+  HIDDEN_RECIPES_KEY,
+  MED_GUIDES_KEY,
+  RECIPES_KEY,
+  REMINDERS_KEY,
+  SCHEDULE_KEY,
+  SYNC_DIRTY_KEY,
+  SYNC_DIRTY_RECORDS_KEY,
+  TAGS_KEY,
+  TRACKER_KEY,
+  USER_SETTINGS_KEY,
+  WEEK_SCHEDULE_KEY,
+  WORKOUT_PLAN_KEY,
+} from '../lib/storageKeys'
 
 const isRecipeArray = (v: unknown): v is Recipe[] => isArrayOf(v, isRecipe)
 const isQuickFoodArray = (v: unknown): v is QuickFood[] => isArrayOf(v, isQuickFood)
 
-const TRACKER_KEY = 'whub_tracker_v3'
-const RECIPES_KEY = 'whub_custom_recipes_v1'
-const TAGS_KEY = 'whub_custom_tags_v1'
-const GROCERY_KEY = 'whub_grocery_v1'
-const GROCERY_CATALOG_KEY = 'whub_grocery_catalog_v1'
-const FOOD_LIBRARY_KEY = 'whub_food_library_v1'
-const SCHEDULE_KEY = 'whub_schedule_v1'
-const WEEK_SCHEDULE_KEY = 'whub_schedule_v2'
-export const MED_GUIDES_KEY = 'whub_med_guides_v1'
-const REMINDERS_KEY = 'whub_reminders_v1'
-const HIDDEN_RECIPES_KEY = 'whub_hidden_recipes_v1'
-const USER_SETTINGS_KEY = 'whub_user_settings_v1'
-const BODY_STATS_KEY = 'whub_body_stats_v1'
-const WORKOUT_PLAN_KEY = 'whub_workout_plan_v1'
-
 // ── Sync status ── whether local writes are pending a confirmed push ─────
 // Persisted so the "changes not yet synced" hint survives a reload (e.g. edits
 // made offline). Cleared by syncAll once every push succeeds.
-const SYNC_DIRTY_KEY = 'whub_sync_dirty'
 type SyncStatusListener = (pending: boolean) => void
 const syncStatusListeners = new Set<SyncStatusListener>()
 
@@ -67,7 +70,6 @@ export const syncStatusStore = {
 // offline (or signed out, or whose push failed) is never overwritten by an
 // older cloud copy. Each mark carries a sequence number so a slow push of an
 // older write can't clear the mark of a newer one.
-const SYNC_DIRTY_RECORDS_KEY = 'whub_sync_dirty_records_v1'
 export const DIRTY_WEEK_SCHEDULE = 'weekSchedule'
 export const DIRTY_MED_GUIDES = 'medGuides'
 export const DIRTY_USER_SETTINGS = 'userSettings'
@@ -257,7 +259,6 @@ export async function syncCustomRecipes(userId: string): Promise<boolean> {
 // The full catalog lives in the Supabase `recipes` table (user_id IS NULL).
 // RecipesTab refreshes this cache on every fetch; TrackerTab reads it so the
 // log-food search can match built-in recipes without its own network round-trip.
-const BUILTIN_CACHE_KEY = 'whub_builtin_recipes_v1'
 export const builtinRecipeCacheStore = {
   getAll: (): Recipe[] => safeGet<Recipe[]>(BUILTIN_CACHE_KEY, [], isRecipeArray),
   save: (arr: Recipe[]) => safeSet(BUILTIN_CACHE_KEY, arr),

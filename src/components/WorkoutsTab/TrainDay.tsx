@@ -9,9 +9,9 @@ import { useOuraWorkoutSync } from '../../hooks/useOuraWorkoutSync'
 import { safeGet, safeSet } from '../../lib/storage'
 import { WorkoutSessionList } from '../TrackerTab/SessionList'
 import { dkey } from '../../lib/dateKey'
+import { READINESS_CACHE_KEY } from '../../lib/storageKeys'
 
 // ── Oura readiness cache (one entry per date) ─────────────────────
-const READINESS_CACHE_KEY = 'whub_oura_readiness_v1'
 function getCachedReadiness(date: string): OuraReadiness | null {
   return safeGet<Record<string, OuraReadiness>>(READINESS_CACHE_KEY, {})[date] ?? null
 }

@@ -7,6 +7,7 @@
 import { parseIngredientAmount } from './ingredientAmount'
 import { searchUSDAPer100g, estimateFoodMacros, type UsdaPer100g } from './foodSearch'
 import { safeGet, safeSet } from './storage'
+import { USDA_CACHE_KEY } from './storageKeys'
 
 export type ResolutionStatus = 'ok' | 'no-amount' | 'no-match' | 'error'
 
@@ -131,7 +132,6 @@ export async function computeRecipeMacros(
 
 // ── Cached USDA lookup ────────────────────────────────────────────
 
-export const USDA_CACHE_KEY = 'whub_usda_per100g_v1'
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 /** Pause between live USDA requests — stays polite under DEMO_KEY rate limits */
 const THROTTLE_MS = 150

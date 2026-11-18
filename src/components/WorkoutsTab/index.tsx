@@ -34,11 +34,10 @@ import TrainDay from './TrainDay'
 import WorkoutLogger from './WorkoutLogger'
 import { importOuraWorkoutHistory } from '../../lib/ouraImport'
 import TrainHistory from './TrainHistory'
+import { DRAFT_KEY, HISTORY_SYNC_KEY } from '../../lib/storageKeys'
 
 /** The workout in progress — survives closing the logger or the app. */
-const DRAFT_KEY = 'whub_workout_draft_v1'
 /** Last Oura history backfill (ms) — at most once a day */
-const HISTORY_SYNC_KEY = 'whub_oura_history_sync_v1'
 const HISTORY_SYNC_MS = 24 * 60 * 60 * 1000
 const HISTORY_DAYS = 84
 

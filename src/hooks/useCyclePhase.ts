@@ -17,10 +17,9 @@ import type { OuraReadiness } from '../lib/oura'
 import { safeGet, safeSet } from '../lib/storage'
 import { dkey } from '../lib/dateKey'
 import { trackerStore } from './useStore'
+import { CYCLE_CACHE_KEY, READINESS_CACHE_KEY } from '../lib/storageKeys'
 
-export const CYCLE_CACHE_KEY = 'whub_oura_cycle_v1'
 /** Written by WorkoutLog's per-day readiness auto-fetch; used as an offline fallback. */
-const READINESS_CACHE_KEY = 'whub_oura_readiness_v1'
 const MAX_AGE_MS = 6 * 60 * 60 * 1000
 const LOOKBACK_DAYS = 70
 

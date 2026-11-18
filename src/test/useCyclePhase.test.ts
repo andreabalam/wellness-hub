@@ -12,7 +12,8 @@ vi.mock('../lib/oura', async importOriginal => ({
   fetchOuraReadinessRange: (s: string, e: string) => fetchOuraReadinessRange(s, e),
 }))
 
-const { useCyclePhase, CYCLE_CACHE_KEY } = await import('../hooks/useCyclePhase')
+const { useCyclePhase } = await import('../hooks/useCyclePhase')
+const { CYCLE_CACHE_KEY } = await import('../lib/storageKeys')
 
 const ls: Record<string, string> = {}
 
