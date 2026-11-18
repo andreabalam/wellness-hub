@@ -20,7 +20,6 @@ interface Props {
   suggestion: PhaseSuggestion | null
   /** 1-based plan week for the current phase, or null when the plan has no matching week */
   week: number | null
-  todayKey: string
   ouraConnected: boolean
   tagScopeMissing: boolean
   onPeriodStarted: () => void
@@ -40,7 +39,6 @@ const PHASES = Object.keys(PHASE_COLOR) as PhaseSuggestion['phase'][]
 export default function CycleToday({
   suggestion,
   week,
-  todayKey,
   ouraConnected,
   tagScopeMissing,
   onPeriodStarted,
@@ -116,7 +114,9 @@ export default function CycleToday({
           {phase ? 'Not right? Change phase' : 'Set phase by hand'}
         </button>
       )}
-      {(!suggestion || suggestion.anchorEstimated || suggestion.anchorDate !== todayKey) && (
+      {/* Hidden while a logged period is in progress (cycle days 1-5): tapping
+          it again mid-period used to restart the count. */}
+      {!(suggestion && !suggestion.anchorEstimated && suggestion.cycleDay <= 5) && (
         <div className="cycle-today__actions">
           <button className="btn btn--ghost btn--sm" onClick={onPeriodStarted}>
             My period started today

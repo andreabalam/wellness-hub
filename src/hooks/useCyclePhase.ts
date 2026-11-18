@@ -47,7 +47,9 @@ function readCache(): CycleCache | null {
  */
 export function useCyclePhase(date: Date, ouraConnected: boolean, trackerRev?: unknown) {
   const [cache, setCache] = useState<CycleCache | null>(readCache)
+  const dateKey = dkey(date)
 
+  // Re-checked when the day changes (not only on mount), still within the 6 h cache.
   useEffect(() => {
     if (!ouraConnected) return
     const cached = readCache()
@@ -77,9 +79,8 @@ export function useCyclePhase(date: Date, ouraConnected: boolean, trackerRev?: u
         setCache(next)
       },
     )
-  }, [ouraConnected])
+  }, [ouraConnected, dateKey])
 
-  const dateKey = dkey(date)
   const suggestion: PhaseSuggestion | null = useMemo(() => {
     // trackerRev is only a recompute trigger — tracker days are read fresh below.
     void trackerRev
