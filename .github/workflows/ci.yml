@@ -31,12 +31,3 @@ jobs:
       - name: Audit dev dependencies (advisory)
         run: npm audit --audit-level=high
         continue-on-error: true # surface advisories without blocking the PR
-  # Edge functions run on Deno and aren't covered by tsc; type-check them here.
-  functions:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-      - uses: denoland/setup-deno@v2
-        with: { deno-version: v2.x }
-      - run: deno check supabase/functions/*/index.ts

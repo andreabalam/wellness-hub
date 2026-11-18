@@ -105,7 +105,9 @@ export default defineConfig({
     // --localstorage-file) that shadows jsdom's. Turn it off in workers.
     execArgv:
       Number(process.versions.node.split('.')[0]) >= 22 ? ['--no-experimental-webstorage'] : [],
-    include: ['src/test/**/*.test.{ts,tsx}'],
+    // supabase/ is local-only (gitignored; the repo is public and some
+    // migrations hold personal data). Its tests run where the folder exists.
+    include: ['src/test/**/*.test.{ts,tsx}', 'supabase/tests/**/*.test.ts'],
     exclude: ['e2e/**', 'node_modules/**'],
     coverage: {
       provider: 'v8',

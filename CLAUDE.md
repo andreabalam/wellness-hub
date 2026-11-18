@@ -55,6 +55,8 @@ All user data lives in `localStorage` — the app works fully offline. Supabase 
 
 ### Supabase Edge Functions
 
+**`supabase/` is local-only — never committed.** `.gitignore` excludes the whole folder on purpose: the repo is public and some migrations contain personal data. Edge functions and migrations are deployed/applied from the owner's machine (`supabase functions deploy`, SQL editor). Their unit tests live in `supabase/tests/` and run via `npm test` only where the folder exists. Tracked code must never import from `supabase/`.
+
 Located in `supabase/functions/`. Each function is a Deno TypeScript module. The existing `oura-proxy` function is the reference pattern: verify JWT via Supabase client, read user settings, proxy external API, return JSON with CORS headers.
 
 Secrets are set in Supabase Dashboard → Edge Functions → Secrets (never in code).
