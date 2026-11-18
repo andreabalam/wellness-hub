@@ -3,6 +3,13 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import pkg from './package.json' with { type: 'json' }
 
+// Unit tests run in a timezone west of UTC by default, so a day key built from
+// UTC (toISOString) fails every evening instead of only on a developer's
+// machine after 4 pm. Override with TZ=... to test other zones (CI also runs
+// Pacific/Auckland, east of UTC). Workers inherit this env.
+declare const process: { env: Record<string, string | undefined> } // no @types/node here
+if (process.env.VITEST) process.env.TZ ||= 'America/Los_Angeles'
+
 // https://vitejs.dev/config/
 export default defineConfig({
   define: {

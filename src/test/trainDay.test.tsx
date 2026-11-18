@@ -21,7 +21,7 @@ import TrainDay from '../components/WorkoutsTab/TrainDay'
 import type { WorkoutSession } from '../data/tracker'
 
 const mockOura = oura as unknown as Record<string, ReturnType<typeof vi.fn>>
-const DATE = new Date('2026-06-15T12:00:00Z')
+const DATE = new Date(2026, 5, 15, 12) // local noon — a UTC instant is a different day east of UTC
 
 const ls: Record<string, string> = {}
 

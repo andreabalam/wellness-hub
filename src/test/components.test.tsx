@@ -4222,6 +4222,17 @@ describe('TodayTab', () => {
     expect(onOpenTrain).toHaveBeenCalled()
   })
 
+  it('still heads with Today in the evening (day key is local, not UTC)', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 17, 17, 30)) // UTC is already the 18th in the Americas
+    try {
+      renderToday()
+      expect(screen.getByText('Today')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('shows the day timeline and opens the full schedule', async () => {
     renderToday()
     expect(screen.getByText(/Your day/)).toBeInTheDocument()

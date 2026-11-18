@@ -6,6 +6,7 @@
  */
 import type { DayData, WorkoutSession } from '../data/tracker'
 import { dayWorkoutSessions } from '../data/tracker'
+import { addDaysToKey, dkey, fromKey } from './dateKey'
 
 /** Oura auto-detects short walks; below this they don't count as a workout. */
 const MIN_OURA_MIN = 10
@@ -16,23 +17,15 @@ export function countsAsWorkout(s: WorkoutSession): boolean {
   return s.src === 'manual' || s.min >= MIN_OURA_MIN
 }
 
-function keyOf(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 /** YYYY-MM-DD of the Monday starting the week that contains `date` (YYYY-MM-DD or Date). */
 export function weekStart(date: string | Date): string {
-  const d = typeof date === 'string' ? new Date(date + 'T12:00:00') : new Date(date)
+  const d = typeof date === 'string' ? fromKey(date) : new Date(date)
   d.setHours(12, 0, 0, 0)
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
-  return keyOf(d)
+  return dkey(d)
 }
 
-function shiftWeek(monday: string, weeks: number): string {
-  const d = new Date(monday + 'T12:00:00')
-  d.setDate(d.getDate() + weeks * 7)
-  return keyOf(d)
-}
+const shiftWeek = (monday: string, weeks: number) => addDaysToKey(monday, weeks * 7)
 
 export interface WorkoutWeekStats {
   /** Weeks (all time) with at least one workout */

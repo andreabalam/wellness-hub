@@ -8,6 +8,7 @@ import type { DayData } from '../data/tracker'
 import { dayMedSessions, dayWorkoutSessions, medTotals } from '../data/tracker'
 import { anchorsFromTags, anchorsFromTracker, cycleLength } from './cyclePhase'
 import { countsAsWorkout, weekStart } from './workoutWeeks'
+import { addDaysToKey, daysBetweenKeys } from './dateKey'
 
 // ── Weekly summaries ─────────────────────────────────────────────
 
@@ -26,11 +27,7 @@ export interface WeekSummary {
   stressAvg: number | null
 }
 
-function shiftWeek(monday: string, weeks: number): string {
-  const d = new Date(monday + 'T12:00:00')
-  d.setDate(d.getDate() + weeks * 7)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+const shiftWeek = (monday: string, weeks: number) => addDaysToKey(monday, weeks * 7)
 
 const avg = (xs: number[]) =>
   xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null
@@ -74,11 +71,7 @@ export interface CyclePeriod {
 /** Same period logged in Oura and marked by hand counts once (Oura wins). */
 const SAME_PERIOD_DAYS = 5
 
-function daysBetween(a: string, b: string): number {
-  return Math.round(
-    (new Date(b + 'T12:00:00').getTime() - new Date(a + 'T12:00:00').getTime()) / 86_400_000,
-  )
-}
+const daysBetween = daysBetweenKeys
 
 /** Period starts newest first, with each cycle's length, plus the average length. */
 export function cycleHistory(

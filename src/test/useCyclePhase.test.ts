@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { OuraEnhancedTag, OuraReadiness } from '../lib/oura'
-import { dkey } from '../components/TrackerTab/dateKey'
+import { dkey } from '../lib/dateKey'
 
 const fetchOuraTags = vi.fn<(s: string, e: string) => Promise<OuraEnhancedTag[]>>()
 const fetchOuraReadinessRange = vi.fn<(s: string, e: string) => Promise<OuraReadiness[]>>()

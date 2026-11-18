@@ -11,7 +11,7 @@ import type { OuraReadiness } from '../../lib/oura'
 import { safeGet, safeSet } from '../../lib/storage'
 import { significantBurnKcal } from '../../lib/stats'
 import { workoutWeekStats } from '../../lib/workoutWeeks'
-import { dkey } from '../TrackerTab/dateKey'
+import { addDays, dkey, mondayOf } from '../../lib/dateKey'
 import WeekStrip from '../TrackerTab/WeekStrip'
 import WeekActivitySummary from '../TrackerTab/WeekActivitySummary'
 import TrainSummary from '../TrackerTab/TrainSummary'
@@ -30,20 +30,6 @@ import FoodCard from './FoodCard'
 const ScheduleTab = lazy(() => import('../ScheduleTab'))
 
 const READINESS_CACHE_KEY = 'whub_oura_readiness_v1'
-
-/** Local Monday (week anchor) of the week containing d. */
-function mondayOf(d: Date): Date {
-  const m = new Date(d)
-  m.setHours(0, 0, 0, 0)
-  m.setDate(m.getDate() - ((m.getDay() + 6) % 7))
-  return m
-}
-
-function addDays(d: Date, n: number): Date {
-  const r = new Date(d)
-  r.setDate(r.getDate() + n)
-  return r
-}
 
 /** Full-screen sheet over Today (Schedule, Profile & targets). */
 function Sheet({

@@ -8,7 +8,7 @@ import { dismissOuraSession } from '../../lib/ouraImport'
 import { useOuraWorkoutSync } from '../../hooks/useOuraWorkoutSync'
 import { safeGet, safeSet } from '../../lib/storage'
 import { WorkoutSessionList } from '../TrackerTab/SessionList'
-import { dkey } from '../TrackerTab/dateKey'
+import { dkey } from '../../lib/dateKey'
 
 // ── Oura readiness cache (one entry per date) ─────────────────────
 const READINESS_CACHE_KEY = 'whub_oura_readiness_v1'

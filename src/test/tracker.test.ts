@@ -72,23 +72,6 @@ describe('session helpers', () => {
   })
 })
 
-// ── dkey helper (inline — same logic as component) ───────────────
-function dkey(d: Date) {
-  return d.toISOString().split('T')[0]
-}
-
-describe('dkey', () => {
-  it('formats a date as YYYY-MM-DD', () => {
-    expect(dkey(new Date('2026-05-25T00:00:00.000Z'))).toBe('2026-05-25')
-  })
-
-  it('produces different keys for different dates', () => {
-    const a = dkey(new Date('2026-01-01T00:00:00.000Z'))
-    const b = dkey(new Date('2026-01-02T00:00:00.000Z'))
-    expect(a).not.toBe(b)
-  })
-})
-
 // ── macro totals (same reduce used in TrackerTab) ────────────────
 function calcTotals(foods: FoodEntry[]) {
   return foods.reduce(

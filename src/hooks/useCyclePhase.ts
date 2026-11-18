@@ -15,7 +15,7 @@ import type { PhaseSuggestion, TempReading } from '../lib/cyclePhase'
 import { fetchOuraReadinessRange, fetchOuraTags, isPeriodTag } from '../lib/oura'
 import type { OuraReadiness } from '../lib/oura'
 import { safeGet, safeSet } from '../lib/storage'
-import { dkey } from '../components/TrackerTab/dateKey'
+import { dkey } from '../lib/dateKey'
 import { trackerStore } from './useStore'
 
 export const CYCLE_CACHE_KEY = 'whub_oura_cycle_v1'

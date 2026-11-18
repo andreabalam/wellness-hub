@@ -7,7 +7,7 @@ import {
   medTotals,
   workoutTotals,
 } from '../../data/tracker'
-import { dkey } from './dateKey'
+import { dkey } from '../../lib/dateKey'
 
 /** Compact week roll-up of workouts + meditation, shown under the week strip. */
 const WeekActivitySummary = memo(function WeekActivitySummary({

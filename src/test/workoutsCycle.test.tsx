@@ -8,7 +8,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import type { User } from '@supabase/supabase-js'
 import WorkoutsTab from '../components/WorkoutsTab'
 import { EMPTY_DAY } from '../data/tracker'
-import { dkey } from '../components/TrackerTab/dateKey'
+import { dkey } from '../lib/dateKey'
 
 const FAKE_USER = { id: 'test-user-1' } as User
 const ls: Record<string, string> = {}

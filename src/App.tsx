@@ -36,6 +36,7 @@ import {
   workoutPlanStore,
   syncStatusStore,
 } from './hooks/useStore'
+import { todayKey } from './lib/dateKey'
 
 type Tab = 'today' | 'food' | 'workouts' | 'insights'
 
@@ -112,7 +113,7 @@ export default function App() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `wellness_hub_backup_${new Date().toISOString().split('T')[0]}.json`
+    a.download = `wellness_hub_backup_${todayKey()}.json`
     a.click()
     URL.revokeObjectURL(url)
   }

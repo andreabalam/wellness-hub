@@ -4,6 +4,7 @@ import { customToScheduleBlock, DAY_KEYS, DAY_LABELS, sortByTime } from '../../d
 import type { CustomBlock, DayKey, WeekSchedule } from '../../data/schedule'
 import { scheduleStore, useUserSettingsStore } from '../../hooks/useStore'
 import { generateWeekIcs, downloadIcs } from '../../lib/ics'
+import { dkey, todayKey } from '../../lib/dateKey'
 // Heavy editor modal — code-split so it stays out of the initial bundle.
 const ScheduleEditor = lazy(() => import('./ScheduleEditor'))
 
@@ -16,14 +17,12 @@ function formatPeakTime(t: string): string {
   return m === 0 ? `${hour12} ${period}` : `${hour12}:${String(m).padStart(2, '0')} ${period}`
 }
 
-function todayStr() {
-  return new Date().toISOString().split('T')[0]
-}
+const todayStr = todayKey
 
 function oneMonthOut() {
   const d = new Date()
   d.setMonth(d.getMonth() + 1)
-  return d.toISOString().split('T')[0]
+  return dkey(d)
 }
 
 function loadWeek(): WeekSchedule {

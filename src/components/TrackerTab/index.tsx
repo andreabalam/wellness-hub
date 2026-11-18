@@ -33,7 +33,7 @@ import PasteToLog from './PasteToLog'
 import HungerCravingPicker from './HungerCravingPicker'
 import QuickAddRow from './QuickAddRow'
 import CravingSwapReference from './CravingSwapReference'
-import { dkey } from './dateKey'
+import { dkey } from '../../lib/dateKey'
 
 // ── Main component ───────────────────────────────────────────────
 export default function TrackerTab({

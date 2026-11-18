@@ -33,7 +33,27 @@ export default tseslint.config(
           message: 'Use safeGet/safeSet/safeRemove/safeHas/safeClear from lib/storage instead.',
         },
       ],
+      // Day keys are LOCAL dates. toISOString() is UTC — "today" becomes
+      // tomorrow every evening in the Americas. Use lib/dateKey instead.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(split|slice|substring)$/][callee.object.callee.property.name='toISOString']",
+          message: 'UTC date string — use dkey()/todayKey() from lib/dateKey for local day keys.',
+        },
+        {
+          selector:
+            "TemplateLiteral:has(CallExpression[callee.property.name='getFullYear']):has(CallExpression[callee.property.name='getDate'])",
+          message: 'Hand-rolled date key — use dkey() from lib/dateKey.',
+        },
+      ],
     },
+  },
+  // dateKey.ts is the one place allowed to build a day key by hand.
+  {
+    files: ['src/lib/dateKey.ts'],
+    rules: { 'no-restricted-syntax': 'off' },
   },
   // storage.ts is the one place allowed to touch localStorage directly.
   {

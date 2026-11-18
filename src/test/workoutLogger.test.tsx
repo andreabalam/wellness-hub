@@ -9,7 +9,7 @@ import type { User } from '@supabase/supabase-js'
 import WorkoutsTab from '../components/WorkoutsTab'
 import CycleToday from '../components/WorkoutsTab/CycleToday'
 import { WorkoutSessionList } from '../components/TrackerTab/SessionList'
-import { dkey } from '../components/TrackerTab/dateKey'
+import { dkey } from '../lib/dateKey'
 import type { WorkoutSession } from '../data/tracker'
 
 const FAKE_USER = { id: 'test-user-1' } as User

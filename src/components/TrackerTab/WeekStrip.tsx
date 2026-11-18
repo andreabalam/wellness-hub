@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import type { DayData } from '../../data/tracker'
 import { dayMedSessions, dayWorkoutSessions, workoutTotals } from '../../data/tracker'
-import { dkey } from './dateKey'
+import { dkey } from '../../lib/dateKey'
 
 const WeekStrip = memo(function WeekStrip({
   currentDate,

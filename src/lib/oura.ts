@@ -8,6 +8,7 @@
  */
 
 import { supabase } from './supabase'
+import { addDaysToKey, dkey, todayKey } from './dateKey'
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -415,20 +416,12 @@ export async function fetchOuraWorkouts(date: string): Promise<OuraWorkout[]> {
   // Oura may assign `day` using UTC, but start_datetime reflects actual local time.
   // Fetch a 3-day window (prev/cur/next) so a workout near midnight isn't missed,
   // then filter client-side by the local-timezone date of start_datetime.
-  const d = new Date(date + 'T12:00:00')
-  const prev = new Date(d)
-  prev.setDate(d.getDate() - 1)
-  const next = new Date(d)
-  next.setDate(d.getDate() + 1)
-  const fmt = (dt: Date) =>
-    `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
-
-  const all = await proxyFetchRange<OuraWorkout>('workout', fmt(prev), fmt(next))
-  return all.filter(w => {
-    const s = new Date(w.start_datetime)
-    const localDate = `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`
-    return localDate === date
-  })
+  const all = await proxyFetchRange<OuraWorkout>(
+    'workout',
+    addDaysToKey(date, -1),
+    addDaysToKey(date, 1),
+  )
+  return all.filter(w => dkey(new Date(w.start_datetime)) === date)
 }
 
 /**
@@ -442,8 +435,7 @@ export async function fetchOuraWorkoutsRange(
   const all = await proxyFetchRange<OuraWorkout>('workout', startDate, endDate)
   const byDay: Record<string, OuraWorkout[]> = {}
   for (const w of all) {
-    const s = new Date(w.start_datetime)
-    const day = `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`
+    const day = dkey(new Date(w.start_datetime))
     if (day < startDate || day > endDate) continue
     ;(byDay[day] ??= []).push(w)
   }
@@ -486,9 +478,7 @@ export async function fetchOuraSessions(date: string): Promise<OuraSession[]> {
 export async function fetchOuraDailyActivity(date: string): Promise<OuraDailyActivity | null> {
   // Oura only finalises daily_activity at end of day, so "today" is often absent.
   // Request yesterday+today in one call and prefer today, falling back to yesterday.
-  const prev = new Date(date + 'T12:00:00')
-  prev.setDate(prev.getDate() - 1)
-  const yesterday = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`
+  const yesterday = addDaysToKey(date, -1)
   const items = await proxyFetchRange<OuraDailyActivity>('daily_activity', yesterday, date)
   return items.find(a => a.day === date) ?? items.find(a => a.day === yesterday) ?? null
 }
@@ -554,15 +544,11 @@ export async function fetchOuraPersonalInfo(): Promise<OuraPersonalInfo | null> 
  * Uses the last `days` days ending today. Returns null if no data available.
  */
 export async function fetchOuraTdeeAvg(days = 7): Promise<number | null> {
-  const localFmt = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  const end = new Date()
-  const start = new Date(end.getTime() - (days - 1) * 86_400_000)
-
+  const end = todayKey()
   const items = await proxyFetchRange<OuraDailyActivity>(
     'daily_activity',
-    localFmt(start),
-    localFmt(end),
+    addDaysToKey(end, -(days - 1)),
+    end,
   )
   const cals = items.map(d => d.total_calories).filter(c => c > 500) // skip ring-off days
   if (cals.length === 0) return null
