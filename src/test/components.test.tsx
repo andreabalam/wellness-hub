@@ -60,6 +60,7 @@ import RecipesTab from '../components/RecipesTab'
 import ProfileStatsCard from '../components/TrackerTab/ProfileStatsCard'
 import WorkoutsTab from '../components/WorkoutsTab'
 import TodayTab from '../components/TodayTab'
+import MeditateTab from '../components/MeditateTab'
 import ErrorBoundary from '../components/ErrorBoundary'
 import { MALE_DEFAULT_PLAN } from '../data/workouts'
 import ScheduleTab from '../components/ScheduleTab'
@@ -3475,10 +3476,10 @@ describe('App', () => {
     expect(screen.getByText(/Wellness Hub/)).toBeInTheDocument()
   })
 
-  it('renders four tabs, with Today first', () => {
+  it('renders five tabs, with Today first and Meditate before Insights', () => {
     render(<App />)
     const tabs = screen.getAllByRole('tab').map(t => t.textContent)
-    expect(tabs).toEqual(['☀️ Today', '🍎 Food', '💪 Train', '📈 Insights'])
+    expect(tabs).toEqual(['☀️ Today', '🍎 Food', '💪 Train', '🧘 Meditate', '📈 Insights'])
   })
 
   it('opens on Today, which shows its auth gate when not signed in', () => {
@@ -4243,6 +4244,13 @@ describe('TodayTab', () => {
     }
   })
 
+  it('has no meditation: it lives in the Meditate tab', () => {
+    renderToday()
+    expect(screen.queryByRole('button', { name: 'Log meditation' })).toBeNull()
+    expect(screen.queryByText(/Favorite guides/i)).toBeNull()
+    expect(screen.queryByText(/meditation$/)).toBeNull() // week-strip legend
+  })
+
   it('lists the schedule after reminders, with no check-in or weekly goal', () => {
     const { container } = renderToday()
     const text = container.textContent ?? ''
@@ -4269,33 +4277,6 @@ describe('TodayTab', () => {
     expect(screen.queryByRole('dialog', { name: 'Schedule' })).toBeNull()
   })
 
-  it('switching to Meditation tab shows duration options', () => {
-    renderToday()
-    expect(screen.getByText('Meditation · 8:45 AM')).toBeInTheDocument()
-    expect(screen.getByText('13 min')).toBeInTheDocument()
-  })
-
-  it('logging meditation without duration shows alert', () => {
-    renderToday()
-    fireEvent.click(screen.getByText('Log meditation'))
-    expect(window.alert).toHaveBeenCalledWith('Select a duration first.')
-  })
-
-  it('can select a meditation duration and log it', () => {
-    renderToday()
-    fireEvent.click(screen.getByText('13 min'))
-    fireEvent.click(screen.getByText('Log meditation'))
-    // Saved state shows "Saved!" momentarily
-    expect(screen.getByText('Saved!')).toBeInTheDocument()
-  })
-
-  it('selecting same meditation duration deselects it', () => {
-    renderToday()
-    fireEvent.click(screen.getByText('13 min'))
-    fireEvent.click(screen.getByText('13 min'))
-    // no assertion needed — just no crash
-  })
-
   it('renders Day notes section in Meditation tab', () => {
     renderToday()
     expect(screen.getByText('Day notes')).toBeInTheDocument()
@@ -4315,32 +4296,45 @@ describe('TodayTab', () => {
     fireEvent.click(screen.getByText('Save notes'))
     expect(screen.getByText('Saved!')).toBeInTheDocument()
   })
+})
 
-  it('can select a meditation style', () => {
-    renderToday()
-    fireEvent.click(screen.getByText('Breath focus'))
-    // deselect
-    fireEvent.click(screen.getByText('Breath focus'))
+// ─────────────────────────────────────────────────────────────────
+// MeditateTab — meditation log, week and guides (moved from Today)
+// ─────────────────────────────────────────────────────────────────
+function MeditateHarness() {
+  const [date, setDate] = useState(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  })
+  return <MeditateTab user={FAKE_USER} date={date} onDateChange={setDate} />
+}
+const renderMeditate = () => render(<MeditateHarness />)
+
+describe('MeditateTab', () => {
+  it('shows the guest gate when signed out', () => {
+    render(<MeditateTab user={null} date={new Date()} onDateChange={() => {}} />)
+    expect(screen.getByText(/Sign in to use/)).toBeInTheDocument()
   })
 
-  it('Meditation tab shows default guide links', () => {
-    renderToday()
-    expect(screen.getByText('Guided Meditation · Session 1')).toBeInTheDocument()
-    expect(screen.getByText('Guided Meditation · Session 2')).toBeInTheDocument()
+  it('heads with Today and moves between days', () => {
+    renderMeditate()
+    expect(screen.getByText('Today')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    expect(screen.queryByText('Today')).toBeNull()
   })
 
-  it('clicking × on a guide removes it', () => {
-    renderToday()
-    expect(screen.getByText('Guided Meditation · Session 1')).toBeInTheDocument()
-    // The guides section has × remove buttons — find the first one in the guides card
-    const guideCard = screen.getByText('Favorite Guides').closest('.tcard')!
-    const removeBtn = guideCard.querySelectorAll('button[title="Remove"]')[0] as HTMLElement
-    fireEvent.click(removeBtn)
-    expect(screen.queryByText('Guided Meditation · Session 1')).not.toBeInTheDocument()
+  it('the week shows minutes per day and the week total after logging', () => {
+    renderMeditate()
+    expect(screen.getByText('This week')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '13 min' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Log meditation' }))
+    expect(screen.getByText(/This week · 1 day · 13 ?m/)).toBeInTheDocument()
+    expect(screen.getByText('13′')).toBeInTheDocument()
   })
 
   it('+ Add opens guide form and Cancel closes it', () => {
-    renderToday()
+    renderMeditate()
     fireEvent.click(screen.getByText('+ Add'))
     expect(screen.getByPlaceholderText('Title (e.g. Morning Calm · 13 min)')).toBeInTheDocument()
     fireEvent.click(screen.getByText('Cancel'))
@@ -4350,7 +4344,7 @@ describe('TodayTab', () => {
   })
 
   it('Add guide button adds guide with title and URL', () => {
-    renderToday()
+    renderMeditate()
     fireEvent.click(screen.getByText('+ Add'))
     fireEvent.change(screen.getByPlaceholderText('Title (e.g. Morning Calm · 13 min)'), {
       target: { value: 'My Custom Guide' },
@@ -4362,8 +4356,16 @@ describe('TodayTab', () => {
     expect(screen.getByText('My Custom Guide')).toBeInTheDocument()
   })
 
+  it('Add guide with empty URL does nothing', () => {
+    renderMeditate()
+    fireEvent.click(screen.getByText('+ Add'))
+    const initialGuideCount = screen.getAllByTitle('Remove').length
+    fireEvent.click(screen.getByText('Add guide'))
+    expect(screen.getAllByTitle('Remove').length).toBe(initialGuideCount)
+  })
+
   it('Add guide with only URL uses URL as title', () => {
-    renderToday()
+    renderMeditate()
     fireEvent.click(screen.getByText('+ Add'))
     fireEvent.change(screen.getByPlaceholderText('URL'), {
       target: { value: 'https://example.com/guide' },
@@ -4372,20 +4374,62 @@ describe('TodayTab', () => {
     expect(screen.getByText('https://example.com/guide')).toBeInTheDocument()
   })
 
-  it('Add guide with empty URL does nothing', () => {
-    renderToday()
-    fireEvent.click(screen.getByText('+ Add'))
-    const initialGuideCount = screen.getAllByTitle('Remove').length
-    fireEvent.click(screen.getByText('Add guide'))
-    expect(screen.getAllByTitle('Remove').length).toBe(initialGuideCount)
+  it('Meditation tab shows default guide links', () => {
+    renderMeditate()
+    expect(screen.getByText('Guided Meditation · Session 1')).toBeInTheDocument()
+    expect(screen.getByText('Guided Meditation · Session 2')).toBeInTheDocument()
+  })
+
+  it('can select a meditation duration and log it', () => {
+    renderMeditate()
+    fireEvent.click(screen.getByText('13 min'))
+    fireEvent.click(screen.getByText('Log meditation'))
+    // Saved state shows "Saved!" momentarily
+    expect(screen.getByText('Saved!')).toBeInTheDocument()
+  })
+
+  it('can select a meditation style', () => {
+    renderMeditate()
+    fireEvent.click(screen.getByText('Breath focus'))
+    // deselect
+    fireEvent.click(screen.getByText('Breath focus'))
+  })
+
+  it('clicking × on a guide removes it', () => {
+    renderMeditate()
+    expect(screen.getByText('Guided Meditation · Session 1')).toBeInTheDocument()
+    // The guides section has × remove buttons — find the first one in the guides card
+    const guideCard = screen.getByText('Favorite Guides').closest('.tcard')!
+    const removeBtn = guideCard.querySelectorAll('button[title="Remove"]')[0] as HTMLElement
+    fireEvent.click(removeBtn)
+    expect(screen.queryByText('Guided Meditation · Session 1')).not.toBeInTheDocument()
+  })
+
+  it('logging meditation without duration shows alert', () => {
+    renderMeditate()
+    fireEvent.click(screen.getByText('Log meditation'))
+    expect(window.alert).toHaveBeenCalledWith('Select a duration first.')
   })
 
   it('pressing Enter in URL field submits the guide', () => {
-    renderToday()
+    renderMeditate()
     fireEvent.click(screen.getByText('+ Add'))
     const urlInput = screen.getByPlaceholderText('URL')
     fireEvent.change(urlInput, { target: { value: 'https://example.com' } })
     fireEvent.keyDown(urlInput, { key: 'Enter' })
     expect(screen.getByText('https://example.com')).toBeInTheDocument()
+  })
+
+  it('selecting same meditation duration deselects it', () => {
+    renderMeditate()
+    fireEvent.click(screen.getByText('13 min'))
+    fireEvent.click(screen.getByText('13 min'))
+    // no assertion needed — just no crash
+  })
+
+  it('switching to Meditation tab shows duration options', () => {
+    renderMeditate()
+    expect(screen.getByText('Meditation · 8:45 AM')).toBeInTheDocument()
+    expect(screen.getByText('13 min')).toBeInTheDocument()
   })
 })

@@ -734,6 +734,17 @@
   cursor: pointer;
   transition: all 0.2s;
 }
+// Meditate tab renders the cells as real <button>s: reset the UA styles.
+// :where() keeps this at class specificity so --cur / --today borders win.
+:where(button).week-strip-cell {
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 0.786rem;
+  line-height: 1.5;
+  color: inherit;
+  width: 100%;
+  min-width: 0;
+}
 // Burned kcal under a workout day's W (own line: cells are ~45px on phones)
 .week-strip-burn {
   display: block;

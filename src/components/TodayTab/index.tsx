@@ -2,7 +2,7 @@ import { useEffect, useState, lazy, Suspense } from 'react'
 import type { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { DayData } from '../../data/tracker'
-import { dayMedSessions, dayWorkoutSessions } from '../../data/tracker'
+import { dayWorkoutSessions } from '../../data/tracker'
 import { bodyStatsStore, trackerStore, useStoreRev } from '../../hooks/useStore'
 import { useOuraWorkoutSync } from '../../hooks/useOuraWorkoutSync'
 import { useCyclePhase } from '../../hooks/useCyclePhase'
@@ -11,18 +11,17 @@ import type { OuraReadiness } from '../../lib/oura'
 import { safeGet, safeSet } from '../../lib/storage'
 import { significantBurnKcal } from '../../lib/stats'
 import { workoutWeekStats } from '../../lib/workoutWeeks'
-import { addDays, dkey } from '../../lib/dateKey'
+import { dkey } from '../../lib/dateKey'
 import WeekStrip from '../TrackerTab/WeekStrip'
 import WeekActivitySummary from '../TrackerTab/WeekActivitySummary'
 import TrainSummary from '../TrackerTab/TrainSummary'
-import MeditationLog from '../TrackerTab/MeditationLog'
-import MeditationGuides from '../TrackerTab/MeditationGuides'
 import RemindersSection from '../TrackerTab/RemindersSection'
 import ProfileStatsCard from '../TrackerTab/ProfileStatsCard'
 import { PHASE_COLOR } from '../WorkoutsTab/CycleToday'
 import DayTimeline, { dayKeyOf } from './DayTimeline'
 import FoodCard from './FoodCard'
 import { READINESS_CACHE_KEY } from '../../lib/storageKeys'
+import { DayHeader } from '../common'
 
 // Full Schedule (editor, .ics export, cognitive peak) — opened from the timeline
 const ScheduleTab = lazy(() => import('../ScheduleTab'))
@@ -99,8 +98,8 @@ interface Props {
 
 /**
  * Home screen: everything for one day at a glance — readiness, cycle and
- * streak, the Schedule timeline, food and workout summaries, check-in,
- * meditation, reminders, notes and the weekly goal.
+ * streak, food and workout summaries, reminders, the Schedule timeline and
+ * notes. Meditation has its own tab.
  */
 export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenTrain }: Props) {
   // Bumped on any tracker / profile write (this tab, Train, background Oura import)
@@ -152,8 +151,6 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
     trackerStore.setDay(key, { ...trackerStore.getDay(key), ...patch })
   }
 
-  const shift = (delta: number) => onDateChange(addDays(date, delta))
-
   if (!user) {
     return (
       <div className="guest-gate-cta">
@@ -162,8 +159,8 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
           Sign in to see <em className="text-teal">Today</em>
         </div>
         <div className="guest-gate-cta__body">
-          Your day at a glance: schedule, food, workout, check-in and meditation. Your data stays
-          private and syncs across devices.
+          Your day at a glance: food, workout, reminders and schedule. Your data stays private and
+          syncs across devices.
         </div>
       </div>
     )
@@ -175,32 +172,7 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
 
   return (
     <>
-      <div className="today-hdr">
-        <button
-          type="button"
-          onClick={() => shift(-1)}
-          className="date-nav-btn"
-          aria-label="Previous day"
-        >
-          ‹
-        </button>
-        <div className="today-hdr__title">
-          <div className="page-title">
-            {isToday ? 'Today' : date.toLocaleDateString('en-US', { weekday: 'long' })}
-          </div>
-          <div className="date-display">
-            {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => shift(1)}
-          className="date-nav-btn"
-          aria-label="Next day"
-        >
-          ›
-        </button>
-      </div>
+      <DayHeader date={date} onDateChange={onDateChange} />
 
       <WeekStrip
         key={`strip-${rev}`}
@@ -213,7 +185,7 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
         burnThreshold={significantBurnKcal(stats.tdeeKcal || 0)}
       />
 
-      {/* Week workout/meditation roll-up (hidden when the week is empty) */}
+      {/* Week workout roll-up (hidden when the week is empty) */}
       <WeekActivitySummary key={`was-${rev}`} currentDate={date} getDay={trackerStore.getDay} />
 
       {/* Status: readiness · cycle · streak */}
@@ -249,15 +221,6 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
               : undefined
           }
         />
-        {/* Keyed by date so their inputs re-seed on day change */}
-        <MeditationLog
-          key={`med-${key}`}
-          sessions={dayMedSessions(day)}
-          ouraConnected={ouraConnected}
-          date={date}
-          onSave={save}
-        />
-        <MeditationGuides />
         <RemindersSection user={user} />
         <DayTimeline
           key={`tl-${key}-${scheduleRev}`}

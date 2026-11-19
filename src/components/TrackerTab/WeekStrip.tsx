@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import type { DayData } from '../../data/tracker'
-import { dayMedSessions, dayWorkoutSessions, workoutTotals } from '../../data/tracker'
+import { dayWorkoutSessions, workoutTotals } from '../../data/tracker'
 import { dkey } from '../../lib/dateKey'
 import { countsAsWorkout } from '../../lib/workoutWeeks'
 
@@ -50,7 +50,6 @@ const WeekStrip = memo(function WeekStrip({
           // entry or a brief Oura auto-detection (under 10 min)
           const wk = workoutTotals(dayWorkoutSessions(data).filter(countsAsWorkout))
           const bigBurn = wk.sessions > 0 && wk.kcal >= burnThreshold
-          const hasM = dayMedSessions(data).length > 0
           const isToday = d.getTime() === today.getTime()
           const isCur = d.getTime() === currentDate.getTime()
           return (
@@ -99,7 +98,6 @@ const WeekStrip = memo(function WeekStrip({
                     </span>
                   )
                 )}
-                {hasM && <span className="text-gold">M</span>}
               </div>
             </div>
           )
@@ -114,9 +112,6 @@ const WeekStrip = memo(function WeekStrip({
         </span>
         <span>
           <span className="text-coral">🔥</span> big burn
-        </span>
-        <span>
-          <span className="text-gold">M</span> meditation
         </span>
       </div>
     </div>

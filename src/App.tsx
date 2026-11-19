@@ -12,6 +12,7 @@ const WorkoutsTab = lazy(() => import('./components/WorkoutsTab'))
 const RecipesTab = lazy(() => import('./components/RecipesTab'))
 const TrackerTab = lazy(() => import('./components/TrackerTab'))
 const InsightsTab = lazy(() => import('./components/InsightsTab'))
+const MeditateTab = lazy(() => import('./components/MeditateTab'))
 import { parseShareRoute } from './lib/recipeShare'
 import { supabase } from './lib/supabase'
 import { consumeOAuthCallback } from './lib/oura'
@@ -46,7 +47,7 @@ import {
 import { todayKey } from './lib/dateKey'
 import { useFollowToday, useToday } from './hooks/useToday'
 
-type Tab = 'today' | 'food' | 'workouts' | 'insights'
+type Tab = 'today' | 'food' | 'workouts' | 'meditate' | 'insights'
 
 // Consume the OAuth callback once at module load — before React mounts.
 // Must live outside any component: React StrictMode calls useState lazy
@@ -58,6 +59,7 @@ const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: 'today', icon: '☀️', label: 'Today' },
   { id: 'food', icon: '🍎', label: 'Food' },
   { id: 'workouts', icon: '💪', label: 'Train' },
+  { id: 'meditate', icon: '🧘', label: 'Meditate' },
   { id: 'insights', icon: '📈', label: 'Insights' },
 ]
 
@@ -489,6 +491,23 @@ export default function App() {
               </Suspense>
             )}
           </div>
+        </div>
+      </ErrorBoundary>
+
+      <ErrorBoundary name="Meditate">
+        <div
+          role="tabpanel"
+          id="panel-meditate"
+          aria-labelledby="tab-meditate"
+          hidden={active !== 'meditate'}
+          className={`view${active === 'meditate' ? ' active' : ''}`}
+        >
+          {/* Shares the viewed day with Today and Food */}
+          {active === 'meditate' && (
+            <Suspense fallback={null}>
+              <MeditateTab key={syncVersion} user={user} date={dayDate} onDateChange={setDayDate} />
+            </Suspense>
+          )}
         </div>
       </ErrorBoundary>
 
