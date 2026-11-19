@@ -100,8 +100,11 @@ test.describe('Tracker tab', () => {
   })
 
   test('logging meditation shows confirmation', async ({ page }) => {
-    // Meditation and notes live on Today
-    await page.locator('nav.tabs').getByRole('tab', { name: /Today/i }).click()
+    // Meditation has its own tab
+    await page
+      .locator('nav.tabs')
+      .getByRole('tab', { name: /Meditate/i })
+      .click()
     await page.getByRole('button', { name: '13 min' }).click()
     await page.getByRole('button', { name: 'Log meditation' }).click()
     await expect(page.getByText(/Total today: 13 min/)).toBeVisible()

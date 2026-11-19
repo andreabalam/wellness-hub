@@ -1,15 +1,9 @@
 import { memo } from 'react'
 import type { DayData } from '../../data/tracker'
-import {
-  dayMedSessions,
-  dayWorkoutSessions,
-  fmtMin,
-  medTotals,
-  workoutTotals,
-} from '../../data/tracker'
+import { dayWorkoutSessions, fmtMin, workoutTotals } from '../../data/tracker'
 import { dkey } from '../../lib/dateKey'
 
-/** Compact week roll-up of workouts + meditation, shown under the week strip. */
+/** Compact week roll-up of workouts, shown under the week strip (meditation has its own tab). */
 const WeekActivitySummary = memo(function WeekActivitySummary({
   currentDate,
   getDay,
@@ -26,8 +20,6 @@ const WeekActivitySummary = memo(function WeekActivitySummary({
   let wkSessions = 0
   let wkMin = 0
   let wkKcal = 0
-  let medDays = 0
-  let medMin = 0
   for (let i = 0; i < 7; i++) {
     const d = new Date(startW)
     d.setDate(startW.getDate() + i)
@@ -36,12 +28,9 @@ const WeekActivitySummary = memo(function WeekActivitySummary({
     wkSessions += wk.sessions
     wkMin += wk.min
     wkKcal += wk.kcal
-    const med = medTotals(dayMedSessions(day))
-    if (med.sessions > 0) medDays++
-    medMin += med.min
   }
 
-  if (wkSessions === 0 && medMin === 0) return null
+  if (wkSessions === 0) return null
 
   return (
     <div className="week-activity-summary">
@@ -50,10 +39,6 @@ const WeekActivitySummary = memo(function WeekActivitySummary({
         {wkSessions === 1 ? '' : 's'}
         {wkMin > 0 ? ` · ${fmtMin(wkMin)}` : ''}
         {wkKcal > 0 ? ` · ${wkKcal.toLocaleString()} kcal` : ''}
-      </span>
-      <span>
-        <span className="text-gold">Meditation:</span> {medDays} day{medDays === 1 ? '' : 's'}
-        {medMin > 0 ? ` · ${fmtMin(medMin)}` : ''}
       </span>
     </div>
   )

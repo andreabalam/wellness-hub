@@ -8,3 +8,4 @@ export { default as InlineEdit } from './InlineEdit'
 
 export type { ButtonVariant, ButtonSize } from './Button'
 export type { BannerVariant } from './StatusBanner'
+export { default as DayHeader } from './DayHeader'

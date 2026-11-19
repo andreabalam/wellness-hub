@@ -15,8 +15,14 @@ test.describe('Tab navigation', () => {
     await expect(page.getByText(/Sign in to see/i)).toBeVisible()
   })
 
-  test('has four tabs: Today, Food, Train and Insights', async ({ page }) => {
-    await expect(tabBar(page).getByRole('tab')).toHaveText([/Today/, /Food/, /Train/, /Insights/])
+  test('has five tabs: Today, Food, Train, Meditate and Insights', async ({ page }) => {
+    await expect(tabBar(page).getByRole('tab')).toHaveText([
+      /Today/,
+      /Food/,
+      /Train/,
+      /Meditate/,
+      /Insights/,
+    ])
   })
 
   test('switches to Train tab', async ({ page }) => {
