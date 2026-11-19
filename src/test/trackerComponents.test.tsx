@@ -294,15 +294,46 @@ describe('WeekStrip', () => {
     expect(screen.getAllByText(/🔥450/).length).toBe(7) // every day of the mocked week
   })
 
-  it('omits any marker for insignificant workouts below the burn threshold', () => {
+  it('marks every workout day with W and its burned kcal below the big-burn threshold', () => {
+    const getDay = () => ({
+      ...EMPTY_DAY,
+      wkSessions: [{ id: 'm-1', src: 'manual' as const, type: 'full-body', min: 45, kcal: 220 }],
+    })
+    const { container } = render(
+      <WeekStrip currentDate={DATE} onSelect={vi.fn()} getDay={getDay} burnThreshold={300} />,
+    )
+    const marks = [...container.querySelectorAll('.week-strip-cell .text-coral')]
+    expect(marks.map(m => m.textContent?.trim())).toEqual(Array(7).fill('W220'))
+    expect(marks[0]).toHaveAttribute('title', 'Workout · 220 kcal burned')
+  })
+
+  it('shows a plain W for a workout without burn data (manual / legacy)', () => {
     const getDay = () => ({ ...EMPTY_DAY, workout: 'pilates' })
     const { container } = render(
       <WeekStrip currentDate={DATE} onSelect={vi.fn()} getDay={getDay} burnThreshold={300} />,
     )
-    const cellWs = [...container.querySelectorAll('.week-strip-cell .text-coral')].filter(
-      el => el.textContent === 'W',
+    const marks = [...container.querySelectorAll('.week-strip-cell .text-coral')]
+    expect(marks.map(m => m.textContent?.trim())).toEqual(Array(7).fill('W'))
+  })
+
+  it('ignores rest entries and brief Oura auto-detections', () => {
+    const days = [
+      { ...EMPTY_DAY, wkSessions: [{ id: 'r', src: 'manual' as const, type: 'rest', min: 0 }] },
+      {
+        ...EMPTY_DAY,
+        wkSessions: [{ id: 'o', src: 'oura' as const, type: 'walking', min: 6, kcal: 40 }],
+      },
+    ]
+    let i = 0
+    const { container } = render(
+      <WeekStrip
+        currentDate={DATE}
+        onSelect={vi.fn()}
+        getDay={() => days[i++ % 2]}
+        burnThreshold={300}
+      />,
     )
-    expect(cellWs.length).toBe(0)
+    expect(container.querySelectorAll('.week-strip-cell .text-coral')).toHaveLength(0)
   })
 })
 

@@ -2,6 +2,7 @@ import { memo } from 'react'
 import type { DayData } from '../../data/tracker'
 import { dayMedSessions, dayWorkoutSessions, workoutTotals } from '../../data/tracker'
 import { dkey } from '../../lib/dateKey'
+import { countsAsWorkout } from '../../lib/workoutWeeks'
 
 const WeekStrip = memo(function WeekStrip({
   currentDate,
@@ -12,7 +13,7 @@ const WeekStrip = memo(function WeekStrip({
   currentDate: Date
   onSelect: (d: Date) => void
   getDay: (key: string) => DayData
-  /** Burned kcal at/above which a day shows the 🔥 indicator instead of the plain W. */
+  /** Burned kcal at/above which a workout day shows 🔥 instead of the plain W. */
   burnThreshold: number
 }) {
   const today = new Date()
@@ -45,7 +46,9 @@ const WeekStrip = memo(function WeekStrip({
           const k = dkey(d)
           const data = getDay(k)
           const kcal = data.foods.reduce((s, f) => s + f.k, 0)
-          const wk = workoutTotals(dayWorkoutSessions(data))
+          // Same rule as the week streak: any real workout, but not a "Rest"
+          // entry or a brief Oura auto-detection (under 10 min)
+          const wk = workoutTotals(dayWorkoutSessions(data).filter(countsAsWorkout))
           const bigBurn = wk.sessions > 0 && wk.kcal >= burnThreshold
           const hasM = dayMedSessions(data).length > 0
           const isToday = d.getTime() === today.getTime()
@@ -82,10 +85,19 @@ const WeekStrip = memo(function WeekStrip({
                 {kcal > 0 ? kcal : '-'}
               </div>
               <div style={{ fontSize: '0.786rem', marginTop: 2 }}>
-                {bigBurn && (
+                {bigBurn ? (
                   <span className="text-coral" title={`${wk.kcal} kcal burned`}>
                     🔥{wk.kcal}{' '}
                   </span>
+                ) : (
+                  wk.sessions > 0 && (
+                    <span
+                      className="text-coral"
+                      title={wk.kcal > 0 ? `Workout · ${wk.kcal} kcal burned` : 'Workout'}
+                    >
+                      W{wk.kcal > 0 && <span className="week-strip-burn">{wk.kcal}</span>}{' '}
+                    </span>
+                  )
                 )}
                 {hasM && <span className="text-gold">M</span>}
               </div>
@@ -96,6 +108,9 @@ const WeekStrip = memo(function WeekStrip({
       <div className="week-strip-legend">
         <span>
           <span className="text-green">●</span> kcal
+        </span>
+        <span>
+          <span className="text-coral">W</span> workout · kcal burned
         </span>
         <span>
           <span className="text-coral">🔥</span> big burn
