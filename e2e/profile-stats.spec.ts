@@ -11,9 +11,9 @@ const MOCK_USER = JSON.stringify({
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-/** Open Profile & targets from the Today header (the app opens on Today). */
+/** Open Profile & targets from the user / settings menu in the header. */
 async function openProfile(page: import('@playwright/test').Page) {
-  await page.locator('nav.tabs').getByRole('tab', { name: /Today/i }).click()
+  await page.locator('.auth-wrap .auth-avatar').click()
   await page.getByRole('button', { name: /Profile & targets/ }).click()
   await expect(profileSheet(page)).toBeVisible()
 }
@@ -40,15 +40,15 @@ test.describe('ProfileStatsCard', () => {
 
   // ── Initial state ──────────────────────────────────────────────
 
-  test('shows "+ Set up" on Today when no stats are configured', async ({ page }) => {
+  test('shows "+ Set up" when no stats are configured', async ({ page }) => {
     await openProfile(page)
     await expect(profileSheet(page).getByRole('button', { name: '+ Set up' })).toBeVisible()
   })
 
-  test('Food and Train no longer carry their own Profile card', async ({ page }) => {
-    for (const tab of [/Food/i, /Train/i]) {
+  test('no tab carries its own Profile card or button', async ({ page }) => {
+    for (const tab of [/Today/i, /Food/i, /Train/i]) {
       await page.locator('nav.tabs').getByRole('tab', { name: tab }).click()
-      await expect(page.locator('.view.active').getByText('Profile & Targets')).toHaveCount(0)
+      await expect(page.locator('.view.active').getByText(/Profile & targets/i)).toHaveCount(0)
     }
   })
 

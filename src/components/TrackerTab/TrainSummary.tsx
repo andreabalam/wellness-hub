@@ -1,6 +1,7 @@
 import type { WorkoutSession } from '../../data/tracker'
 import { fmtMin, workoutSessionLabel, workoutTotals } from '../../data/tracker'
 import { loggedSummary } from '../../lib/workoutLog'
+import { readinessColor, readinessLabel } from '../../lib/oura'
 
 /** "10:42 AM" today, "Oct 24, 10:42 AM" otherwise. */
 function fmtSynced(ms: number): string {
@@ -18,11 +19,17 @@ export default function TrainSummary({
   sessions,
   onOpenTrain,
   oura,
+  readiness,
+  streak,
 }: {
   sessions: WorkoutSession[]
   onOpenTrain: () => void
   /** Present when Oura is connected: when this day last synced, and a manual sync */
   oura?: { lastSynced: number | null; syncing: boolean; onSync: () => void }
+  /** Oura readiness score for the day, when known */
+  readiness?: number
+  /** Consecutive workout weeks */
+  streak?: number
 }) {
   const t = workoutTotals(sessions)
   const sets = sessions.reduce((n, s) => n + loggedSummary(s.exercises ?? []).sets, 0)
@@ -40,6 +47,21 @@ export default function TrainSummary({
             {fmtMin(t.min)}
             {t.kcal > 0 && ` · ${t.kcal} kcal`}
             {sets > 0 && ` · ${sets} sets`}
+          </div>
+        )}
+        {(readiness != null || streak != null) && (
+          <div className="train-summary__status">
+            {readiness != null && (
+              <span>
+                <strong style={{ color: readinessColor(readiness) }}>{readiness}</strong> Readiness
+                · {readinessLabel(readiness)}
+              </span>
+            )}
+            {streak != null && (
+              <span>
+                🔥 <strong>{streak}</strong> week streak
+              </span>
+            )}
           </div>
         )}
         {oura && (

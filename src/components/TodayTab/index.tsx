@@ -1,12 +1,10 @@
 import { useEffect, useState, lazy, Suspense } from 'react'
-import type { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { DayData } from '../../data/tracker'
 import { dayWorkoutSessions } from '../../data/tracker'
 import { bodyStatsStore, trackerStore, useStoreRev } from '../../hooks/useStore'
 import { useOuraWorkoutSync } from '../../hooks/useOuraWorkoutSync'
-import { useCyclePhase } from '../../hooks/useCyclePhase'
-import { fetchOuraReadiness, isOuraConnected, readinessColor, readinessLabel } from '../../lib/oura'
+import { fetchOuraReadiness, isOuraConnected } from '../../lib/oura'
 import type { OuraReadiness } from '../../lib/oura'
 import { safeGet, safeSet } from '../../lib/storage'
 import { significantBurnKcal } from '../../lib/stats'
@@ -16,48 +14,13 @@ import WeekStrip from '../TrackerTab/WeekStrip'
 import WeekActivitySummary from '../TrackerTab/WeekActivitySummary'
 import TrainSummary from '../TrackerTab/TrainSummary'
 import RemindersSection from '../TrackerTab/RemindersSection'
-import ProfileStatsCard from '../TrackerTab/ProfileStatsCard'
-import { PHASE_COLOR } from '../WorkoutsTab/CycleToday'
 import DayTimeline, { dayKeyOf } from './DayTimeline'
 import FoodCard from './FoodCard'
 import { READINESS_CACHE_KEY } from '../../lib/storageKeys'
-import { DayHeader } from '../common'
+import { DayHeader, Sheet } from '../common'
 
 // Full Schedule (editor, .ics export, cognitive peak) — opened from the timeline
 const ScheduleTab = lazy(() => import('../ScheduleTab'))
-
-/** Full-screen sheet over Today (Schedule, Profile & targets). */
-function Sheet({
-  title,
-  onClose,
-  children,
-}: {
-  title: string
-  onClose: () => void
-  children: ReactNode
-}) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-  return (
-    <div className="cooking-overlay" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="cooking-topbar">
-        <button
-          type="button"
-          className="cooking-topbar__back"
-          aria-label={`Close ${title.toLowerCase()}`}
-          onClick={onClose}
-        >
-          ✕
-        </button>
-        <span className="logger__title">{title}</span>
-      </div>
-      <div className="today-schedule-sheet">{children}</div>
-    </div>
-  )
-}
 
 /** Free-text notes for the day — keyed by date by the parent so it re-seeds. */
 function DayNotes({ initial, onSave }: { initial: string; onSave: (notes: string) => void }) {
@@ -97,9 +60,9 @@ interface Props {
 }
 
 /**
- * Home screen: everything for one day at a glance — readiness, cycle and
- * streak, food and workout summaries, reminders, the Schedule timeline and
- * notes. Meditation has its own tab.
+ * Home screen: everything for one day at a glance — food and workout (with
+ * readiness and the week streak) summaries, reminders, the Schedule timeline
+ * and notes. Meditation has its own tab; Profile & targets lives in the user menu.
  */
 export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenTrain }: Props) {
   // Bumped on any tracker / profile write (this tab, Train, background Oura import)
@@ -107,7 +70,7 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
   // Bumped when the Schedule sheet closes so the timeline re-reads edited blocks
   const [scheduleRev, setScheduleRev] = useState(0)
   const [ouraConnected, setOuraConnected] = useState(false)
-  const [sheet, setSheet] = useState<'schedule' | 'profile' | null>(null)
+  const [sheet, setSheet] = useState<'schedule' | null>(null)
   const [readiness, setReadiness] = useState<Record<string, OuraReadiness>>(() =>
     safeGet<Record<string, OuraReadiness>>(READINESS_CACHE_KEY, {}),
   )
@@ -135,8 +98,6 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
   }, [key, ouraConnected, readiness])
 
   const stats = bodyStatsStore.get()
-  const cycleOn = stats.cycleType !== 'none'
-  const cycle = useCyclePhase(date, cycleOn && ouraConnected, rev)
   const wkSync = useOuraWorkoutSync(key, ouraConnected)
 
   const { day, streak } = (() => {
@@ -167,8 +128,6 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
   }
 
   const r = readiness[key]
-  const manualPhase = day.phase in PHASE_COLOR ? (day.phase as keyof typeof PHASE_COLOR) : null
-  const phase = manualPhase ?? cycle.suggestion?.phase
 
   return (
     <>
@@ -188,33 +147,13 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
       {/* Week workout roll-up (hidden when the week is empty) */}
       <WeekActivitySummary key={`was-${rev}`} currentDate={date} getDay={trackerStore.getDay} />
 
-      {/* Status: readiness · cycle · streak */}
-      <div className="today-status">
-        {r && (
-          <span className="today-chip" style={{ borderColor: readinessColor(r.score) }}>
-            <strong style={{ color: readinessColor(r.score) }}>{r.score}</strong> Readiness ·{' '}
-            {readinessLabel(r.score)}
-          </span>
-        )}
-        {cycleOn && phase && (
-          <span className="today-chip" style={{ borderColor: PHASE_COLOR[phase] }}>
-            <strong style={{ color: PHASE_COLOR[phase] }}>{phase}</strong>
-            {cycle.suggestion && ` · day ${cycle.suggestion.cycleDay}`}
-          </span>
-        )}
-        <span className="today-chip">
-          🔥 <strong>{streak}</strong> week streak
-        </span>
-        <button type="button" className="today-chip" onClick={() => setSheet('profile')}>
-          👤 Profile &amp; targets
-        </button>
-      </div>
-
       <div className="flex flex-col gap-12">
         <FoodCard day={day} onOpenFood={onOpenFood} />
         <TrainSummary
           sessions={dayWorkoutSessions(day)}
           onOpenTrain={onOpenTrain}
+          readiness={r?.score}
+          streak={streak}
           oura={
             ouraConnected
               ? { lastSynced: wkSync.lastSynced, syncing: wkSync.syncing, onSync: wkSync.sync }
@@ -246,11 +185,6 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
           <Suspense fallback={null}>
             <ScheduleTab user={user} initialDay={dayKeyOf(date)} />
           </Suspense>
-        </Sheet>
-      )}
-      {sheet === 'profile' && (
-        <Sheet title="Profile & targets" onClose={() => setSheet(null)}>
-          <ProfileStatsCard user={user} />
         </Sheet>
       )}
     </>

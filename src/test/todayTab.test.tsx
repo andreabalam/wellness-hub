@@ -153,8 +153,8 @@ describe('FoodCard', () => {
   })
 })
 
-describe('TodayTab status chips', () => {
-  it('shows readiness, the cycle phase and the weeks streak', () => {
+describe('TodayTab status', () => {
+  it('shows readiness and the week streak in the workout card, and no cycle phase', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-10-26T09:00:00'))
     ls.whub_body_stats_v1 = JSON.stringify({ cycleType: 'regular' })
@@ -178,11 +178,11 @@ describe('TodayTab status chips', () => {
         onOpenTrain={() => {}}
       />,
     )
-    expect(screen.getByText('82').closest('.today-chip')).toHaveTextContent('82 Readiness')
-    expect(screen.getByText('Luteal').closest('.today-chip')).toHaveTextContent('Luteal · day 19')
-    expect(screen.getByText(/week streak/).closest('.today-chip')).toHaveTextContent(
-      '1 week streak',
-    )
+    const status = screen.getByText('82').closest('.train-summary__status')
+    expect(status).toHaveTextContent('82 Readiness · ')
+    expect(status).toHaveTextContent('1 week streak')
+    expect(screen.queryByText(/Luteal/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /Profile & targets/ })).toBeNull()
   })
 
   it('saves day notes for the viewed day', () => {

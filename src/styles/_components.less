@@ -3416,6 +3416,14 @@
   gap: 10px;
   margin-bottom: 14px;
 }
+.train-summary__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 4px;
+  font-size: 0.857rem;
+  color: var(--muted);
+}
 .train-summary__oura {
   display: flex;
   align-items: center;
@@ -3568,35 +3576,6 @@
   .date-display {
     min-width: 0;
     color: var(--muted);
-  }
-}
-.today-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 4px 0 14px;
-}
-.today-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  border: 1px solid var(--border2);
-  border-radius: 99px;
-  background: var(--bg2);
-  font-size: 0.857rem;
-  color: var(--muted);
-  strong {
-    color: var(--text);
-  }
-}
-button.today-chip {
-  margin-left: auto;
-  cursor: pointer;
-  font-family: inherit;
-  &:hover {
-    color: var(--text);
-    border-color: var(--teal);
   }
 }
 .today-timeline__list {

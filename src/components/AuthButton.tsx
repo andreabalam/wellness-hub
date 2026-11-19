@@ -11,6 +11,8 @@ interface Props {
   onSynced: () => void
   onExport: () => void
   onImportFile: (e: React.ChangeEvent<HTMLInputElement>) => void
+  /** Opens Profile & targets (signed-in menu) */
+  onOpenProfile?: () => void
 }
 
 type PanelState = 'idle' | 'sending' | 'sent' | 'verifying'
@@ -23,6 +25,7 @@ export default function AuthButton({
   onSynced,
   onExport,
   onImportFile,
+  onOpenProfile,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
@@ -105,6 +108,17 @@ export default function AuthButton({
                 />
               </label>
             </div>
+            {user && onOpenProfile && (
+              <button
+                onClick={() => {
+                  onOpenProfile()
+                  setOpen(false)
+                }}
+                className="auth-panel-btn"
+              >
+                👤 Profile &amp; targets
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -327,6 +341,18 @@ export default function AuthButton({
                   />
                 </label>
               </div>
+
+              {onOpenProfile && (
+                <button
+                  onClick={() => {
+                    onOpenProfile()
+                    setOpen(false)
+                  }}
+                  className="auth-panel-btn"
+                >
+                  👤 Profile &amp; targets
+                </button>
+              )}
 
               <button onClick={signOut} className="auth-panel-btn auth-panel-btn--ghost">
                 Sign out

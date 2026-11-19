@@ -3,14 +3,12 @@ import type { User } from '@supabase/supabase-js'
 import {
   useTrackerStore,
   useFoodLibraryStore,
-  bodyStatsStore,
   recipeStore,
   hiddenRecipeStore,
   builtinRecipeCacheStore,
 } from '../../hooks/useStore'
 import { supabase } from '../../lib/supabase'
 import * as sync from '../../lib/sync'
-import { significantBurnKcal } from '../../lib/stats'
 import { macroTargets } from '../../hooks/macroTargets'
 import { QUICK_FOODS, WATER_MAX, dayWorkoutSessions, workoutTotals } from '../../data/tracker'
 import type { DayData, FoodEntry, QuickFood } from '../../data/tracker'
@@ -27,7 +25,6 @@ import { analyzeImage } from '../../lib/analyzeFood'
 import type { PhotoAnalysisResult } from '../../lib/analyzeFood'
 import MacroBar from './MacroBar'
 import SatietyRow from './SatietyRow'
-import WeekStrip from './WeekStrip'
 import MealList from './MealList'
 import PasteToLog from './PasteToLog'
 import HungerCravingPicker from './HungerCravingPicker'
@@ -55,7 +52,6 @@ export default function TrackerTab({
   todayBase.setHours(0, 0, 0, 0)
 
   // Macro bar targets: prefer bodyStats (with macroSplit) over legacy settings
-  const activeStats = bodyStatsStore.get()
   const {
     kcal: activeKcalTarget,
     prot: activeProtTarget,
@@ -109,7 +105,6 @@ export default function TrackerTab({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [water, setWater] = useState(0)
-  const [stripKey, setStripKey] = useState(0)
   const [showMealContext, setShowMealContext] = useState(false)
 
   const loadDate = useCallback(
@@ -148,7 +143,6 @@ export default function TrackerTab({
       const updated = { ...store.getDay(k), ...patch }
       store.setDay(k, updated)
       setDay(updated)
-      setStripKey(n => n + 1)
     },
     [date, store],
   )
@@ -523,15 +517,6 @@ export default function TrackerTab({
   // the currently viewed date — no separate store read needed.
   const wkSessionsForDate = dayWorkoutSessions(day)
   const burnedToday = workoutTotals(wkSessionsForDate).kcal
-  // Wrapped in useMemo — a plain expression here confuses the React Compiler's
-  // manual-memoization check on the unrelated `loadDate` useCallback below
-  // (it starts reporting stable useState setters like setWater/setFName as
-  // missing dependencies). Likely a compiler analysis quirk in this
-  // large component; useMemo sidesteps it without disabling the rule.
-  const burnThreshold = useMemo(
-    () => significantBurnKcal(activeStats.tdeeKcal || 0),
-    [activeStats.tdeeKcal],
-  )
 
   // Silent Oura workout import for the viewed day, so burned kcal (net calories)
   // stays current without opening Train. Policy-gated inside importOuraWorkouts.
@@ -592,18 +577,6 @@ export default function TrackerTab({
           Next ›
         </button>
       </div>
-
-      {/* Week strip — always visible */}
-      <WeekStrip
-        key={stripKey}
-        currentDate={date}
-        onSelect={d => {
-          d.setHours(0, 0, 0, 0)
-          setDate(d)
-        }}
-        getDay={store.getDay}
-        burnThreshold={burnThreshold}
-      />
 
       {/* ── Food ── */}
       <>
