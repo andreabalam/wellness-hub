@@ -482,7 +482,11 @@
   top: 0;
   background: var(--bg);
   z-index: 1;
-  padding: 14px 20px;
+  // The app uses viewport-fit=cover, so on iPhones (and the installed PWA) the
+  // page runs under the status bar / notch. Push the bar's controls below it.
+  padding: calc(14px + env(safe-area-inset-top)) 20px 14px;
+  padding-left: calc(20px + env(safe-area-inset-left));
+  padding-right: calc(20px + env(safe-area-inset-right));
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -498,8 +502,14 @@
   font-family: sans-serif;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  padding: 0;
+  // 44×44 touch target (Apple HIG); the negative margin keeps the glyph aligned
+  min-width: 44px;
+  min-height: 44px;
+  margin: -12px 0 -12px -12px;
+  padding: 0 12px;
+  font-size: 1.143rem;
 }
 .cooking-topbar__title {
   font-family: 'DM Serif Display', serif;

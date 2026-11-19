@@ -100,18 +100,11 @@ test.describe('Tracker tab', () => {
   })
 
   test('logging meditation shows confirmation', async ({ page }) => {
-    // Meditation, check-in and notes live on Today
+    // Meditation and notes live on Today
     await page.locator('nav.tabs').getByRole('tab', { name: /Today/i }).click()
     await page.getByRole('button', { name: '13 min' }).click()
     await page.getByRole('button', { name: 'Log meditation' }).click()
     await expect(page.getByText(/Total today: 13 min/)).toBeVisible()
-  })
-
-  test('saving check-in shows saved feedback', async ({ page }) => {
-    // The daily check-in card lives on Today
-    await page.locator('nav.tabs').getByRole('tab', { name: /Today/i }).click()
-    await page.getByRole('button', { name: 'Save check-in' }).click()
-    await expect(page.getByRole('button', { name: 'Saved!' })).toBeVisible()
   })
 
   test('date navigation goes to previous day', async ({ page }) => {

@@ -33,11 +33,9 @@ describe('weeklySummaries', () => {
       protAvg: 110,
       workouts: 2,
       medMin: 10,
-      sleepAvg: 4.5,
-      energyAvg: 3, // the 0 (not rated) is skipped
     })
     expect(w1).toMatchObject({ week: '2026-10-19', kcalAvg: 1800, workouts: 1 })
-    expect(w2).toMatchObject({ week: '2026-10-12', foodDays: 0, kcalAvg: null, sleepAvg: null })
+    expect(w2).toMatchObject({ week: '2026-10-12', foodDays: 0, kcalAvg: null })
   })
 })
 
@@ -117,8 +115,9 @@ describe('InsightsTab', () => {
     expect(delta(/^Calories \/ day/)).toHaveClass('trend-row__delta--flat')
     expect(delta(/^Protein \/ day/)).toHaveTextContent('▲ +20 g')
     expect(delta(/^Protein \/ day/)).toHaveClass('trend-row__delta--good')
-    expect(delta(/^Sleep/)).toHaveTextContent('▲ +1.5')
-    expect(delta(/^Energy/)).toHaveClass('trend-row__delta--bad')
+    // Sleep / energy came from the daily check-in, which is gone
+    expect(screen.queryByText(/^Sleep/)).toBeNull()
+    expect(screen.queryByText(/^Energy/)).toBeNull()
     expect(delta(/^Meditation/)).toHaveTextContent('▲ +10 min')
     // Calories had data in two weeks → a line; the old 8-week table is gone
     expect(row(/^Calories \/ day/).querySelector('svg path')).not.toBeNull()

@@ -21,9 +21,7 @@ vi.mock('../lib/oura', async importOriginal => {
 
 import * as oura from '../lib/oura'
 import MeditationLog from '../components/TrackerTab/MeditationLog'
-import CheckIn from '../components/TrackerTab/CheckIn'
 import SatietyRow from '../components/TrackerTab/SatietyRow'
-import StarRow from '../components/TrackerTab/StarRow'
 import MacroBar from '../components/TrackerTab/MacroBar'
 import MealList from '../components/TrackerTab/MealList'
 import QuickAddRow from '../components/TrackerTab/QuickAddRow'
@@ -151,34 +149,6 @@ describe('MeditationLog', () => {
   })
 })
 
-// ── CheckIn ───────────────────────────────────────────────────────
-describe('CheckIn', () => {
-  const base = {
-    initialEnergy: 0,
-    initialMood: 0,
-    initialSleep: 0,
-    initialStress: 0,
-    ouraConnected: false,
-    date: DATE,
-    onSave: vi.fn(),
-  }
-
-  it('saves check-in values', () => {
-    const onSave = vi.fn()
-    render(<CheckIn {...base} onSave={onSave} initialEnergy={3} />)
-    fireEvent.click(screen.getByText('Save check-in'))
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ energy: 3 }))
-  })
-
-  it('auto-fills sleep + stress from Oura on hover when connected', async () => {
-    mockOura.fetchOuraSleep.mockResolvedValue({ score: 88 })
-    mockOura.fetchOuraStress.mockResolvedValue({ day_summary: 'restored' })
-    const { container } = render(<CheckIn {...base} ouraConnected />)
-    fireEvent.mouseEnter(container.querySelector('.tcard')!)
-    await waitFor(() => expect(mockOura.fetchOuraSleep).toHaveBeenCalled())
-  })
-})
-
 // ── Small presentational components ───────────────────────────────
 describe('SatietyRow', () => {
   it('selects and clears a value (toggle)', () => {
@@ -188,16 +158,6 @@ describe('SatietyRow', () => {
     expect(onChange).toHaveBeenCalledWith(0)
     fireEvent.click(screen.getByText('6'))
     expect(onChange).toHaveBeenCalledWith(6)
-  })
-})
-
-describe('StarRow', () => {
-  it('renders without labels and toggles a star', () => {
-    const onChange = vi.fn()
-    const { container } = render(<StarRow value={0} onChange={onChange} emoji="E" />)
-    const btns = container.querySelectorAll('button')
-    fireEvent.click(btns[2])
-    expect(onChange).toHaveBeenCalledWith(3)
   })
 })
 

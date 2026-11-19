@@ -194,41 +194,6 @@ export function readinessLabel(score: number): string {
   return 'Recovery day'
 }
 
-// ── Sleep score → star rating (1–5) ──────────────────────────────
-
-export function sleepScoreToStars(score: number): number {
-  if (score >= 85) return 5
-  if (score >= 70) return 4
-  if (score >= 55) return 3
-  if (score >= 40) return 2
-  return 1
-}
-
-/**
- * Map an Oura daily_stress record to the tracker's 1–5 stress scale.
- * Returns null when there's no usable summary (so the caller keeps the manual value).
- *
- * Base from day_summary (restored → 1, normal → 3, stressful → 5), then nudged
- * ±1 by the high-stress duration: a long stressful stretch (≥90 min) bumps up,
- * a very short one (≤20 min) bumps down.
- */
-export function stressToScale(s: OuraStress): number | null {
-  const base =
-    s.day_summary === 'restored'
-      ? 1
-      : s.day_summary === 'normal'
-        ? 3
-        : s.day_summary === 'stressful'
-          ? 5
-          : null
-  if (base === null) return null
-  if (s.stress_high == null) return base // no duration data — keep the base value
-  const highMin = s.stress_high / 60
-  if (highMin >= 90) return Math.min(5, base + 1)
-  if (highMin <= 20 && base > 1) return base - 1
-  return base
-}
-
 // ── OAuth management ──────────────────────────────────────────────
 
 const OURA_AUTH_URL = 'https://cloud.ouraring.com/oauth/authorize'
