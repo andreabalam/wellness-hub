@@ -3091,9 +3091,9 @@ describe('TrackerTab', () => {
     expect(screen.getByText('Next ›')).toBeInTheDocument()
   })
 
-  it('renders the week strip', () => {
+  it('has no week strip: the week lives on Today', () => {
     render(<TrackerTab user={FAKE_USER} />)
-    expect(screen.getByText('This week')).toBeInTheDocument()
+    expect(screen.queryByText('This week')).toBeNull()
   })
 
   it('Food tab is active by default with macro bars', () => {
@@ -3341,18 +3341,6 @@ describe('TrackerTab', () => {
       fireEvent.click(recentBtn)
     }
     // Even if no button found, we verified no crash
-  })
-
-  it('clicking a day in the week strip navigates to that date', () => {
-    render(<TrackerTab user={FAKE_USER} />)
-    // WeekStrip: find the grid container via the "This week" label, then click first day cell
-    const heading = screen.getByText('This week')
-    const grid = heading.nextElementSibling as HTMLElement
-    // The grid contains 7 day cells; click the first
-    if (grid?.firstElementChild) {
-      fireEvent.click(grid.firstElementChild)
-      // Navigation happened — no crash = onClick handler exercised
-    }
   })
 
   it('Export and Import buttons are no longer in TrackerTab (moved to AuthButton)', () => {
@@ -4248,7 +4236,8 @@ describe('TodayTab', () => {
     renderToday()
     expect(screen.queryByRole('button', { name: 'Log meditation' })).toBeNull()
     expect(screen.queryByText(/Favorite guides/i)).toBeNull()
-    expect(screen.queryByText(/meditation$/)).toBeNull() // week-strip legend
+    // The week strip still marks meditation days with an M
+    expect(screen.getByText(/meditation$/)).toBeInTheDocument()
   })
 
   it('lists the schedule after reminders, with no check-in or weekly goal', () => {
@@ -4324,13 +4313,10 @@ describe('MeditateTab', () => {
     expect(screen.queryByText('Today')).toBeNull()
   })
 
-  it('the week shows minutes per day and the week total after logging', () => {
+  it('has no week card: the week shows on Today', () => {
     renderMeditate()
-    expect(screen.getByText('This week')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '13 min' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Log meditation' }))
-    expect(screen.getByText(/This week · 1 day · 13 ?m/)).toBeInTheDocument()
-    expect(screen.getByText('13′')).toBeInTheDocument()
+    expect(screen.queryByText(/This week/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Log meditation' })).toBeInTheDocument()
   })
 
   it('+ Add opens guide form and Cancel closes it', () => {

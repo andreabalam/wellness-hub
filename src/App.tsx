@@ -13,13 +13,14 @@ const RecipesTab = lazy(() => import('./components/RecipesTab'))
 const TrackerTab = lazy(() => import('./components/TrackerTab'))
 const InsightsTab = lazy(() => import('./components/InsightsTab'))
 const MeditateTab = lazy(() => import('./components/MeditateTab'))
+const ProfileStatsCard = lazy(() => import('./components/TrackerTab/ProfileStatsCard'))
 import { parseShareRoute } from './lib/recipeShare'
 import { supabase } from './lib/supabase'
 import { consumeOAuthCallback } from './lib/oura'
 import * as sync from './lib/sync'
 import { reportError } from './lib/errorLog'
 import { showToast } from './lib/toast'
-import { ToastHost } from './components/common'
+import { Sheet, ToastHost } from './components/common'
 import {
   trackerStore,
   recipeStore,
@@ -69,6 +70,7 @@ export default function App() {
   const [active, setActive] = useState<Tab>(_initialTab)
   // Food tab: the day's log or the recipe library (with grocery list)
   const [foodView, setFoodView] = useState<FoodView>('log')
+  const [profileOpen, setProfileOpen] = useState(false)
   // Train and Recipes mount on first visit, then stay mounted so their state
   // (workout in progress, recipe search/filters) survives tab switches.
   // Adjusted during render, not in an effect, so the first visit renders once.
@@ -392,6 +394,7 @@ export default function App() {
             onSynced={() => user && syncAll(user.id)}
             onExport={handleExport}
             onImportFile={handleImport}
+            onOpenProfile={() => setProfileOpen(true)}
           />
         </div>
         <nav className="tabs" role="tablist" aria-label="Main sections">
@@ -527,6 +530,14 @@ export default function App() {
           )}
         </div>
       </ErrorBoundary>
+
+      {profileOpen && user && (
+        <Sheet title="Profile & targets" onClose={() => setProfileOpen(false)}>
+          <Suspense fallback={null}>
+            <ProfileStatsCard user={user} />
+          </Suspense>
+        </Sheet>
+      )}
 
       <UpdatePrompt onUpdate={swUpdate} />
       <ToastHost />

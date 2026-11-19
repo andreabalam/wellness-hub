@@ -97,10 +97,8 @@ describe('TodayTab — Oura workout sync', () => {
     expect(screen.getByText('30 min')).toBeInTheDocument()
   })
 
-  it('opens Profile & targets in a sheet', () => {
+  it('has no Profile & targets button: it lives in the user menu', () => {
     renderToday()
-    fireEvent.click(screen.getByRole('button', { name: /Profile & targets/ }))
-    expect(screen.getByRole('dialog', { name: 'Profile & targets' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '+ Set up' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Profile & targets/ })).toBeNull()
   })
 })
