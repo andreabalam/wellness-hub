@@ -734,13 +734,21 @@
   cursor: pointer;
   transition: all 0.2s;
 }
+// Burned kcal under a workout day's W (own line: cells are ~45px on phones)
+.week-strip-burn {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.714rem;
+  line-height: 1.2;
+}
 .week-strip-legend {
   display: flex;
   gap: 14px;
   margin-top: 8px;
   flex-wrap: wrap;
 
-  span {
+  // Direct children only, so the coloured markers inside keep their colour
+  > span {
     font-size: 0.786rem;
     color: var(--muted);
     font-family: 'DM Mono', monospace;
