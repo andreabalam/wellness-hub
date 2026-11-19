@@ -163,20 +163,6 @@ export default function InsightsTab({ user }: { user: User | null }) {
           />
           <TrendRow label="Workouts" values={weeks.map(w => w.workouts)} direction="up-good" />
           <TrendRow
-            label="Sleep"
-            sub="check-in, of 5"
-            values={weeks.map(w => w.sleepAvg)}
-            digits={1}
-            direction="up-good"
-          />
-          <TrendRow
-            label="Energy"
-            sub="check-in, of 5"
-            values={weeks.map(w => w.energyAvg)}
-            digits={1}
-            direction="up-good"
-          />
-          <TrendRow
             label="Meditation"
             values={weeks.map(w => w.medMin)}
             unit=" min"
@@ -184,7 +170,7 @@ export default function InsightsTab({ user }: { user: User | null }) {
           />
         </ul>
         <div className="train-plan-hint">
-          Food, sleep and energy average the days you logged them
+          Food averages the days you logged it
           {thisWeek.foodDays > 0 &&
             ` — food was logged on ${thisWeek.foodDays} day${thisWeek.foodDays === 1 ? '' : 's'} this week`}
           .

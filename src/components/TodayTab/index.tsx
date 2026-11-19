@@ -11,17 +11,14 @@ import type { OuraReadiness } from '../../lib/oura'
 import { safeGet, safeSet } from '../../lib/storage'
 import { significantBurnKcal } from '../../lib/stats'
 import { workoutWeekStats } from '../../lib/workoutWeeks'
-import { addDays, dkey, mondayOf } from '../../lib/dateKey'
+import { addDays, dkey } from '../../lib/dateKey'
 import WeekStrip from '../TrackerTab/WeekStrip'
 import WeekActivitySummary from '../TrackerTab/WeekActivitySummary'
 import TrainSummary from '../TrackerTab/TrainSummary'
-import CheckIn from '../TrackerTab/CheckIn'
 import MeditationLog from '../TrackerTab/MeditationLog'
 import MeditationGuides from '../TrackerTab/MeditationGuides'
 import RemindersSection from '../TrackerTab/RemindersSection'
-import WeekGoal from '../TrackerTab/WeekGoal'
 import ProfileStatsCard from '../TrackerTab/ProfileStatsCard'
-import type { WeekGoalPayload } from '../TrackerTab/WeekGoal'
 import { PHASE_COLOR } from '../WorkoutsTab/CycleToday'
 import DayTimeline, { dayKeyOf } from './DayTimeline'
 import FoodCard from './FoodCard'
@@ -40,6 +37,11 @@ function Sheet({
   onClose: () => void
   children: ReactNode
 }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
   return (
     <div className="cooking-overlay" role="dialog" aria-modal="true" aria-label={title}>
       <div className="cooking-topbar">
@@ -138,30 +140,16 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
   const cycle = useCyclePhase(date, cycleOn && ouraConnected, rev)
   const wkSync = useOuraWorkoutSync(key, ouraConnected)
 
-  const { day, weekAnchorDay, lastWeek, streak } = (() => {
+  const { day, streak } = (() => {
     void rev
     return {
       day: trackerStore.getDay(key),
-      weekAnchorDay: trackerStore.getDay(dkey(mondayOf(date))),
-      lastWeek: trackerStore.getDay(dkey(addDays(mondayOf(date), -7))),
       streak: workoutWeekStats(trackerStore.getAll(), new Date()).currentStreak,
     }
   })()
 
   const save = (patch: Partial<DayData>) => {
     trackerStore.setDay(key, { ...trackerStore.getDay(key), ...patch })
-  }
-
-  // Weekly goal persists on the week's Monday anchor day (not the viewed day)
-  const saveWeekGoal = (p: WeekGoalPayload) => {
-    const anchorKey = dkey(mondayOf(date))
-    trackerStore.setDay(anchorKey, {
-      ...trackerStore.getDay(anchorKey),
-      weekGoal: p.weekGoal.trim(),
-      weekGoalKind: p.weekGoalKind,
-      weekGoalResult: p.weekGoalResult || undefined,
-      weekGoalNote: p.weekGoalNote.trim() || undefined,
-    })
   }
 
   const shift = (delta: number) => onDateChange(addDays(date, delta))
@@ -251,12 +239,6 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
       </div>
 
       <div className="flex flex-col gap-12">
-        <DayTimeline
-          key={`tl-${key}-${scheduleRev}`}
-          date={date}
-          isToday={isToday}
-          onOpenSchedule={() => setSheet('schedule')}
-        />
         <FoodCard day={day} onOpenFood={onOpenFood} />
         <TrainSummary
           sessions={dayWorkoutSessions(day)}
@@ -268,16 +250,6 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
           }
         />
         {/* Keyed by date so their inputs re-seed on day change */}
-        <CheckIn
-          key={`checkin-${key}`}
-          initialEnergy={day.energy}
-          initialMood={day.mood}
-          initialSleep={day.sleep}
-          initialStress={day.stress}
-          ouraConnected={ouraConnected}
-          date={date}
-          onSave={save}
-        />
         <MeditationLog
           key={`med-${key}`}
           sessions={dayMedSessions(day)}
@@ -287,20 +259,16 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
         />
         <MeditationGuides />
         <RemindersSection user={user} />
+        <DayTimeline
+          key={`tl-${key}-${scheduleRev}`}
+          date={date}
+          isToday={isToday}
+          onOpenSchedule={() => setSheet('schedule')}
+        />
         <DayNotes
           key={`notes-${key}`}
           initial={day.notes ?? ''}
           onSave={notes => save({ notes })}
-        />
-        <WeekGoal
-          key={dkey(mondayOf(date))}
-          initialGoal={weekAnchorDay.weekGoal ?? ''}
-          initialKind={weekAnchorDay.weekGoalKind ?? 'goal'}
-          initialResult={weekAnchorDay.weekGoalResult ?? ''}
-          initialNote={weekAnchorDay.weekGoalNote ?? ''}
-          lastWeekGoal={lastWeek.weekGoal ?? ''}
-          lastWeekResult={lastWeek.weekGoalResult ?? ''}
-          onSave={saveWeekGoal}
         />
       </div>
 

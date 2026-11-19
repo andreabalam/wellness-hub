@@ -4174,7 +4174,7 @@ describe('RecipesTab — open request from tracker', () => {
 })
 
 // ═════════════════════════════════════════════════════════════════
-// TodayTab — home screen (check-in, meditation, reminders, notes and
+// TodayTab — home screen (meditation, reminders, schedule, notes and
 // weekly goal moved here from Tracker › Meditation)
 // ═════════════════════════════════════════════════════════════════
 function TodayHarness({
@@ -4243,6 +4243,23 @@ describe('TodayTab', () => {
     }
   })
 
+  it('lists the schedule after reminders, with no check-in or weekly goal', () => {
+    const { container } = renderToday()
+    const text = container.textContent ?? ''
+    expect(text.indexOf('Reminders')).toBeGreaterThan(-1)
+    expect(text.indexOf('Your day')).toBeGreaterThan(text.indexOf('Reminders'))
+    expect(screen.queryByText('Daily check-in')).toBeNull()
+    expect(screen.queryByText('Weekly goal')).toBeNull()
+  })
+
+  it('closes the schedule sheet with Escape', async () => {
+    renderToday()
+    fireEvent.click(screen.getByRole('button', { name: 'Open schedule →' }))
+    expect(await screen.findByRole('dialog', { name: 'Schedule' })).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Schedule' })).toBeNull()
+  })
+
   it('shows the day timeline and opens the full schedule', async () => {
     renderToday()
     expect(screen.getByText(/Your day/)).toBeInTheDocument()
@@ -4279,18 +4296,6 @@ describe('TodayTab', () => {
     // no assertion needed — just no crash
   })
 
-  it('renders the check-in section in Meditation tab', () => {
-    renderToday()
-    expect(screen.getByText('Daily check-in')).toBeInTheDocument()
-    expect(screen.getByText('Save check-in')).toBeInTheDocument()
-  })
-
-  it('can click Save check-in', () => {
-    renderToday()
-    fireEvent.click(screen.getByText('Save check-in'))
-    expect(screen.getByText('Saved!')).toBeInTheDocument()
-  })
-
   it('renders Day notes section in Meditation tab', () => {
     renderToday()
     expect(screen.getByText('Day notes')).toBeInTheDocument()
@@ -4316,16 +4321,6 @@ describe('TodayTab', () => {
     fireEvent.click(screen.getByText('Breath focus'))
     // deselect
     fireEvent.click(screen.getByText('Breath focus'))
-  })
-
-  it('clicking a star in the daily check-in sets rating', () => {
-    renderToday()
-    // Star buttons are rendered for Energy, Mood, Sleep ratings (5 buttons each × 3 rows = 15)
-    const stars = screen.getAllByText('·')
-    if (stars.length > 0) {
-      fireEvent.click(stars[0].closest('button')!)
-      // No crash = star onClick handled
-    }
   })
 
   it('Meditation tab shows default guide links', () => {
@@ -4392,45 +4387,5 @@ describe('TodayTab', () => {
     fireEvent.change(urlInput, { target: { value: 'https://example.com' } })
     fireEvent.keyDown(urlInput, { key: 'Enter' })
     expect(screen.getByText('https://example.com')).toBeInTheDocument()
-  })
-
-  it('hovering the check-in card does not crash (syncSleepFromOura guard)', () => {
-    renderToday()
-    const checkInCard = screen.getByText('Daily check-in').closest('.tcard')!
-    fireEvent.mouseEnter(checkInCard)
-    // ouraConnected is false → function returns immediately. No crash = guard works
-  })
-
-  it('can save a weekly goal', () => {
-    renderToday()
-    fireEvent.change(screen.getByPlaceholderText(/Protein at every meal/), {
-      target: { value: 'Walk daily' },
-    })
-    fireEvent.click(screen.getByText('Save weekly'))
-    expect(screen.getByText('Saved!')).toBeInTheDocument()
-  })
-
-  it('weekly experiment toggle switches the goal prompt', () => {
-    renderToday()
-    fireEvent.click(screen.getByText('experiment'))
-    expect(screen.getByPlaceholderText(/If I prep 3 lunches/)).toBeInTheDocument()
-  })
-
-  it('a weekly goal suggestion chip fills the goal field', () => {
-    const { container } = renderToday()
-    const weekCard = screen.getByText('Weekly goal').closest('.tcard') as HTMLElement
-    fireEvent.click(within(weekCard).getByText('Protein at every meal'))
-    const textarea = container.querySelector(
-      'textarea[placeholder^="e.g. Protein"]',
-    ) as HTMLTextAreaElement
-    expect(textarea.value).toBe('Protein at every meal')
-  })
-
-  it('recording a weekly result and saving works', () => {
-    renderToday()
-    const weekCard = screen.getByText('Weekly goal').closest('.tcard') as HTMLElement
-    fireEvent.click(within(weekCard).getByText('Yes'))
-    fireEvent.click(within(weekCard).getByText('Save weekly'))
-    expect(screen.getByText('Saved!')).toBeInTheDocument()
   })
 })

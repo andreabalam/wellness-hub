@@ -21,10 +21,6 @@ export interface WeekSummary {
   protAvg: number | null
   workouts: number
   medMin: number
-  energyAvg: number | null
-  sleepAvg: number | null
-  moodAvg: number | null
-  stressAvg: number | null
 }
 
 const shiftWeek = (monday: string, weeks: number) => addDaysToKey(monday, weeks * 7)
@@ -42,8 +38,6 @@ export function weeklySummaries(days: Record<string, DayData>, today: Date, n = 
   return weeks.map(week => {
     const ds = bucket.get(week)!
     const fed = ds.filter(d => d.foods.length > 0)
-    const rated = (k: 'energy' | 'sleep' | 'mood' | 'stress') =>
-      avg(ds.map(d => d[k]).filter(v => v > 0))
     return {
       week,
       foodDays: fed.length,
@@ -51,10 +45,6 @@ export function weeklySummaries(days: Record<string, DayData>, today: Date, n = 
       protAvg: avg(fed.map(d => d.foods.reduce((s, f) => s + f.p, 0))),
       workouts: ds.reduce((s, d) => s + dayWorkoutSessions(d).filter(countsAsWorkout).length, 0),
       medMin: ds.reduce((s, d) => s + medTotals(dayMedSessions(d)).min, 0),
-      energyAvg: rated('energy'),
-      sleepAvg: rated('sleep'),
-      moodAvg: rated('mood'),
-      stressAvg: rated('stress'),
     }
   })
 }

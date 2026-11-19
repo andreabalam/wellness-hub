@@ -176,13 +176,6 @@ export interface DayData {
 export type WeekGoalKind = 'goal' | 'experiment'
 export type WeekGoalResult = 'yes' | 'partial' | 'no'
 
-/** Seed suggestions for a weekly goal (from the Noom doc). */
-export const WEEK_GOAL_SUGGESTIONS = [
-  '1–2 fermented foods this week',
-  'Protein at every meal',
-  'One new movement type',
-]
-
 export const EMPTY_DAY: DayData = {
   foods: [],
   workout: null,

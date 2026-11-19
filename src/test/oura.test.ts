@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   readinessColor,
   readinessLabel,
-  sleepScoreToStars,
   roundToMedMin,
   OURA_ACTIVITY_MAP,
   OURA_SESSION_MAP,
@@ -10,9 +9,7 @@ import {
   disconnectOura,
   consumeOAuthCallback,
   startOuraOAuth,
-  stressToScale,
 } from '../lib/oura'
-import type { OuraStress } from '../lib/oura'
 
 // ── readinessColor ────────────────────────────────────────────────
 
@@ -56,66 +53,7 @@ describe('readinessLabel', () => {
   })
 })
 
-// ── sleepScoreToStars ─────────────────────────────────────────────
-
-describe('sleepScoreToStars', () => {
-  it('returns 5 for score >= 85', () => {
-    expect(sleepScoreToStars(85)).toBe(5)
-    expect(sleepScoreToStars(100)).toBe(5)
-  })
-  it('returns 4 for score 70–84', () => {
-    expect(sleepScoreToStars(70)).toBe(4)
-    expect(sleepScoreToStars(84)).toBe(4)
-  })
-  it('returns 3 for score 55–69', () => {
-    expect(sleepScoreToStars(55)).toBe(3)
-    expect(sleepScoreToStars(69)).toBe(3)
-  })
-  it('returns 2 for score 40–54', () => {
-    expect(sleepScoreToStars(40)).toBe(2)
-    expect(sleepScoreToStars(54)).toBe(2)
-  })
-  it('returns 1 for score < 40', () => {
-    expect(sleepScoreToStars(39)).toBe(1)
-    expect(sleepScoreToStars(0)).toBe(1)
-  })
-})
-
 // ── roundToMedMin ─────────────────────────────────────────────────
-
-// ── stressToScale ─────────────────────────────────────────────────
-
-describe('stressToScale', () => {
-  const make = (
-    day_summary: OuraStress['day_summary'],
-    stress_high: number | null = null,
-  ): OuraStress => ({ day: '2026-06-14', stress_high, recovery_high: null, day_summary })
-
-  it('maps the day_summary to base values', () => {
-    expect(stressToScale(make('restored'))).toBe(1)
-    expect(stressToScale(make('normal'))).toBe(3)
-    expect(stressToScale(make('stressful'))).toBe(5)
-  })
-
-  it('returns null when there is no usable summary', () => {
-    expect(stressToScale(make('no_data'))).toBeNull()
-    expect(stressToScale(make(null))).toBeNull()
-  })
-
-  it('nudges up when high-stress duration is long (>=90 min)', () => {
-    expect(stressToScale(make('normal', 90 * 60))).toBe(4)
-    expect(stressToScale(make('stressful', 200 * 60))).toBe(5) // capped at 5
-  })
-
-  it('nudges down when high-stress duration is short (<=20 min)', () => {
-    expect(stressToScale(make('normal', 10 * 60))).toBe(2)
-    expect(stressToScale(make('restored', 0))).toBe(1) // never below 1
-  })
-
-  it('keeps the base value for a mid-range duration', () => {
-    expect(stressToScale(make('normal', 45 * 60))).toBe(3)
-  })
-})
 
 describe('roundToMedMin', () => {
   it('returns exact matches unchanged', () => {

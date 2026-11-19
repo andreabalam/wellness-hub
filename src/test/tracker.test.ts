@@ -15,7 +15,6 @@ import {
   HUNGER_TYPES,
   hungerIcon,
   hungerLabel,
-  WEEK_GOAL_SUGGESTIONS,
   dayWorkoutSessions,
   dayMedSessions,
   workoutSessionLabel,
@@ -220,11 +219,5 @@ describe('HUNGER_TYPES', () => {
   it('hungerIcon and hungerLabel return empty for unknown/undefined', () => {
     expect(hungerIcon('nope')).toBe('')
     expect(hungerLabel(undefined)).toBe('')
-  })
-})
-
-describe('WEEK_GOAL_SUGGESTIONS', () => {
-  it('provides at least one seed suggestion', () => {
-    expect(WEEK_GOAL_SUGGESTIONS.length).toBeGreaterThan(0)
   })
 })
