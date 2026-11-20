@@ -5,9 +5,9 @@ import type { User } from '@supabase/supabase-js'
 vi.mock('../components/OuraTab', () => ({ default: () => <div>Oura dashboard</div> }))
 
 import InsightsTab from '../components/InsightsTab'
-import { cycleHistory, weeklySummaries } from '../lib/insights'
+import { cycleHistory, dayVolumeKg, weeklySummaries, weekWins } from '../lib/insights'
 import { EMPTY_DAY } from '../data/tracker'
-import type { DayData, FoodEntry, WorkoutSession } from '../data/tracker'
+import type { DayData, FoodEntry, LoggedExercise, WorkoutSession } from '../data/tracker'
 
 const TODAY = new Date('2026-10-28T12:00:00') // Wednesday; week of Oct 26
 const food = (k: number, p: number): FoodEntry => ({ n: 'x', k, p, c: 0, f: 0, fi: 0 })
@@ -36,6 +36,74 @@ describe('weeklySummaries', () => {
     })
     expect(w1).toMatchObject({ week: '2026-10-19', kcalAvg: 1800, workouts: 1 })
     expect(w2).toMatchObject({ week: '2026-10-12', foodDays: 0, kcalAvg: null })
+  })
+})
+
+// ── Weight lifted & wins ──
+const lift = (name: string, kg: number, reps: number, n = 2, done = true): LoggedExercise => ({
+  name,
+  sets: Array.from({ length: n }, () => ({ reps, kg, done })),
+})
+const lifted = (id: string, ...exercises: LoggedExercise[]): WorkoutSession => ({
+  id,
+  src: 'manual',
+  type: 'full-body',
+  min: 45,
+  exercises,
+})
+const LIFT_DAYS: Record<string, DayData> = {
+  // last week: 2×10×20 = 400 kg
+  '2026-10-20': day({ wkSessions: [lifted('a', lift('Hip thrust', 20, 10))] }),
+  // this week: 2×10×25 + 2×12×10 = 740 kg; the undone set doesn't count
+  '2026-10-26': day({
+    foods: [food(1300, 115)],
+    wkSessions: [
+      lifted(
+        'b',
+        lift('Hip thrust', 25, 10),
+        lift('Single-leg hip thrust', 10, 12),
+        lift('Hip thrust', 40, 10, 1, false),
+      ),
+    ],
+  }),
+  '2026-10-27': day({ foods: [food(1200, 80)] }),
+}
+
+describe('weight lifted', () => {
+  it('sums reps × kg over completed sets, per day and per week', () => {
+    expect(dayVolumeKg(LIFT_DAYS['2026-10-26'])).toBe(740)
+    const [w0, w1, w2] = weeklySummaries(LIFT_DAYS, TODAY, 3)
+    expect(w0.volumeKg).toBe(740)
+    expect(w1.volumeKg).toBe(400)
+    expect(w2.volumeKg).toBeNull()
+  })
+})
+
+describe('weekWins', () => {
+  const repTops = new Map([['single-leg hip thrust', 12]])
+
+  it('lists new bests, workouts with weight lifted, protein days and ready-to-progress', () => {
+    const wins = weekWins(LIFT_DAYS, TODAY, { protTarget: 110, repTops })
+    expect(wins.map(w => w.kind)).toEqual(['pr', 'workouts', 'protein', 'progress'])
+    expect(wins[0]).toMatchObject({ text: 'New best: Hip thrust 10 × 25 kg', sub: 'was 20 kg' })
+    expect(wins[1]).toMatchObject({
+      text: '1 workout · 740 kg lifted',
+      sub: '+85% weight lifted vs last week',
+    })
+    expect(wins[2].text).toBe('Protein target hit 1 of 2 days')
+    expect(wins[3].text).toBe('1 exercise ready to progress')
+  })
+
+  it('needs an earlier workout to call something a new best; includes meditation', () => {
+    const wins = weekWins(DAYS, TODAY, { protTarget: 0, repTops: new Map() })
+    expect(wins.map(w => w.kind)).toEqual(['workouts', 'meditation'])
+    expect(wins[0]).toMatchObject({ text: '2 workouts' })
+    expect(wins[0].sub).toBeUndefined()
+    expect(wins[1].text).toBe('10 min of meditation')
+  })
+
+  it('is empty for an empty week', () => {
+    expect(weekWins({}, TODAY, { protTarget: 110, repTops })).toEqual([])
   })
 })
 
@@ -127,6 +195,24 @@ describe('InsightsTab', () => {
     expect(screen.getByText(/Average cycle/)).toHaveTextContent('Average cycle: 28 days')
     expect(screen.getByText('current cycle')).toBeInTheDocument()
     expect(screen.getByText('Oura dashboard').closest('details')).toHaveClass('insights-oura')
+  })
+
+  it("shows this week's wins and the weight-lifted trend", () => {
+    ls.whub_tracker_v3 = JSON.stringify(LIFT_DAYS)
+    render(<InsightsTab user={{ id: 'u1' } as User} />)
+    const items = screen
+      .getAllByRole('listitem')
+      .filter(li => li.classList.contains('week-wins__item'))
+    expect(items[0]).toHaveTextContent('New best: Hip thrust 10 × 25 kgwas 20 kg')
+    expect(items[0]).toHaveClass('week-wins__item--pr')
+    expect(screen.getByText('1 workout · 740 kg lifted')).toBeInTheDocument()
+    const row = screen.getByText(/^Weight lifted/).closest('.trend-row') as HTMLElement
+    expect(row).toHaveTextContent('740 kg▲ +340 kg')
+  })
+
+  it('says how wins appear when the week is empty', () => {
+    render(<InsightsTab user={{ id: 'u1' } as User} />)
+    expect(screen.getByText(/Nothing yet this week/)).toBeInTheDocument()
   })
 
   it('explains how to start the cycle history when no period is logged', () => {
