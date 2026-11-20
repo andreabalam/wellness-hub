@@ -13,6 +13,7 @@ import { useCyclePhase } from '../../hooks/useCyclePhase'
 import type { PhaseSuggestion } from '../../lib/cyclePhase'
 import { isOuraConnected } from '../../lib/oura'
 import { showToast } from '../../lib/toast'
+import { newBests, newBestsMessage } from '../../lib/workoutProgress'
 import { safeGet, safeRemove, safeSet } from '../../lib/storage'
 import { isWorkoutDraft } from '../../lib/schema'
 import {
@@ -384,6 +385,19 @@ export default function WorkoutsTab({ user }: Props) {
       return
     }
     const day = trackerStore.getDay(draft.date)
+    // History without this workout (an edited session is left out too), for new bests
+    const others = trackerStore.getAll()
+    const editingId = draft.editing?.sessionId
+    const history = editingId
+      ? {
+          ...others,
+          [draft.date]: {
+            ...day,
+            wkSessions: dayWorkoutSessions(day).filter(s => s.id !== editingId),
+          },
+        }
+      : others
+    const bests = newBestsMessage(newBests(history, exercises))
     if (draft.editing) {
       trackerStore.setDay(draft.date, {
         ...day,
@@ -392,6 +406,7 @@ export default function WorkoutsTab({ user }: Props) {
       setDraft(null)
       setLoggerOpen(false)
       showToast('Workout updated', 'success')
+      if (bests) showToast(bests, 'success')
       return
     }
     const sessions = attachLoggedWorkout(dayWorkoutSessions(day), {
@@ -423,6 +438,7 @@ export default function WorkoutsTab({ user }: Props) {
       `Workout saved · ${sum.exercises} exercise${sum.exercises === 1 ? '' : 's'}, ${sum.sets} sets`,
       'success',
     )
+    if (bests) showToast(bests, 'success')
   }
 
   const loggedFor = (week: number, slot: string) =>
