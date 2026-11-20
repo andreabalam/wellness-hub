@@ -1,13 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
-import {
-  WORKOUT_PLAN,
-  WORKOUT_PLAN_VERSION,
-  PLAN_NOTES,
-  MALE_DEFAULT_PLAN,
-} from '../../data/workouts'
+import { WORKOUT_PLAN_VERSION, PLAN_NOTES, MALE_DEFAULT_PLAN } from '../../data/workouts'
 import type { Exercise, WorkoutWeek } from '../../data/workouts'
+import { activeWorkoutPlan } from '../../hooks/activePlan'
 import { bodyStatsStore, trackerStore, useStoreRev, workoutPlanStore } from '../../hooks/useStore'
 import { useCyclePhase } from '../../hooks/useCyclePhase'
 import type { PhaseSuggestion } from '../../lib/cyclePhase'
@@ -220,13 +216,8 @@ export default function WorkoutsTab({ user }: Props) {
 
   const isAuth = !!user
 
-  // A stored plan saved before the current plan version is outdated - show the new built-in plan.
-  const storedIsCurrent = storedPlan?.planData?.[0]?.v === WORKOUT_PLAN_VERSION
-  const planData = isAuth
-    ? storedIsCurrent && storedPlan
-      ? storedPlan.planData
-      : WORKOUT_PLAN
-    : MALE_DEFAULT_PLAN
+  // Signed in: the saved plan when current, else the built-in one
+  const planData = isAuth ? activeWorkoutPlan() : MALE_DEFAULT_PLAN
   const planGender = isAuth ? (storedPlan?.gender ?? 'female') : 'male'
 
   useEffect(() => {
