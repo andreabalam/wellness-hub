@@ -6,6 +6,7 @@
  */
 import type { DayData, LoggedSet, WorkoutSession } from '../data/tracker'
 import { dayWorkoutSessions } from '../data/tracker'
+import type { WorkoutWeek } from '../data/workouts'
 import { normalizeName } from './workoutLog'
 import { weekStart } from './workoutWeeks'
 
@@ -55,6 +56,8 @@ export interface ExerciseProgress {
   best: ProgressPoint
   /** latest − first */
   change: number
+  /** The completed sets of the most recent workout */
+  latestSets: LoggedSet[]
 }
 
 const fmtKg = (kg: number) => (Number.isInteger(kg) ? String(kg) : kg.toFixed(1))
@@ -109,6 +112,7 @@ export function exerciseProgress(days: Record<string, DayData>, since = ''): Exe
         ? 'reps'
         : 's'
     const points: ProgressPoint[] = []
+    const latestSets = entries[entries.length - 1].sets
     for (const e of entries) {
       const top = topSet(e.sets, unit)
       if (top) points.push({ date: e.date, ...top })
@@ -125,7 +129,61 @@ export function exerciseProgress(days: Record<string, DayData>, since = ''): Exe
       latest,
       best,
       change: Math.round((latest.value - first.value) * 10) / 10,
+      latestSets,
     })
   }
   return out.sort((a, b) => (a.latest.date < b.latest.date ? 1 : -1))
+}
+
+// ── Ready to progress ────────────────────────────────────────────
+
+/**
+ * Top of the rep range in plan text: "4×10-12 per side" → 12, "3×10" → 10.
+ * Timed ("3×30s"), max / AMRAP and free-text doses have no top → undefined.
+ */
+export function repRangeTop(d: string): number | undefined {
+  const m = d
+    .toLowerCase()
+    .match(/(\d+)\s*[×x]\s*(\d+)(?:\s*[-–]\s*(\d+))?(?!\s*(?:\d|[-–]|sec|s\b|min))/)
+  if (!m) return undefined
+  return Number(m[3] ?? m[2])
+}
+
+/** Exercise name (normalized) → top of its rep range, across every week and Option B. */
+export function planRepTops(plan: WorkoutWeek[]): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const w of plan)
+    for (const day of w.days)
+      for (const ex of [...day.exs, ...(day.alts ?? [])]) {
+        const top = repRangeTop(ex.d)
+        const key = normalizeName(ex.t)
+        if (top != null && !out.has(key)) out.set(key, top)
+      }
+  return out
+}
+
+export interface ProgressionHint {
+  /** 'weight': add load next time; 'harder': bodyweight — move to a harder variation */
+  kind: 'weight' | 'harder'
+  /** The rep target every set reached */
+  top: number
+  sets: number
+}
+
+/**
+ * Double progression: once every working set of the latest workout reached
+ * the top of the plan's rep range (at least 2 sets), it's time to add weight
+ * — or, without weights, a harder variation.
+ */
+export function progressionHint(
+  p: ExerciseProgress,
+  repTops: Map<string, number>,
+): ProgressionHint | null {
+  const top = repTops.get(normalizeName(p.name))
+  if (top == null || p.unit === 's') return null
+  const sets = p.latestSets
+  if (sets.length < 2 || !sets.every(s => (s.reps ?? 0) >= top)) return null
+  if (p.unit === 'kg')
+    return sets.every(s => s.kg != null) ? { kind: 'weight', top, sets: sets.length } : null
+  return { kind: 'harder', top, sets: sets.length }
 }

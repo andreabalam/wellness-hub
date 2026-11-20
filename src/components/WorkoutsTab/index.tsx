@@ -578,7 +578,9 @@ export default function WorkoutsTab({ user }: Props) {
         </div>
       )}
 
-      {isAuth && view !== 'plan' && <TrainHistory view={view} days={allDays} onOpenDay={openDay} />}
+      {isAuth && view !== 'plan' && (
+        <TrainHistory view={view} days={allDays} plan={planData} onOpenDay={openDay} />
+      )}
 
       {(!isAuth || view === 'plan') && (
         <>

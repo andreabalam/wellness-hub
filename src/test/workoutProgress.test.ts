@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { exerciseProgress, workoutHistory } from '../lib/workoutProgress'
+import {
+  exerciseProgress,
+  planRepTops,
+  progressionHint,
+  repRangeTop,
+  workoutHistory,
+} from '../lib/workoutProgress'
+import { WORKOUT_PLAN } from '../data/workouts'
 import { EMPTY_DAY } from '../data/tracker'
 import type { DayData, LoggedExercise, WorkoutSession } from '../data/tracker'
 
@@ -74,5 +81,67 @@ describe('exerciseProgress', () => {
     const p = exerciseProgress(days, '2026-10-08').find(e => e.name === 'Hip thrust')!
     expect(p.points).toHaveLength(2)
     expect(p.change).toBe(-2.5)
+  })
+})
+
+describe('repRangeTop', () => {
+  it.each([
+    ['4×10-12 per side', 12],
+    ['3×12-15, 3s down', 15],
+    ['3×10 per side, 3s down', 10],
+    ['2×8 per side, 2s hold', 8],
+    ['3×10 per side + 2×30s per side', 10],
+    ['3×30-45 sec', undefined],
+    ['3×30s', undefined],
+    ['2×max', undefined],
+    ['4×AMRAP', undefined],
+    ['8 reps', undefined],
+    ['2 min', undefined],
+  ])('%s → %s', (d, top) => expect(repRangeTop(d)).toBe(top))
+})
+
+describe('progressionHint', () => {
+  const tops = planRepTops(WORKOUT_PLAN)
+  const hintFor = (days: Record<string, DayData>, name: string) =>
+    progressionHint(
+      exerciseProgress(days).find(e => e.name === name)!,
+      tops,
+    )
+
+  it('reads rep-range tops from the plan, Option B included', () => {
+    expect(tops.get('single-leg hip thrust')).toBe(12)
+    expect(tops.get('goblet squat, 2s pause at bottom')).toBe(15)
+    expect(tops.has('push-ups')).toBe(false) // AMRAP
+  })
+
+  it('suggests adding weight once every set of the latest workout hits the top', () => {
+    const name = 'Single-leg hip thrust'
+    expect(
+      hintFor({ '2026-10-01': day(session([ex(name, [12, 10], [12, 10], [12, 10])])) }, name),
+    ).toEqual({ kind: 'weight', top: 12, sets: 3 })
+    // one set short of the top → not yet
+    expect(hintFor({ '2026-10-01': day(session([ex(name, [12, 10], [11, 10])])) }, name)).toBeNull()
+    // judged on the latest workout only
+    expect(
+      hintFor(
+        {
+          '2026-10-01': day(session([ex(name, [12, 10], [12, 10])])),
+          '2026-10-08': day(session([ex(name, [10, 12], [9, 12])])),
+        },
+        name,
+      ),
+    ).toBeNull()
+    // a single set is not enough evidence
+    expect(hintFor({ '2026-10-01': day(session([ex(name, [12, 10])])) }, name)).toBeNull()
+  })
+
+  it('suggests a harder version for bodyweight exercises; none off-plan', () => {
+    const lunge = 'Deficit reverse lunge'
+    expect(
+      hintFor({ '2026-10-01': day(session([ex(lunge, [10, undefined], [10, undefined])])) }, lunge),
+    ).toEqual({ kind: 'harder', top: 10, sets: 2 })
+    expect(
+      hintFor({ '2026-10-01': day(session([ex('My own move', [20, 5], [20, 5])])) }, 'My own move'),
+    ).toBeNull()
   })
 })

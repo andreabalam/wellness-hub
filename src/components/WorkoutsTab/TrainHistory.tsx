@@ -5,8 +5,14 @@ import WeekActivitySummary from './WeekActivitySummary'
 import { fmtMin, workoutSessionLabel, workoutTotals } from '../../data/tracker'
 import { loggedSummary } from '../../lib/workoutLog'
 import { countsAsWorkout } from '../../lib/workoutWeeks'
-import { exerciseProgress, workoutHistory } from '../../lib/workoutProgress'
+import {
+  exerciseProgress,
+  planRepTops,
+  progressionHint,
+  workoutHistory,
+} from '../../lib/workoutProgress'
 import type { ExerciseProgress } from '../../lib/workoutProgress'
+import type { WorkoutWeek } from '../../data/workouts'
 
 const WEEKS_PAGE = 4
 const PROGRESS_PAGE = 8
@@ -32,11 +38,14 @@ function Trend({ p }: { p: ExerciseProgress }) {
 export default function TrainHistory({
   view,
   days,
+  plan,
   onOpenDay,
 }: {
   /** Picked by the Train tab's Plan | History | Progress switch */
   view: 'history' | 'progress'
   days: Record<string, DayData>
+  /** The plan being followed — its rep ranges decide when an exercise is ready to progress */
+  plan: WorkoutWeek[]
   /** Show a past day in the day card (to review, back-fill or edit sets) */
   onOpenDay: (date: string) => void
 }) {
@@ -45,6 +54,7 @@ export default function TrainHistory({
 
   const history = useMemo(() => workoutHistory(days), [days])
   const progress = useMemo(() => exerciseProgress(days), [days])
+  const repTops = useMemo(() => planRepTops(plan), [plan])
 
   return (
     <section className="train-history" aria-label="History and progress">
@@ -121,23 +131,41 @@ export default function TrainHistory({
           </div>
         ) : (
           <>
-            {(allProgress ? progress : progress.slice(0, PROGRESS_PAGE)).map(p => (
-              <div key={p.name} className="progress-row">
-                <div className="progress-row__main">
-                  <span className="text-default font-500">{p.name}</span>
-                  <span className="progress-row__range">
-                    {p.points.length > 1
-                      ? `${fmtValue(p, p.first.value)} → ${fmtValue(p, p.latest.value)}`
-                      : fmtValue(p, p.latest.value)}
-                  </span>
-                  <Trend p={p} />
+            {(allProgress ? progress : progress.slice(0, PROGRESS_PAGE)).map(p => {
+              const hint = progressionHint(p, repTops)
+              return (
+                <div key={p.name} className="progress-row">
+                  <div className="progress-row__main">
+                    <span className="text-default font-500">{p.name}</span>
+                    <span className="progress-row__range">
+                      {p.points.length > 1
+                        ? `${fmtValue(p, p.first.value)} → ${fmtValue(p, p.latest.value)}`
+                        : fmtValue(p, p.latest.value)}
+                    </span>
+                    <Trend p={p} />
+                  </div>
+                  <div className="history-day__meta">
+                    {p.points.length} workout{p.points.length === 1 ? '' : 's'} · best {p.best.set}{' '}
+                    · last {fmtDate(p.latest.date, { month: 'short', day: 'numeric' })}
+                  </div>
+                  {hint && (
+                    <div className="progress-hint">
+                      <span className="progress-hint__chip">
+                        {hint.kind === 'weight'
+                          ? '⬆ Ready to add weight'
+                          : '⬆ Ready for a harder version'}
+                      </span>
+                      <span className="history-day__meta">
+                        {hint.top}+ reps on all {hint.sets} sets last time
+                        {hint.kind === 'weight'
+                          ? ' · add a little weight (≈1–2 kg) and work back up the range'
+                          : ' · try a slower descent, a pause or the next progression'}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="history-day__meta">
-                  {p.points.length} workout{p.points.length === 1 ? '' : 's'} · best {p.best.set} ·
-                  last {fmtDate(p.latest.date, { month: 'short', day: 'numeric' })}
-                </div>
-              </div>
-            ))}
+              )
+            })}
             {!allProgress && progress.length > PROGRESS_PAGE && (
               <button
                 type="button"

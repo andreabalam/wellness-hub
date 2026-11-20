@@ -90,7 +90,7 @@ describe('TrainHistory', () => {
 
   it('lists weeks newest first; tapping a day opens it', () => {
     const onOpenDay = vi.fn()
-    render(<TrainHistory view="history" days={days} onOpenDay={onOpenDay} />)
+    render(<TrainHistory view="history" plan={[]} days={days} onOpenDay={onOpenDay} />)
     const weeks = screen.getAllByText(/^Week of/)
     expect(weeks[0]).toHaveTextContent('Week of Oct 19 · 1 workout')
     expect(weeks[1]).toHaveTextContent('Week of Oct 12 · 2 workouts')
@@ -105,12 +105,13 @@ describe('TrainHistory', () => {
 
   it("shows this week's workout roll-up at the top, only when the week has workouts", () => {
     const { container, rerender } = render(
-      <TrainHistory view="history" days={days} onOpenDay={() => {}} />,
+      <TrainHistory view="history" plan={[]} days={days} onOpenDay={() => {}} />,
     )
     expect(container.querySelector('.week-activity-summary')).toBeNull()
     rerender(
       <TrainHistory
         view="history"
+        plan={[]}
         days={{ ...days, '2026-10-26': day(session('m6', undefined, { kcal: 200 })) }}
         onOpenDay={() => {}}
       />,
@@ -122,8 +123,51 @@ describe('TrainHistory', () => {
     )
   })
 
+  it('progress tab flags an exercise that is ready to add weight', () => {
+    const plan = [
+      {
+        week: 1,
+        label: 'W1',
+        color: '',
+        note: '',
+        nutr: '',
+        days: [
+          {
+            slot: 'Day 1',
+            type: 'Strength',
+            label: 'Lower',
+            time: '',
+            color: '',
+            solin: '',
+            exs: [{ t: 'Hip thrust', d: '3×8-10', i: '' }],
+          },
+        ],
+      },
+    ]
+    const ready = {
+      '2026-10-20': day(
+        session('m1', [
+          {
+            name: 'Hip thrust',
+            sets: [
+              { reps: 10, kg: 25, done: true },
+              { reps: 10, kg: 25, done: true },
+            ],
+          },
+        ]),
+      ),
+    }
+    const { rerender } = render(
+      <TrainHistory view="progress" plan={plan} days={ready} onOpenDay={() => {}} />,
+    )
+    expect(screen.getByText('⬆ Ready to add weight')).toBeInTheDocument()
+    expect(screen.getByText(/10\+ reps on all 2 sets last time/)).toBeInTheDocument()
+    rerender(<TrainHistory view="progress" plan={plan} days={days} onOpenDay={() => {}} />)
+    expect(screen.queryByText(/Ready to add weight/)).toBeNull()
+  })
+
   it('progress tab shows each exercise trend', () => {
-    render(<TrainHistory view="progress" days={days} onOpenDay={() => {}} />)
+    render(<TrainHistory view="progress" plan={[]} days={days} onOpenDay={() => {}} />)
     const row = screen.getByText('Hip thrust').closest('.progress-row') as HTMLElement
     expect(row).toHaveTextContent('20 kg → 25 kg')
     expect(row).toHaveTextContent('▲ 5 kg')
@@ -131,9 +175,11 @@ describe('TrainHistory', () => {
   })
 
   it('empty states', () => {
-    const { rerender } = render(<TrainHistory view="history" days={{}} onOpenDay={() => {}} />)
+    const { rerender } = render(
+      <TrainHistory view="history" plan={[]} days={{}} onOpenDay={() => {}} />,
+    )
     expect(screen.getByText('No workouts logged yet.')).toBeInTheDocument()
-    rerender(<TrainHistory view="progress" days={{}} onOpenDay={() => {}} />)
+    rerender(<TrainHistory view="progress" plan={[]} days={{}} onOpenDay={() => {}} />)
     expect(screen.getByText(/progress shows up here/)).toBeInTheDocument()
   })
 
@@ -150,7 +196,7 @@ describe('TrainHistory', () => {
       ),
       '2026-10-02': day(session('b', [{ name: 'Move 0', sets: [{ reps: 8, done: true }] }])),
     }
-    render(<TrainHistory view="progress" days={many} onOpenDay={() => {}} />)
+    render(<TrainHistory view="progress" plan={[]} days={many} onOpenDay={() => {}} />)
     expect(screen.getAllByText(/^Move \d$/)).toHaveLength(8)
     expect(screen.getByText('▼ 2 reps')).toBeInTheDocument()
     expect(screen.getAllByText('new').length).toBeGreaterThan(0)
