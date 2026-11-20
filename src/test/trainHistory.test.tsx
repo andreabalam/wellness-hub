@@ -103,6 +103,25 @@ describe('TrainHistory', () => {
     expect(screen.getAllByText(/^Week of/)).toHaveLength(5)
   })
 
+  it("shows this week's workout roll-up at the top, only when the week has workouts", () => {
+    const { container, rerender } = render(
+      <TrainHistory view="history" days={days} onOpenDay={() => {}} />,
+    )
+    expect(container.querySelector('.week-activity-summary')).toBeNull()
+    rerender(
+      <TrainHistory
+        view="history"
+        days={{ ...days, '2026-10-26': day(session('m6', undefined, { kcal: 200 })) }}
+        onOpenDay={() => {}}
+      />,
+    )
+    const summary = container.querySelector('.week-activity-summary') as HTMLElement
+    expect(summary).toHaveTextContent(/Workouts: 1 session · 45.*· 200 kcal/)
+    expect(summary.compareDocumentPosition(screen.getAllByText(/^Week of/)[0])).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+  })
+
   it('progress tab shows each exercise trend', () => {
     render(<TrainHistory view="progress" days={days} onOpenDay={() => {}} />)
     const row = screen.getByText('Hip thrust').closest('.progress-row') as HTMLElement

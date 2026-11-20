@@ -24,7 +24,6 @@ function setCachedReadiness(date: string, data: OuraReadiness): void {
 interface Props {
   /** Persisted sessions for the day (reactive; legacy days pre-synthesized by the parent). */
   sessions: WorkoutSession[]
-  initialWkNotes: string
   ouraConnected: boolean
   date: Date
   isToday: boolean
@@ -44,7 +43,6 @@ interface Props {
  */
 export default function TrainDay({
   sessions,
-  initialWkNotes,
   ouraConnected,
   date,
   isToday,
@@ -57,7 +55,6 @@ export default function TrainDay({
   const [selSession, setSess] = useState<string | null>(null)
   const [wkMin, setWkMin] = useState('30')
   const [wkKcal, setWkKcal] = useState('')
-  const [wkNotes, setWkNotes] = useState(initialWkNotes)
   const [readiness, setReadiness] = useState<OuraReadiness | null>(null)
 
   /** Persist a new session list, mirroring the first session into the legacy slot. */
@@ -116,7 +113,7 @@ export default function TrainDay({
       min,
       ...(kcal > 0 && { kcal }),
     }
-    onSave({ wkSessions: [...sessions, entry], workout: sessions[0]?.type ?? selSession, wkNotes })
+    onSave({ wkSessions: [...sessions, entry], workout: sessions[0]?.type ?? selSession })
     setSess(null)
     setWkKcal('')
     setOtherOpen(false)
@@ -126,8 +123,6 @@ export default function TrainDay({
     if (s.src === 'oura') dismissOuraSession(dkey(date), s.id)
     saveSessions(sessions.filter(x => x.id !== s.id))
   }
-
-  const saveNotes = () => onSave({ wkNotes })
 
   const dayLabel = date.toLocaleDateString('en-US', {
     weekday: 'short',
@@ -264,15 +259,6 @@ export default function TrainDay({
           ＋ Other activity
         </button>
       )}
-
-      <textarea
-        className="tinput resize-vertical"
-        value={wkNotes}
-        onChange={e => setWkNotes(e.target.value)}
-        onBlur={saveNotes}
-        placeholder="How did it feel? PRs? Modifications?"
-        rows={2}
-      />
     </div>
   )
 }

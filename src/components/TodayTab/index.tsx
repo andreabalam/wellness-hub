@@ -11,7 +11,6 @@ import { significantBurnKcal } from '../../lib/stats'
 import { workoutWeekStats } from '../../lib/workoutWeeks'
 import { dkey } from '../../lib/dateKey'
 import WeekStrip from '../TrackerTab/WeekStrip'
-import WeekActivitySummary from '../TrackerTab/WeekActivitySummary'
 import TrainSummary from '../TrackerTab/TrainSummary'
 import RemindersSection from '../TrackerTab/RemindersSection'
 import DayTimeline, { dayKeyOf } from './DayTimeline'
@@ -143,9 +142,6 @@ export default function TodayTab({ user, date, onDateChange, onOpenFood, onOpenT
         getDay={trackerStore.getDay}
         burnThreshold={significantBurnKcal(stats.tdeeKcal || 0)}
       />
-
-      {/* Week workout roll-up (hidden when the week is empty) */}
-      <WeekActivitySummary key={`was-${rev}`} currentDate={date} getDay={trackerStore.getDay} />
 
       <div className="flex flex-col gap-12">
         <FoodCard day={day} onOpenFood={onOpenFood} />

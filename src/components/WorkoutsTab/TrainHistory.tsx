@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { DayData } from '../../data/tracker'
+import { EMPTY_DAY } from '../../data/tracker'
+import WeekActivitySummary from './WeekActivitySummary'
 import { fmtMin, workoutSessionLabel, workoutTotals } from '../../data/tracker'
 import { loggedSummary } from '../../lib/workoutLog'
 import { countsAsWorkout } from '../../lib/workoutWeeks'
@@ -51,6 +53,8 @@ export default function TrainHistory({
           <div className="train-plan-hint">No workouts logged yet.</div>
         ) : (
           <>
+            {/* This week's roll-up (hidden when the week is empty) */}
+            <WeekActivitySummary currentDate={new Date()} getDay={k => days[k] ?? EMPTY_DAY} />
             {history.slice(0, weeksShown).map(w => {
               const n = w.days.reduce(
                 (sum, d) => sum + d.sessions.filter(countsAsWorkout).length,

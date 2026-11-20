@@ -539,7 +539,6 @@ export default function WorkoutsTab({ user }: Props) {
         <TrainDay
           key={dateKey}
           sessions={daySessions}
-          initialWkNotes={dayData.wkNotes}
           ouraConnected={ouraConnected}
           date={date}
           isToday={isToday}
