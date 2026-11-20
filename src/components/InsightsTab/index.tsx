@@ -3,8 +3,10 @@ import type { User } from '@supabase/supabase-js'
 import { bodyStatsStore, trackerStore } from '../../hooks/useStore'
 import { macroTargets } from '../../hooks/macroTargets'
 import { CYCLE_CACHE_KEY } from '../../lib/storageKeys'
-import { cycleHistory, weeklySummaries } from '../../lib/insights'
+import { activeWorkoutPlan } from '../../hooks/activePlan'
+import { cycleHistory, weeklySummaries, weekWins } from '../../lib/insights'
 import type { WeekSummary } from '../../lib/insights'
+import { planRepTops } from '../../lib/workoutProgress'
 import { isOuraConnected } from '../../lib/oura'
 import { safeGet } from '../../lib/storage'
 import { workoutWeekStats } from '../../lib/workoutWeeks'
@@ -97,7 +99,7 @@ function TrendRow({
 }
 
 /**
- * Trends across weeks: one row per metric (this week, change vs last week,
+ * This week's wins, then trends across weeks: one row per metric (this week, change vs last week,
  * 8-week line), workout weeks, cycle history and Oura's own metrics.
  */
 export default function InsightsTab({ user }: { user: User | null }) {
@@ -132,6 +134,10 @@ export default function InsightsTab({ user }: { user: User | null }) {
   const [thisWeek] = weeks as [WeekSummary]
   const targets = macroTargets()
   const stats = bodyStatsStore.get()
+  const wins = weekWins(days, today, {
+    protTarget: targets.prot,
+    repTops: planRepTops(activeWorkoutPlan()),
+  })
   const cycleOn = stats.cycleType !== 'none'
   const cycle = cycleOn
     ? cycleHistory(safeGet<{ tagDays?: string[] }>(CYCLE_CACHE_KEY, {}).tagDays ?? [], days)
@@ -142,6 +148,31 @@ export default function InsightsTab({ user }: { user: User | null }) {
       <div className="page-title mb-16">
         My <em className="italic text-teal">Insights</em>
       </div>
+
+      <section className="insights-section" aria-labelledby="ins-wins">
+        <h2 id="ins-wins" className="insights-h">
+          This week's wins
+        </h2>
+        {wins.length === 0 ? (
+          <div className="train-plan-hint">
+            Nothing yet this week — workouts, new bests and protein days show up here.
+          </div>
+        ) : (
+          <ul className="week-wins">
+            {wins.map(w => (
+              <li key={w.kind + w.text} className={`week-wins__item week-wins__item--${w.kind}`}>
+                <span className="week-wins__icon" aria-hidden="true">
+                  {w.icon}
+                </span>
+                <span>
+                  <span className="week-wins__text">{w.text}</span>
+                  {w.sub && <span className="week-wins__sub">{w.sub}</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="insights-section" aria-labelledby="ins-week">
         <h2 id="ins-week" className="insights-h">
@@ -162,6 +193,13 @@ export default function InsightsTab({ user }: { user: User | null }) {
             direction="up-good"
           />
           <TrendRow label="Workouts" values={weeks.map(w => w.workouts)} direction="up-good" />
+          <TrendRow
+            label="Weight lifted"
+            sub="reps × kg"
+            values={weeks.map(w => w.volumeKg)}
+            unit=" kg"
+            direction="up-good"
+          />
           <TrendRow
             label="Meditation"
             values={weeks.map(w => w.medMin)}
