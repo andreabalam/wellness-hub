@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   exerciseProgress,
+  newBests,
+  newBestsMessage,
   planRepTops,
   progressionHint,
   repRangeTop,
@@ -143,5 +145,44 @@ describe('progressionHint', () => {
     expect(
       hintFor({ '2026-10-01': day(session([ex('My own move', [20, 5], [20, 5])])) }, 'My own move'),
     ).toBeNull()
+  })
+})
+
+describe('newBests', () => {
+  const history: Record<string, DayData> = {
+    '2026-10-01': day(
+      session([ex('Hip thrust', [10, 20], [8, 25]), ex('Push-ups', [10, undefined])]),
+    ),
+    '2026-10-08': day(session([ex('Hip thrust', [10, 22.5])])),
+  }
+
+  it('flags a heavier top set than any earlier workout, matching name variants', () => {
+    expect(newBests(history, [ex('hip  thrust', [10, 27.5], [10, 25])])).toEqual([
+      { name: 'hip  thrust', set: '10 × 27.5 kg', was: '25 kg' },
+    ])
+  })
+
+  it('needs to beat the best, not just the last workout; undone sets ignored', () => {
+    expect(newBests(history, [ex('Hip thrust', [12, 25])])).toEqual([])
+    expect(newBests(history, [ex('Hip thrust', [10, 22.5], [10, 40, false])])).toEqual([])
+  })
+
+  it('counts more reps for bodyweight moves; first-time exercises are no record', () => {
+    expect(newBests(history, [ex('Push-ups', [12, undefined]), ex('Lunge', [10, 10])])).toEqual([
+      { name: 'Push-ups', set: '12 reps', was: '10 reps' },
+    ])
+  })
+
+  it('formats one or several bests for the toast', () => {
+    expect(newBestsMessage([])).toBeNull()
+    expect(newBestsMessage([{ name: 'Hip thrust', set: '10 × 27.5 kg', was: '25 kg' }])).toBe(
+      '🏆 New best: Hip thrust 10 × 27.5 kg (was 25 kg)',
+    )
+    expect(
+      newBestsMessage([
+        { name: 'Hip thrust', set: '10 × 27.5 kg', was: '25 kg' },
+        { name: 'Push-ups', set: '12 reps', was: '10 reps' },
+      ]),
+    ).toBe('🏆 2 new bests: Hip thrust 10 × 27.5 kg · Push-ups 12 reps')
   })
 })

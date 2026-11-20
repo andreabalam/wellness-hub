@@ -226,6 +226,28 @@ describe('Train tab: editing and history', () => {
     expect(showToast).toHaveBeenCalledWith('Workout updated', 'success')
   })
 
+  it('saving a heavier set than any earlier workout shows a new-best toast', () => {
+    seed({
+      '2026-10-19': day(session('m0', [thrust(20)])),
+      '2026-10-26': day(session('m1', [thrust(20)])),
+    })
+    render(<WorkoutsTab user={FAKE_USER} />)
+    // Editing doesn't compare the workout with its own old sets: 20 kg is no record
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit sets' })[0])
+    let logger = screen.getByRole('dialog', { name: 'Log workout' })
+    fireEvent.click(within(logger).getByRole('button', { name: /Save changes/ }))
+    expect(showToast).not.toHaveBeenCalledWith(expect.stringMatching(/New best/), 'success')
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit sets' })[0])
+    logger = screen.getByRole('dialog', { name: 'Log workout' })
+    fireEvent.change(within(logger).getByLabelText('Set 1 kg'), { target: { value: '22.5' } })
+    fireEvent.click(within(logger).getByRole('button', { name: /Save changes/ }))
+    expect(showToast).toHaveBeenCalledWith(
+      '🏆 New best: Hip thrust 10 × 22.5 kg (was 20 kg)',
+      'success',
+    )
+  })
+
   it('discarding an edit keeps the saved workout; the Start button never resumes an edit', () => {
     seed({
       '2026-10-26': day(session('m1', [thrust(20)], { planRef: { week: 1, slot: 'Day 1' } })),

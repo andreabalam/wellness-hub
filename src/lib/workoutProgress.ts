@@ -4,7 +4,7 @@
  * Train tab History & Progress: past weeks with their workouts, and a
  * per-exercise trend from the logged sets. Pure — callers pass tracker days.
  */
-import type { DayData, LoggedSet, WorkoutSession } from '../data/tracker'
+import type { DayData, LoggedExercise, LoggedSet, WorkoutSession } from '../data/tracker'
 import { dayWorkoutSessions } from '../data/tracker'
 import type { WorkoutWeek } from '../data/workouts'
 import { normalizeName } from './workoutLog'
@@ -133,6 +133,50 @@ export function exerciseProgress(days: Record<string, DayData>, since = ''): Exe
     })
   }
   return out.sort((a, b) => (a.latest.date < b.latest.date ? 1 : -1))
+}
+
+// ── New bests ────────────────────────────────────────────────────
+
+export interface NewBest {
+  name: string
+  /** The record set, e.g. "10 × 27.5 kg" */
+  set: string
+  /** The previous best, e.g. "25 kg" */
+  was: string
+}
+
+const fmtBest = (unit: ProgressUnit, v: number) =>
+  unit === 'kg' ? `${fmtKg(v)} kg` : unit === 'reps' ? `${v} reps` : `${v} s`
+
+/**
+ * Exercises in a just-finished workout whose top set beats every earlier
+ * workout in `history` (which must not contain this workout). An exercise
+ * done for the first time, or measured in a different unit, is no record.
+ */
+export function newBests(history: Record<string, DayData>, exercises: LoggedExercise[]): NewBest[] {
+  const prev = new Map(exerciseProgress(history).map(p => [normalizeName(p.name), p]))
+  const out: NewBest[] = []
+  for (const ex of exercises) {
+    const before = prev.get(normalizeName(ex.name))
+    if (!before) continue
+    const top = topSet(
+      ex.sets.filter(s => s.done),
+      before.unit,
+    )
+    if (top && top.value > before.best.value)
+      out.push({ name: ex.name.trim(), set: top.set, was: fmtBest(before.unit, before.best.value) })
+  }
+  return out
+}
+
+/** Toast text for the new bests, or null when there are none. */
+export function newBestsMessage(bests: NewBest[]): string | null {
+  if (!bests.length) return null
+  if (bests.length === 1) {
+    const [b] = bests
+    return `🏆 New best: ${b.name} ${b.set} (was ${b.was})`
+  }
+  return `🏆 ${bests.length} new bests: ${bests.map(b => `${b.name} ${b.set}`).join(' · ')}`
 }
 
 // ── Ready to progress ────────────────────────────────────────────
