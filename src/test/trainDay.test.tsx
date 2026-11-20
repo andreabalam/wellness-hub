@@ -45,7 +45,6 @@ afterEach(() => vi.unstubAllGlobals())
 describe('TrainDay', () => {
   const base = {
     sessions: [] as WorkoutSession[],
-    initialWkNotes: '',
     ouraConnected: false,
     date: DATE,
     isToday: true,
@@ -181,16 +180,13 @@ describe('TrainDay', () => {
     expect(onShiftDate).toHaveBeenCalledWith(1)
   })
 
-  it('cancel closes the other-activity form; notes save on blur', () => {
+  it('cancel closes the other-activity form; no notes field', () => {
     const onSave = vi.fn()
     render(<TrainDay {...base} onSave={onSave} />)
     fireEvent.click(screen.getByText('＋ Other activity'))
     fireEvent.click(screen.getByText('Cancel'))
     expect(screen.queryByText('+ Log activity')).toBeNull()
-    const notes = screen.getByPlaceholderText(/How did it feel/)
-    fireEvent.change(notes, { target: { value: 'Felt strong' } })
-    fireEvent.blur(notes)
-    expect(onSave).toHaveBeenCalledWith({ wkNotes: 'Felt strong' })
+    expect(screen.queryByPlaceholderText(/How did it feel/)).toBeNull()
   })
 
   it('renders plan content passed as children', () => {

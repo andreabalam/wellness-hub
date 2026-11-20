@@ -3,7 +3,7 @@ import type { DayData } from '../../data/tracker'
 import { dayWorkoutSessions, fmtMin, workoutTotals } from '../../data/tracker'
 import { dkey } from '../../lib/dateKey'
 
-/** Compact week roll-up of workouts, shown under the week strip (meditation has its own tab). */
+/** Compact week roll-up of workouts, shown at the top of Train → History (meditation has its own tab). */
 const WeekActivitySummary = memo(function WeekActivitySummary({
   currentDate,
   getDay,
